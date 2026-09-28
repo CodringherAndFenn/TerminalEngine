@@ -3,8 +3,10 @@
 An infinite, top-down ASCII tank roguelike built on the narrative engine
 (`narrative_engine/`). Everything for the game lives in this folder.
 
-**Status:** Milestone 1 of 6 is done: keyboard driving, mouse turret aiming and
-a scrolling camera on a static test map.
+**Status:** Milestones 1-2 of 6 are done: keyboard driving, mouse turret
+aiming and a smooth scrolling camera; shooting, shells and destructible
+terrain, on a static test map (walk east out of the starting compound's gate
+to reach the shooting range).
 
 ## Setup (once)
 
@@ -22,7 +24,8 @@ terminal_tank/.venv/bin/python terminal_tank/run.py
 ```
 
 This works from any working directory. The window uses the engine's
-`settings.json` (grid, window mode, monitor, volume). Change those with the
+`settings.json` (grid, window mode, monitor, volume). Sound always plays on
+your operating system's default output device. Change those with the
 engine's own settings screen (`narrative_engine/main.py`). The game only
 *reads* that file.
 
@@ -31,6 +34,7 @@ engine's own settings screen (`narrative_engine/main.py`). The game only
 | Input          | Action                                                   |
 |----------------|----------------------------------------------------------|
 | WASD / Arrows  | drive (hull turns toward the direction; backs up if it's behind you) |
+| Left click     | fire (hold to keep firing); ammo is unlimited             |
 | Mouse          | aim turret (true angle; the amber ring is the exact aim point, brackets mark the tile under it) |
 | F11            | cycle window mode                                        |
 | ESC            | quit                                                     |
@@ -40,7 +44,9 @@ Set `DRIVE_MODE = "tank"` in `config.py` for classic tank controls
 
 ## Tuning
 
-Every speed, size and rate is in **`config.py`**, including `VSYNC` (on by
+Every speed, size and rate is in **`config.py`**: tank types and weapons
+(`TANKS`, `WEAPONS`, `START_TANK` -- defined as data via `specs.py`), wall/
+tree hit points, effect timings, sound volume, `VSYNC` (on by
 default for smooth motion), camera smoothing
 (`CAMERA_FOLLOW_RATE`: higher = tighter, 0 = locked to the tank), the tank's
 drawn size (`HULL_*_PX`, `BARREL_*_PX`), `SPRITE_PIXEL` ((1, 1) smooth, (2, 2)
@@ -61,12 +67,16 @@ terminal_tank/.venv/bin/python -m unittest discover -s terminal_tank/tests -t .
 ```
 run.py          launcher (path setup, bytecode-cache redirect, engine wiring)
 config.py       all tunables            palette.py   game colors
-engine_ext/     camera.py (smooth pixel scrolling, world<->screen), input.py
+engine_ext/     camera.py (smooth pixel scrolling, world<->screen), input.py,
+                sfx.py (synthesized sound effects)
 world/          tiles.py, rng.py (deterministic hashing), test_map.py
-entities/       tank.py (driving + aiming)
-systems/        collision.py (box vs tile grid, wall sliding)
+specs.py        TankSpec / WeaponSpec / ShellSpec data records
+entities/       tank.py (driving + aiming), weapon.py (hold-to-fire cadence),
+                projectile.py, effects.py
+systems/        collision.py (rotated hull vs tiles), raycast.py (grid walk
+                for shells), combat.py (firing, hits, terrain damage)
 render/         terrain.py, sprites.py (rotated shapes baked into custom
-                cell glyphs), tank_sprite.py
+                cell glyphs), tank_sprite.py, effects_sprite.py
 ui/             hud.py, crosshair.py
 scenes/         game.py
 assets/maps/    test_map.txt

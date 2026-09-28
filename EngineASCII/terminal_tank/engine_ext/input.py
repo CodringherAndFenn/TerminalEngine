@@ -45,6 +45,11 @@ class Mouse:
         w, h = display.canvas.get_size()
         self.canvas_pos: tuple[float, float] = (w / 2, h / 2)
 
+    @staticmethod
+    def left_held() -> bool:
+        """Left button currently down (polled, so holding keeps firing)."""
+        return pygame.mouse.get_pressed()[0]
+
     def poll(self) -> tuple[float, float]:
         pos = self.display.window_to_canvas(*pygame.mouse.get_pos())
         if pos is not None:

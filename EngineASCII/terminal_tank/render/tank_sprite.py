@@ -21,5 +21,5 @@ from .sprites import SpriteBank
 
 def draw_tank(bank: SpriteBank, camera: Camera, tank: Tank) -> None:
     x, y = camera.world_to_px(tank.x, tank.y)
-    bank.draw(bank.hull(tank.hull_angle), x, y)
-    bank.draw(bank.turret(tank.turret_angle), x, y)
+    bank.draw(bank.hull(tank.spec, tank.hull_angle), x, y)
+    bank.draw(bank.turret(tank.spec, tank.turret_angle), x, y)

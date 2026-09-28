@@ -16,7 +16,7 @@ from ..entities.tank import Tank
 
 COMPASS8 = ("E", "SE", "S", "SW", "W", "NW", "N", "NE")
 
-HINTS = "WASD/Arrows drive   Mouse aim   F11 window mode   ESC quit"
+HINTS = "WASD/Arrows drive   Mouse aim   Left click fire (hold)   F11 window mode   ESC quit"
 
 
 def _bearing_deg(angle: float) -> int:
@@ -33,6 +33,7 @@ def draw_hud(text: TextRenderer, cols: int, rows: int, tank: Tank, fps: float) -
     text.put(0, top, "─" * cols, palette.HUD_RULE)
 
     fields = [
+        ("GUN", tank.weapon.spec.name.upper()),
         ("HULL", f"{COMPASS8[tank.hull_dir8]:<2}"),
         ("TURRET", f"{_bearing_deg(tank.turret_angle):03d}"),
         ("SPEED", f"{tank.speed:+5.1f}"),

@@ -8,6 +8,8 @@ from engine import Display, TextRenderer
 from terminal_tank import config, palette
 from terminal_tank.render import sprites
 
+SPEC = config.TANKS[config.START_TANK]
+
 
 def _composite(pieces, cell_w, cell_h, span=8):
     """Blit baked (dc, dr, surf) pieces onto one surface centered on the
@@ -78,9 +80,9 @@ class SpriteShapeTest(unittest.TestCase):
         # muzzle, must be barrel-colored: no staircase, no gaps.
         for deg in range(0, 360, 7):
             a = math.radians(deg)
-            pieces = sprites.bake(sprites.paint_turret(a), 60, self.CW, self.CH)
+            pieces = sprites.bake(sprites.paint_turret(a, SPEC), 60, self.CW, self.CH)
             surf, (cx, cy) = _composite(pieces, self.CW, self.CH)
-            for dist in range(config.TURRET_RADIUS_PX + 3, config.BARREL_LENGTH_PX - 6, 3):
+            for dist in range(SPEC.turret_radius_px + 3, SPEC.barrel_length_px - 6, 3):
                 px = surf.get_at((int(cx + math.cos(a) * dist), int(cy + math.sin(a) * dist)))
                 self.assertEqual(tuple(px)[:3], palette.TANK_BARREL, f"{deg} deg at {dist}px")
 
@@ -88,7 +90,7 @@ class SpriteShapeTest(unittest.TestCase):
         # The old half-block hull lost most of its area on diagonals. A
         # rotated rectangle should cover about the same pixels at any angle.
         def area(deg):
-            pieces = sprites.bake(sprites.paint_hull(math.radians(deg)), 40, self.CW, self.CH)
+            pieces = sprites.bake(sprites.paint_hull(math.radians(deg), SPEC), 40, self.CW, self.CH)
             surf, _ = _composite(pieces, self.CW, self.CH)
             return sum(
                 1 for x in range(surf.get_width()) for y in range(surf.get_height())

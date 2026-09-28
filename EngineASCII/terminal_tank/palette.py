@@ -26,6 +26,7 @@ WALL_BG = (60, 60, 56)
 ROCK_FG = (120, 105, 90)
 ROCK_BG = (40, 34, 30)
 RUBBLE_FG = (110, 100, 88)
+SPLINTER_FG = (120, 95, 60)
 WATER_FG = (70, 140, 220)
 WATER_BG = (14, 30, 60)
 VOID_FG = (30, 30, 30)
@@ -40,6 +41,21 @@ TANK_BODY = (120, 190, 90)
 TANK_FRONT = (190, 240, 140)   # lighter strip marking the hull's front edge
 TANK_TURRET = (165, 220, 125)   # dome, a shade off the barrel so both read
 TANK_BARREL = (230, 255, 200)
+
+# --- Shells & effects -------------------------------------------------------------
+# Fixed shades only (see the glyph-cache note at the top of this file).
+
+SHELL_CORE = (255, 244, 190)
+SHELL_GLOW = (255, 165, 40)
+TRAIL = ((235, 150, 50), (170, 100, 35), (110, 66, 25))   # nearest -> farthest
+FLASH_HOT = (255, 250, 215)
+FLASH = (255, 190, 60)
+FLASH_EDGE = (220, 110, 30)
+SPARK_HOT = (255, 235, 170)
+SPARK = (255, 160, 50)
+DEBRIS = (150, 135, 110)
+DUST = ((150, 140, 120), (105, 98, 85))
+TILE_FLASH_FG = (255, 255, 235)
 
 # --- UI ------------------------------------------------------------------------------
 

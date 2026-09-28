@@ -9,16 +9,16 @@ barrel can look right at arbitrary angles using characters alone.
 How: each sprite is painted as a small picture -- polygons in screen-pixel
 space, rotated to the exact on-screen angle -- then cut into cell-sized
 tiles. Each non-empty tile becomes one custom glyph, drawn with transparent
-background so terrain shows around the shape. The sprite stays grid-aligned
-(it moves cell by cell like everything else), but its shape is exact.
+background so terrain shows around the shape, and placed at exact pixel
+positions with the engine's put_px.
 
 Chunky look: pictures are painted at a reduced resolution of
 config.SPRITE_PIXEL (w, h) screen pixels per sprite pixel, then scaled up
 with nearest-neighbor -- so the tank has the same hard-edged retro pixels as
 the synthesized block glyphs instead of looking like modern vector art.
 
-Angles are quantized into buckets (config.HULL_ANGLE_STEPS, TURRET_ANGLE_STEPS)
-and each bucket is baked once, lazily, then reused. The pieces reach the
+Angles are quantized into buckets (config.*_ANGLE_STEPS) and each bucket is
+baked once, lazily, then reused. The pieces reach the
 screen through the engine's TextRenderer.register_glyph() (see
 ENGINE_CHANGES.md), so they go through the normal put()/glyph-cache path.
 """
@@ -34,6 +34,7 @@ import pygame
 from engine import TextRenderer
 
 from .. import config, palette
+from ..specs import TankSpec
 
 TAU = 2 * math.pi
 
@@ -95,7 +96,7 @@ def bake(painter: Painter, reach_px: float, cell_w: int, cell_h: int) -> list[Ce
     return pieces
 
 
-def _quad(to_px, angle: float, u0: float, u1: float, v0: float, v1: float):
+def quad(to_px, angle: float, u0: float, u1: float, v0: float, v1: float):
     """Corners of a rectangle given in the sprite's own frame -- u along the
     heading, v across it -- rotated by `angle` and mapped to the surface."""
     ca, sa = math.cos(angle), math.sin(angle)
@@ -103,43 +104,43 @@ def _quad(to_px, angle: float, u0: float, u1: float, v0: float, v1: float):
     return [to_px(u * ca - v * sa, u * sa + v * ca) for u, v in pts]
 
 
-def paint_hull(angle: float) -> Painter:
+def paint_hull(angle: float, spec: TankSpec) -> Painter:
     """Hull pointing along screen angle `angle`: two treads down the long
     sides with cross-links, the body between them, a lighter front plate, and
     a dark outline so it separates from any terrain."""
-    L, W = config.HULL_LENGTH_PX, config.HULL_WIDTH_PX
+    L, W = spec.hull_length_px, spec.hull_width_px
     T = W * 0.27  # tread width
 
     def paint(surf, to_px):
         hl, hw = L / 2, W / 2
         for v0, v1 in ((-hw, -hw + T), (hw - T, hw)):
-            pygame.draw.polygon(surf, palette.TANK_TREAD, _quad(to_px, angle, -hl, hl, v0, v1))
+            pygame.draw.polygon(surf, palette.TANK_TREAD, quad(to_px, angle, -hl, hl, v0, v1))
             u = -hl + 3
             while u < hl - 1:  # tread links
                 pygame.draw.polygon(
-                    surf, palette.TANK_TREAD_DARK, _quad(to_px, angle, u, u + 2, v0, v1)
+                    surf, palette.TANK_TREAD_DARK, quad(to_px, angle, u, u + 2, v0, v1)
                 )
                 u += 6
         body = (-hl + 4, hl - 3, -hw + T - 1, hw - T + 1)
-        pygame.draw.polygon(surf, palette.TANK_BODY, _quad(to_px, angle, *body))
+        pygame.draw.polygon(surf, palette.TANK_BODY, quad(to_px, angle, *body))
         pygame.draw.polygon(
-            surf, palette.TANK_FRONT, _quad(to_px, angle, hl - 10, hl - 3, body[2], body[3])
+            surf, palette.TANK_FRONT, quad(to_px, angle, hl - 10, hl - 3, body[2], body[3])
         )
-        pygame.draw.polygon(surf, palette.TANK_OUTLINE, _quad(to_px, angle, -hl, hl, -hw, hw), 1)
+        pygame.draw.polygon(surf, palette.TANK_OUTLINE, quad(to_px, angle, -hl, hl, -hw, hw), 1)
 
     return paint
 
 
-def paint_turret(angle: float) -> Painter:
+def paint_turret(angle: float, spec: TankSpec) -> Painter:
     """Round turret with a straight barrel along screen angle `angle`."""
-    R = config.TURRET_RADIUS_PX
-    BL, BW = config.BARREL_LENGTH_PX, config.BARREL_WIDTH_PX
+    R = spec.turret_radius_px
+    BL, BW = spec.barrel_length_px, spec.barrel_width_px
 
     def paint(surf, to_px):
         # Barrel (with a slightly wider muzzle), outlined, then the dome over
         # its base so the barrel appears to come out of the turret.
-        barrel = _quad(to_px, angle, 0, BL, -BW / 2, BW / 2)
-        muzzle = _quad(to_px, angle, BL - 5, BL, -BW / 2 - 1, BW / 2 + 1)
+        barrel = quad(to_px, angle, 0, BL, -BW / 2, BW / 2)
+        muzzle = quad(to_px, angle, BL - 5, BL, -BW / 2 - 1, BW / 2 + 1)
         pygame.draw.polygon(surf, palette.TANK_OUTLINE, muzzle)
         pygame.draw.polygon(surf, palette.TANK_BARREL, barrel)
         pygame.draw.polygon(surf, palette.TANK_OUTLINE, barrel, 1)
@@ -233,12 +234,19 @@ class SpriteBank:
         baked = bake(painter, reach, self.cell_w, self.cell_h)
         return [(dc, dr, self._register(surf)) for dc, dr, surf in baked]
 
-    def _get(self, kind: str, world_angle: float, steps: int, painter_for, reach: float):
+    def rotated(self, key, world_angle: float, steps: int, painter_for, reach: float):
+        """A sprite drawn at `world_angle`, baked per angle bucket.
+
+        `painter_for(screen_angle)` returns the Painter for one bucket's
+        exact angle; `key` names the sprite (include anything else that
+        changes its look, e.g. the tank type).
+        """
         a = screen_angle(world_angle, self.cell_w, self.cell_h, self.cpt)
-        key = (kind, angle_bucket(a, steps))
-        pieces = self._lru.get(key)
+        bucket = angle_bucket(a, steps)
+        full_key = (key, bucket)
+        pieces = self._lru.get(full_key)
         if pieces is not None:
-            self._lru.move_to_end(key)
+            self._lru.move_to_end(full_key)
             return pieces
         # Make room first, so evicted chars can be recycled for this bake.
         while self._lru and self._lru_glyphs >= config.SPRITE_GLYPH_BUDGET:
@@ -247,18 +255,24 @@ class SpriteBank:
             for _, _, char in old:
                 self.text.unregister_glyph(char)
                 self._free.append(char)
-        pieces = self._bake_pieces(painter_for(key[1] * TAU / steps), reach)
-        self._lru[key] = pieces
+        pieces = self._bake_pieces(painter_for(bucket * TAU / steps), reach)
+        self._lru[full_key] = pieces
         self._lru_glyphs += len(pieces)
         return pieces
 
-    def hull(self, world_angle: float) -> list[tuple[int, int, str]]:
-        reach = math.hypot(config.HULL_LENGTH_PX, config.HULL_WIDTH_PX) / 2 + 1
-        return self._get("hull", world_angle, config.HULL_ANGLE_STEPS, paint_hull, reach)
+    def hull(self, spec: TankSpec, world_angle: float) -> list[tuple[int, int, str]]:
+        reach = math.hypot(spec.hull_length_px, spec.hull_width_px) / 2 + 1
+        return self.rotated(
+            ("hull", spec.name), world_angle, config.HULL_ANGLE_STEPS,
+            lambda a: paint_hull(a, spec), reach,
+        )
 
-    def turret(self, world_angle: float) -> list[tuple[int, int, str]]:
-        reach = max(config.BARREL_LENGTH_PX, config.TURRET_RADIUS_PX) + 2
-        return self._get("turret", world_angle, config.TURRET_ANGLE_STEPS, paint_turret, reach)
+    def turret(self, spec: TankSpec, world_angle: float) -> list[tuple[int, int, str]]:
+        reach = max(spec.barrel_length_px, spec.turret_radius_px) + 2
+        return self.rotated(
+            ("turret", spec.name), world_angle, config.TURRET_ANGLE_STEPS,
+            lambda a: paint_turret(a, spec), reach,
+        )
 
     def static(self, name: str, painter: Painter, reach: float) -> list[tuple[int, int, str]]:
         """A sprite that doesn't rotate (reticle, markers), baked once."""
