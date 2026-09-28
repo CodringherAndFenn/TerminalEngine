@@ -64,6 +64,11 @@ class Display:
         Optional explicit cell size in canvas pixels. Normally left as None.
     font_path:
         Path to a monospace TTF. Defaults to the bundled VT323.
+    vsync:
+        Ask for the window to sync presentation to the monitor refresh, so
+        every frame is shown exactly once (no doubled/skipped frames, no
+        tearing). Off by default. If the platform refuses, the window falls
+        back to no vsync; ``self.vsync`` reports what's actually in effect.
     """
 
     def __init__(
@@ -77,6 +82,7 @@ class Display:
         font_path: Path | str = DEFAULT_FONT,
         title: str = "Narrative Engine",
         monitor: int = 0,
+        vsync: bool = False,
     ) -> None:
         pygame.init()
         pygame.display.set_caption(title)
@@ -112,27 +118,51 @@ class Display:
         self._scale = 1.0
         self._dst_offset = (0, 0)
 
+        # vsync: what was requested, and what the last window actually got
+        # (updated by _apply_mode on every window rebuild).
+        self._vsync_requested = vsync
+        self.vsync = False
+
         self.mode = DisplayMode.WINDOWED
         self._screen = self._apply_mode(self.mode)
 
     # --- Window mode handling ------------------------------------------
 
     def _apply_mode(self, mode: DisplayMode) -> pygame.Surface:
-        """(Re)create the OS window for the given mode on self.monitor."""
+        """(Re)create the OS window for the given mode on self.monitor.
+
+        Requests vsync if enabled; if SDL refuses it for this window, retries
+        without so a missing capability never stops the window opening.
+        """
+        if self._vsync_requested:
+            try:
+                screen = self._set_mode(mode, vsync=1)
+                self.vsync = True
+                return screen
+            except pygame.error:
+                pass
+        self.vsync = False
+        return self._set_mode(mode, vsync=0)
+
+    def _set_mode(self, mode: DisplayMode, vsync: int) -> pygame.Surface:
         display = self.monitor
         if mode is DisplayMode.WINDOWED:
             return pygame.display.set_mode(
-                self._windowed_size, pygame.RESIZABLE, display=display
+                self._windowed_size, pygame.RESIZABLE, display=display, vsync=vsync
             )
         if mode is DisplayMode.BORDERLESS:
             # A frameless window at exactly the desktop resolution: looks
             # like fullscreen but doesn't grab the display mode, so alt-tab
             # stays instant. Use the chosen monitor's own desktop size.
             desktop = pygame.display.get_desktop_sizes()[display]
-            return pygame.display.set_mode(desktop, pygame.NOFRAME, display=display)
+            return pygame.display.set_mode(
+                desktop, pygame.NOFRAME, display=display, vsync=vsync
+            )
         # True fullscreen at the current desktop resolution ((0, 0) asks
         # SDL to use the native mode rather than switching resolutions).
-        return pygame.display.set_mode((0, 0), pygame.FULLSCREEN, display=display)
+        return pygame.display.set_mode(
+            (0, 0), pygame.FULLSCREEN, display=display, vsync=vsync
+        )
 
     def cycle_mode(self) -> DisplayMode:
         """Switch windowed -> borderless -> fullscreen -> windowed."""
@@ -254,6 +284,27 @@ class Display:
         row = int(cy // self.cell_h)
         if 0 <= col < self.cols and 0 <= row < self.rows:
             return (col, row)
+        return None
+
+    def window_to_canvas(self, px: int, py: int) -> tuple[float, float] | None:
+        """Map an OS-window pixel (e.g. a mouse position) to a canvas pixel,
+        keeping sub-cell precision.
+
+        Same inverse transform as window_to_cell(), but the result is left
+        as fractional canvas pixels instead of being floored to a cell --
+        for anything that needs finer resolution than the grid, such as
+        aiming at an exact point. Divide by cell_w / cell_h to get
+        fractional grid coordinates. Returns None when the point lands in
+        a letterbox bar or outside the canvas.
+        """
+        if self._scale <= 0:
+            return None
+        off_x, off_y = self._dst_offset
+        cx = (px - off_x) / self._scale
+        cy = (py - off_y) / self._scale
+        can_w, can_h = self.canvas.get_size()
+        if 0 <= cx < can_w and 0 <= cy < can_h:
+            return (cx, cy)
         return None
 
     # --- Per-frame presentation ----------------------------------------

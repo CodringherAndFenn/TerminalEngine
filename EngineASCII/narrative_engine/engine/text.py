@@ -11,6 +11,7 @@ each (char, fg, bg) combination is rasterized once and reused.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Callable
 
 import pygame
 
@@ -52,6 +53,10 @@ SYNTHESIZED_CHARS = (
     set(_BOX_ARMS) | set(_BOX_ALIASES) | set(_BLOCK_RECTS) | set(_SHADE_DENSITY)
 )
 
+# A custom glyph painter: draws one character onto a blank cell-sized
+# SRCALPHA Surface (already filled with bg, if any) in the given fg color.
+GlyphPainter = Callable[[pygame.Surface, tuple], None]
+
 
 class TextRenderer:
     """Draws text on a Display's character grid."""
@@ -61,12 +66,41 @@ class TextRenderer:
         # (char, fg, bg) -> pre-rendered cell Surface. Text in a terminal UI
         # is highly repetitive, so this cache stays small and hot.
         self._glyph_cache: dict[tuple[str, tuple, tuple | None], pygame.Surface] = {}
+        # char -> painter for glyphs registered via register_glyph().
+        self._custom: dict[str, GlyphPainter] = {}
 
     # --- Canvas-level operations ----------------------------------------
 
     def clear(self, color: tuple = colors.BACKGROUND) -> None:
         """Fill the whole virtual canvas with one color."""
         self.display.canvas.fill(color)
+
+    # --- Custom glyphs ----------------------------------------------------
+
+    def register_glyph(self, char: str, painter: GlyphPainter) -> None:
+        """Define (or redefine) how ``char`` is drawn.
+
+        ``painter(cell, fg)`` is called once per (char, fg, bg) combination
+        with a blank cell_w x cell_h SRCALPHA Surface -- pre-filled with bg
+        unless bg is None -- and paints the glyph onto it; the result is
+        cached like any other glyph. Custom glyphs take priority over the
+        font and the synthesized box/block set. They may paint any colors,
+        not just fg, which makes them usable for multi-color sprite tiles.
+
+        Use characters from the Unicode Private Use Area (U+E000..U+F8FF) so
+        custom glyphs can never collide with real text.
+        """
+        self._custom[char] = painter
+        self._drop_cached(char)
+
+    def unregister_glyph(self, char: str) -> None:
+        """Remove a custom glyph; ``char`` falls back to normal rendering."""
+        if self._custom.pop(char, None) is not None:
+            self._drop_cached(char)
+
+    def _drop_cached(self, char: str) -> None:
+        for key in [k for k in self._glyph_cache if k[0] == char]:
+            del self._glyph_cache[key]
 
     # --- Character / string drawing --------------------------------------
 
@@ -81,7 +115,10 @@ class TextRenderer:
         if bg is not None:
             cell.fill(bg)
 
-        if char in SYNTHESIZED_CHARS:
+        painter = self._custom.get(char)
+        if painter is not None:
+            painter(cell, fg)
+        elif char in SYNTHESIZED_CHARS:
             self._draw_synthetic(cell, char, fg)
         else:
             # antialias=False keeps glyph edges hard, matching the
@@ -155,6 +192,37 @@ class TextRenderer:
                 self._glyph(char, fg, bg),
                 (c * self.display.cell_w, row * self.display.cell_h),
             )
+
+    def put_px(
+        self,
+        x: float,
+        y: float,
+        text: str,
+        fg: tuple = colors.GREEN,
+        bg: tuple | None = colors.BACKGROUND,
+    ) -> None:
+        """Draw a single-line string with its top-left at canvas pixel (x, y).
+
+        Like put(), but not snapped to the grid: for things that move or
+        scroll smoothly (a camera-scrolled map, sprites, projectiles).
+        Characters are still cell-sized and one cell apart, and use the same
+        glyph cache (custom glyphs included). Coordinates are rounded to
+        whole canvas pixels; anything past the canvas edge is clipped, and
+        glyphs straddling it are drawn partially.
+        """
+        cell_w, cell_h = self.display.cell_w, self.display.cell_h
+        canvas = self.display.canvas
+        can_w, can_h = canvas.get_size()
+        x, y = round(x), round(y)
+        if y <= -cell_h or y >= can_h:
+            return
+        for i, char in enumerate(text):
+            px = x + i * cell_w
+            if px <= -cell_w:
+                continue
+            if px >= can_w:
+                break
+            canvas.blit(self._glyph(char, fg, bg), (px, y))
 
     def put_block(
         self,

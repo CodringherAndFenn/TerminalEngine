@@ -13,6 +13,8 @@ suspended while a transition runs, so clicks mid-fade can't fire twice.
 
 from __future__ import annotations
 
+import time
+
 import pygame
 
 from .audio import Audio
@@ -54,10 +56,16 @@ class SceneManager:
     display, settings, audio:
         Shared, long-lived services. The manager creates its own
         TextRenderer and Fade over the display.
+    fps:
+        Frame-rate cap used when the display has no vsync. With vsync the
+        monitor paces the loop instead (see run()).
     """
 
-    def __init__(self, display: Display, settings: Settings, audio: Audio) -> None:
+    def __init__(
+        self, display: Display, settings: Settings, audio: Audio, *, fps: int = 60
+    ) -> None:
         self.display = display
+        self.fps = fps
         self.settings = settings
         self.audio = audio
         self.text = TextRenderer(display)
@@ -102,9 +110,23 @@ class SceneManager:
         self._transition = "in"
         self._running = True
 
+        # Frame pacing. With vsync, flip() inside present() blocks until the
+        # monitor's next refresh, so the monitor sets the rate and every
+        # frame is shown exactly once; the clock only measures. Without
+        # vsync, the clock sleeps to cap the rate at self.fps.
+        # dt comes from perf_counter (sub-microsecond) rather than the
+        # clock's whole milliseconds, so motion advances by the real elapsed
+        # time instead of alternating 16/17 ms steps.
         clock = pygame.time.Clock()
+        last = time.perf_counter()
         while self._running:
-            dt = clock.tick(60) / 1000.0
+            if self.display.vsync:
+                clock.tick()
+            else:
+                clock.tick(self.fps)
+            now = time.perf_counter()
+            dt = now - last
+            last = now
 
             for event in pygame.event.get():
                 self.display.handle_event(event)
