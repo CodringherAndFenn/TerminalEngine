@@ -100,3 +100,96 @@ VOID = TileType(
     "void", ("  ",), palette.VOID_FG, palette.VOID_BG,
     solid=True, blocks_shots=True,
 )
+
+
+# --- Biome tiles (milestone 3) -------------------------------------------------------
+# Every destroyed thing leaves passable debris matching its biome's ground.
+
+# Plains: wide open grassland (the start area).
+PLAINS = TileType(
+    "plains", ("  ", "  ", "  ", ". ", " '", "  "), palette.PLAINS_GRASS, palette.PLAINS_BG,
+)
+TALL_GRASS = TileType(
+    "tall grass", ('" ', ' "', '""', "',"), palette.PLAINS_GRASS, palette.PLAINS_BG,
+)
+FLOWERS = TileType(
+    "flowers", ("* ", " *", ".*"), palette.PLAINS_FLOWER, palette.PLAINS_BG,
+)
+
+# Forest: dense pines with clearings.
+FOREST_FLOOR = TileType(
+    "forest floor", (", ", " ,", "  ", ". "), palette.FOREST_FLOOR, palette.FOREST_BG,
+)
+PINE_DEBRIS = TileType(
+    "splinters", ("_,", ",_", "._"), palette.SPLINTER_FG, palette.FOREST_BG,
+)
+PINE = TileType(
+    "pine", ("/\\", "^^", "A^", "^A"), palette.PINE_FG, palette.PINE_BG,
+    solid=True, blocks_shots=True, hp=config.TREE_HP,
+    wear=(("/.", ".\\", "^."),),
+    becomes=PINE_DEBRIS,
+)
+
+# Desert: sand, dunes, cacti and mesa rock.
+SAND = TileType(
+    "sand", ("  ", ". ", " .", "  ", "  "), palette.SAND_FG, palette.SAND_BG,
+)
+DUNE = TileType(
+    "dunes", ("--", "-.", ".-", "_-"), palette.DUNE_FG, palette.SAND_BG,
+)
+CACTUS_DEBRIS = TileType(
+    "cactus pulp", ("_.", "._", ",."), palette.CACTUS_FG, palette.SAND_BG,
+)
+CACTUS = TileType(
+    "cactus", ("Y ", " Y", "Y'", "'Y"), palette.CACTUS_FG, palette.SAND_BG,
+    solid=True, blocks_shots=True, hp=config.CACTUS_HP,
+    becomes=CACTUS_DEBRIS,
+)
+MESA = TileType(
+    "mesa rock", ("▓▓", "▓▒", "▒▓"), palette.MESA_FG, palette.MESA_BG,
+    solid=True, blocks_shots=True,
+)
+
+# Ruins: concrete lots and broken buildings (built from WALL / RUBBLE).
+CONCRETE = TileType(
+    "concrete", ("  ", ". ", " .", "  ", ":."), palette.CONCRETE_FG, palette.CONCRETE_BG,
+)
+
+# Swamp: mud, reeds, bog pools (like water: tanks can't cross, shells can)
+# and mangroves.
+MUD = TileType(
+    "mud", ("  ", ", ", " .", "  "), palette.MUD_FG, palette.MUD_BG,
+)
+REEDS = TileType(
+    "reeds", ("|'", "'|", "||", "|,"), palette.REED_FG, palette.MUD_BG,
+)
+BOG = TileType(
+    "bog", ("░ ", " ░", "  ", "  "), palette.BOG_FG, palette.BOG_BG,
+    solid=True,
+)
+MANGROVE_ROOTS = TileType(
+    "roots", ("_,", ",_", "._"), palette.MANGROVE_FG, palette.MUD_BG,
+)
+MANGROVE = TileType(
+    "mangrove", ("%%", "%&", "&%"), palette.MANGROVE_FG, palette.MANGROVE_BG,
+    solid=True, blocks_shots=True, hp=config.MANGROVE_HP,
+    wear=(("%.", ".%"),),
+    becomes=MANGROVE_ROOTS,
+)
+
+# Mushroom: purple mycelium, glowing spores, giant mushrooms.
+MYCELIUM = TileType(
+    "mycelium", ("  ", ". ", " ,", "  "), palette.MYCELIUM_FG, palette.MYCELIUM_BG,
+)
+SPORES = TileType(
+    "spores", ("o ", " o", ".o", "o."), palette.SPORE_FG, palette.MYCELIUM_BG,
+)
+SHROOM_MUSH = TileType(
+    "mush", ("..", ".,", ",."), palette.SHROOM_FG, palette.MYCELIUM_BG,
+)
+GIANT_SHROOM = TileType(
+    "giant mushroom", ("()", "{}", "()"), palette.SHROOM_FG, palette.SHROOM_BG,
+    solid=True, blocks_shots=True, hp=config.SHROOM_HP,
+    wear=((") ", " (", "(."),),
+    becomes=SHROOM_MUSH,
+)

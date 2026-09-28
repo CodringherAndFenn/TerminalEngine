@@ -131,11 +131,94 @@ def paint_fizzle(frame: int):
     return paint
 
 
+def paint_explosion(frame: int):
+    """A vehicle or creature destroyed: white-hot core -> fireball -> smoke."""
+    hot, fire, ember = palette.DEATH_FIRE
+
+    def paint(surf, to_px):
+        if frame == 0:
+            _circle(surf, to_px, fire, 0, 0, 14)
+            _circle(surf, to_px, hot, 0, 0, 9)
+        elif frame == 1:
+            _circle(surf, to_px, ember, 0, 0, 20)
+            _circle(surf, to_px, fire, 0, 0, 15)
+            for k in range(8):
+                a = k * math.pi / 4 + 0.3
+                _circle(surf, to_px, hot, math.cos(a) * 17, math.sin(a) * 17, 2.5)
+        elif frame == 2:
+            _circle(surf, to_px, ember, 0, 0, 18, 3)
+            for k in range(6):
+                a = k * math.pi / 3
+                _circle(surf, to_px, palette.DUST[0], math.cos(a) * 14, math.sin(a) * 14, 5)
+        else:
+            for k in range(6):
+                a = k * math.pi / 3 + 0.5
+                _circle(surf, to_px, palette.DUST[1], math.cos(a) * 20, math.sin(a) * 20, 4)
+
+    return paint
+
+
+def paint_spores(frame: int):
+    """Spore cloud expanding to the puffer's blast radius, then thinning."""
+    cols = palette.SPORE_CLOUD
+
+    def paint(surf, to_px):
+        r = (18, 34, 48)[frame]
+        _circle(surf, to_px, cols[frame], 0, 0, r * 0.55)
+        for k in range(10):
+            a = k * math.tau / 10 + frame * 0.35
+            d = r * (0.55 + 0.4 * ((k * 7) % 3) / 2)
+            _circle(surf, to_px, cols[min(2, frame + (k % 2))], math.cos(a) * d, math.sin(a) * d,
+                    4 - frame)
+
+    return paint
+
+
+def paint_eruption(frame: int):
+    """Sand thrown up where a burrower bursts out."""
+    c0, c1 = palette.BURROW_DUST
+
+    def paint(surf, to_px):
+        r = (14, 26, 38)[frame]
+        for k in range(12):
+            a = k * math.tau / 12 + frame * 0.2
+            _circle(surf, to_px, c0 if k % 2 else c1, math.cos(a) * r, math.sin(a) * r, 4 - frame)
+        if frame == 0:
+            _circle(surf, to_px, c1, 0, 0, 10)
+
+    return paint
+
+
+def paint_burrow(frame: int):
+    """Little dust puffs a burrower leaves behind underground."""
+    def paint(surf, to_px):
+        _circle(surf, to_px, palette.BURROW_DUST[frame], (-2, 2)[frame], (1, -1)[frame], 3 - frame)
+
+    return paint
+
+
+def paint_slash():
+    """The warrior's swing: a bright arc sweeping in front of it."""
+    def for_angle(a):
+        def paint(surf, to_px):
+            pts = []
+            for k in range(9):
+                t = -1.1 + k * 2.2 / 8
+                pts.append(to_px(math.cos(a + t) * 16, math.sin(a + t) * 16))
+            pygame.draw.lines(surf, palette.WARRIOR_BLADE, False, pts, 3)
+        return paint
+    return for_angle
+
+
 # name -> (frame count, painter factory, reach px)
 _FRAMES = {
     "impact": (3, paint_impact, 14),
     "debris": (3, paint_debris, 20),
     "fizzle": (2, paint_fizzle, 9),
+    "explosion": (4, paint_explosion, 26),
+    "spores": (3, paint_spores, 54),
+    "eruption": (3, paint_eruption, 44),
+    "burrow": (2, paint_burrow, 6),
 }
 
 # --- Drawing -------------------------------------------------------------------------
@@ -173,6 +256,8 @@ def draw_effects(
             pieces = bank.rotated(
                 ("muzzle", frame), e.angle, config.FLASH_ANGLE_STEPS, paint_muzzle(frame), 18
             )
+        elif e.kind == "slash":
+            pieces = bank.rotated(("slash",), e.angle, 36, paint_slash(), 20)
         else:
             count, factory, reach = _FRAMES[e.kind]
             frame = min(count - 1, int(e.progress * count))

@@ -14,6 +14,7 @@ from terminal_tank.world.test_map import TestMap
 from terminal_tank.world.tiles import Damage
 
 SPEC = config.TANKS[config.START_TANK]
+SPEC_DAMAGE = config.WEAPONS[SPEC.weapon].shell.damage
 
 
 def _map(*rows):
@@ -134,7 +135,7 @@ class FiringTest(unittest.TestCase):
         tank.aim_at(35.0, 10.5, 1 / 60)
         projectiles, effects = [], []
         events = []
-        for _ in range(config.WALL_HP):
+        for _ in range(math.ceil(config.WALL_HP / SPEC_DAMAGE)):
             events += combat.fire(tank, world, projectiles, effects)
             for _ in range(60):
                 events += combat.update_projectiles(projectiles, world, effects, 1 / 60)
@@ -164,7 +165,7 @@ class FiringTest(unittest.TestCase):
         projectiles, effects = [], []
         combat.fire(tank, world, projectiles, effects)
         self.assertEqual(projectiles, [])
-        self.assertEqual(world.hp_at(12, 5), config.WALL_HP - 1)
+        self.assertEqual(world.hp_at(12, 5), config.WALL_HP - SPEC_DAMAGE)
 
 
 class SfxTest(unittest.TestCase):

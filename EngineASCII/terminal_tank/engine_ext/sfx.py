@@ -88,10 +88,14 @@ class Sfx:
                     buf.append(s)
             self._sounds[name] = pygame.mixer.Sound(buffer=buf.tobytes())
 
+    # Events that reuse another sound at a lower volume.
+    _ALIASES = {"thud": ("hit", 0.45)}   # a shell sparking off terrain it can't hurt
+
     def play(self, name: str) -> None:
         """Play a named effect at master volume x SFX_VOLUME (no-op if silent)."""
+        name, gain = self._ALIASES.get(name, (name, 1.0))
         sound = self._sounds.get(name)
         if sound is None or not self.audio.available:
             return
-        sound.set_volume(self.audio.volume * config.SFX_VOLUME)
+        sound.set_volume(self.audio.volume * config.SFX_VOLUME * gain)
         sound.play()

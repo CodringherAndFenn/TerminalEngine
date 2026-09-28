@@ -18,6 +18,12 @@ DURATIONS = {
     "debris": config.IMPACT_TIME * 1.5,
     "fizzle": config.FIZZLE_TIME,
     "tile_flash": config.TILE_FLASH_TIME,
+    # Milestone 4
+    "explosion": 0.55,      # a tank or creature destroyed
+    "slash": 0.18,          # fallen warrior's blade swing
+    "spores": 0.6,          # spore puffer burst
+    "eruption": 0.45,       # burrower bursting out of the sand
+    "burrow": 0.5,          # dust kicked up by a burrower underground
 }
 
 

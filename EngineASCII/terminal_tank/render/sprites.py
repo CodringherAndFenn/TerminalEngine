@@ -104,51 +104,61 @@ def quad(to_px, angle: float, u0: float, u1: float, v0: float, v1: float):
     return [to_px(u * ca - v * sa, u * sa + v * ca) for u, v in pts]
 
 
-def paint_hull(angle: float, spec: TankSpec) -> Painter:
-    """Hull pointing along screen angle `angle`: two treads down the long
-    sides with cross-links, the body between them, a lighter front plate, and
-    a dark outline so it separates from any terrain."""
+def paint_hull(angle: float, spec: TankSpec, scheme: str | None = None) -> Painter:
+    """Hull pointing along screen angle `angle`, in color scheme `scheme`
+    (default: the spec's). Tanks: two treads down the long sides with
+    cross-links, the body between them, a lighter front plate, and a dark
+    outline so it separates from any terrain. Bunkers (turret emplacements):
+    a squat octagonal concrete block with a darker firing ring."""
     L, W = spec.hull_length_px, spec.hull_width_px
     T = W * 0.27  # tread width
+    c = palette.TANK_COLORS[scheme or spec.colors]
 
-    def paint(surf, to_px):
+    def paint_tank(surf, to_px):
         hl, hw = L / 2, W / 2
         for v0, v1 in ((-hw, -hw + T), (hw - T, hw)):
-            pygame.draw.polygon(surf, palette.TANK_TREAD, quad(to_px, angle, -hl, hl, v0, v1))
+            pygame.draw.polygon(surf, c["tread"], quad(to_px, angle, -hl, hl, v0, v1))
             u = -hl + 3
             while u < hl - 1:  # tread links
-                pygame.draw.polygon(
-                    surf, palette.TANK_TREAD_DARK, quad(to_px, angle, u, u + 2, v0, v1)
-                )
+                pygame.draw.polygon(surf, c["tread_dark"], quad(to_px, angle, u, u + 2, v0, v1))
                 u += 6
         body = (-hl + 4, hl - 3, -hw + T - 1, hw - T + 1)
-        pygame.draw.polygon(surf, palette.TANK_BODY, quad(to_px, angle, *body))
-        pygame.draw.polygon(
-            surf, palette.TANK_FRONT, quad(to_px, angle, hl - 10, hl - 3, body[2], body[3])
-        )
-        pygame.draw.polygon(surf, palette.TANK_OUTLINE, quad(to_px, angle, -hl, hl, -hw, hw), 1)
+        pygame.draw.polygon(surf, c["body"], quad(to_px, angle, *body))
+        pygame.draw.polygon(surf, c["front"], quad(to_px, angle, hl - 10, hl - 3, body[2], body[3]))
+        pygame.draw.polygon(surf, c["outline"], quad(to_px, angle, -hl, hl, -hw, hw), 1)
 
-    return paint
+    def paint_bunker(surf, to_px):
+        r = L / 2
+        octagon = [to_px(math.cos(k * math.pi / 4 + math.pi / 8) * r,
+                         math.sin(k * math.pi / 4 + math.pi / 8) * r) for k in range(8)]
+        pygame.draw.polygon(surf, c["body"], octagon)
+        inner = [to_px(math.cos(k * math.pi / 4 + math.pi / 8) * r * 0.62,
+                       math.sin(k * math.pi / 4 + math.pi / 8) * r * 0.62) for k in range(8)]
+        pygame.draw.polygon(surf, c["tread_dark"], inner)
+        pygame.draw.polygon(surf, c["outline"], octagon, 1)
+
+    return paint_bunker if spec.hull_style == "bunker" else paint_tank
 
 
-def paint_turret(angle: float, spec: TankSpec) -> Painter:
+def paint_turret(angle: float, spec: TankSpec, scheme: str | None = None) -> Painter:
     """Round turret with a straight barrel along screen angle `angle`."""
     R = spec.turret_radius_px
     BL, BW = spec.barrel_length_px, spec.barrel_width_px
+    c = palette.TANK_COLORS[scheme or spec.colors]
 
     def paint(surf, to_px):
         # Barrel (with a slightly wider muzzle), outlined, then the dome over
         # its base so the barrel appears to come out of the turret.
         barrel = quad(to_px, angle, 0, BL, -BW / 2, BW / 2)
         muzzle = quad(to_px, angle, BL - 5, BL, -BW / 2 - 1, BW / 2 + 1)
-        pygame.draw.polygon(surf, palette.TANK_OUTLINE, muzzle)
-        pygame.draw.polygon(surf, palette.TANK_BARREL, barrel)
-        pygame.draw.polygon(surf, palette.TANK_OUTLINE, barrel, 1)
+        pygame.draw.polygon(surf, c["outline"], muzzle)
+        pygame.draw.polygon(surf, c["barrel"], barrel)
+        pygame.draw.polygon(surf, c["outline"], barrel, 1)
 
         (x0, y0), (x1, y1) = to_px(-R, -R), to_px(R, R)
         dome = pygame.Rect(round(x0), round(y0), max(1, round(x1 - x0)), max(1, round(y1 - y0)))
-        pygame.draw.ellipse(surf, palette.TANK_TURRET, dome)
-        pygame.draw.ellipse(surf, palette.TANK_OUTLINE, dome, 1)
+        pygame.draw.ellipse(surf, c["turret"], dome)
+        pygame.draw.ellipse(surf, c["outline"], dome, 1)
 
     return paint
 
@@ -260,18 +270,23 @@ class SpriteBank:
         self._lru_glyphs += len(pieces)
         return pieces
 
-    def hull(self, spec: TankSpec, world_angle: float) -> list[tuple[int, int, str]]:
+    def hull(self, spec: TankSpec, world_angle: float, scheme: str | None = None,
+             steps: int = config.HULL_ANGLE_STEPS):
+        """`scheme` overrides the spec's colors (e.g. "hit" for a damage blink)."""
         reach = math.hypot(spec.hull_length_px, spec.hull_width_px) / 2 + 1
+        if spec.hull_style == "bunker":
+            steps = 1   # doesn't rotate
         return self.rotated(
-            ("hull", spec.name), world_angle, config.HULL_ANGLE_STEPS,
-            lambda a: paint_hull(a, spec), reach,
+            ("hull", spec.name, scheme), world_angle, steps,
+            lambda a: paint_hull(a, spec, scheme), reach,
         )
 
-    def turret(self, spec: TankSpec, world_angle: float) -> list[tuple[int, int, str]]:
+    def turret(self, spec: TankSpec, world_angle: float, scheme: str | None = None,
+               steps: int = config.TURRET_ANGLE_STEPS):
         reach = max(spec.barrel_length_px, spec.turret_radius_px) + 2
         return self.rotated(
-            ("turret", spec.name), world_angle, config.TURRET_ANGLE_STEPS,
-            lambda a: paint_turret(a, spec), reach,
+            ("turret", spec.name, scheme), world_angle, steps,
+            lambda a: paint_turret(a, spec, scheme), reach,
         )
 
     def static(self, name: str, painter: Painter, reach: float) -> list[tuple[int, int, str]]:
