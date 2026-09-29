@@ -4,7 +4,7 @@ import unittest
 
 from terminal_tank import config
 from terminal_tank.entities.projectile import Projectile
-from terminal_tank.entities.tank import Tank
+from terminal_tank.entities.character import Character
 from terminal_tank.entities.weapon import Weapon
 from terminal_tank.specs import ShellSpec, WeaponSpec
 from terminal_tank.systems import combat
@@ -13,7 +13,7 @@ from terminal_tank.world import tiles
 from terminal_tank.world.test_map import TestMap
 from terminal_tank.world.tiles import Damage
 
-SPEC = config.TANKS[config.START_TANK]
+SPEC = config.HEROES[config.START_HERO]
 SPEC_DAMAGE = config.WEAPONS[SPEC.weapon].shell.damage
 
 
@@ -115,11 +115,11 @@ class DestructionTest(unittest.TestCase):
 class FiringTest(unittest.TestCase):
     def test_shell_passes_through_the_aimed_point(self):
         world = _map(*["." * 60] * 40)
-        tank = Tank(SPEC, 20.0, 20.0)
+        hero = Character(SPEC, 20.0, 20.0)
         target = (31.3, 13.7)
-        tank.aim_at(*target, 1 / 60)
+        hero.aim_at(*target, 1 / 60)
         projectiles, effects = [], []
-        combat.fire(tank, world, projectiles, effects)
+        combat.fire(hero, world, projectiles, effects)
         p = projectiles[0]
         # Distance from the target to the shell's line of flight.
         vx, vy = target[0] - p.x, target[1] - p.y
@@ -131,12 +131,12 @@ class FiringTest(unittest.TestCase):
         rows = ["." * 40] * 20
         rows[10] = "." * 30 + "#" + "." * 9
         world = _map(*rows)
-        tank = Tank(SPEC, 20.0, 10.5)
-        tank.aim_at(35.0, 10.5, 1 / 60)
+        hero = Character(SPEC, 20.0, 10.5)
+        hero.aim_at(35.0, 10.5, 1 / 60)
         projectiles, effects = [], []
         events = []
         for _ in range(math.ceil(config.WALL_HP / SPEC_DAMAGE)):
-            events += combat.fire(tank, world, projectiles, effects)
+            events += combat.fire(hero, world, projectiles, effects)
             for _ in range(60):
                 events += combat.update_projectiles(projectiles, world, effects, 1 / 60)
         self.assertIs(world.tile_at(30, 10), tiles.RUBBLE)
@@ -155,15 +155,15 @@ class FiringTest(unittest.TestCase):
         self.assertAlmostEqual(p.x, 15.0)                     # exactly max_range
         self.assertIn(combat.FIZZLE, events)
 
-    def test_barrel_inside_wall_hits_that_wall(self):
+    def test_shot_starting_inside_a_wall_hits_that_wall(self):
         rows = ["." * 20] * 10
         rows[5] = "." * 12 + "#" + "." * 7
         world = _map(*rows)
-        # Tank right next to the wall with the barrel poking into it.
-        tank = Tank(SPEC, 10.9, 5.5)
-        tank.aim_at(15.0, 5.5, 1 / 60)
+        # Hero right next to the wall: the shot's start point is inside it.
+        hero = Character(SPEC, 11.3, 5.5)
+        hero.aim_at(15.0, 5.5, 1 / 60)
         projectiles, effects = [], []
-        combat.fire(tank, world, projectiles, effects)
+        combat.fire(hero, world, projectiles, effects)
         self.assertEqual(projectiles, [])
         self.assertEqual(world.hp_at(12, 5), config.WALL_HP - SPEC_DAMAGE)
 

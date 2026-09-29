@@ -1,8 +1,10 @@
 """
-entities/effects.py -- short-lived visual effects (muzzle flash, impacts...).
+entities/effects.py -- short-lived visual effects (muzzle flash, impacts,
+damage numbers...).
 
-An effect is just a kind, a position and a timer; render/effects_sprite.py
-turns (kind, progress) into an animation frame. They never affect gameplay.
+An effect is just a kind, a position and a timer; render/ascii_fx.py turns
+(kind, progress) into an animation frame of font glyphs. They never affect
+gameplay.
 """
 
 from __future__ import annotations
@@ -19,8 +21,9 @@ DURATIONS = {
     "fizzle": config.FIZZLE_TIME,
     "tile_flash": config.TILE_FLASH_TIME,
     # Milestone 4
-    "explosion": 0.55,      # a tank or creature destroyed
+    "explosion": 0.55,      # an enemy or the hero destroyed
     "slash": 0.18,          # fallen warrior's blade swing
+    "number": config.NUMBER_TIME,   # floating damage number
     "spores": 0.6,          # spore puffer burst
     "eruption": 0.45,       # burrower bursting out of the sand
     "burrow": 0.5,          # dust kicked up by a burrower underground
@@ -34,6 +37,8 @@ class Effect:
     y: float
     angle: float = 0.0      # world radians, for directional effects
     t: float = 0.0          # age, seconds
+    value: int = 0          # "number": the damage shown
+    player: bool = False    # "number": the hero got hurt (drawn in red)
 
     @property
     def duration(self) -> float:

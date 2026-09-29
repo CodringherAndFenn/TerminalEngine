@@ -1,26 +1,22 @@
 """
-render/sprites.py -- rotated, shape-accurate sprites sliced into grid cells.
+render/sprites.py -- pictures sliced into grid cells as custom glyphs.
 
-Why: a text cell is 10x24 px, and the finest the engine's block glyphs go is a
-10x12 half-block. A tank hull rotated 45 degrees collapses to a few of those
-blocks, and a text '/' has one fixed slope, so neither the hull nor the
-barrel can look right at arbitrary angles using characters alone.
-
-How: each sprite is painted as a small picture -- polygons in screen-pixel
-space, rotated to the exact on-screen angle -- then cut into cell-sized
-tiles. Each non-empty tile becomes one custom glyph, drawn with transparent
-background so terrain shows around the shape, and placed at exact pixel
-positions with the engine's put_px.
+Why: a text cell is 10x24 px, and the finest the engine's block glyphs go is
+a 10x12 half-block -- too coarse for characters, creatures, the reticle or
+a rotated shape. So those are painted as small pictures (pixel art, or
+polygons in screen-pixel space rotated to the exact on-screen angle), then
+cut into cell-sized tiles. Each non-empty tile becomes one custom glyph,
+drawn with transparent background so terrain shows around the shape, and
+placed at exact pixel positions with the engine's put_px.
 
 Chunky look: pictures are painted at a reduced resolution of
 config.SPRITE_PIXEL (w, h) screen pixels per sprite pixel, then scaled up
-with nearest-neighbor -- so the tank has the same hard-edged retro pixels as
-the synthesized block glyphs instead of looking like modern vector art.
+with nearest-neighbor.
 
-Angles are quantized into buckets (config.*_ANGLE_STEPS) and each bucket is
-baked once, lazily, then reused. The pieces reach the
-screen through the engine's TextRenderer.register_glyph() (see
-ENGINE_CHANGES.md), so they go through the normal put()/glyph-cache path.
+Rotating sprites have their angles quantized into buckets and each bucket
+is baked once, lazily, then reused. The pieces reach the screen through the
+engine's TextRenderer.register_glyph() (see ENGINE_CHANGES.md), so they go
+through the normal put()/glyph-cache path.
 """
 
 from __future__ import annotations
@@ -34,7 +30,6 @@ import pygame
 from engine import TextRenderer
 
 from .. import config, palette
-from ..specs import TankSpec
 
 TAU = 2 * math.pi
 
@@ -104,65 +99,6 @@ def quad(to_px, angle: float, u0: float, u1: float, v0: float, v1: float):
     return [to_px(u * ca - v * sa, u * sa + v * ca) for u, v in pts]
 
 
-def paint_hull(angle: float, spec: TankSpec, scheme: str | None = None) -> Painter:
-    """Hull pointing along screen angle `angle`, in color scheme `scheme`
-    (default: the spec's). Tanks: two treads down the long sides with
-    cross-links, the body between them, a lighter front plate, and a dark
-    outline so it separates from any terrain. Bunkers (turret emplacements):
-    a squat octagonal concrete block with a darker firing ring."""
-    L, W = spec.hull_length_px, spec.hull_width_px
-    T = W * 0.27  # tread width
-    c = palette.TANK_COLORS[scheme or spec.colors]
-
-    def paint_tank(surf, to_px):
-        hl, hw = L / 2, W / 2
-        for v0, v1 in ((-hw, -hw + T), (hw - T, hw)):
-            pygame.draw.polygon(surf, c["tread"], quad(to_px, angle, -hl, hl, v0, v1))
-            u = -hl + 3
-            while u < hl - 1:  # tread links
-                pygame.draw.polygon(surf, c["tread_dark"], quad(to_px, angle, u, u + 2, v0, v1))
-                u += 6
-        body = (-hl + 4, hl - 3, -hw + T - 1, hw - T + 1)
-        pygame.draw.polygon(surf, c["body"], quad(to_px, angle, *body))
-        pygame.draw.polygon(surf, c["front"], quad(to_px, angle, hl - 10, hl - 3, body[2], body[3]))
-        pygame.draw.polygon(surf, c["outline"], quad(to_px, angle, -hl, hl, -hw, hw), 1)
-
-    def paint_bunker(surf, to_px):
-        r = L / 2
-        octagon = [to_px(math.cos(k * math.pi / 4 + math.pi / 8) * r,
-                         math.sin(k * math.pi / 4 + math.pi / 8) * r) for k in range(8)]
-        pygame.draw.polygon(surf, c["body"], octagon)
-        inner = [to_px(math.cos(k * math.pi / 4 + math.pi / 8) * r * 0.62,
-                       math.sin(k * math.pi / 4 + math.pi / 8) * r * 0.62) for k in range(8)]
-        pygame.draw.polygon(surf, c["tread_dark"], inner)
-        pygame.draw.polygon(surf, c["outline"], octagon, 1)
-
-    return paint_bunker if spec.hull_style == "bunker" else paint_tank
-
-
-def paint_turret(angle: float, spec: TankSpec, scheme: str | None = None) -> Painter:
-    """Round turret with a straight barrel along screen angle `angle`."""
-    R = spec.turret_radius_px
-    BL, BW = spec.barrel_length_px, spec.barrel_width_px
-    c = palette.TANK_COLORS[scheme or spec.colors]
-
-    def paint(surf, to_px):
-        # Barrel (with a slightly wider muzzle), outlined, then the dome over
-        # its base so the barrel appears to come out of the turret.
-        barrel = quad(to_px, angle, 0, BL, -BW / 2, BW / 2)
-        muzzle = quad(to_px, angle, BL - 5, BL, -BW / 2 - 1, BW / 2 + 1)
-        pygame.draw.polygon(surf, c["outline"], muzzle)
-        pygame.draw.polygon(surf, c["barrel"], barrel)
-        pygame.draw.polygon(surf, c["outline"], barrel, 1)
-
-        (x0, y0), (x1, y1) = to_px(-R, -R), to_px(R, R)
-        dome = pygame.Rect(round(x0), round(y0), max(1, round(x1 - x0)), max(1, round(y1 - y0)))
-        pygame.draw.ellipse(surf, c["turret"], dome)
-        pygame.draw.ellipse(surf, c["outline"], dome, 1)
-
-    return paint
-
-
 def paint_reticle(surf, to_px) -> None:
     """Crosshair ring with four ticks, centered on the aim point. A dark
     shadow pass underneath keeps it readable over bright terrain."""
@@ -190,18 +126,16 @@ def paint_tile_marker(tile_w: int, tile_h: int) -> Painter:
 
 
 class SpriteBank:
-    """Lazily bakes hull/turret sprites per angle bucket and registers every
-    piece as a custom engine glyph (TextRenderer.register_glyph), so drawing
+    """Lazily bakes sprites (per angle bucket, for rotating ones) and
+    registers every piece as a custom engine glyph (TextRenderer.register_glyph), so drawing
     a sprite is just TextRenderer.put_px() calls with bg=None.
 
     Each piece gets its own Private Use Area character. Pieces paint their
     own colors, so the fg passed to put_px() is irrelevant; a single constant
     is used so each piece occupies exactly one glyph-cache entry.
 
-    Rotation steps are fine (fractions of a degree for the barrel) so turning
-    looks continuous -- coarse steps made the barrel visibly snap as the aim
-    angle drifted while driving. That's too many glyphs to keep them all, so
-    rotated sprites live in an LRU cache capped at config.SPRITE_GLYPH_BUDGET
+    Rotated sprites can use many angle steps, too many glyphs to keep
+    them all, so they live in an LRU cache capped at config.SPRITE_GLYPH_BUDGET
     glyphs: the least recently drawn angles are evicted, their characters
     unregistered from the engine (freeing its cached images) and reused.
     Only the handful of angles near the current ones are ever hot, so
@@ -221,7 +155,7 @@ class SpriteBank:
         # Rotated sprites, least recently used first: (kind, bucket) -> pieces.
         self._lru: OrderedDict[tuple[str, int], list[tuple[int, int, str]]] = OrderedDict()
         self._lru_glyphs = 0
-        # Never-evicted sprites (reticle, markers): name -> pieces.
+        # Never-evicted sprites (characters, reticle, markers): name -> pieces.
         self._static: dict[str, list[tuple[int, int, str]]] = {}
 
     @property
@@ -249,7 +183,7 @@ class SpriteBank:
 
         `painter_for(screen_angle)` returns the Painter for one bucket's
         exact angle; `key` names the sprite (include anything else that
-        changes its look, e.g. the tank type).
+        changes its look, e.g. the creature type).
         """
         a = screen_angle(world_angle, self.cell_w, self.cell_h, self.cpt)
         bucket = angle_bucket(a, steps)
@@ -270,27 +204,8 @@ class SpriteBank:
         self._lru_glyphs += len(pieces)
         return pieces
 
-    def hull(self, spec: TankSpec, world_angle: float, scheme: str | None = None,
-             steps: int = config.HULL_ANGLE_STEPS):
-        """`scheme` overrides the spec's colors (e.g. "hit" for a damage blink)."""
-        reach = math.hypot(spec.hull_length_px, spec.hull_width_px) / 2 + 1
-        if spec.hull_style == "bunker":
-            steps = 1   # doesn't rotate
-        return self.rotated(
-            ("hull", spec.name, scheme), world_angle, steps,
-            lambda a: paint_hull(a, spec, scheme), reach,
-        )
-
-    def turret(self, spec: TankSpec, world_angle: float, scheme: str | None = None,
-               steps: int = config.TURRET_ANGLE_STEPS):
-        reach = max(spec.barrel_length_px, spec.turret_radius_px) + 2
-        return self.rotated(
-            ("turret", spec.name, scheme), world_angle, steps,
-            lambda a: paint_turret(a, spec, scheme), reach,
-        )
-
     def static(self, name: str, painter: Painter, reach: float) -> list[tuple[int, int, str]]:
-        """A sprite that doesn't rotate (reticle, markers), baked once."""
+        """A sprite that doesn't rotate (characters, reticle, markers), baked once."""
         pieces = self._static.get(name)
         if pieces is None:
             pieces = self._static[name] = self._bake_pieces(painter, reach)

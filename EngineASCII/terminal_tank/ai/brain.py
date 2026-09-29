@@ -18,8 +18,8 @@ Aggro / infighting: shots hurt everyone, but an enemy only switches its
 target to another enemy once it has taken INFIGHT_AGGRO_FRACTION of its max
 hp from that enemy -- a stray round or two is forgiven.
 
-Brain is a mixin: the enemy classes combine it with a body (Tank for
-vehicles, a Creature body otherwise).
+Brain is a mixin: the enemy classes combine it with a body (a Character
+for shooters, a Creature body otherwise).
 """
 
 from __future__ import annotations
@@ -52,11 +52,10 @@ class AIContext:
 class Brain:
     faction = "enemy"
 
-    def init_brain(self, spec: EnemySpec, difficulty: float, rng: random.Random, spawn_id) -> None:
+    def init_brain(self, spec: EnemySpec, rng: random.Random, spawn_id) -> None:
         self.espec = spec
         self.spawn_id = spawn_id
         self.rng = rng
-        self.damage_mult = 1.0 + config.ENEMY_DAMAGE_SCALING * difficulty
         self.home = (self.x, self.y)
         self.target: Actor | None = None
         self.grudge: Actor | None = None      # another enemy we've turned on

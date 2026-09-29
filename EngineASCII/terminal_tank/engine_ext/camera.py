@@ -91,7 +91,7 @@ class Camera:
         pixel position minus the rounded on-screen offset the target should
         have (screen center + camera lag). The target's screen position is
         then exactly that rounded offset, which only changes when the lag
-        itself changes -- the tank sits still on screen while the world
+        itself changes -- the hero sits still on screen while the world
         scrolls under it.
         """
         self.origin_px = (

@@ -68,46 +68,33 @@ SPORE_FG = (200, 150, 230)
 SHROOM_FG = (230, 110, 170)
 SHROOM_BG = (70, 24, 60)
 
-# --- Player tank ------------------------------------------------------------------
+# --- Characters (render/characters.py) ------------------------------------------
+# One letter per pixel in the pixel art; "." is transparent.
 
-TANK_TREAD = (70, 90, 60)
-TANK_TREAD_DARK = (40, 52, 34)
-TANK_OUTLINE = (14, 20, 12)
-TANK_BODY = (120, 190, 90)
-TANK_FRONT = (190, 240, 140)   # lighter strip marking the hull's front edge
-TANK_TURRET = (165, 220, 125)   # dome, a shade off the barrel so both read
-TANK_BARREL = (230, 255, 200)
-
-# Color schemes for every tank-like thing (TankSpec.colors picks one). The
-# player is green; enemies are warm/grey so friend and foe read instantly.
-TANK_COLORS = {
-    "player": dict(tread=TANK_TREAD, tread_dark=TANK_TREAD_DARK, outline=TANK_OUTLINE,
-                   body=TANK_BODY, front=TANK_FRONT, turret=TANK_TURRET, barrel=TANK_BARREL),
-    "rust": dict(tread=(90, 60, 45), tread_dark=(52, 34, 26), outline=(20, 12, 8),
-                 body=(175, 90, 55), front=(225, 140, 90), turret=(200, 110, 70),
-                 barrel=(235, 190, 160)),
-    "sand": dict(tread=(100, 88, 60), tread_dark=(60, 52, 34), outline=(22, 18, 10),
-                 body=(190, 165, 105), front=(230, 210, 150), turret=(170, 145, 90),
-                 barrel=(240, 225, 190)),
-    "steel": dict(tread=(60, 62, 70), tread_dark=(34, 36, 42), outline=(10, 10, 14),
-                  body=(110, 116, 132), front=(170, 176, 196), turret=(130, 136, 152),
-                  barrel=(200, 205, 220)),
-    "concrete": dict(tread=(80, 80, 76), tread_dark=(50, 50, 48), outline=(16, 16, 14),
-                     body=(120, 118, 110), front=(160, 158, 150), turret=(150, 70, 60),
-                     barrel=(215, 200, 190)),
-    # Blink shown for a moment when anything tank-like takes a hit.
-    "hit": dict(tread=(200, 190, 180), tread_dark=(150, 140, 130), outline=(60, 20, 20),
-                body=(255, 235, 220), front=(255, 250, 240), turret=(255, 240, 230),
-                barrel=(255, 255, 255)),
+SPRITE_COLORS = {
+    "k": (22, 18, 28),      # outline
+    "s": (236, 192, 152),   # skin
+    "S": (196, 150, 112),   # skin shade
+    "w": (232, 232, 238),   # white
+    "b": (70, 92, 200), "B": (44, 56, 138),          # wizard blue
+    "y": (244, 204, 64), "Y": (180, 140, 30),        # gold
+    "o": (150, 235, 255), "O": (80, 170, 230),       # magic glow
+    "t": (136, 88, 46), "T": (92, 58, 30),           # wood
+    "m": (182, 188, 202), "M": (112, 118, 134),      # steel / stone
+    "r": (206, 52, 52), "R": (140, 30, 36),          # red
+    "g": (70, 150, 70), "G": (40, 96, 46),           # green
+    "p": (244, 132, 188), "P": (190, 80, 140),       # pink
+    "h": (116, 72, 40), "H": (244, 214, 112),        # hair brown / blonde, leather
+    "v": (140, 70, 170), "V": (96, 44, 120),         # violet
+    "e": (150, 132, 96), "E": (110, 95, 66),         # ogre hide
 }
+# Creature sprites (warrior, worm) flash this for a moment when hit.
+HIT_FLASH = (255, 235, 220)
 
 # --- Enemies -----------------------------------------------------------------------
 
-LASER = (255, 60, 60)              # sniper aim line
-LASER_DIM = (210, 45, 45)
-LASER_CORE = (255, 210, 200)
-HP_BAR = (220, 70, 60)
-HP_BAR_BG = (60, 20, 18)
+BEAM = (255, 70, 70)               # warlock aiming beam
+BEAM_DIM = (170, 40, 40)
 BURROW_DUST = ((170, 145, 95), (130, 110, 70))
 WORM_BODY = (170, 120, 90)
 WORM_DARK = (110, 70, 50)
@@ -122,20 +109,27 @@ WARRIOR_EYES = (255, 90, 60)
 WARRIOR_BLADE = (230, 230, 240)
 DEATH_FIRE = ((255, 230, 140), (255, 140, 40), (140, 60, 20))
 
-# --- Shells & effects -------------------------------------------------------------
-# Fixed shades only (see the glyph-cache note at the top of this file).
+# --- Shots & effects (render/ascii_fx.py) ------------------------------------------
+# Everything that flies or pops up is font glyphs. Fixed shades only (see
+# the glyph-cache note at the top of this file).
 
-SHELL_CORE = (255, 244, 190)
-SHELL_GLOW = (255, 165, 40)
-TRAIL = ((235, 150, 50), (170, 100, 35), (110, 66, 25))   # nearest -> farthest
+# Shots: (head color, trail colors nearest -> farthest).
+SHOT_BOLT = ((215, 245, 255), ((120, 200, 255), (70, 130, 210)))
+SHOT_ARROW = ((190, 195, 210), ((150, 100, 55), (110, 72, 40)))
+SHOT_HEX = ((230, 130, 255), ((160, 80, 210), (100, 50, 140)))
+SHOT_ORB = ((255, 140, 205), ((200, 80, 150), (130, 50, 100)))
+SHOT_BOULDER = ((175, 160, 135), ((120, 110, 92), (85, 78, 66)))
 FLASH_HOT = (255, 250, 215)
 FLASH = (255, 190, 60)
-FLASH_EDGE = (220, 110, 30)
 SPARK_HOT = (255, 235, 170)
 SPARK = (255, 160, 50)
 DEBRIS = (150, 135, 110)
 DUST = ((150, 140, 120), (105, 98, 85))
 TILE_FLASH_FG = (255, 255, 235)
+NUMBER_ENEMY = ((255, 245, 200), (170, 160, 130))    # bright -> faded
+NUMBER_PLAYER = ((255, 90, 70), (170, 60, 50))
+HP_BAR_FULL = (230, 70, 55)
+HP_BAR_EMPTY = (110, 50, 44)
 
 # --- UI ------------------------------------------------------------------------------
 
@@ -146,3 +140,44 @@ HUD_LABEL = colors.GREEN_DIM
 HUD_VALUE = colors.GREEN
 HUD_HINT = colors.GREY
 HUD_RULE = colors.GREEN_DIM
+
+# --- Maps (minimap and big map) ------------------------------------------------------
+# Map pixels are half-block cells (fg = top pixel, bg = bottom), one flat
+# color each. Explored land shows each tile type's color; unexplored land
+# shows its biome, dimmed. Fixed colors only (glyph-cache note above).
+
+# Biome colors: plain ground on the map, and (dimmed) the unexplored outline.
+MAP_BIOME = {
+    "plains": (95, 140, 60),
+    "forest": (40, 100, 48),
+    "desert": (190, 160, 90),
+    "ruins": (110, 110, 106),
+    "swamp": (86, 98, 50),
+    "mushroom": (130, 80, 145),
+    "ocean": (24, 52, 100),
+}
+MAP_DIM = 0.4        # unexplored land: biome color times this
+# Explored tiles by TileType name; anything not listed uses its look-alike
+# ground color from MAP_BIOME via MAP_TILE_BIOME.
+MAP_TILE = {
+    "water": MAP_BIOME["ocean"],
+    "bog": (40, 80, 70),
+    "tree": (30, 85, 36), "pine": (22, 72, 32), "mangrove": (60, 90, 40),
+    "giant mushroom": (190, 80, 150), "cactus": (90, 150, 70),
+    "rock": (120, 105, 90), "mesa rock": (150, 95, 60),
+    "wall": (175, 175, 165), "void": (0, 0, 0),
+    "rubble": (135, 125, 110), "splinters": (110, 90, 60),
+    "tall grass": (110, 155, 70), "flowers": (120, 150, 70), "dunes": (205, 178, 110),
+    "reeds": (105, 120, 55), "spores": (150, 95, 165),
+}
+MAP_TILE_BIOME = {   # ground-like tiles -> the biome whose color they take
+    "ground": "plains", "grass": "plains", "plains": "plains",
+    "forest floor": "forest", "sand": "desert", "cactus pulp": "desert",
+    "concrete": "ruins", "mud": "swamp", "roots": "swamp",
+    "mycelium": "mushroom", "mush": "mushroom",
+}
+MAP_FRAME = colors.GREEN_DIM
+MAP_TITLE = colors.GREEN
+MAP_LABEL = (235, 235, 220)
+MAP_PLAYER = (255, 255, 255)
+MAP_PLAYER_EDGE = (20, 20, 20)

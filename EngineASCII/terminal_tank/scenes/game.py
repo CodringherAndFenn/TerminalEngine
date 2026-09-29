@@ -1,17 +1,17 @@
 """
-scenes/game.py -- the in-game scene: drive, aim, shoot, fight, scroll.
+scenes/game.py -- the in-game scene: walk, aim, shoot, fight, scroll.
 
 Per frame:
-  update: clamp dt -> poll held keys -> drive the tank (rotated-hull
-          collision) -> ease the camera toward it -> map the mouse to the
-          world -> aim -> fire while the left button is held (enemies nearby
-          hear it) -> every awake enemy thinks and acts -> move shells and
+  update: clamp dt -> poll held keys -> walk the hero (box collision) ->
+          ease the camera toward it -> map the mouse to the world -> aim ->
+          fire while the left button is held (enemies nearby hear it) ->
+          every awake enemy thinks and acts -> move shots and
           resolve hits (terrain, the player, enemies -- friendly fire on)
           -> handle deaths (chain reactions, e.g. a popped puffer) -> age
           effects -> play the frame's sounds -> stream world chunks with
           the time left (time-budgeted) and wake/sleep their enemies.
-  draw:   terrain -> ground effects -> enemies -> tank -> shells -> air
-          effects -> crosshair -> HUD -> death overlay. Everything in the
+  draw:   terrain -> ground effects -> enemies -> hero -> shots -> air
+          effects -> minimap -> crosshair -> HUD -> map / death overlay. Everything in the
           world is drawn at pixel positions (engine put_px), so it scrolls
           smoothly.
 
@@ -19,9 +19,12 @@ The camera is followed *before* aiming so the mouse->world mapping uses the
 same camera the frame is drawn with; otherwise the crosshair and the aimed
 point would disagree by one frame of scrolling.
 
-When the player's tank is destroyed the world keeps running behind a death
-overlay; R or a click starts a new run (a full game-over screen with run
-stats comes in milestone 5).
+A minimap sits in the top-right corner; M opens the big map (ui/maps.py),
+which pauses the game and takes the mouse and WASD for zooming and panning.
+
+When the hero falls the world keeps running behind a death overlay; R or a
+click starts a new run (a full game-over screen with run stats comes with
+the menus).
 """
 
 from __future__ import annotations
@@ -41,20 +44,21 @@ from ..engine_ext.screen import fit_grid_to_window
 from ..engine_ext.sfx import Sfx
 from ..entities.effects import Effect, update_effects
 from ..entities.projectile import Projectile
-from ..entities.tank import Tank
-from ..render.effects_sprite import draw_effects, draw_projectiles
+from ..entities.character import Character
+from ..render.ascii_fx import draw_effects, draw_projectiles
+from ..render.characters import draw_body
 from ..render.enemies_sprite import draw_enemy
 from ..render.sprites import SpriteBank
-from ..render.tank_sprite import draw_tank
 from ..render.terrain import draw_terrain
 from ..systems import combat
 from ..systems.spawner import Spawner
 from ..ui.crosshair import draw_crosshair
 from ..ui.death import draw_death_overlay
 from ..ui.hud import draw_hud
+from ..ui.maps import BigMap, Minimap
 from ..world import make_world
 
-# Effects drawn under the tanks (they belong to the ground).
+# Effects drawn under the characters (they belong to the ground).
 _GROUND_EFFECTS = ("tile_flash", "fizzle", "burrow")
 # A click can't restart until the death overlay has been up this long
 # (so the click that was firing when you died doesn't skip it).
@@ -66,9 +70,9 @@ class GameScene(Scene):
         d = self.manager.display
         self.world = make_world()
         self.spawn = self.world.spawn_point()
-        self.tank = Tank(config.TANKS[config.START_TANK], *self.spawn)
+        self.hero = Character(config.HEROES[config.START_HERO], *self.spawn)
         self.camera = Camera(d.cols, d.rows - config.HUD_ROWS, d.cell_w, d.cell_h)
-        self.camera.center_on(self.tank.x, self.tank.y)
+        self.camera.center_on(self.hero.x, self.hero.y)
         self.mouse = Mouse(d)
         self.sprites = SpriteBank(self.manager.text, config.CELLS_PER_TILE)
         self.sfx = Sfx(self.manager.audio)
@@ -77,6 +81,10 @@ class GameScene(Scene):
         self.enemies: list = []
         seed = getattr(self.world, "seed", None)
         self.spawner = Spawner(self.world, seed) if seed is not None else None
+        # Maps exist only on the island (the test map has no layout).
+        has_maps = getattr(self.world, "layout", None) is not None
+        self.big_map = BigMap(self.world) if has_maps else None   # M; pauses the game
+        self.minimap = Minimap() if has_maps else None
         self.kills = 0
         self.dead_for = -1.0          # seconds since the player died; <0 = alive
         self.fps = 60.0
@@ -91,13 +99,36 @@ class GameScene(Scene):
     def player_dead(self) -> bool:
         return self.dead_for >= 0
 
+    @property
+    def map_open(self) -> bool:
+        return self.big_map is not None and self.big_map.is_open
+
+    def _toggle_map(self) -> None:
+        if self.map_open:
+            self.big_map.close()
+        else:
+            self.big_map.open(self.hero.x, self.hero.y)
+        pygame.mouse.set_visible(self.map_open)   # a real cursor for dragging
+
     def handle_event(self, event: pygame.event.Event) -> None:
+        if self.map_open:
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_m, pygame.K_ESCAPE):
+                self._toggle_map()
+                return
+            d = self.manager.display
+            pos = getattr(event, "pos", None) or pygame.mouse.get_pos()
+            self.big_map.handle_event(event, d.window_to_canvas(*pos), d.cell_w, d.cell_h,
+                                      (self.hero.x, self.hero.y))
+            if event.type != pygame.KEYDOWN or event.key != pygame.K_F11:
+                return
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 self.manager.quit()
             elif event.key == pygame.K_F11:
                 self.manager.display.cycle_mode()
                 fit_grid_to_window(self.manager.display)
+            elif event.key == pygame.K_m and self.big_map is not None:
+                self._toggle_map()
             elif event.key == pygame.K_r and self.player_dead:
                 self._restart()
         elif (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
@@ -115,6 +146,9 @@ class GameScene(Scene):
         if dt > 0:
             self.fps += (1.0 / dt - self.fps) * 0.05
         dt = min(dt, config.MAX_DT)
+        if self.map_open:
+            self.big_map.pan(*move_axes(), dt)
+            return   # the game is paused behind the map
 
         d = self.manager.display
         self.camera.resize(d.cols, d.rows - config.HUD_ROWS)
@@ -122,24 +156,24 @@ class GameScene(Scene):
 
         if not self.player_dead:
             ax, ay = move_axes()
-            self.tank.drive(ax, ay, dt, self.world)
+            self.hero.move(ax, ay, dt, self.world)
         else:
             self.dead_for += dt
-        self.camera.follow(self.tank.x, self.tank.y, dt)
+        self.camera.follow(self.hero.x, self.hero.y, dt)
 
         px, py = self.mouse.poll()
         update_effects(self.effects, dt)   # age first: new effects show frame 0
         if not self.player_dead:
-            self.tank.aim_at(*self.camera.canvas_to_world(px, py), dt)
-            if self.tank.weapon.update(dt, self.mouse.left_held()):
-                sounds += combat.fire(self.tank, self.world, self.projectiles, self.effects)
+            self.hero.aim_at(*self.camera.canvas_to_world(px, py), dt)
+            if self.hero.weapon.update(dt, self.mouse.left_held()):
+                sounds += combat.fire(self.hero, self.world, self.projectiles, self.effects)
                 for e in self.enemies:
-                    e.hear(self.tank.x, self.tank.y)
+                    e.hear(self.hero.x, self.hero.y)
 
         # Enemies act.
         actors = self._actors()
-        ctx = AIContext(self.world, self.tank, actors, self.projectiles, self.effects)
-        self.tank.tick_flash(dt)
+        ctx = AIContext(self.world, self.hero, actors, self.projectiles, self.effects)
+        self.hero.tick_flash(dt)
         # Only enemies near the view think; distant ones wait frozen.
         half_w = self.camera.view_w / self.camera.tile_w / 2 + config.ENEMY_ACTIVE_MARGIN
         half_h = self.camera.view_h / self.camera.tile_h / 2 + config.ENEMY_ACTIVE_MARGIN
@@ -167,7 +201,7 @@ class GameScene(Scene):
         self._stream_world(max(config.CHUNK_BUILD_MIN_MS, min(config.CHUNK_BUILD_BUDGET_MS, budget)))
 
     def _actors(self) -> list:
-        return [self.tank] + [e for e in self.enemies if e.alive]
+        return [self.hero] + [e for e in self.enemies if e.alive]
 
     def _handle_deaths(self, ctx: AIContext) -> list[str]:
         """Remove dead enemies (with their death effects), repeating while
@@ -192,10 +226,10 @@ class GameScene(Scene):
             ctx.actors = self._actors()
         events += ctx.events
         ctx.events.clear()
-        if not self.tank.alive and not self.player_dead:
+        if not self.hero.alive and not self.player_dead:
             self.dead_for = 0.0
-            self.projectiles = [p for p in self.projectiles if p.owner is not self.tank]
-            self.effects.append(Effect("explosion", self.tank.x, self.tank.y))
+            self.projectiles = [p for p in self.projectiles if p.owner is not self.hero]
+            self.effects.append(Effect("explosion", self.hero.x, self.hero.y))
             events.append(combat.BREAK)
         return events
 
@@ -231,7 +265,7 @@ class GameScene(Scene):
         draw_terrain(text, self.world, self.camera)
         ground = [e for e in self.effects if e.kind in _GROUND_EFFECTS]
         air = [e for e in self.effects if e.kind not in _GROUND_EFFECTS]
-        draw_effects(text, self.sprites, self.camera, self.world, ground)
+        draw_effects(text, self.camera, self.world, ground)
         margin = 3
         x0, y0 = self.camera.canvas_to_world(0, 0)
         x1, y1 = self.camera.canvas_to_world(self.camera.view_w, self.camera.view_h)
@@ -239,13 +273,19 @@ class GameScene(Scene):
             if x0 - margin <= e.x <= x1 + margin and y0 - margin <= e.y <= y1 + margin:
                 draw_enemy(text, self.sprites, self.camera, self.world, e)
         if not self.player_dead:
-            draw_tank(self.sprites, self.camera, self.tank)
-        draw_projectiles(self.sprites, self.camera, self.projectiles)
-        draw_effects(text, self.sprites, self.camera, self.world, air)
-        if not self.player_dead:
+            draw_body(self.sprites, self.camera, self.hero)
+        draw_projectiles(text, self.camera, self.projectiles)
+        draw_effects(text, self.camera, self.world, air)
+        if self.minimap is not None and not self.map_open:
+            self.minimap.draw(text, self.sprites, self.world, self.hero.x, self.hero.y,
+                              self.hero.aim_angle)
+        if not self.player_dead and not self.map_open:
             draw_crosshair(self.sprites, self.camera, self.mouse.canvas_pos)
-        dist = math.hypot(self.tank.x - self.spawn[0], self.tank.y - self.spawn[1])
-        draw_hud(text, d.cols, d.rows, self.tank, self.world, self.spawn, self.fps, self.kills)
-        if self.player_dead:
+        dist = math.hypot(self.hero.x - self.spawn[0], self.hero.y - self.spawn[1])
+        draw_hud(text, d.cols, d.rows, self.hero, self.world, self.spawn, self.fps, self.kills)
+        if self.map_open:
+            self.big_map.draw(text, self.sprites, self.camera.view_rows,
+                              (self.hero.x, self.hero.y), self.hero.aim_angle)
+        elif self.player_dead:
             draw_death_overlay(text, d.cols, self.camera.view_rows, dist, self.kills,
                                getattr(self.world, "seed", None), self.dead_for >= _RESTART_DELAY)

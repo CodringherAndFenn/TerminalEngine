@@ -1,24 +1,23 @@
 """
-systems/collision.py -- rotated tank hull vs. the tile grid.
+systems/collision.py -- a character's box (optionally rotated) vs. the tile grid.
 
-The hull is a rectangle (hull_length_px x hull_width_px) turned to the
-tank's heading -- exactly the shape that's drawn -- so a tank at 45 degrees
-can no longer poke its corners into walls.
+Characters and creatures collide as a square box (size_px), unrotated. The
+test itself supports any rotated rectangle, which is why it takes an angle.
 
 Geometry runs in PIXEL space (1 tile = TILE_PX_W x TILE_PX_H), because a
 rectangle in pixel space is not a rectangle in tile units (tiles aren't
-square), and the drawn hull is a true rectangle on screen.
+square).
 
 Overlap test: Separating Axis Theorem. Two convex shapes are disjoint iff
 there's an axis on which their projections don't overlap; for a rotated
 rectangle vs. an axis-aligned one, only 4 axes can separate them: the tile's
-x and y axes and the hull's own length (u) and width (v) axes. Touching
+x and y axes and the box's own length (u) and width (v) axes. Touching
 edges don't count as overlap.
 
 Movement is resolved one axis at a time (x, then y). If the full step on an
 axis would overlap, a short binary search finds the furthest safe fraction,
-so the hull stops flush against the wall (no visible gap) -- and because
-the other axis still moves, driving diagonally into a wall slides along it.
+so the box stops flush against the wall (no visible gap) -- and because
+the other axis still moves, walking diagonally into a wall slides along it.
 """
 
 from __future__ import annotations
@@ -120,33 +119,3 @@ def move_hull(
         else:
             y += dy
     return x, y, blocked_x, blocked_y
-
-
-# Directions tried when nudging a turning hull off a wall (unit vectors).
-_NUDGE_DIRS = [(math.cos(k * math.pi / 4), math.sin(k * math.pi / 4)) for k in range(8)]
-
-
-def try_turn(
-    world: TileSource, x: float, y: float, old_angle: float, new_angle: float,
-    hl: float, hw: float,
-) -> tuple[float, float, float]:
-    """Rotate a hull from old_angle to new_angle if it fits.
-
-    If the new heading would overlap a wall, look for the smallest nudge
-    (up to config.TURN_NUDGE_MAX tiles, 8 directions) that makes it fit --
-    like the tank shoving itself off the wall as it turns. If nothing fits,
-    the turn is refused for this frame. Returns (x, y, angle).
-    """
-    if not hull_hits_solid(world, x, y, new_angle, hl, hw):
-        return x, y, new_angle
-    if hull_hits_solid(world, x, y, old_angle, hl, hw):
-        return x, y, new_angle  # already stuck; don't make it worse by refusing
-    step = 0.04
-    dist = step
-    while dist <= config.TURN_NUDGE_MAX + 1e-9:
-        for ux, uy in _NUDGE_DIRS:
-            nx, ny = x + ux * dist, y + uy * dist
-            if not hull_hits_solid(world, nx, ny, new_angle, hl, hw):
-                return nx, ny, new_angle
-        dist += step
-    return x, y, old_angle

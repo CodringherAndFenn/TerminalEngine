@@ -1,5 +1,5 @@
 """
-ai/creatures.py -- non-vehicle enemies: fallen warrior, spore puffer,
+ai/creatures.py -- enemies without weapons: fallen warrior, spore puffer,
 burrower.
 
 Every attack is telegraphed (a wind-up the player can see) and hits an
@@ -22,14 +22,13 @@ from .brain import AIContext, Brain
 
 
 class Creature(Brain, Actor):
-    def __init__(self, spec: EnemySpec, x: float, y: float, difficulty: float,
+    def __init__(self, spec: EnemySpec, x: float, y: float,
                  rng: random.Random, spawn_id=None) -> None:
-        hp = round(spec.max_hp * (1 + config.ENEMY_HP_SCALING * difficulty))
-        Actor.__init__(self, hp, spec.size_px / 2 / config.TILE_PX_W + 0.15)
+        Actor.__init__(self, spec.max_hp, spec.size_px / 2 / config.TILE_PX_W + 0.15)
         self.x, self.y = x, y
         self.facing = rng.uniform(-math.pi, math.pi)   # world angle it looks at
         self.half = spec.size_px / 2                    # collision half-size, px
-        self.init_brain(spec, difficulty, rng, spawn_id)
+        self.init_brain(spec, rng, spawn_id)
 
     def walk(self, ctx: AIContext, gx: float, gy: float, dt: float, speed: float) -> bool:
         """Walk toward a goal with the clumsy steering; True once there."""
@@ -101,8 +100,8 @@ class Warrior(Creature):
     def _strike(self, ctx: AIContext) -> None:
         cx = self.x + math.cos(self.facing) * 0.8
         cy = self.y + math.sin(self.facing) * 0.8
-        combat.blast(cx, cy, self.espec.attack_radius * 0.75, self.espec.damage * self.damage_mult,
-                     self, ctx.actors)
+        combat.blast(cx, cy, self.espec.attack_radius * 0.75, self.espec.damage,
+                     self, ctx.actors, effects=ctx.effects)
         ctx.effects.append(Effect("slash", cx, cy, self.facing))
         ctx.events.append(combat.HIT)
         self.swing = 0.15
@@ -153,8 +152,8 @@ class Puffer(Creature):
         if self.burst_done:
             return
         self.burst_done = True
-        combat.blast(self.x, self.y, self.espec.attack_radius, self.espec.damage * self.damage_mult,
-                     self, ctx.actors)
+        combat.blast(self.x, self.y, self.espec.attack_radius, self.espec.damage,
+                     self, ctx.actors, effects=ctx.effects)
         ctx.effects.append(Effect("spores", self.x, self.y))
         ctx.events.append(combat.BREAK)
         self.hp = 0.0
@@ -190,7 +189,7 @@ class Burrower(Creature):
             if self.timer <= 0:
                 self.state, self.timer = "up", 1.8
                 combat.blast(self.x, self.y, self.espec.attack_radius,
-                             self.espec.damage * self.damage_mult, self, ctx.actors)
+                             self.espec.damage, self, ctx.actors, effects=ctx.effects)
                 ctx.effects.append(Effect("eruption", self.x, self.y))
                 ctx.events.append(combat.BREAK)
             return

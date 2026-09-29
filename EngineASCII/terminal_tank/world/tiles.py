@@ -36,7 +36,7 @@ class TileType:
     glyphs: tuple[str, ...]      # 2-char variants
     fg: tuple
     bg: tuple
-    solid: bool = False          # blocks tanks
+    solid: bool = False          # blocks walking
     blocks_shots: bool = False   # stops projectiles
     hp: int = 0                  # 0 = indestructible
     # Glyph variant sets for increasing damage: wear[0] = lightly damaged,
@@ -94,7 +94,7 @@ ROCK = TileType(
 WATER = TileType(
     # VT323's "~" renders like an "N", so water is a sparse dither instead.
     "water", ("░ ", " ░", "  ", "  ", "▒░"), palette.WATER_FG, palette.WATER_BG,
-    solid=True,  # tanks can't ford it, but shells fly over it
+    solid=True,  # can't be crossed on foot, but shots fly over it
 )
 VOID = TileType(
     "void", ("  ",), palette.VOID_FG, palette.VOID_BG,
@@ -155,7 +155,7 @@ CONCRETE = TileType(
     "concrete", ("  ", ". ", " .", "  ", ":."), palette.CONCRETE_FG, palette.CONCRETE_BG,
 )
 
-# Swamp: mud, reeds, bog pools (like water: tanks can't cross, shells can)
+# Swamp: mud, reeds, bog pools (like water: can't be walked through, shots fly over)
 # and mangroves.
 MUD = TileType(
     "mud", ("  ", ", ", " .", "  "), palette.MUD_FG, palette.MUD_BG,

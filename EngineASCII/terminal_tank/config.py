@@ -11,7 +11,7 @@ Units:
 
 import math
 
-from .specs import EnemySpec, ShellSpec, TankSpec, WeaponSpec
+from .specs import CharacterSpec, EnemySpec, ShellSpec, WeaponSpec
 
 # --- Display / layout --------------------------------------------------------
 
@@ -21,7 +21,7 @@ WINDOW_TITLE = "Terminal Tank"
 CELLS_PER_TILE = 2
 
 # A world tile's size in pixels, used where game logic needs real on-screen
-# proportions (rotated hull collision, sprite angles). Matches the default
+# proportions (collision boxes, aiming angles). Matches the default
 # 10x24 px font cell.
 TILE_PX_W = 20
 TILE_PX_H = 24
@@ -44,145 +44,136 @@ WINDOW_SCREEN_FRACTION = 0.9
 # Rows reserved at the bottom of the screen for the HUD (incl. separator line).
 HUD_ROWS = 3
 
+# --- Maps (ui/maps.py) ---
+# Minimap: MINIMAP_COLS x MINIMAP_ROWS cells in the top-right corner (each
+# cell shows 2 map pixels stacked), MINIMAP_TILES_PER_PIXEL tiles per map
+# pixel -- so it covers COLS*k x ROWS*2*k tiles (28*5 x 16*5 = 140 x 80,
+# vs. the screen's 86 x 27). MARGIN / MARGIN_TOP: cells from the edges.
+MINIMAP_COLS = 28
+MINIMAP_ROWS = 8
+MINIMAP_TILES_PER_PIXEL = 5
+MINIMAP_MARGIN = 1
+MINIMAP_MARGIN_TOP = 0
+# Big map (M): zooms from the whole island in to this many tiles per map
+# pixel; each mouse-wheel notch zooms by MAP_ZOOM_STEP; WASD pans at
+# MAP_PAN_SPEED map pixels per second (same on-screen speed at any zoom).
+MAP_MIN_TILES_PER_PIXEL = 1.0
+MAP_ZOOM_STEP = 1.25
+MAP_PAN_SPEED = 60.0
+
 # Largest simulation step we accept. A long frame (window drag, alt-tab) is
-# clamped to this so the tank can't tunnel through walls on a hitch.
+# clamped to this so nothing can tunnel through walls on a hitch.
 MAX_DT = 0.05
 
 # --- Camera -------------------------------------------------------------------
 
-# How quickly the camera catches up with the tank, per second. Higher = tighter
-# (tank stays closer to center); lower = floatier. 0 = locked to the tank.
+# How quickly the camera catches up with the hero, per second. Higher = tighter
+# (hero stays closer to center); lower = floatier. 0 = locked to the hero.
 CAMERA_FOLLOW_RATE = 8.0
-# The camera never trails the tank by more than this many tiles.
+# The camera never trails the hero by more than this many tiles.
 CAMERA_MAX_LAG_TILES = 3.0
 
-# --- Tank driving -------------------------------------------------------------
-
-# "direct": WASD/arrows give the direction to drive in (the hull turns toward
-#           it, reversing instead of spinning around when that's shorter).
-# "tank":   W/S = forward/reverse, A/D = rotate the hull (classic tank controls).
-DRIVE_MODE = "direct"
-
-# In "direct" mode the tank only reaches full speed once the hull points
-# (nearly) where you're steering; while turning it's scaled by
-# cos(angle error), and not driven at all past this angle.
-DIRECT_MAX_DRIVE_ERROR = math.radians(80)
-
-# --- Tanks & weapons ---------------------------------------------------------------
+# --- Heroes & weapons ---------------------------------------------------------------
 #
-# Tanks and guns are data (see specs.py). Add entries here to create new tank
-# types or weapons; START_TANK picks the one you play (a menu will choose it
-# in a later milestone). Sizes are canvas pixels: 1 tile = 20 x 24 px.
-
+# Heroes, enemy bodies and weapons are data (see specs.py). START_HERO picks
+# who you play (a menu will choose it in a later milestone). Sizes are
+# canvas pixels: 1 tile = 20 x 24 px. Sprites are 14 x 18 pixel art
+# (render/characters.py) drawn at `sprite_scale` screen px per pixel.
 #
 # Damage and hit points use one scale for everything (player, enemies, terrain).
 
 WEAPONS = {
-    # The player's gun.
-    "cannon": WeaponSpec(
-        name="cannon",
+    # Every hero's attack for now: a placeholder until heroes get their own
+    # weapons (weapons milestone).
+    "magic_bolt": WeaponSpec(
+        name="magic bolt",
         fire_interval=0.35,       # hold left click: ~3 shots/s
-        shell=ShellSpec(speed=36.0, damage=20, max_range=30.0),
+        shell=ShellSpec(speed=36.0, damage=20, max_range=30.0, look="bolt"),
     ),
-    # Enemy guns. Only the heavy tank's shells damage terrain.
-    "light_cannon": WeaponSpec(
-        name="light cannon", fire_interval=1.6,
-        shell=ShellSpec(speed=24.0, damage=8, max_range=22.0, damages_terrain=False,
-                        length_px=7, width_px=3),
+    # Enemy weapons. Only the ogre's rocks damage terrain.
+    "goblin_bow": WeaponSpec(
+        name="goblin bow", fire_interval=1.6,
+        shell=ShellSpec(speed=14.0, damage=8, max_range=22.0, damages_terrain=False,
+                        look="arrow"),
     ),
-    "sniper_rifle": WeaponSpec(
-        name="sniper rifle", fire_interval=3.5,
-        shell=ShellSpec(speed=70.0, damage=30, max_range=45.0, damages_terrain=False,
-                        length_px=14, width_px=3),
+    "hex": WeaponSpec(
+        name="hex", fire_interval=3.5,
+        shell=ShellSpec(speed=45.0, damage=30, max_range=45.0, damages_terrain=False,
+                        look="hex"),
     ),
-    "turret_gun": WeaponSpec(
-        name="turret gun", fire_interval=2.4, burst=3, burst_gap=0.14,
-        shell=ShellSpec(speed=30.0, damage=6, max_range=24.0, damages_terrain=False,
-                        length_px=6, width_px=3),
+    "tower_orbs": WeaponSpec(
+        name="tower orbs", fire_interval=2.4, burst=3, burst_gap=0.14,
+        shell=ShellSpec(speed=17.0, damage=6, max_range=24.0, damages_terrain=False,
+                        look="orb"),
     ),
-    "heavy_cannon": WeaponSpec(
-        name="heavy cannon", fire_interval=2.8,
-        shell=ShellSpec(speed=22.0, damage=25, max_range=24.0, damages_terrain=True,
-                        length_px=12, width_px=6),
-    ),
-}
-
-TANKS = {
-    "standard": TankSpec(
-        name="standard",
-        weapon="cannon",
-        max_speed=7.0,
-        reverse_speed=4.5,
-        accel=16.0,
-        brake=24.0,
-        hull_turn_speed=math.radians(260),
-        hull_length_px=54,
-        hull_width_px=42,
-        turret_radius_px=10,
-        barrel_length_px=44,
-        barrel_width_px=6,
-        max_hp=100,
-    ),
-    # Enemy vehicles.
-    "tankette": TankSpec(
-        name="tankette", weapon="light_cannon", max_speed=5.5, reverse_speed=4.0,
-        accel=12.0, brake=20.0, hull_turn_speed=math.radians(220),
-        hull_length_px=38, hull_width_px=30, turret_radius_px=7,
-        barrel_length_px=30, barrel_width_px=4,
-        turret_turn_speed=math.radians(160), colors="rust",
-    ),
-    "sniper": TankSpec(
-        name="sniper", weapon="sniper_rifle", max_speed=5.0, reverse_speed=4.5,
-        accel=10.0, brake=20.0, hull_turn_speed=math.radians(180),
-        hull_length_px=44, hull_width_px=32, turret_radius_px=7,
-        barrel_length_px=58, barrel_width_px=3,
-        turret_turn_speed=math.radians(70), colors="sand",
-    ),
-    "heavy": TankSpec(
-        name="heavy", weapon="heavy_cannon", max_speed=3.2, reverse_speed=2.2,
-        accel=6.0, brake=14.0, hull_turn_speed=math.radians(90),
-        hull_length_px=70, hull_width_px=54, turret_radius_px=13,
-        barrel_length_px=54, barrel_width_px=9,
-        turret_turn_speed=math.radians(55), colors="steel",
-        front_armor=0.35,         # hits on its front do a third of the damage
-    ),
-    "turret": TankSpec(
-        name="turret", weapon="turret_gun", max_speed=0.0, reverse_speed=0.0,
-        accel=0.0, brake=0.0, hull_turn_speed=0.0,
-        hull_length_px=44, hull_width_px=44, turret_radius_px=11,
-        barrel_length_px=36, barrel_width_px=5,
-        turret_turn_speed=math.radians(60), colors="concrete", hull_style="bunker",
+    "boulder": WeaponSpec(
+        name="boulder", fire_interval=2.8,
+        shell=ShellSpec(speed=11.0, damage=25, max_range=24.0, damages_terrain=True,
+                        look="boulder"),
     ),
 }
 
-START_TANK = "standard"
+# The playable heroes. All the same for now except their looks.
+_HERO = dict(weapon="magic_bolt", max_speed=8.5, accel=40.0, brake=50.0,
+             size_px=26, max_hp=100)
+HEROES = {
+    "wizard": CharacterSpec(name="wizard", sprite="wizard", **_HERO),
+    "knight": CharacterSpec(name="knight", sprite="knight", **_HERO),
+    "bard": CharacterSpec(name="bard", sprite="bard", **_HERO),
+    "princess": CharacterSpec(name="princess", sprite="princess", **_HERO),
+    "huntress": CharacterSpec(name="huntress", sprite="huntress", **_HERO),
+}
+START_HERO = "wizard"
+
+# Bodies of the enemies that shoot (their behaviour: ai/shooters.py).
+BODIES = {
+    "goblin_archer": CharacterSpec(
+        name="goblin archer", weapon="goblin_bow", sprite="goblin", max_speed=5.5,
+        accel=20.0, brake=30.0, size_px=24, aim_turn_speed=math.radians(160),
+    ),
+    "warlock": CharacterSpec(
+        name="warlock", weapon="hex", sprite="warlock", max_speed=5.0,
+        accel=16.0, brake=30.0, size_px=24, aim_turn_speed=math.radians(70),
+    ),
+    "ogre": CharacterSpec(
+        name="ogre", weapon="boulder", sprite="ogre", max_speed=3.2,
+        accel=8.0, brake=16.0, size_px=40, sprite_scale=4, hold_px=26,
+        aim_turn_speed=math.radians(55),
+        front_armor=0.35,         # hits on the side it faces do a third of the damage
+    ),
+    "spell_tower": CharacterSpec(
+        name="spell tower", weapon="tower_orbs", sprite="tower", max_speed=0.0,
+        accel=0.0, brake=0.0, size_px=40, sprite_scale=4, hold_px=10,
+        aim_turn_speed=math.radians(60),
+    ),
+}
 
 # --- Enemies ---------------------------------------------------------------------------
 #
 # Few but dangerous. Every enemy type is data here; its behaviour lives in
 # ai/ (picked by `kind`). hp/damage share the damage scale above: the player
-# has 100 hp and deals 20 per shell.
+# has 100 hp and deals 20 per bolt.
 
 ENEMIES = {
-    "tankette": EnemySpec(
-        name="tankette", kind="tankette", tank="tankette", max_hp=40, sight=16,
+    "goblin_archer": EnemySpec(
+        name="goblin archer", kind="archer", body="goblin_archer", max_hp=40, sight=16,
         biomes=("plains", "forest", "desert", "ruins", "swamp", "mushroom"), weight=3,
         preferred_range=(7.0, 11.0),
     ),
-    "sniper": EnemySpec(
-        name="sniper", kind="sniper", tank="sniper", max_hp=50, sight=34,
-        biomes=("desert", "plains", "ruins"), weight=2, min_difficulty=0.04,
+    "warlock": EnemySpec(
+        name="warlock", kind="warlock", body="warlock", max_hp=50, sight=34,
+        biomes=("desert", "plains", "ruins"), weight=2,
         preferred_range=(18.0, 28.0),
-        windup=1.1,               # laser aim time before the shot
+        windup=1.1,               # aiming-beam time before the hex flies
     ),
-    "turret": EnemySpec(
-        name="turret", kind="turret", tank="turret", max_hp=80, sight=20,
+    "spell_tower": EnemySpec(
+        name="spell tower", kind="tower", body="spell_tower", max_hp=80, sight=20,
         biomes=("ruins",), weight=4,
     ),
-    "heavy": EnemySpec(
-        name="heavy tank", kind="heavy", tank="heavy", max_hp=200, sight=18,
+    "ogre": EnemySpec(
+        name="ogre", kind="ogre", body="ogre", max_hp=200, sight=18,
         biomes=("plains", "forest", "desert", "ruins", "swamp"), weight=1,
-        min_difficulty=0.15, preferred_range=(6.0, 12.0),
+        preferred_range=(6.0, 12.0),
     ),
     "burrower": EnemySpec(
         name="burrower", kind="burrower", max_hp=60, sight=22,
@@ -201,17 +192,48 @@ ENEMIES = {
     ),
 }
 
-# Enemies expected per chunk: ENEMY_BASE_DENSITY at the start, rising by
-# ENEMY_DENSITY_PER_DIFFICULTY at full difficulty. Plains is calmer.
-ENEMY_BASE_DENSITY = 0.35
-ENEMY_DENSITY_PER_DIFFICULTY = 1.3
-BIOME_ENEMY_DENSITY = {"plains": 0.6, "forest": 1.0, "desert": 1.0, "ruins": 1.3,
+# --- How many enemies, and which --------------------------------------------------
+#
+# The island is cut into chunks of 32 x 32 tiles (CHUNK_SIZE). One screen
+# of the 172-column ultrawide grid shows 86 x 27 tiles, about 2.3 chunks.
+#
+# 1. HOW MANY. Each chunk gets
+#        BIOME_ENEMY_DENSITY[biome at the chunk's centre] * ENEMY_DENSITY_MULTIPLIER
+#    enemies on average: the whole part always spawns, the fraction is a
+#    chance for one more. 1.3 -> one enemy, plus a 30% chance of a second;
+#    0.35 -> a 35% chance of one. 0 -> none.
+#
+# 2. WHICH. Every enemy is rolled separately among the ENEMIES whose
+#    `biomes` include that biome, in proportion to their `weight`: its
+#    chance is weight / (sum of weights of all types allowed there). With
+#    the numbers above, the plains roll goblin archer 3, warlock 2, ogre 1,
+#    warrior 3 -> 33% / 22% / 11% / 33%. To make a type rarer or more
+#    common, change its weight; to keep it out of a biome, remove the biome
+#    from its `biomes`.
+#
+# 3. WHERE. Up to 12 random spots in the chunk are tried; each must be that
+#    enemy's own biome, fit its body, and (spell towers) be next to a ruined
+#    wall. If none works, that enemy is skipped -- so chunks on a biome
+#    border, or towers in chunks with few walls, come out a bit sparser.
+#    Nothing spawns within ENEMY_FREE_RADIUS of the start.
+#
+# 4. WHEN. Placement is fixed per seed. Enemies sleep until their spot
+#    comes within ENEMY_WAKE_MARGIN tiles of the screen, and go back to
+#    sleep (to wake again at their spot) past ENEMY_DESPAWN_MARGIN. Killed
+#    enemies stay dead for the rest of the run.
+#
+# WHAT IT FEELS LIKE (measured: straight driving at top speed, 8.5 tiles/s,
+# on the 172-column screen): density 1.0 wakes about 55-80 enemies per
+# minute -- roughly one per chunk you pass near. Driving north/south sweeps
+# a wider band than east/west (the screen is wider than tall), so meets
+# more. With the values below: plains ~28/min, swamp ~52, forest ~59,
+# mushroom ~72, desert ~77, ruins ~100. Doubling a density doubles its rate.
+BIOME_ENEMY_DENSITY = {"plains": 0.35, "forest": 1.0, "desert": 1.0, "ruins": 1.3,
                        "swamp": 0.9, "mushroom": 1.1}
-# No enemies spawn this close to the start.
+# Scales every biome at once (0.5 = half as many enemies everywhere).
+ENEMY_DENSITY_MULTIPLIER = 1.0
+# No enemies spawn within this many tiles of the start.
 ENEMY_FREE_RADIUS = 55
-# Enemy hp and damage grow with difficulty by up to these fractions.
-ENEMY_HP_SCALING = 0.5
-ENEMY_DAMAGE_SCALING = 0.3
 # Sleeping enemies wake once their spawn point is within this many tiles of
 # the view (inside LOAD_MARGIN, so their chunk is always generated).
 ENEMY_WAKE_MARGIN = 28
@@ -230,32 +252,28 @@ ENEMY_ACTIVE_MARGIN = 16
 HEARING_RADIUS = 26          # your gunfire alerts enemies this close
 FORGET_TIME = 6.0            # seconds searching your last known spot before giving up
 REACTION_TIME = 0.35         # delay between spotting you and first shot
-AIM_ERROR = 0.06             # radians of random aim error (vehicles)
-FLEE_HP_FRACTION = 0.3       # tankettes/snipers retreat below this much hp
+AIM_ERROR = 0.06             # radians of random aim error (shooters)
+FLEE_HP_FRACTION = 0.3       # archers/warlocks retreat below this much hp
 # Friendly fire is always on. An enemy only turns on another enemy once
 # it has taken this fraction of its max hp from it.
 INFIGHT_AGGRO_FRACTION = 0.35
 
-# Heavy tanks crush destructible terrain they push against (hp per second).
-HEAVY_CRUSH_DPS = 30
+# Ogres smash destructible terrain they push against (hp per second).
+OGRE_CRUSH_DPS = 30
 
-# --- Player ---------------------------------------------------------------------------
+# --- Player -------------------------------------------------------------------------
 
-PLAYER_HIT_RADIUS = 1.0      # tiles, for enemy shells and blasts
-
-# Collision: the hull is a rotated rectangle (hull_length_px x hull_width_px
-# at its true heading). If a turn would push a corner into a wall, the tank
-# is nudged up to this far (tiles) away from it; if no nudge fits, the turn
-# waits. Makes turning next to walls feel like shoving rather than sticking.
-TURN_NUDGE_MAX = 0.2
+# Walk animation: steps per tile walked (each step is one frame of the
+# 4-frame cycle in render/characters.py).
+WALK_STEPS_PER_TILE = 2.5
 
 # --- Terrain durability --------------------------------------------------------------
-# Hit points per destructible tile type (shell damage is in WEAPONS above).
+# Hit points per destructible tile type (shot damage is in WEAPONS above).
 # 0 = indestructible. Destroyed walls leave rubble, trees leave splinters;
 # both are passable.
 
-WALL_HP = 80         # 4 player shells
-TREE_HP = 40         # trees and pines: 2 shells
+WALL_HP = 80         # 4 bolts
+TREE_HP = 40         # trees and pines: 2 bolts
 CACTUS_HP = 20
 MANGROVE_HP = 40
 SHROOM_HP = 40
@@ -264,9 +282,9 @@ SHROOM_HP = 40
 
 MUZZLE_FLASH_TIME = 0.07
 IMPACT_TIME = 0.22
-FIZZLE_TIME = 0.3          # shell reaching max range: little dust puff
+FIZZLE_TIME = 0.3          # a shot reaching max range: little dust puff
 TILE_FLASH_TIME = 0.08     # a hit tile blinks bright
-SHELL_TRAIL = (0.35, 0.7, 1.05)   # trail dot distances behind a shell, tiles
+NUMBER_TIME = 0.7          # damage numbers float up for this long
 
 # --- Sound ------------------------------------------------------------------------------
 
@@ -280,27 +298,15 @@ SFX_VOLUME = 0.5
 # width (10) and h the cell height (24).
 SPRITE_PIXEL = (1, 1)
 
-# Rotation steps baked per full turn. Fine steps make rotation look
-# continuous: 720 = 0.5 degree, which moves the barrel tip well under a pixel
-# per step. (Coarse steps made the barrel snap visibly while driving.)
-HULL_ANGLE_STEPS = 360
-TURRET_ANGLE_STEPS = 720
-# Enemies turn constantly and nobody follows their barrels pixel by pixel:
-# coarser steps mean far fewer new angles to bake while fighting.
-ENEMY_HULL_ANGLE_STEPS = 90
-ENEMY_TURRET_ANGLE_STEPS = 180
-SHELL_ANGLE_STEPS = 90     # small sprites: a coarser step is invisible
-FLASH_ANGLE_STEPS = 72
-
 # Most sprite glyphs kept baked at once (rotated sprites are cached per angle,
 # least recently used evicted first). ~1 KB each, twice (ours + engine cache).
 SPRITE_GLYPH_BUDGET = 3000
 
-# --- World (milestone 3) -------------------------------------------------------------
+# --- World ------------------------------------------------------------------------
 
-# "infinite": the procedurally generated world. "test": the hand-made test
-# map with the shooting range (assets/maps/test_map.txt).
-WORLD_MODE = "infinite"
+# "island": the procedurally generated island (below). "test": the hand-made
+# test map with the shooting range (assets/maps/test_map.txt).
+WORLD_MODE = "island"
 TEST_MAP_FILE = "test_map.txt"   # under terminal_tank/assets/maps/
 
 # None = a new random world every run (the seed is shown in the HUD); set a
@@ -324,39 +330,65 @@ CHUNK_BUILD_BUDGET_MS = 3.0
 CHUNK_BUILD_MIN_MS = 0.5
 FRAME_TARGET_MS = 13.0
 
-# Start area: guaranteed open plains out to this many tiles from the spawn,
-# and completely clear of obstacles within SPAWN_CLEAR_RADIUS.
-SPAWN_PLAINS_RADIUS = 70
+# --- The island (milestone 5) ---
+#
+# The world is one big round island, Noita-style: open plains in the middle,
+# the other five biomes as equal slices of a ring around them, then the
+# coast, then ocean forever. Tiles are measured from the centre (0, 0),
+# which is also where you start. Only the parts you drive near are ever
+# generated, so the island's size costs no time or memory by itself.
+#
+# Radius of the island in tiles. At a hero's 8.5 tiles/s it's
+# ~5 min of straight driving from the centre to the coast (radius / 8.5 / 60).
+WORLD_RADIUS = 2550
+# The coastline wanders in and out by up to this fraction of WORLD_RADIUS
+# (fBm noise; COAST_SCALE is the size of its biggest bays and capes, and
+# COAST_OCTAVES adds ever smaller wiggles down to ~COAST_SCALE / 2**(n-1)).
+COAST_AMPLITUDE = 0.2
+COAST_SCALE = 2400
+COAST_OCTAVES = 6
+# The central plains reach this fraction of WORLD_RADIUS, their edge
+# wandering by PLAINS_EDGE_AMPLITUDE (fraction of the plains radius).
+PLAINS_RADIUS_FRACTION = 0.2
+PLAINS_EDGE_AMPLITUDE = 0.2
+PLAINS_EDGE_SCALE = 900
+# The ring: one equal slice per biome, in this order clockwise from east
+# when the layout is fixed. BIOME_RING_SHUFFLE deals the biomes into the
+# slices in a random (seeded) order each run; BIOME_RING_ROTATE turns the
+# whole ring by a random angle. Set both False for the same layout every run.
+BIOME_RING = ("forest", "desert", "ruins", "swamp", "mushroom")
+BIOME_RING_SHUFFLE = True
+BIOME_RING_ROTATE = True
+# Slice borders bend by up to this angle (radians) either way, following a
+# smooth noise field BIOME_WARP_SCALE tiles across, so they curve instead of
+# being straight spokes.
+BIOME_WARP = 0.3
+BIOME_WARP_SCALE = 1600
+# All borders (coast, plains edge, slices) also meander by up to
+# BORDER_WOBBLE tiles following a smooth noise field BORDER_WOBBLE_SCALE
+# tiles across (headlands, inlets, tongues of one biome into the next), and
+# are made ragged by up to BIOME_BORDER_JITTER tiles of small-scale noise
+# (BIOME_BORDER_SCALE tiles across), so they're clumpy edges rather than
+# smooth curves.
+BORDER_WOBBLE = 60.0
+BORDER_WOBBLE_SCALE = 140
+BIOME_BORDER_JITTER = 7.0
+BIOME_BORDER_SCALE = 6
+# Four regions out in the ocean, due N/E/S/W of the centre at this many
+# island radii, are reserved for a later milestone. For now they're ocean.
+CARDINAL_REGION_DISTANCE = 1.35
+
+# Start: the tile nearest the centre (searched every SPAWN_SEARCH_STEP
+# tiles) that isn't in a lake and has dry land connecting it to at least
+# SPAWN_ESCAPE_RADIUS tiles away -- so you never start trapped by water.
+# Completely clear of obstacles within SPAWN_CLEAR_RADIUS.
+SPAWN_SEARCH_STEP = 8
+SPAWN_ESCAPE_RADIUS = 80
 SPAWN_CLEAR_RADIUS = 6
-
-# Difficulty rises from 0 at the spawn to 1 at this many tiles away
-# (terrain gets rockier; milestone 4 scales enemies with it).
-DIFFICULTY_RAMP_TILES = 1500
-
-# Biome map: two broad noise fields ("heat" and "wetness") plus two patchy
-# ones for the rarer biomes. Scales are in tiles: bigger = larger regions.
-# Rules, checked in order: mushroom if SHROOM_FIELD > MUSHROOM_MIN; ruins if
-# RUINS_FIELD > RUINS_MIN; swamp if wet > SWAMP_WET and heat > SWAMP_HEAT;
-# forest if wet > FOREST_WET; desert if heat > DESERT_HEAT and wet < DESERT_DRY;
-# otherwise plains.
-BIOME_HEAT_SCALE = 260
-BIOME_WET_SCALE = 220
-BIOME_RARE_SCALE = 170
-MUSHROOM_MIN = 0.74
-RUINS_MIN = 0.72
-SWAMP_WET = 0.62
-SWAMP_HEAT = 0.42
-FOREST_WET = 0.55
-DESERT_HEAT = 0.56
-DESERT_DRY = 0.5
-# Wobble added to the biome fields by a small-scale noise (BIOME_BORDER_SCALE
-# tiles), so borders are ragged, clumpy edges instead of smooth curves.
-BIOME_BORDER_JITTER = 0.06
-BIOME_BORDER_SCALE = 5
 
 # Feature densities (chance per tile, or noise thresholds 0..1 on a local
 # detail field). Obstacles that can't be destroyed (rock, mesa, water, bog)
-# stay in small clumps so the tank can always drive around them.
+# stay in small clumps so you can always walk around them.
 DETAIL_SCALE = 11
 LAKE_SCALE = 75
 LAKE_MIN = 0.72              # lakes (plains/forest/mushroom) where the lake field is above this

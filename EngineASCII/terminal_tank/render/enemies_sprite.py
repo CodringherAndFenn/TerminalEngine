@@ -2,12 +2,13 @@
 render/enemies_sprite.py -- drawing enemies, their tells, and health bars.
 
 Readability rules (few, dangerous enemies must be *readable*):
-  * every attack has a visible tell: the sniper's laser (brightening as the
-    shot nears), the warrior's raised blade, the puffer swelling up, the
-    burrower's ground cracking before it bursts out;
-  * enemies are warm/grey colored, the player green;
-  * a small health bar appears over any damaged enemy.
-All sprites are baked shapes from render/sprites.py, drawn at pixel positions.
+  * every attack has a visible tell: the warlock's aiming beam (flickering
+    as the hex nears), the warrior's raised blade, the puffer swelling up,
+    the burrower's ground cracking before it bursts out;
+  * a small "==--" health bar appears over any damaged enemy.
+Shooting enemies are pixel-art characters (render/characters.py); the
+creatures are shapes baked by render/sprites.py; tells and bars are glyphs
+(render/ascii_fx.py). Everything is drawn at pixel positions.
 """
 
 from __future__ import annotations
@@ -18,50 +19,27 @@ import pygame
 
 from .. import config, palette
 from ..ai.creatures import Burrower, Puffer, Warrior
-from ..ai.vehicles import Sniper, Vehicle
+from ..ai.shooters import Shooter, Warlock
 from ..engine_ext.camera import Camera
-from ..systems.raycast import first_hit
-from .effects_sprite import _circle
+from .ascii_fx import draw_beam, draw_hp_bar
+from .characters import draw_body
 from .sprites import SpriteBank, quad
-from .tank_sprite import draw_tank
 
-LASER_SEG_PX = 24
+
+def _circle(surf, to_px, color, x, y, r, width=0):
+    (x0, y0), (x1, y1) = to_px(x - r, y - r), to_px(x + r, y + r)
+    rect = pygame.Rect(round(x0), round(y0), max(1, round(x1 - x0)), max(1, round(y1 - y0)))
+    pygame.draw.ellipse(surf, color, rect, width)
 
 
 # --- Painters ---------------------------------------------------------------------------
-
-
-def _paint_hp_bar(frac_steps: int, filled: int):
-    def paint(surf, to_px):
-        w, h = 30, 3
-        (x0, y0), (x1, y1) = to_px(-w / 2, -h / 2), to_px(w / 2, h / 2)
-        pygame.draw.rect(surf, palette.HP_BAR_BG, pygame.Rect(round(x0), round(y0), round(x1 - x0), round(y1 - y0)))
-        fw = (x1 - x0) * filled / frac_steps
-        if fw >= 1:
-            pygame.draw.rect(surf, palette.HP_BAR, pygame.Rect(round(x0), round(y0), round(fw), round(y1 - y0)))
-    return paint
-
-
-def _paint_laser(bright: bool):
-    """One segment of the sniper's aim line: 2 px, red; the bright version
-    has a hot core."""
-    color = palette.LASER if bright else palette.LASER_DIM
-
-    def for_angle(a):
-        def paint(surf, to_px):
-            end = to_px(math.cos(a) * LASER_SEG_PX, math.sin(a) * LASER_SEG_PX)
-            pygame.draw.line(surf, color, to_px(0, 0), end, 2)
-            if bright:
-                pygame.draw.line(surf, palette.LASER_CORE, to_px(0, 0), end, 1)
-        return paint
-    return for_angle
 
 
 def _paint_warrior(pose: str, hurt: bool, size_px: int):
     """Top-down armored figure: shoulders, helmet with glowing eyes, and a
     blade -- held low, raised back (wind-up), or swept forward (swing).
     Drawn on a 16 px design grid, scaled to the spec's size."""
-    armor = palette.TANK_COLORS["hit"]["body"] if hurt else palette.WARRIOR_ARMOR
+    armor = palette.HIT_FLASH if hurt else palette.WARRIOR_ARMOR
     k = size_px / 16
 
     def for_angle(a):
@@ -128,7 +106,7 @@ def _paint_rumble(frame: int):
 def _paint_worm(hurt: bool):
     """Surfaced burrower: a segmented worm head rearing out of a hole, jaws
     toward its target."""
-    body = palette.TANK_COLORS["hit"]["body"] if hurt else palette.WORM_BODY
+    body = palette.HIT_FLASH if hurt else palette.WORM_BODY
 
     def for_angle(a):
         def paint(surf, to_px):
@@ -150,10 +128,10 @@ def _paint_worm(hurt: bool):
 
 def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
     x, y = camera.world_to_px(e.x, e.y)
-    if isinstance(e, Vehicle):
-        if isinstance(e, Sniper) and e.laser_on:
-            _draw_laser(bank, camera, world, e)
-        draw_tank(bank, camera, e)
+    if isinstance(e, Shooter):
+        if isinstance(e, Warlock) and e.beam_on:
+            draw_beam(text, camera, world, e)
+        draw_body(bank, camera, e)
     elif isinstance(e, Warrior):
         pose = "windup" if e.windup > 0 else "swing" if e.swing > 0 else "idle"
         size = e.espec.size_px
@@ -176,35 +154,5 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
                                   _paint_worm(e.hurt_flash > 0), 18)
             bank.draw(pieces, x, y)
     if e.hp < e.max_hp and e.hittable:
-        steps = 10
-        filled = max(1, round(steps * e.hp / e.max_hp))
-        bank.draw(bank.static(f"hpbar{filled}", _paint_hp_bar(steps, filled), 16),
-                  x, y - e.hit_radius * config.TILE_PX_H - 8)
-
-
-def _draw_laser(bank: SpriteBank, camera: Camera, world, s: Sniper) -> None:
-    """Sniper aim line from the barrel along the turret, stopping at the
-    first wall; blinks bright in the last third of the wind-up."""
-    t = s.target
-    max_len = s.espec.sight if t is None else math.hypot(t.x - s.x, t.y - s.y) + 3
-    ex = s.x + math.cos(s.turret_angle) * max_len
-    ey = s.y + math.sin(s.turret_angle) * max_len
-    hit = first_hit(world.tile_at, s.x, s.y, ex, ey)
-    if hit is not None:
-        ex, ey = hit.x, hit.y
-    x0, y0 = camera.world_to_px(s.x, s.y)
-    x1, y1 = camera.world_to_px(ex, ey)
-    length = math.hypot(x1 - x0, y1 - y0)
-    if length < 1:
-        return
-    ux, uy = (x1 - x0) / length, (y1 - y0) / length
-    # Steady while aiming; blinks in the last third -- the shot is coming.
-    final = s.laser >= s.espec.windup * 0.66
-    bright = final and int(s.laser * 14) % 2 == 0
-    pieces = bank.rotated(("laser", bright), s.turret_angle, 180, _paint_laser(bright), LASER_SEG_PX + 2)
-    # Chain fixed-length baked segments end to end (each starts at its
-    # sprite center); the last one may overrun the wall by < 1 segment.
-    d = 0.0
-    while d < length - LASER_SEG_PX / 2:
-        bank.draw(pieces, x0 + ux * d, y0 + uy * d)
-        d += LASER_SEG_PX
+        top = e.spec.sprite_scale * 9 if isinstance(e, Shooter) else e.hit_radius * config.TILE_PX_H
+        draw_hp_bar(text, x, y - top - 6, e.hp / e.max_hp)

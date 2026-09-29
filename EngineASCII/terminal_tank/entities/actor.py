@@ -1,9 +1,9 @@
 """
 entities/actor.py -- anything with hit points that shells and blasts can hurt.
 
-The player's tank and every enemy are Actors, so combat treats them alike:
-shells test `hit_radius` circles, blasts check distance, and friendly fire
-falls out naturally -- a shell hurts whichever actor it reaches first,
+The hero and every enemy are Actors, so combat treats them alike:
+shots test `hit_radius` circles, blasts check distance, and friendly fire
+falls out naturally -- a shot hurts whichever actor it reaches first,
 except the one that fired it.
 """
 

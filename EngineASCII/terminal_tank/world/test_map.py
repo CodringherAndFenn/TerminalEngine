@@ -1,7 +1,7 @@
 """
 world/test_map.py -- a fixed, hand-authored map for milestones 1-2.
 
-Exposes the same interface the infinite chunked world will have
+Exposes the same interface as the island (world/chunked.py)
 (`tile_at`, `glyph_at`, `damage_tile`, `spawn_point`), so the scene and
 systems don't care which one they're given. Outside the authored area
 everything is VOID (solid, indestructible).

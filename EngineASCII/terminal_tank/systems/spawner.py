@@ -2,11 +2,12 @@
 systems/spawner.py -- which enemies exist where, and waking/sleeping them.
 
 Deterministic placement: each chunk's enemy roster is a pure function of
-(seed, chunk x, chunk y) -- how many (ENEMY_BASE_DENSITY rising with
-difficulty, scaled per biome), which types (config.ENEMIES weights for that
-biome, gated by min_difficulty) and where (random tiles that suit the type:
-turrets next to ruined walls, burrowers in sand, bodies that fit). Each gets
-a stable spawn id (cx, cy, k).
+(seed, chunk x, chunk y) -- how many (BIOME_ENEMY_DENSITY for the biome at
+the chunk's centre, times ENEMY_DENSITY_MULTIPLIER), which types
+(config.ENEMIES weights for that biome) and where (random tiles that suit
+the type: spell towers next to ruined walls, burrowers in sand, bodies that
+fit). The config.py section "How many enemies, and which" explains the
+numbers. Each enemy gets a stable spawn id (cx, cy, k).
 
 Life cycle:
   * a chunk loads -> its roster is remembered;
@@ -16,7 +17,7 @@ Life cycle:
   * an awake enemy that ends up beyond ENEMY_DESPAWN_MARGIN is put to
     sleep (removed); it wakes fresh at its spawn point when you come back;
   * an enemy dies -> its id is remembered forever, so kills stay killed.
-No enemies spawn within ENEMY_FREE_RADIUS of the start, nor inside the
+No enemies spawn within ENEMY_FREE_RADIUS of the spawn point, nor inside the
 current view (so nothing pops into existence in front of you).
 """
 
@@ -27,7 +28,6 @@ import random
 
 from .. import config
 from ..ai import make_enemy
-from ..world.generator import difficulty as difficulty_at
 from ..world.rng import hash_coords
 from .collision import hull_hits_solid
 
@@ -45,15 +45,13 @@ class Spawner:
         n = config.CHUNK_SIZE
         rng = random.Random(hash_coords(self.seed, 0xE7, cx, cy))
         mx, my = cx * n + n / 2, cy * n + n / 2
-        if math.hypot(mx, my) < config.ENEMY_FREE_RADIUS:
+        sx, sy = self.world.spawn_point()
+        if math.hypot(mx - sx, my - sy) < config.ENEMY_FREE_RADIUS:
             return []
-        diff = difficulty_at(mx, my)
         biome = self.world.biome_at(math.floor(mx), math.floor(my)).name
-        expected = (config.ENEMY_BASE_DENSITY + config.ENEMY_DENSITY_PER_DIFFICULTY * diff) \
-            * config.BIOME_ENEMY_DENSITY.get(biome, 1.0)
+        expected = config.BIOME_ENEMY_DENSITY.get(biome, 0.0) * config.ENEMY_DENSITY_MULTIPLIER
         count = int(expected) + (rng.random() < expected - int(expected))
-        choices = [(k, s.weight) for k, s in config.ENEMIES.items()
-                   if biome in s.biomes and diff >= s.min_difficulty]
+        choices = [(k, s.weight) for k, s in config.ENEMIES.items() if biome in s.biomes]
         out = []
         for k in range(count):
             if not choices:
@@ -73,13 +71,14 @@ class Spawner:
             # touch a neighbouring chunk that may not be generated yet.
             tx = cx * n + rng.randrange(4, n - 4)
             ty = cy * n + rng.randrange(4, n - 4)
-            if math.hypot(tx, ty) < config.ENEMY_FREE_RADIUS:
+            sx, sy = self.world.spawn_point()
+            if math.hypot(tx + 0.5 - sx, ty + 0.5 - sy) < config.ENEMY_FREE_RADIUS:
                 continue
             biome = self.world.biome_at(tx, ty).name
             if biome not in spec.biomes:
                 continue
             x, y = tx + 0.5, ty + 0.5
-            if spec.kind == "turret" and not self._near_wall(tx, ty):
+            if spec.kind == "tower" and not self._near_wall(tx, ty):
                 continue
             if spec.kind in ("puffer", "burrower"):
                 return x, y           # they float / tunnel: no footprint needed
@@ -95,9 +94,8 @@ class Spawner:
 
     @staticmethod
     def _half_size(spec) -> float:
-        if spec.tank:
-            t = config.TANKS[spec.tank]
-            return max(t.hull_length_px, t.hull_width_px) / 2 + 2
+        if spec.body:
+            return config.BODIES[spec.body].size_px / 2 + 2
         return spec.size_px / 2 + 1
 
     # --- Life cycle -----------------------------------------------------------------
@@ -144,7 +142,7 @@ class Spawner:
                     continue
                 if dx <= half_w + 2 and dy <= half_h + 2:
                     continue            # never pop into existence on screen
-                e = make_enemy(name, x, y, difficulty_at(x, y),
+                e = make_enemy(name, x, y,
                                random.Random(hash_coords(self.seed, 0xA1, *sid)), sid)
                 self.awake[sid] = e
                 enemies.append(e)

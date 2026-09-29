@@ -6,10 +6,7 @@ import pygame
 from engine import Display, TextRenderer
 
 from terminal_tank import config, palette
-from terminal_tank.render import sprites
-
-SPEC = config.TANKS[config.START_TANK]
-
+from terminal_tank.render import characters, sprites
 
 def _composite(pieces, cell_w, cell_h, span=8):
     """Blit baked (dc, dr, surf) pieces onto one surface centered on the
@@ -65,7 +62,7 @@ class PutPxTest(unittest.TestCase):
         text.put_px(-500, 9999, "abc")
 
 
-class SpriteShapeTest(unittest.TestCase):
+class CharacterArtTest(unittest.TestCase):
     CW, CH = 10, 24
 
     def setUp(self):
@@ -75,31 +72,37 @@ class SpriteShapeTest(unittest.TestCase):
     def tearDown(self):
         config.SPRITE_PIXEL = self._px
 
-    def test_barrel_is_straight_at_any_angle(self):
-        # Every point along the true aim line, between the dome and the
-        # muzzle, must be barrel-colored: no staircase, no gaps.
-        for deg in range(0, 360, 7):
-            a = math.radians(deg)
-            pieces = sprites.bake(sprites.paint_turret(a, SPEC), 60, self.CW, self.CH)
-            surf, (cx, cy) = _composite(pieces, self.CW, self.CH)
-            for dist in range(SPEC.turret_radius_px + 3, SPEC.barrel_length_px - 6, 3):
-                px = surf.get_at((int(cx + math.cos(a) * dist), int(cy + math.sin(a) * dist)))
-                self.assertEqual(tuple(px)[:3], palette.TANK_BARREL, f"{deg} deg at {dist}px")
+    def _render(self, name, flip=False, frame=0, hurt=False, scale=3):
+        pieces = sprites.bake(characters._painter(name, scale, flip, frame, hurt), 40,
+                              self.CW, self.CH)
+        surf, _ = _composite(pieces, self.CW, self.CH)
+        return surf
 
-    def test_hull_keeps_its_area_when_rotated(self):
-        # The old half-block hull lost most of its area on diagonals. A
-        # rotated rectangle should cover about the same pixels at any angle.
-        def area(deg):
-            pieces = sprites.bake(sprites.paint_hull(math.radians(deg), SPEC), 40, self.CW, self.CH)
-            surf, _ = _composite(pieces, self.CW, self.CH)
-            return sum(
-                1 for x in range(surf.get_width()) for y in range(surf.get_height())
-                if surf.get_at((x, y)).a
-            )
+    def test_every_sprite_is_14x18_with_known_colors(self):
+        for name, rows in characters.ART.items():
+            self.assertEqual(len(rows), characters.ART_H, name)
+            for row in rows:
+                self.assertEqual(len(row), characters.ART_W, name)
+                for ch in row:
+                    self.assertTrue(ch == "." or ch in palette.SPRITE_COLORS, (name, ch))
 
-        base = area(0)
-        for deg in (22.5, 45, 67.5, 90, 135, 200, 315):
-            self.assertAlmostEqual(area(deg) / base, 1.0, delta=0.08, msg=f"{deg} deg")
+    def test_every_hero_and_body_has_art(self):
+        for spec in list(config.HEROES.values()) + list(config.BODIES.values()):
+            self.assertIn(spec.sprite, characters.ART, spec.name)
+
+    def test_facing_left_is_a_mirror_image(self):
+        right, left = self._render("wizard"), self._render("wizard", flip=True)
+        w = right.get_width()
+        for x in range(0, w, 3):
+            for y in range(0, right.get_height(), 3):
+                self.assertEqual(right.get_at((x, y)), left.get_at((w - 1 - x, y)))
+
+    def test_walk_frames_and_hit_flash_change_the_picture(self):
+        base = pygame.image.tobytes(self._render("knight"), "RGBA")
+        for kw in ({"frame": 1}, {"frame": 3}, {"hurt": True}):
+            self.assertNotEqual(pygame.image.tobytes(self._render("knight", **kw), "RGBA"), base, kw)
+        # Frames 0 and 2 are both "standing".
+        self.assertEqual(pygame.image.tobytes(self._render("knight", frame=2), "RGBA"), base)
 
     def test_screen_angle_accounts_for_non_square_tiles(self):
         # World 45 deg = 1 tile right, 1 tile down = 20 px right, 24 px down.

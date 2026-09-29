@@ -1,5 +1,5 @@
 """
-world/chunked.py -- the infinite world: chunk streaming and terrain damage.
+world/chunked.py -- the island world: chunk streaming and terrain damage.
 
 Offers the same interface as TestMap (tile_at, glyph_at, damage_tile, hp_at,
 spawn_point), so driving, shooting, collision and rendering don't know which
@@ -12,10 +12,14 @@ Streaming, once per frame (update):
      steps at a time, so generation never causes a visible hitch.
   3. Chunks farther than UNLOAD_MARGIN outside the view are dropped. The
      gap between the two margins stops a chunk flickering in and out when
-     the tank drives back and forth over a border.
+     the hero walks back and forth over a border.
 If something needs a tile in a chunk that isn't ready (the view jumped, or
 a very long shot), that chunk is finished on the spot. It's correct, just
 not budgeted; with the margins this basically never happens during play.
+
+Only chunks near the view ever exist, so the island's size (config
+WORLD_RADIUS) costs nothing by itself; the layout (world/layout.py) says
+what any chunk will contain before it's built.
 
 Damage persists: tile changes (worn hit points, destroyed tiles) are kept
 per chunk outside the chunk data, and reapplied whenever the chunk is
@@ -30,15 +34,20 @@ import time
 from .. import config
 from . import biomes, tiles
 from .biomes import Biome
+from .explored import ExploredMap
 from .generator import Chunk, build_chunk
+from .layout import IslandLayout
 from .tiles import Damage, TileType
 
 
 class ChunkedWorld:
-    def __init__(self, seed: int) -> None:
+    def __init__(self, seed: int, radius: float | None = None) -> None:
         n = config.CHUNK_SIZE
         assert n & (n - 1) == 0, "CHUNK_SIZE must be a power of two"
         self.seed = seed
+        self.layout = IslandLayout(seed, radius)
+        # What the player has seen (every chunk ever generated), for the maps.
+        self.explored = ExploredMap()
         self._shift = n.bit_length() - 1   # tx >> shift == floor(tx / n)
         self._mask = n - 1                 # tx & mask == tx mod n (also < 0)
         self._chunks: dict[tuple[int, int], Chunk] = {}
@@ -74,8 +83,11 @@ class ChunkedWorld:
         return self._hp.get((tx, ty))
 
     def spawn_point(self) -> tuple[float, float]:
-        # The generator keeps SPAWN_CLEAR_RADIUS around the origin empty.
-        return (0.5, 0.5)
+        # Near the island's centre, never trapped by a lake (see
+        # IslandLayout.spawn); the generator keeps SPAWN_CLEAR_RADIUS around
+        # it empty.
+        sx, sy = self.layout.spawn
+        return (sx + 0.5, sy + 0.5)
 
     # --- Damage --------------------------------------------------------------------
 
@@ -92,6 +104,7 @@ class ChunkedWorld:
             c.tiles[i] = debris
             c.glyphs[i] = debris.glyph_at(tx, ty)
             self._changes.setdefault((c.cx, c.cy), {})[i] = debris
+            self.explored.set_tile(tx, ty, debris)
             return Damage.DESTROYED
         self._hp[(tx, ty)] = hp
         c.glyphs[i] = tile.glyph_at(tx, ty, hp)
@@ -106,7 +119,7 @@ class ChunkedWorld:
         want = self._keys_in(x, y, half_w + config.LOAD_MARGIN, half_h + config.LOAD_MARGIN)
         for key in want:
             if key not in self._chunks and key not in self._building:
-                self._building[key] = build_chunk(self.seed, *key)
+                self._building[key] = build_chunk(self.layout, *key)
 
         # Unload chunks (and abandon builds) that drifted far outside the view.
         keep = self._keys_in(x, y, half_w + config.UNLOAD_MARGIN, half_h + config.UNLOAD_MARGIN)
@@ -158,7 +171,7 @@ class ChunkedWorld:
 
     def _build_now(self, key: tuple[int, int]) -> Chunk:
         """Finish (or run) a chunk's builder immediately."""
-        gen = self._building.pop(key, None) or build_chunk(self.seed, *key)
+        gen = self._building.pop(key, None) or build_chunk(self.layout, *key)
         try:
             while True:
                 next(gen)
@@ -182,6 +195,7 @@ class ChunkedWorld:
                 i = ((ty & self._mask) << self._shift) | (tx & self._mask)
                 chunk.glyphs[i] = chunk.tiles[i].glyph_at(tx, ty, hp)
         self._chunks[key] = chunk
+        self.explored.record(chunk.cx, chunk.cy, chunk.tiles)
         self._loaded_log.append(key)
 
     def drain_loaded(self) -> list[tuple[int, int]]:

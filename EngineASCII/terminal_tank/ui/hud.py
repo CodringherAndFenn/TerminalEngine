@@ -2,8 +2,8 @@
 ui/hud.py -- the status bar along the bottom of the screen.
 
 Health bar first (it's what matters in a fight), then kills, where you are
-(biome, distance from the start), the gun, the seed and FPS. Score and the
-message log arrive with milestone 5.
+(biome, distance from the start), the hero and their attack, the seed and
+FPS. Score and the message log arrive with the menus.
 """
 
 from __future__ import annotations
@@ -13,9 +13,9 @@ import math
 from engine import TextRenderer
 
 from .. import config, palette
-from ..entities.tank import Tank
+from ..entities.character import Character
 
-HINTS = "WASD/Arrows drive   Mouse aim   Left click fire (hold)   F11 window mode   ESC quit"
+HINTS = "WASD/Arrows walk   Mouse aim   Left click fire (hold)   M map   F11 window mode   ESC quit"
 HP_BAR_CELLS = 20
 
 # Health bar color by fraction left (fixed shades; see palette note).
@@ -23,7 +23,7 @@ _HP_COLORS = ((0.6, (90, 220, 110)), (0.3, (235, 190, 60)), (0.0, (235, 70, 60))
 
 
 def draw_hud(
-    text: TextRenderer, cols: int, rows: int, tank: Tank, world, spawn: tuple[float, float],
+    text: TextRenderer, cols: int, rows: int, hero: Character, world, spawn: tuple[float, float],
     fps: float, kills: int = 0,
 ) -> None:
     top = rows - config.HUD_ROWS
@@ -34,26 +34,27 @@ def draw_hud(
     text.put(0, top, "─" * cols, palette.HUD_RULE)
 
     # Health bar: block glyphs, color by how much is left.
-    frac = max(0.0, tank.hp / tank.max_hp)
+    frac = max(0.0, hero.hp / hero.max_hp)
     color = next(c for limit, c in _HP_COLORS if frac > limit or limit == 0.0)
-    filled = math.ceil(frac * HP_BAR_CELLS) if tank.hp > 0 else 0
+    filled = math.ceil(frac * HP_BAR_CELLS) if hero.hp > 0 else 0
     col = 2
     text.put(col, top + 1, "HP", palette.HUD_LABEL)
     col += 3
     text.put(col, top + 1, "█" * filled, color)
     text.put(col + filled, top + 1, "░" * (HP_BAR_CELLS - filled), palette.HUD_RULE)
     col += HP_BAR_CELLS + 1
-    text.put(col, top + 1, f"{math.ceil(tank.hp):3d}", color)
+    text.put(col, top + 1, f"{math.ceil(hero.hp):3d}", color)
     col += 7
 
     biome_at = getattr(world, "biome_at", None)
-    biome = biome_at(math.floor(tank.x), math.floor(tank.y)).name.upper() if biome_at else "TEST MAP"
-    dist = math.hypot(tank.x - spawn[0], tank.y - spawn[1])
+    biome = biome_at(math.floor(hero.x), math.floor(hero.y)).name.upper() if biome_at else "TEST MAP"
+    dist = math.hypot(hero.x - spawn[0], hero.y - spawn[1])
     fields = [
         ("KILLS", f"{kills:<3d}"),
         ("BIOME", f"{biome:<8}"),
         ("DIST", f"{dist:5.0f}"),
-        ("GUN", tank.weapon.spec.name.upper()),
+        ("HERO", hero.spec.name.upper()),
+        ("ATTACK", hero.weapon.spec.name.upper()),
     ]
     seed = getattr(world, "seed", None)
     if seed is not None:

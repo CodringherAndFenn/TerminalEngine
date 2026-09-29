@@ -1,29 +1,36 @@
 """
-world/generator.py -- builds one chunk of the infinite world.
+world/generator.py -- builds one chunk of the island.
 
 Determinism: everything a chunk contains is a pure function of
-(seed, chunk x, chunk y). Smooth fields come from world/noise.py, which is
-keyed by *global* tile coordinates (so fields are seamless across chunk
-edges), and the per-tile dice come from a random.Random seeded with
-hash_coords(seed, cx, cy) and consumed in a fixed order. Chunks can
-therefore be generated in any order, unloaded and regenerated, and always
-come out identical.
+(seed, chunk x, chunk y). The biome of each tile comes from the island
+layout (world/layout.py); smooth local fields come from world/noise.py,
+keyed by *global* tile coordinates (so they're seamless across chunk
+edges); and the per-tile dice come from a numpy Generator (plus a
+random.Random for ruined buildings) seeded with hash_coords(seed, cx, cy).
+Chunks can therefore be generated in any order, unloaded and regenerated,
+and always come out identical.
 
-Time slicing: build_chunk is a Python generator. It yields after each
-expensive step (one noise field, or 8 rows of tiles), so the world can
-spread a chunk's ~5-8 ms of work over several frames instead of hitching.
-Run it to completion to get the Chunk (returned via StopIteration.value).
+Everything is computed for the whole 32 x 32 chunk at once with numpy: each
+biome's rules below are array masks ("where detail > X and roll < Y ->
+pine"), not per-tile Python.
+
+Time slicing: build_chunk is a Python generator that yields between its
+steps, so the world can spread a chunk's work over several frames instead of
+hitching. Run it to completion to get the Chunk (returned via
+StopIteration.value). Chunks entirely out at sea skip all of it.
 """
 
 from __future__ import annotations
 
-import math
 import random
 from typing import Generator
 
+import numpy as np
+
 from .. import config
 from . import biomes, tiles
-from .noise import fbm_at, fbm_grid, value_noise_at, value_noise_grid
+from .layout import IslandLayout
+from .noise import chunk_axes, fbm
 from .rng import hash_coords
 from .tiles import TileType
 
@@ -40,94 +47,77 @@ class Chunk:
         self.biomes = biome_ids
 
 
-def sample_biome(seed: int, tx: int, ty: int) -> biomes.Biome:
-    """The broad biome at a tile without generating its chunk: the same
-    fields build_chunk uses, sampled at one point, minus the border wobble.
-    Cheap enough for scanning large areas (tests, a future minimap)."""
-    x, y = tx + 0.5, ty + 0.5
-    if math.hypot(x, y) < config.SPAWN_PLAINS_RADIUS:
-        return biomes.PLAINS
-    return biomes.classify(
-        fbm_at(seed, 11, x, y, config.BIOME_HEAT_SCALE),
-        fbm_at(seed, 23, x, y, config.BIOME_WET_SCALE),
-        value_noise_at(seed, 37, x, y, config.BIOME_RARE_SCALE),
-        value_noise_at(seed, 41, x, y, config.BIOME_RARE_SCALE * 0.9),
-    )
+# Tile types the generator can place, by index (chunks are built as arrays
+# of these indices, then turned into TileType lists).
+_TILES = (
+    tiles.PLAINS, tiles.TALL_GRASS, tiles.FLOWERS, tiles.TREE, tiles.ROCK,
+    tiles.FOREST_FLOOR, tiles.PINE,
+    tiles.SAND, tiles.DUNE, tiles.CACTUS, tiles.MESA,
+    tiles.CONCRETE, tiles.RUBBLE,
+    tiles.MUD, tiles.REEDS, tiles.BOG, tiles.MANGROVE,
+    tiles.MYCELIUM, tiles.SPORES, tiles.GIANT_SHROOM,
+    tiles.WATER,
+)
+_IDX = {t: i for i, t in enumerate(_TILES)}
+_T = _IDX.__getitem__
 
-
-def difficulty(tx: float, ty: float) -> float:
-    """0 at the spawn, rising linearly to 1 at DIFFICULTY_RAMP_TILES away."""
-    return min(1.0, math.hypot(tx, ty) / config.DIFFICULTY_RAMP_TILES)
-
+# Noise salts.
+SALT_LAKE = 53
+_SALT_DETAIL = 67
 
 # --- Per-biome feature placement -------------------------------------------------
-# Each takes the tile's detail/lake noise, the chunk RNG and the difficulty,
-# and returns the tile. `detail` varies over ~DETAIL_SCALE tiles, so
-# thresholding it makes clumps (tree clusters, pools, rock outcrops).
+# Each takes the chunk's `detail` field and two independent dice arrays
+# (uniform 0..1 per tile) and returns tile indices for the whole chunk; the
+# builder keeps each result only where that biome is. `detail` varies over
+# ~DETAIL_SCALE tiles, so thresholding it makes clumps (tree clusters,
+# pools, rock outcrops). np.select picks the first rule that matches.
 
 
-def _lake_allowed(dist, heat, wet, ruins, shroom) -> bool:
-    """Lakes form in plains, forest and mushroom land (swamps have bogs,
-    deserts and ruins stay dry). Decided from the *un-jittered* biome so a
-    lake never gets sprinkled along a ragged biome border."""
-    if dist < config.SPAWN_PLAINS_RADIUS:
-        return True
-    return biomes.classify(heat, wet, ruins, shroom) in (biomes.PLAINS, biomes.FOREST, biomes.MUSHROOM)
+def _plains(detail, r1, r2):
+    tree = config.PLAINS_TREE_CHANCE
+    return np.select(
+        [r1 < tree, r1 < tree + config.PLAINS_ROCK_CHANCE,
+         detail > config.PLAINS_TALL_GRASS, r2 < config.PLAINS_FLOWER_CHANCE],
+        [_T(tiles.TREE), _T(tiles.ROCK), _T(tiles.TALL_GRASS), _T(tiles.FLOWERS)],
+        _T(tiles.PLAINS))
 
 
-def _plains(detail, lake, rng, diff):
-    r = rng.random()
-    if r < config.PLAINS_TREE_CHANCE:
-        return tiles.TREE
-    if r < config.PLAINS_TREE_CHANCE + config.PLAINS_ROCK_CHANCE * (1 + diff):
-        return tiles.ROCK
-    if detail > config.PLAINS_TALL_GRASS:
-        return tiles.TALL_GRASS
-    if rng.random() < config.PLAINS_FLOWER_CHANCE:
-        return tiles.FLOWERS
-    return tiles.PLAINS
+def _forest(detail, r1, r2):
+    pine = (detail > config.FOREST_PINE_MIN) & (r1 < config.FOREST_PINE_DENSITY)
+    return np.where(pine, _T(tiles.PINE), _T(tiles.FOREST_FLOOR))
 
 
-def _forest(detail, lake, rng, diff):
-    if detail > config.FOREST_PINE_MIN and rng.random() < config.FOREST_PINE_DENSITY:
-        return tiles.PINE
-    return tiles.FOREST_FLOOR
-
-
-def _desert(detail, lake, rng, diff):
-    # Mesas grow a little larger farther out (harsher terrain).
-    if detail > config.DESERT_MESA_MIN - 0.04 * diff:
-        return tiles.MESA
+def _desert(detail, r1, r2):
     lo, hi = config.DESERT_DUNE_BAND
-    if lo < detail < hi:
-        return tiles.DUNE
-    if rng.random() < config.DESERT_CACTUS_CHANCE:
-        return tiles.CACTUS
-    return tiles.SAND
+    return np.select(
+        [detail > config.DESERT_MESA_MIN, (detail > lo) & (detail < hi),
+         r1 < config.DESERT_CACTUS_CHANCE],
+        [_T(tiles.MESA), _T(tiles.DUNE), _T(tiles.CACTUS)],
+        _T(tiles.SAND))
 
 
-def _swamp(detail, lake, rng, diff):
-    if detail > config.SWAMP_BOG_MIN:
-        return tiles.BOG
-    if detail > config.SWAMP_REED_MIN and rng.random() < 0.6:
-        return tiles.REEDS
-    if rng.random() < config.SWAMP_MANGROVE_CHANCE:
-        return tiles.MANGROVE
-    return tiles.MUD
+def _swamp(detail, r1, r2):
+    return np.select(
+        [detail > config.SWAMP_BOG_MIN, (detail > config.SWAMP_REED_MIN) & (r1 < 0.6),
+         r2 < config.SWAMP_MANGROVE_CHANCE],
+        [_T(tiles.BOG), _T(tiles.REEDS), _T(tiles.MANGROVE)],
+        _T(tiles.MUD))
 
 
-def _mushroom(detail, lake, rng, diff):
-    if detail > config.MUSHROOM_SHROOM_MIN and rng.random() < config.MUSHROOM_SHROOM_DENSITY:
-        return tiles.GIANT_SHROOM
-    if rng.random() < config.MUSHROOM_SPORE_CHANCE:
-        return tiles.SPORES
-    return tiles.MYCELIUM
+def _mushroom(detail, r1, r2):
+    return np.select(
+        [(detail > config.MUSHROOM_SHROOM_MIN) & (r1 < config.MUSHROOM_SHROOM_DENSITY),
+         r2 < config.MUSHROOM_SPORE_CHANCE],
+        [_T(tiles.GIANT_SHROOM), _T(tiles.SPORES)],
+        _T(tiles.MYCELIUM))
 
 
-def _ruins(detail, lake, rng, diff):
-    if rng.random() < config.RUINS_RUBBLE_CHANCE:
-        return tiles.RUBBLE
-    return tiles.CONCRETE
+def _ruins(detail, r1, r2):
+    return np.where(r1 < config.RUINS_RUBBLE_CHANCE, _T(tiles.RUBBLE), _T(tiles.CONCRETE))
+
+
+def _ocean(detail, r1, r2):
+    return np.full(detail.shape, _T(tiles.WATER))
 
 
 _FEATURES = {
@@ -137,74 +127,66 @@ _FEATURES = {
     biomes.RUINS.id: _ruins,
     biomes.SWAMP.id: _swamp,
     biomes.MUSHROOM.id: _mushroom,
+    biomes.OCEAN.id: _ocean,
 }
+# Lakes form in plains, forest and mushroom land (swamps have bogs, deserts
+# and ruins stay dry).
+LAKE_BIOMES = np.array([biomes.PLAINS.id, biomes.FOREST.id, biomes.MUSHROOM.id], dtype=np.uint8)
 
 
 # --- Chunk builder ---------------------------------------------------------------
 
 
-def build_chunk(seed: int, cx: int, cy: int) -> Generator[None, None, Chunk]:
+def build_chunk(layout: IslandLayout, cx: int, cy: int) -> Generator[None, None, Chunk]:
     n = config.CHUNK_SIZE
     x0, y0 = cx * n, cy * n
+    seed = layout.seed
+    rng = np.random.default_rng(hash_coords(seed, 0xC4, cx, cy))
 
-    # Smooth fields for the whole chunk, one per step.
-    heat = fbm_grid(seed, 11, x0, y0, n, n, config.BIOME_HEAT_SCALE)
+    if layout.all_ocean(x0, y0, x0 + n, y0 + n):
+        ids = np.full((n, n), _T(tiles.WATER))
+        biome_ids = np.full((n, n), biomes.OCEAN.id, dtype=np.uint8)
+        return _finish(cx, cy, ids, biome_ids, rng, None)
+
+    xs, ys = chunk_axes(x0, y0, n, n)
+    biome_ids, smooth_ids = layout.biome_ids_both(xs, ys)
     yield
-    wet = fbm_grid(seed, 23, x0, y0, n, n, config.BIOME_WET_SCALE)
-    yield
-    rare_ruins = value_noise_grid(seed, 37, x0, y0, n, n, config.BIOME_RARE_SCALE)
-    rare_shroom = value_noise_grid(seed, 41, x0, y0, n, n, config.BIOME_RARE_SCALE * 0.9)
-    yield
-    # Two octaves so shores are irregular rather than perfect ovals.
-    lake = fbm_grid(seed, 53, x0, y0, n, n, config.LAKE_SCALE)
-    yield
-    detail = fbm_grid(seed, 67, x0, y0, n, n, config.DETAIL_SCALE)
-    # Small-scale noise that wobbles the biome fields, so borders are ragged
-    # in clumps rather than a salt-and-pepper mix of single tiles.
-    edge = value_noise_grid(seed, 79, x0, y0, n, n, config.BIOME_BORDER_SCALE)
+    # Lakes: see IslandLayout.lake_mask (the spawn search uses the same one).
+    lakes = layout.lake_mask(xs, ys, smooth_ids)
+    detail = fbm(seed, _SALT_DETAIL, xs, ys, config.DETAIL_SCALE)
+
+    r1, r2 = rng.random((n, n)), rng.random((n, n))
+    ids = np.zeros((n, n), dtype=np.int64)
+    for bid in np.unique(biome_ids):
+        mask = biome_ids == bid
+        ids[mask] = _FEATURES[int(bid)](detail, r1, r2)[mask]
+    ids[lakes] = _T(tiles.WATER)
+    # The start is swept clean.
+    sx, sy = layout.spawn
+    clear = np.hypot(xs - (sx + 0.5), ys - (sy + 0.5)) < config.SPAWN_CLEAR_RADIUS
+    if clear.any():
+        ground = np.array([_T(b.ground) for b in biomes.BY_ID])
+        ids[clear] = ground[biome_ids[clear]]
     yield
 
-    rng = random.Random(hash_coords(seed, 0xC4, cx, cy))
-    jitter = config.BIOME_BORDER_JITTER
-    plains_r = config.SPAWN_PLAINS_RADIUS
-    clear_r2 = config.SPAWN_CLEAR_RADIUS ** 2
-    grid: list[TileType] = [tiles.PLAINS] * (n * n)
-    biome_ids = bytearray(n * n)
+    ruins_tiles = int((biome_ids == biomes.RUINS.id).sum())
+    buildings = ruins_tiles > n * n * 0.3
+    return _finish(cx, cy, ids, biome_ids, rng,
+                   random.Random(hash_coords(seed, 0xB1D, cx, cy)) if buildings else None)
 
-    for ly in range(n):
-        ty = y0 + ly
-        for lx in range(n):
-            tx = x0 + lx
-            j = (edge[ly][lx] - 0.5) * 2 * jitter
-            dist = math.hypot(tx + 0.5, ty + 0.5)
-            if dist < plains_r * (1 + 2 * j):  # ragged edge, like other borders
-                biome = biomes.PLAINS
-            else:
-                biome = biomes.classify(
-                    heat[ly][lx] + j, wet[ly][lx] - j,
-                    rare_ruins[ly][lx] + j, rare_shroom[ly][lx] + j,
-                )
-            i = ly * n + lx
-            biome_ids[i] = biome.id
-            if dist * dist < clear_r2:
-                grid[i] = biome.ground
-            elif lake[ly][lx] > config.LAKE_MIN and _lake_allowed(
-                dist, heat[ly][lx], wet[ly][lx], rare_ruins[ly][lx], rare_shroom[ly][lx]
-            ):
-                grid[i] = tiles.WATER
-            else:
-                grid[i] = _FEATURES[biome.id](
-                    detail[ly][lx], lake[ly][lx], rng, dist / config.DIFFICULTY_RAMP_TILES
-                )
-        if ly % 8 == 7:
-            yield
 
-    ruins_tiles = sum(1 for b in biome_ids if b == biomes.RUINS.id)
-    if ruins_tiles > n * n * 0.3:
-        _place_buildings(grid, biome_ids, rng, n)
-
-    glyphs = [t.glyphs[rng.randrange(len(t.glyphs))] for t in grid]
-    return Chunk(cx, cy, grid, glyphs, biome_ids)
+def _finish(cx, cy, ids, biome_ids, rng, building_rng) -> Chunk:
+    """Turn the index arrays into the Chunk's lists: optional ruined
+    buildings (per-tile Python, only in ruins chunks), then one glyph
+    variant per tile."""
+    n = config.CHUNK_SIZE
+    grid = [_TILES[i] for i in ids.ravel().tolist()]
+    flat_biomes = bytearray(biome_ids.astype(np.uint8).tobytes())
+    if building_rng is not None:
+        _place_buildings(grid, flat_biomes, building_rng, n)
+    picks = rng.random(n * n).tolist()
+    glyphs = [t.glyphs[int(p * len(t.glyphs))] for t, p in zip(grid, picks)]
+    return Chunk(cx, cy, grid, glyphs, flat_biomes)
 
 
 def _place_buildings(grid, biome_ids, rng: random.Random, n: int) -> None:

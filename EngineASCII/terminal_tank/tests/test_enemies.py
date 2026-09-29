@@ -7,7 +7,7 @@ from terminal_tank.ai import make_enemy
 from terminal_tank.ai.brain import AIContext
 from terminal_tank.entities.effects import Effect
 from terminal_tank.entities.projectile import Projectile
-from terminal_tank.entities.tank import Tank
+from terminal_tank.entities.character import Character
 from terminal_tank.entities.weapon import Weapon
 from terminal_tank.systems import combat
 from terminal_tank.systems.spawner import Spawner
@@ -15,7 +15,7 @@ from terminal_tank.world import biomes, tiles
 from terminal_tank.world.chunked import ChunkedWorld
 from terminal_tank.world.test_map import TestMap
 
-PLAYER = config.TANKS[config.START_TANK]
+PLAYER = config.HEROES[config.START_HERO]
 DT = 1 / 60
 
 
@@ -26,7 +26,7 @@ def arena(*rows, w=80, h=50):
 
 
 def player_at(x, y):
-    return Tank(PLAYER, x, y)
+    return Character(PLAYER, x, y)
 
 
 def ctx_for(world, player, enemies, projectiles=None, effects=None):
@@ -57,43 +57,38 @@ def run(world, player, enemies, seconds, projectiles=None, effects=None):
 
 
 def enemy(key, x, y, seed=1):
-    return make_enemy(key, x, y, 0.0, random.Random(seed))
+    return make_enemy(key, x, y, random.Random(seed))
 
 
 class DamageTest(unittest.TestCase):
-    def test_player_shells_kill_a_tankette_in_two_hits(self):
+    def test_player_bolts_kill_a_goblin_archer_in_two_hits(self):
         world = arena()
-        e = enemy("tankette", 30.5, 20.5)
+        e = enemy("goblin_archer", 30.5, 20.5)
         for i in range(2):
-            p = Projectile(20.5, 20.5, 0.0, config.WEAPONS["cannon"].shell, owner=player_at(0, 0))
+            p = Projectile(20.5, 20.5, 0.0, config.WEAPONS["magic_bolt"].shell, owner=player_at(0, 0))
             combat.update_projectiles([p], world, [], 1.0, [e])
             self.assertEqual(e.alive, i == 0)   # alive after one hit, dead after two
 
-    def test_only_heavy_shells_hurt_terrain(self):
-        for weapon, hurts in (("light_cannon", False), ("sniper_rifle", False),
-                              ("turret_gun", False), ("heavy_cannon", True), ("cannon", True)):
+    def test_only_ogre_rocks_and_player_bolts_hurt_terrain(self):
+        for weapon, hurts in (("goblin_bow", False), ("hex", False),
+                              ("tower_orbs", False), ("boulder", True), ("magic_bolt", True)):
             world = arena("." * 10 + "#" + "." * 9)
             p = Projectile(1.5, 0.5, 0.0, config.WEAPONS[weapon].shell)
             combat.update_projectiles([p], world, [], 1.0, [])
             self.assertEqual(world.hp_at(10, 0) is not None, hurts, weapon)
 
-    def test_heavy_front_armor(self):
-        heavy = enemy("heavy", 20.5, 20.5)
-        heavy.hull_angle = 0.0                        # facing east
-        front = heavy.take_damage(20, None, math.pi)  # shell flying west: hits its front
-        back = heavy.take_damage(20, None, 0.0)       # shell flying east: hits its rear
-        self.assertAlmostEqual(front, 20 * config.TANKS["heavy"].front_armor)
+    def test_ogre_front_armor(self):
+        ogre = enemy("ogre", 20.5, 20.5)
+        ogre.aim_angle = 0.0                          # facing east
+        front = ogre.take_damage(20, None, math.pi)   # shot flying west: hits its front
+        back = ogre.take_damage(20, None, 0.0)        # shot flying east: hits its back
+        self.assertAlmostEqual(front, 20 * config.BODIES["ogre"].front_armor)
         self.assertEqual(back, 20)
-
-    def test_enemy_hp_scales_with_difficulty(self):
-        near = make_enemy("tankette", 0, 0, 0.0, random.Random(1))
-        far = make_enemy("tankette", 0, 0, 1.0, random.Random(1))
-        self.assertGreater(far.max_hp, near.max_hp)
 
 
 class InfightingTest(unittest.TestCase):
     def test_friendly_fire_hurts_but_small_amounts_are_forgiven(self):
-        a, b = enemy("tankette", 10.5, 10.5), enemy("tankette", 15.5, 10.5, seed=2)
+        a, b = enemy("goblin_archer", 10.5, 10.5), enemy("goblin_archer", 15.5, 10.5, seed=2)
         a.take_damage(5, b, 0.0)                     # a stray round
         self.assertLess(a.hp, a.max_hp)
         self.assertIsNone(a.grudge)
@@ -103,13 +98,13 @@ class InfightingTest(unittest.TestCase):
     def test_grudge_changes_target(self):
         world = arena()
         player = player_at(70.5, 40.5)               # far away and unseen
-        a, b = enemy("tankette", 10.5, 10.5), enemy("tankette", 16.5, 10.5, seed=2)
+        a, b = enemy("goblin_archer", 10.5, 10.5), enemy("goblin_archer", 16.5, 10.5, seed=2)
         a.take_damage(a.max_hp * 0.5, b, 0.0)
         a.think(ctx_for(world, player, [a, b]), DT)
         self.assertIs(a.target, b)
 
     def test_player_damage_always_alerts(self):
-        e = enemy("tankette", 10.5, 10.5)
+        e = enemy("goblin_archer", 10.5, 10.5)
         e.take_damage(1, player_at(40.5, 40.5), 0.0)
         self.assertTrue(e.alert)
         self.assertEqual(e.last_known, (40.5, 40.5))
@@ -117,22 +112,22 @@ class InfightingTest(unittest.TestCase):
 
 class SensesTest(unittest.TestCase):
     def test_walls_block_sight_water_does_not(self):
-        e = enemy("tankette", 5.5, 5.5)
+        e = enemy("goblin_archer", 5.5, 5.5)
         p = player_at(12.5, 5.5)
         self.assertTrue(e.can_see(arena(*["." * 20] * 10), p))
         self.assertFalse(e.can_see(arena(*(["." * 8 + "#" + "." * 11] * 10)), p))
         self.assertTrue(e.can_see(arena(*(["." * 8 + "~" + "." * 11] * 10)), p))
 
     def test_out_of_sight_range(self):
-        e = enemy("tankette", 5.5, 5.5)
+        e = enemy("goblin_archer", 5.5, 5.5)
         self.assertFalse(e.can_see(arena(w=80), player_at(5.5 + e.espec.sight + 2, 5.5)))
 
     def test_hearing_reveals_roughly_where(self):
-        e = enemy("tankette", 10.5, 10.5)
+        e = enemy("goblin_archer", 10.5, 10.5)
         e.hear(20.5, 10.5)
         self.assertTrue(e.alert)
         self.assertLess(math.dist(e.last_known, (20.5, 10.5)), 3)
-        far = enemy("tankette", 10.5, 10.5)
+        far = enemy("goblin_archer", 10.5, 10.5)
         far.hear(10.5 + config.HEARING_RADIUS + 5, 10.5)
         self.assertFalse(far.alert)
 
@@ -145,7 +140,7 @@ class SteeringTest(unittest.TestCase):
         rows[20] = "." * 10 + "#" * 30 + "." * 20
         world = arena(*rows)
         for seed in range(5):
-            e = enemy("tankette", 25.5, 26.5, seed=seed)
+            e = enemy("goblin_archer", 25.5, 26.5, seed=seed)
             for _ in range(int(25 / DT)):
                 e.drive_to(ctx_for(world, player_at(0, 0), [e]), 25.5, 12.5, DT)
                 if math.hypot(e.x - 25.5, e.y - 12.5) < 2:
@@ -173,22 +168,22 @@ class SteeringTest(unittest.TestCase):
 
 
 class BehaviourTest(unittest.TestCase):
-    def test_sniper_telegraphs_before_firing(self):
+    def test_warlock_telegraphs_before_firing(self):
         world = arena()
         player = player_at(20.5, 20.5)
-        s = enemy("sniper", 42.5, 20.5)
+        s = enemy("warlock", 42.5, 20.5)
         projectiles = []
         first_shot = None
-        laser_seen = 0.0
+        beam_seen = 0.0
         for f in range(int(8 / DT)):
-            laser_seen = max(laser_seen, s.laser)
+            beam_seen = max(beam_seen, s.beam)
             before = len(projectiles)
             s.think(ctx_for(world, player, [s], projectiles), DT)
             if len(projectiles) > before and first_shot is None:
                 first_shot = f
                 break
         self.assertIsNotNone(first_shot)
-        self.assertGreaterEqual(laser_seen + 1e-6, s.espec.windup - DT)
+        self.assertGreaterEqual(beam_seen + 1e-6, s.espec.windup - DT)
 
     def test_warrior_winds_up_before_it_hurts(self):
         world = arena()
@@ -216,8 +211,8 @@ class BehaviourTest(unittest.TestCase):
         world = arena()
         player = player_at(20.5, 20.5)
         puff = enemy("puffer", 30.5, 20.5)
-        neighbour = enemy("tankette", 31.5, 21.5, seed=5)
-        p = Projectile(22.5, 20.5, 0.0, config.WEAPONS["cannon"].shell, owner=player)
+        neighbour = enemy("goblin_archer", 31.5, 21.5, seed=5)
+        p = Projectile(22.5, 20.5, 0.0, config.WEAPONS["magic_bolt"].shell, owner=player)
         combat.update_projectiles([p], world, [], 1.0, [puff, neighbour])
         self.assertFalse(puff.alive)
         ctx = ctx_for(world, player, [neighbour])
@@ -229,7 +224,7 @@ class BehaviourTest(unittest.TestCase):
         world = arena()
         b = enemy("burrower", 30.5, 20.5)
         self.assertFalse(b.hittable)
-        p = Projectile(22.5, 20.5, 0.0, config.WEAPONS["cannon"].shell)
+        p = Projectile(22.5, 20.5, 0.0, config.WEAPONS["magic_bolt"].shell)
         combat.update_projectiles([p], world, [], 1.0, [b])
         self.assertEqual(b.hp, b.max_hp)
 
@@ -259,27 +254,27 @@ class BehaviourTest(unittest.TestCase):
             b.think(ctx_for(world, player, [b]), DT)
             self.assertLess(b.x, 40.0)
 
-    def test_turret_fires_bursts(self):
-        w = Weapon(config.WEAPONS["turret_gun"])
+    def test_tower_fires_bursts(self):
+        w = Weapon(config.WEAPONS["tower_orbs"])
         shots = [f for f in range(int(3 / DT)) if w.update(DT, True)]
-        burst = config.WEAPONS["turret_gun"].burst
+        burst = config.WEAPONS["tower_orbs"].burst
         self.assertEqual(len(shots), 2 * burst)            # two pulls in 3 s
         self.assertLess(shots[burst - 1] - shots[0], 30)   # a burst is quick
 
-    def test_tankette_fights_player(self):
+    def test_archer_fights_player(self):
         world = arena()
         player = player_at(20.5, 20.5)
-        t = enemy("tankette", 30.5, 24.5)
+        t = enemy("goblin_archer", 30.5, 24.5)
         run(world, player, [t], 10.0)
         self.assertLess(player.hp, player.max_hp)
 
-    def test_heavy_grinds_through_walls(self):
+    def test_ogre_smashes_through_walls(self):
         rows = ["." * 60 for _ in range(30)]
         for y in range(5, 25):
             rows[y] = "." * 30 + "#" + "." * 29
         world = arena(*rows)
         player = player_at(45.5, 15.5)
-        h = enemy("heavy", 15.5, 15.5)
+        h = enemy("ogre", 15.5, 15.5)
         h.alert, h.last_known = True, (45.5, 15.5)   # it heard the player
         run(world, player, [h], 20.0)
         broken = sum(world.tile_at(30, y) is tiles.RUBBLE for y in range(5, 25))
@@ -294,20 +289,28 @@ class SpawnerTest(unittest.TestCase):
             for cy in range(-8, 9):
                 r1, r2 = s1.roster(cx, cy), s2.roster(cx, cy)
                 self.assertEqual(r1, r2)
+                sx, sy = w1.spawn_point()
                 for _, _, x, y in r1:
-                    self.assertGreaterEqual(math.hypot(x, y), config.ENEMY_FREE_RADIUS)
+                    self.assertGreaterEqual(math.hypot(x - sx, y - sy), config.ENEMY_FREE_RADIUS)
 
     def test_enemies_only_spawn_in_their_biomes(self):
+        # Sample the central plains and a band of the biome ring.
         world = ChunkedWorld(7)
         sp = Spawner(world, 7)
+        ring = int(world.layout.radius * 0.5) // config.CHUNK_SIZE
+        keys = [(cx, cy) for cx in range(-10, 11, 2) for cy in range(-10, 11, 2)]
+        keys += [(round(ring * math.cos(a / 10)), round(ring * math.sin(a / 10)))
+                 for a in range(63)]
         count = 0
-        for cx in range(-10, 11, 2):
-            for cy in range(-10, 11, 2):
-                for _, key, x, y in sp.roster(cx, cy):
-                    count += 1
-                    biome = world.biome_at(math.floor(x), math.floor(y)).name
-                    self.assertIn(biome, config.ENEMIES[key].biomes, key)
+        seen = set()
+        for cx, cy in keys:
+            for _, key, x, y in sp.roster(cx, cy):
+                seen.add(key)
+                count += 1
+                biome = world.biome_at(math.floor(x), math.floor(y)).name
+                self.assertIn(biome, config.ENEMIES[key].biomes, key)
         self.assertGreater(count, 5)
+        self.assertGreaterEqual(len(seen), 5)   # the ring brings in biome specialists
 
     HALF = (32.0, 13.5)   # a 16:9 view's half-size in tiles
 
@@ -384,7 +387,7 @@ class PlayerDeathTest(unittest.TestCase):
             s.manager = m
             s.on_enter()
             s.mouse.left_held = lambda: False
-            s.tank.take_damage(999, None, None)
+            s.hero.take_damage(999, None, None)
             s.update(DT)
             self.assertTrue(s.player_dead)
             restarted = []

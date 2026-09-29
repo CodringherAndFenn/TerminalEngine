@@ -1,9 +1,9 @@
 """
-ui/death.py -- the overlay shown when the player's tank is destroyed.
+ui/death.py -- the overlay shown when the hero falls.
 
 A simple framed box over the (still running) world: what happened, how far
 you got, and how to go again. The full game-over screen with run stats and
-score comes in milestone 5.
+score comes with the menus.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ def draw_death_overlay(
     seed: int | None, can_restart: bool,
 ) -> None:
     lines = [
-        ("YOUR TANK WAS DESTROYED", colors.RED),
+        ("YOU HAVE FALLEN", colors.RED),
         ("", colors.GREY),
         (f"distance {distance:.0f}    kills {kills}" + (f"    seed {seed}" if seed else ""),
          colors.WHITE),

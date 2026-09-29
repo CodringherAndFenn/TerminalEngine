@@ -1,7 +1,7 @@
 """
 entities/weapon.py -- a gun's fire cadence (hold-to-fire, and bursts).
 
-The weapon is separate from the tank so it can be swapped (weapon pickups,
+The weapon is separate from the character so it can be swapped (weapon pickups,
 choosing a starting weapon) by building a new Weapon from another
 WeaponSpec in config.WEAPONS.
 """

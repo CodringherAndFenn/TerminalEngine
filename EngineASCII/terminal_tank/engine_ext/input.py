@@ -37,7 +37,7 @@ class Mouse:
 
     When the pointer is over a letterbox bar (or outside the window),
     window_to_canvas returns None; we keep the last on-canvas position so the
-    turret doesn't snap somewhere odd.
+    aim doesn't snap somewhere odd.
     """
 
     def __init__(self, display: Display) -> None:

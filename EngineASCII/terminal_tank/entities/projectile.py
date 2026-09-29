@@ -1,7 +1,7 @@
 """
-entities/projectile.py -- shells in flight.
+entities/projectile.py -- shots in flight (bolts, arrows, rocks...).
 
-A shell flies in a straight line along the aim angle at its ShellSpec speed,
+A shot flies in a straight line along the aim angle at its ShellSpec speed,
 until it hits an actor or something that blocks shots, or has travelled its
 max range. Hit detection lives in systems/combat.py.
 """
@@ -23,7 +23,6 @@ class Projectile:
         self.angle = angle            # world radians
         self.spec = spec
         self.owner = owner            # the Actor that fired it (never hits itself)
-        # Damage can be scaled per shooter (enemies get tougher farther out).
         self.damage = spec.damage if damage is None else damage
         self.dir_x = math.cos(angle)  # unit direction, world tiles
         self.dir_y = math.sin(angle)

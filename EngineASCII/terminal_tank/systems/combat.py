@@ -1,15 +1,17 @@
 """
-systems/combat.py -- firing, shell flight, hits on actors and terrain, blasts.
+systems/combat.py -- firing, shot flight, hits on actors and terrain, blasts.
 
-Aiming math: the shell starts at the barrel tip and flies along the turret's
-true world angle. The tip is barrel_length_px out along the turret's
-*on-screen* direction; converting that pixel offset back to tiles
-(dx / TILE_PX_W, dy / TILE_PX_H) lands exactly on the world ray from the
-tank center at the turret angle, because the screen angle was derived from
-the world angle with the same per-axis scale. So the shell passes through
-the exact world point under the reticle.
+Aiming math: a shot starts `hold_px` out from the shooter's centre along its
+aim and flies along the true world aim angle. The start point is hold_px
+out along the aim's *on-screen* direction; converting that pixel offset
+back to tiles (dx / TILE_PX_W, dy / TILE_PX_H) lands exactly on the world
+ray from the centre at the aim angle, because the screen angle was derived
+from the world angle with the same per-axis scale. So the shot passes
+through the exact world point under the reticle.
 
-Hits: each frame a shell's movement is a segment. Terrain along it is found
+Every hit on an actor spawns a floating damage number (an Effect).
+
+Hits: each frame a shot's movement is a segment. Terrain along it is found
 by walking the tiles it crosses (systems/raycast.py); actors by
 segment-vs-circle intersection. Whichever comes first along the segment is
 hit. Friendly fire is on: any actor except the shooter can be hit.
@@ -23,7 +25,7 @@ from .. import config
 from ..entities.actor import Actor
 from ..entities.effects import Effect
 from ..entities.projectile import Projectile
-from ..entities.tank import Tank
+from ..entities.character import Character
 from ..world.tiles import Damage
 from .collision import screen_angle
 from .raycast import RayHit, first_hit
@@ -32,34 +34,41 @@ from .raycast import RayHit, first_hit
 SHOT, HIT, BREAK, FIZZLE, THUD = "shot", "hit", "break", "fizzle", "thud"
 
 
-def muzzle_point(tank: Tank) -> tuple[float, float]:
-    """World position of the barrel tip."""
-    s = screen_angle(tank.turret_angle)
-    length = tank.spec.barrel_length_px
+def shot_origin(shooter: Character) -> tuple[float, float]:
+    """World position a shot leaves from: hold_px out along the aim."""
+    s = screen_angle(shooter.aim_angle)
+    length = shooter.spec.hold_px
     return (
-        tank.x + math.cos(s) * length / config.TILE_PX_W,
-        tank.y + math.sin(s) * length / config.TILE_PX_H,
+        shooter.x + math.cos(s) * length / config.TILE_PX_W,
+        shooter.y + math.sin(s) * length / config.TILE_PX_H,
     )
 
 
 def fire(
-    tank: Tank, world, projectiles: list[Projectile], effects: list[Effect],
+    shooter: Character, world, projectiles: list[Projectile], effects: list[Effect],
     angle: float | None = None, damage: float | None = None,
 ) -> list[str]:
-    """Fire the tank's weapon along its turret (or `angle`, for aim error).
+    """Fire the shooter's weapon along its aim (or `angle`, for aim error).
     Returns sound events."""
-    mx, my = muzzle_point(tank)
-    angle = tank.turret_angle if angle is None else angle
+    mx, my = shot_origin(shooter)
+    angle = shooter.aim_angle if angle is None else angle
     effects.append(Effect("muzzle", mx, my, angle))
-    shell = tank.weapon.spec.shell
+    shell = shooter.weapon.spec.shell
     dmg = shell.damage if damage is None else damage
-    # If the barrel is poking into (or through) a wall, the shot lands there
-    # instead of spawning on the far side.
-    hit = first_hit(world.tile_at, tank.x, tank.y, mx, my)
+    # Standing against a wall: the shot lands on it instead of spawning on
+    # the far side.
+    hit = first_hit(world.tile_at, shooter.x, shooter.y, mx, my)
     if hit is not None:
         return [SHOT, _terrain_impact(world, hit, dmg, shell.damages_terrain, angle, effects)]
-    projectiles.append(Projectile(mx, my, angle, shell, owner=tank, damage=dmg))
+    projectiles.append(Projectile(mx, my, angle, shell, owner=shooter, damage=dmg))
     return [SHOT]
+
+
+def _number(effects: list[Effect], victim: Actor, dealt: float) -> None:
+    """A floating damage number over whoever got hurt."""
+    if dealt > 0:
+        effects.append(Effect("number", victim.x, victim.y - victim.hit_radius, 0.0,
+                              value=max(1, round(dealt)), player=victim.faction == "player"))
 
 
 def segment_circle_t(x0, y0, dx, dy, cx, cy, r) -> float | None:
@@ -106,8 +115,9 @@ def update_projectiles(
 
         if victim is not None:
             hx, hy = p.x + dx * best_t, p.y + dy * best_t
-            victim.take_damage(p.damage, p.owner, p.angle)
+            dealt = victim.take_damage(p.damage, p.owner, p.angle)
             effects.append(Effect("impact", hx, hy, p.angle))
+            _number(effects, victim, dealt)
             events.append(HIT)
             p.alive = False
             continue
@@ -130,23 +140,26 @@ def update_projectiles(
 
 def blast(
     x: float, y: float, radius: float, damage: float, source: Actor | None,
-    actors: list[Actor], hurt_source: bool = False,
+    actors: list[Actor], hurt_source: bool = False, effects: list[Effect] | None = None,
 ) -> list[Actor]:
     """Damage every hittable actor whose body touches a circle of `radius`
     around (x, y) -- spore clouds, a burrower bursting up, a sword swing.
-    Returns the actors hit. Friendly fire applies."""
+    Returns the actors hit. Friendly fire applies. Pass `effects` to get
+    damage numbers."""
     hit = []
     for a in actors:
         if not a.hittable or (a is source and not hurt_source):
             continue
         if math.hypot(a.x - x, a.y - y) <= radius + a.hit_radius:
-            a.take_damage(damage, source, None)
+            dealt = a.take_damage(damage, source, None)
+            if effects is not None:
+                _number(effects, a, dealt)
             hit.append(a)
     return hit
 
 
 def crush_tile(world, tx: int, ty: int, amount: float, effects: list[Effect]) -> str | None:
-    """Heavy tanks grinding through terrain. Returns a sound event if the
+    """Ogres smashing through terrain. Returns a sound event if the
     tile broke."""
     if world.damage_tile(tx, ty, amount) is Damage.DESTROYED:
         effects.append(Effect("debris", tx + 0.5, ty + 0.5))
@@ -158,8 +171,8 @@ def _terrain_impact(
     world, hit: RayHit, damage: float, damages_terrain: bool, angle: float,
     effects: list[Effect],
 ) -> str:
-    """A shell hitting a tile: sparks, and damage if the shell is allowed to
-    hurt terrain (only the player's and heavy tanks' shells are)."""
+    """A shot hitting a tile: sparks, and damage if the shot is allowed to
+    hurt terrain (only the player's bolts and ogres' rocks are)."""
     # Pull the spark back a hair so it sits on the tile's face, not inside.
     back = 0.05
     ex, ey = hit.x - math.cos(angle) * back, hit.y - math.sin(angle) * back
