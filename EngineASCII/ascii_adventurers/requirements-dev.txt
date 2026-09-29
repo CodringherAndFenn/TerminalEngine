@@ -1,0 +1,3 @@
+# Building a standalone copy (packaging/build.py).
+-r requirements.txt
+pyinstaller==6.22.3

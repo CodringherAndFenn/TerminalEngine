@@ -1,7 +1,7 @@
 # Engine Changes
 
 A log of every approved change made to the engine (`narrative_engine/`) or
-other files outside `terminal_tank/` while building Terminal Tank. Each
+other files outside `ascii_adventurers/` while building AsciiAdventurers. Each
 entry lists what changed, why, the files touched, how to use it, and how to
 revert it.
 
@@ -12,7 +12,7 @@ revert it.
 **What / why.** Added `Display.window_to_canvas(px, py)`, which maps an
 OS-window pixel to a *fractional canvas pixel*. It uses the same inverse
 transform as `window_to_cell()` (undo letterbox offset, undo scale), but
-doesn't floor the result to a cell. Terminal Tank aims its turret at the true
+doesn't floor the result to a cell. AsciiAdventurers aims its turret at the true
 angle from the tank to the mouse. With 10×24 px cells, whole-cell precision
 could put the aim off by about 10° at close range, so the game needs the exact
 point. This is a general-purpose engine feature and has nothing specific to
@@ -36,8 +36,8 @@ if pos is not None:                      # None == over a letterbox bar
 
 **Revert.** Delete the `window_to_canvas` method from
 `narrative_engine/engine/display.py` and the added sentence in `CLAUDE.md`
-(or `git checkout` both files from before this change). Terminal Tank is the
-only caller: `terminal_tank/engine_ext/input.py`.
+(or `git checkout` both files from before this change). AsciiAdventurers is the
+only caller: `ascii_adventurers/engine_ext/input.py`.
 
 ---
 
@@ -50,7 +50,7 @@ filled with `bg` unless `bg` is None), and the result goes through the normal
 `(char, fg, bg)` glyph cache and `put()` path. Custom glyphs take priority
 over the font and the built-in box/block set, and they can paint any colors.
 
-Terminal Tank needs this because the tank drew badly with characters alone.
+AsciiAdventurers needs this because the tank drew badly with characters alone.
 A cell is 10×24 px and the finest block glyph is 10×12, so a hull rotated 45°
 collapsed into a thin blob, and `/` has one fixed slope, so barrels at other
 angles came out as staircases. The game now paints the hull and barrel as
@@ -87,14 +87,18 @@ text.register_glyph(BADGE, paint_badge)
 text.put(10, 5, BADGE, colors.AMBER, None)  # bg=None: draws over the cell
 ```
 
-In Terminal Tank, `terminal_tank/render/sprites.py` (`SpriteBank`) uses this.
+In AsciiAdventurers, `ascii_adventurers/render/sprites.py` (`SpriteBank`) used
+this until M7 (2026-09-29). Since then sprites are blitted as whole images
+(faster with hundreds of enemies), and the game doesn't call
+`register_glyph` any more. The method stays as a general engine feature.
 
 **Revert.** In `narrative_engine/engine/text.py`, remove the `GlyphPainter`
 alias, the `Callable` import, the `_custom` dict, the `register_glyph`,
 `unregister_glyph` and `_drop_cached` methods, and the
 `painter = self._custom.get(char)` branch in `_glyph` (so `if char in
 SYNTHESIZED_CHARS:` is the first branch again). Also remove the added
-sentence in `CLAUDE.md`. Terminal Tank's tank sprite depends on this method.
+sentence in `CLAUDE.md`. Since M7 no game code depends on this method, but
+revert change B2 (below) first: it extends `_drop_cached`.
 
 ---
 
@@ -107,7 +111,7 @@ same glyph cache, including custom glyphs from `register_glyph`. Coordinates
 are rounded to whole pixels. Glyphs past the canvas edge are clipped, and
 glyphs straddling the edge are drawn partially.
 
-Terminal Tank needs this for smooth scrolling. Before this change the camera
+AsciiAdventurers needs this for smooth scrolling. Before this change the camera
 could only scroll by whole cells: 10 px horizontally but 24 px vertically.
 Moving up/down or diagonally therefore jumped visibly (measured: 24 px jumps
 on about 8 frames per second, standing still on the rest). The game now
@@ -130,12 +134,13 @@ text.put_px(col * cell_w - cam_px, row * cell_h - cam_py, "..##..", fg, bg)
 text.put_px(shell_x_px - cell_w / 2, shell_y_px - cell_h / 2, "*", colors.AMBER, None)
 ```
 
-In Terminal Tank, `terminal_tank/render/terrain.py` and
-`terminal_tank/render/sprites.py` (`SpriteBank.draw`) use this.
+In AsciiAdventurers, `ascii_adventurers/render/glyphs.py` uses this: it
+pre-renders glyph strings into images with `put_px`, and the terrain, shots
+and effects blit those images. Sprites were drawn with it until M7.
 
 **Revert.** Delete the `put_px` method from `narrative_engine/engine/text.py`
-and the added sentence in `CLAUDE.md`. Terminal Tank's camera and sprites
-depend on this method.
+and the added sentence in `CLAUDE.md`. AsciiAdventurers' terrain, shots and
+effects depend on this method (through `render/glyphs.py`).
 
 ---
 
@@ -152,7 +157,7 @@ depend on this method.
    `dt` is now measured with `time.perf_counter()` instead of the clock's
    whole milliseconds.
 
-Terminal Tank needs this for smooth motion. The old loop slept with
+AsciiAdventurers needs this for smooth motion. The old loop slept with
 `clock.tick(60)` and never synchronized with the display. Measured on a
 59.96 Hz panel, it actually ran at about 62 fps (frame times 14.8–17.3 ms),
 so about twice a second a frame was shown twice or skipped. That reads as a
@@ -187,12 +192,82 @@ manager = SceneManager(display, settings, audio)          # vsync-paced
 manager = SceneManager(display, settings, audio, fps=30)  # used only without vsync
 ```
 
-In Terminal Tank, `terminal_tank/run.py` passes `vsync=config.VSYNC`.
+In AsciiAdventurers, `ascii_adventurers/run.py` passes `vsync=config.VSYNC`.
 
 **Revert.** In `display.py`, remove the `vsync` parameter, its docstring
 entry and the two attributes. Restore `_apply_mode` to the body now in
 `_set_mode`, without the `vsync=` arguments, and delete `_set_mode`. In
 `scene.py`, remove `import time` and the `fps` keyword and attribute, and
 restore the loop header to `dt = clock.tick(60) / 1000.0`. Revert the two
-`CLAUDE.md` edits. Terminal Tank passes `vsync=` to `Display`, so after
-reverting, also drop that argument from `terminal_tank/run.py`.
+`CLAUDE.md` edits. AsciiAdventurers passes `vsync=` to `Display`, so after
+reverting, also drop that argument from `ascii_adventurers/run.py`.
+
+---
+
+## 2026-09-29 — B2: glyph-cache index for `register_glyph` / `unregister_glyph`
+
+**What / why.** `TextRenderer` now keeps `_keys_by_char`, which maps each
+character to its keys in the glyph cache. `_drop_cached(char)` runs when a
+custom glyph is registered again or unregistered. It used to scan the whole
+cache for that character's `(char, fg, bg)` keys; now it deletes exactly the
+indexed keys. Measured with ~3,200 cached glyphs: 88 µs → 0.6 µs per
+register/unregister.
+
+AsciiAdventurers needed this because its sprite cache recycled custom glyphs
+as rotated sprites came and went. Each recycle scanned the full cache, and
+dozens in one frame showed up as frame spikes. (Later in M7 the game stopped
+using custom glyphs for sprites; see the `register_glyph` entry. The index is
+still the right behavior for any engine user that redefines glyphs.)
+
+Behavior is otherwise unchanged. The same entries are dropped as before, and
+glyphs of other characters are untouched. The cost is one list append each
+time a new glyph is rasterized.
+
+**Files touched.**
+- `narrative_engine/engine/text.py`:
+  - the `_keys_by_char` dict in `TextRenderer.__init__`;
+  - `_drop_cached` pops from it instead of scanning;
+  - `_glyph` records each new key in it.
+
+**Usage.** Nothing new to call. `register_glyph` / `unregister_glyph` work
+as before, just in constant time.
+
+**Revert.** In `narrative_engine/engine/text.py`, delete the `_keys_by_char`
+lines from `__init__` and `_glyph`, and restore `_drop_cached` to:
+
+```python
+for key in [k for k in self._glyph_cache if k[0] == char]:
+    del self._glyph_cache[key]
+```
+
+---
+
+## 2026-09-29 — CI workflow for game builds (outside the engine)
+
+**What / why.** Added `.github/workflows/ascii-adventurers.yml` at the
+repository root (`TerminalEngine/`). It isn't an engine change, but it's a
+file outside `ascii_adventurers/`, so it's logged here. Approved by the
+user as the way to get Windows builds: PyInstaller can't cross-compile, so
+a Windows copy has to be built on Windows.
+
+On every push to `main` that touches `EngineASCII/` (and on demand from the
+GitHub Actions tab), a Windows and a Linux runner each:
+1. set up Python. Windows uses 3.14 from `actions/setup-python`. Linux uses
+   the portable Python from `packaging/release_python.py`, so the build
+   runs on the Steam Deck and older distros;
+2. install `ascii_adventurers/requirements-dev.txt`;
+3. run the unit tests;
+4. build with `ascii_adventurers/packaging/build.py`;
+5. run the built game with `--smoke 5 --ghosts 1`;
+6. upload `dist/AsciiAdventurers/` as a downloadable artifact
+   (`AsciiAdventurers-windows` / `AsciiAdventurers-linux`, kept 14 days).
+
+**Files touched.** `.github/workflows/ascii-adventurers.yml` (new). Nothing
+in `narrative_engine/` changed.
+
+**Usage.** Push to `main`, or open the repository's Actions tab → *AsciiAdventurers
+build* → *Run workflow*. Download the builds from the finished run's
+*Artifacts* section.
+
+**Revert.** Delete `.github/workflows/ascii-adventurers.yml` (and the
+`.github/` folder if it's empty).

@@ -1,0 +1,75 @@
+# Builds AsciiAdventurers for Windows and Linux on every push to main that
+# touches the game or the engine (and on demand from the Actions tab):
+# runs the tests, builds a standalone copy, checks it actually plays
+# (--smoke), and uploads it as a downloadable artifact.
+#
+# Linux uses a portable Python (packaging/release_python.py), so the build
+# runs on older distros and the Steam Deck, not just the newest.
+# Logged in EngineASCII/ENGINE_CHANGES.md (files outside the game folder).
+
+name: AsciiAdventurers build
+
+on:
+  push:
+    branches: [main]
+    paths: ["EngineASCII/**", ".github/workflows/ascii-adventurers.yml"]
+  pull_request:
+    paths: ["EngineASCII/**", ".github/workflows/ascii-adventurers.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            exe: AsciiAdventurers.exe
+          - os: ubuntu-latest
+            platform: linux
+            exe: AsciiAdventurers
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: EngineASCII
+    env:
+      SDL_VIDEODRIVER: dummy
+      SDL_AUDIODRIVER: dummy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python (Windows)
+        if: matrix.platform == 'windows'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Build environment (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          python -m venv ascii_adventurers/.venv
+          ascii_adventurers/.venv/Scripts/python -m pip install -r ascii_adventurers/requirements-dev.txt
+          echo "PY=ascii_adventurers/.venv/Scripts/python" >> "$GITHUB_ENV"
+
+      - name: Build environment (Linux, portable Python)
+        if: matrix.platform == 'linux'
+        run: |
+          python3 ascii_adventurers/packaging/release_python.py
+          echo "PY=ascii_adventurers/.release/venv/bin/python" >> "$GITHUB_ENV"
+
+      - name: Tests
+        run: $PY -m unittest discover -s ascii_adventurers/tests -t .
+
+      - name: Build
+        run: $PY ascii_adventurers/packaging/build.py
+
+      - name: Smoke test the build
+        run: ascii_adventurers/dist/AsciiAdventurers/${{ matrix.exe }} --smoke 5 --ghosts 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AsciiAdventurers-${{ matrix.platform }}
+          path: EngineASCII/ascii_adventurers/dist/AsciiAdventurers
+          retention-days: 14

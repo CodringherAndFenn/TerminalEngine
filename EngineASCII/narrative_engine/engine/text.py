@@ -66,6 +66,9 @@ class TextRenderer:
         # (char, fg, bg) -> pre-rendered cell Surface. Text in a terminal UI
         # is highly repetitive, so this cache stays small and hot.
         self._glyph_cache: dict[tuple[str, tuple, tuple | None], pygame.Surface] = {}
+        # char -> its keys in _glyph_cache, so redefining one custom glyph
+        # drops its cached images without scanning the whole cache.
+        self._keys_by_char: dict[str, list[tuple[str, tuple, tuple | None]]] = {}
         # char -> painter for glyphs registered via register_glyph().
         self._custom: dict[str, GlyphPainter] = {}
 
@@ -99,7 +102,7 @@ class TextRenderer:
             self._drop_cached(char)
 
     def _drop_cached(self, char: str) -> None:
-        for key in [k for k in self._glyph_cache if k[0] == char]:
+        for key in self._keys_by_char.pop(char, ()):
             del self._glyph_cache[key]
 
     # --- Character / string drawing --------------------------------------
@@ -130,6 +133,7 @@ class TextRenderer:
             cell.blit(rendered, ((cell_w - rendered.get_width()) // 2, 0))
 
         self._glyph_cache[key] = cell
+        self._keys_by_char.setdefault(char, []).append(key)
         return cell
 
     def _draw_synthetic(self, cell: pygame.Surface, char: str, fg: tuple) -> None:

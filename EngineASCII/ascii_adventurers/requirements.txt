@@ -1,0 +1,3 @@
+# What the game needs to run from source.
+pygame-ce==2.5.8
+numpy==2.5.3
