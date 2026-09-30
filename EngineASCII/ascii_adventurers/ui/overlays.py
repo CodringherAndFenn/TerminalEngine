@@ -8,13 +8,15 @@ mouse), re-laid out whenever the grid size changes.
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Callable
 
 import pygame
 
 from engine import Button, TextRenderer, WidgetList, colors
 
-from .. import palette
+from .. import config, palette
+from ..app import app_of
 from ..meta.records import Records
 from ..meta.run_stats import RunStats, format_time
 from .frame import center, draw_box
@@ -38,7 +40,7 @@ class _Box:
 
     def geometry(self) -> tuple[int, int, int, int]:
         d = self.manager.display
-        view_rows = d.rows - 3            # above the HUD
+        view_rows = d.rows - config.HUD_ROWS    # above any HUD rows
         width = min(self.width, d.cols - 4)
         return (d.cols - width) // 2, max(0, (view_rows - self.height) // 2), width, self.height
 
@@ -57,24 +59,29 @@ class _Box:
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.KEYDOWN and event.key in _ENTER:
-            self.manager.audio.play_blip()
+            app_of(self.manager).ui_sound()
         self.ui().handle_event(event, self.manager.display)
 
 
 class PauseMenu(_Box):
     height = 14
+    width = 52
 
-    def __init__(self, manager, stats: RunStats, *, resume, settings, abandon, quit_game) -> None:
+    def __init__(self, manager, stats: RunStats, *, resume, settings, abandon, quit_game,
+                 details=None) -> None:
         super().__init__(manager, [("Resume", resume), ("Settings", settings),
                                    ("Abandon run", abandon), ("Quit game", quit_game)])
         self.stats = stats
+        self.details = details        # () -> str: where you are (biome, distance, seed)
 
     def draw(self, text: TextRenderer) -> None:
         left, top, width, height = self.geometry()
         draw_box(text, left, top, width, height, colors.GREEN_DIM, "PAUSED")
         s = self.stats
         info = f"{s.hero.upper()}   {format_time(s.time)}   kills {s.total_kills}"
-        center(text, top + 2, info, colors.WHITE, left, width)
+        center(text, top + 1, info, colors.WHITE, left, width)
+        if self.details is not None:
+            center(text, top + 2, self.details(), colors.GREY, left, width)
         self.ui().draw(text)
         center(text, top + height - 2, "Esc: resume", colors.GREY, left, width)
 
@@ -112,6 +119,10 @@ class GameOverPanel(_Box):
         text.put(left + 4, top + 9, _fit("Biomes: " + biomes, width - 8), colors.GREY)
         kills = ", ".join(f"{n} {name}" for name, n in s.kills.most_common())
         text.put(left + 4, top + 10, _fit("Defeated: " + (kills or "nobody"), width - 8), colors.GREY)
+        taken = Counter(s.cards)
+        cards = ", ".join(config.CARDS[k].name + (f" x{n}" if n > 1 else "")
+                          for k, n in taken.items() if k in config.CARDS)
+        text.put(left + 4, top + 11, _fit("Cards: " + (cards or "none"), width - 8), colors.GREY)
         best = (f"Best: {format_time(rec.longest_time)}   {rec.most_kills} kills   "
                 f"{rec.furthest:.0f} tiles   {rec.most_biomes} biomes   ({rec.runs} runs)")
         center(text, top + 12, _fit(best, width - 4), colors.AMBER_DIM, left, width)

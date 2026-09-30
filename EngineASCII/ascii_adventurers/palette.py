@@ -186,3 +186,38 @@ MAP_PLAYER_EDGE = (20, 20, 20)
 LOGO = (255, 190, 60)
 LOGO_SHADOW = (110, 60, 10)
 RECORD = (255, 220, 90)          # NEW RECORD highlights
+
+# --- Hero weapons (milestone 10) -----------------------------------------------------
+# (head, (trail near, trail far)) like the SHOT_* colors above.
+SHOT_SPARK = ((255, 255, 200), ((150, 235, 255), (80, 170, 235)))
+SHOT_LONGARROW = ((240, 242, 250), ((205, 165, 95), (150, 115, 65)))
+# The princess's rainbow: one color set per pellet, fan order.
+_RAINBOW = ((255, 85, 85), (255, 165, 60), (255, 235, 90), (115, 230, 115), (105, 165, 255))
+RAINBOW_SHOTS = tuple(
+    (c, (tuple(round(v * 0.72) for v in c), tuple(round(v * 0.45) for v in c))) for c in _RAINBOW
+)
+ARC = ((240, 252, 255), (140, 225, 255))       # lightning: bright core, cyan
+SWING = ((240, 244, 255), (160, 170, 200))     # sword sweep: leading edge, trail
+PULSE = ((255, 225, 130), (225, 160, 255), (140, 115, 200))   # bard ring, fading
+
+# --- HUD, corners layout (milestone 11) -----------------------------------------------
+HUD_PANEL = (10, 14, 10)            # the dark panels behind HUD text
+HUD_HP_GOOD = (90, 220, 110)
+HUD_HP_WARN = (235, 190, 60)
+HUD_HP_LOW = (235, 70, 60)
+HUD_EMPTY = (40, 60, 44)
+HUD_XP = (255, 200, 70)
+HUD_XP_EMPTY = (70, 58, 30)
+HUD_BOSS = (230, 70, 60)
+HUD_BOSS_EMPTY = (70, 30, 28)
+HUD_BOSS_NAME = (255, 150, 130)
+LEVEL_UP = (255, 220, 110)          # "LEVEL UP!" over the hero
+
+# --- Cards (milestone 11) --------------------------------------------------------------
+CARD_RARITY = {"common": (185, 185, 175), "rare": (100, 170, 255), "epic": (215, 120, 255)}
+CARD_TITLE = (255, 220, 120)
+CARD_TEXT = (205, 205, 195)
+CARD_KEY = (255, 255, 255)
+CARD_TAG = (130, 130, 120)          # "WIZARD" on a hero's own cards
+CARD_SELECTED = (255, 210, 90)      # the highlighted card's frame and bars
+CARD_BG_SELECTED = (28, 34, 26)

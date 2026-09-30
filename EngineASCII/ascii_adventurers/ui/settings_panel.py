@@ -110,7 +110,7 @@ class SettingsPanel:
 
     def _changed(self) -> None:
         self.app.save_settings()
-        self.manager.audio.play_blip()
+        self.app.ui_sound()
 
     def _on_mode(self, mode: str) -> None:
         d = self.manager.display
@@ -169,7 +169,7 @@ class SettingsPanel:
             return
         if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
                                                           pygame.K_SPACE):
-            self.manager.audio.play_blip()
+            self.app.ui_sound()
         self._ensure().handle_event(event, self.manager.display)
 
     def draw(self, text: TextRenderer) -> None:

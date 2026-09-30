@@ -33,6 +33,10 @@ class App:
         # session started with, so a changed setting can say "after restart".
         self.vsync_at_start = self.settings.vsync
 
+    def ui_sound(self) -> None:
+        """The menu blip, at the same loudness as the game's sounds."""
+        self.sfx.play("ui")
+
     def save_settings(self) -> None:
         if self.persist:
             self.settings.save()

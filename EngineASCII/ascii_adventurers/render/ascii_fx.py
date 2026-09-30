@@ -26,7 +26,7 @@ import math
 
 from engine import TextRenderer
 
-from .. import palette
+from .. import config, palette
 from ..engine_ext.camera import Camera
 from ..entities.effects import Effect
 from ..entities.projectile import Projectile
@@ -78,13 +78,19 @@ SHOT_LOOKS = {
     "hex": ("%", (":", "."), palette.SHOT_HEX),
     "orb": ("o", (".", "."), palette.SHOT_ORB),
     "boulder": ("O", (".", ","), palette.SHOT_BOULDER),
+    "spark": ("*", ("+", "."), palette.SHOT_SPARK),
+    "longarrow": (None, (None, None), palette.SHOT_LONGARROW),
+    "prism": ("o", (".", "."), None),        # colors: palette.RAINBOW_SHOTS by pellet
 }
 
 
 def draw_projectiles(text: TextRenderer, camera: Camera, projectiles: list[Projectile]) -> None:
     batch = _Batch(text)
     for p in projectiles:
-        head, trail, (head_col, trail_cols) = SHOT_LOOKS[p.spec.look]
+        head, trail, cols = SHOT_LOOKS[p.spec.look]
+        if cols is None:                     # the rainbow: one color per pellet
+            cols = palette.RAINBOW_SHOTS[p.variant % len(palette.RAINBOW_SHOTS)]
+        head_col, trail_cols = cols
         octant = _octant(p.angle)
         # Trail: only along the stretch the shot has actually flown.
         for k, dist in enumerate(TRAIL_TILES):
@@ -140,6 +146,14 @@ def _frame(e: Effect) -> list:
             sy = math.sin(screen_angle(t)) * 18
             out.append((sx, sy, glyph, palette.WARRIOR_BLADE))
         return out
+    if e.kind == "swing":
+        return []           # drawn as a picture: render/slash.py
+    if e.kind == "pulse":
+        r = e.size * (0.25 + 0.75 * p)
+        col = palette.PULSE[min(2, int(p * 3))]
+        return [(math.cos(k * math.tau / 16) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / 16) * r * config.TILE_PX_H,
+                 "*" if k % 2 else "o", col) for k in range(16)]
     if e.kind == "spores":
         f = min(2, int(p * 3))
         r = (18, 34, 48)[f]
@@ -168,6 +182,12 @@ def draw_effects(text: TextRenderer, camera: Camera, world, effects: list[Effect
             batch.put_px(x, y, world.glyph_at(tx, ty), palette.TILE_FLASH_FG, tile.bg)
             continue
         x, y = camera.world_to_px(e.x, e.y)
+        if e.kind == "arc":
+            _lightning(batch, e, (x, y), camera.world_to_px(e.x2, e.y2))
+            continue
+        if e.kind == "levelup":
+            batch.put_c(x, y - 34 - 22 * e.progress, "LEVEL UP!", palette.LEVEL_UP)
+            continue
         if e.kind == "number":
             # Floats up and fades: bright, then a dimmer shade.
             colors = palette.NUMBER_PLAYER if e.player else palette.NUMBER_ENEMY
@@ -177,6 +197,26 @@ def draw_effects(text: TextRenderer, camera: Camera, world, effects: list[Effect
         for dx, dy, glyph, color in _frame(e):
             batch.put_c(x + dx, y + dy, glyph, color)
     batch.flush()
+
+
+def _lightning(batch, e: Effect, start, end) -> None:
+    """A jagged bolt between two points: glyphs every ~10 px along the
+    line, knocked sideways by alternating amounts that re-roll a few times
+    during its short life, so it crackles."""
+    (x0, y0), (x1, y1) = start, end
+    length = math.hypot(x1 - x0, y1 - y0)
+    if length < 1:
+        return
+    ux, uy = (x1 - x0) / length, (y1 - y0) / length
+    glyph = _LINE[round(math.atan2(uy, ux) / (math.pi / 4)) % 8]
+    flicker = int(e.t * 60)
+    n = max(2, int(length / 10))
+    for k in range(n + 1):
+        f = k / n
+        wobble = 0.0 if k in (0, n) else ((k * 7 + flicker * 3) % 5 - 2) * 2.5
+        color = palette.ARC[(k + flicker) % 2]
+        batch.put_c(x0 + ux * length * f - uy * wobble, y0 + uy * length * f + ux * wobble,
+                    glyph, color)
 
 
 # --- Enemy tells ----------------------------------------------------------------------------

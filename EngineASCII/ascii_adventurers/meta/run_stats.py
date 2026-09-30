@@ -22,6 +22,7 @@ class RunStats:
     walked: float = 0.0                  # tiles walked
     kills: Counter = field(default_factory=Counter)   # enemy name -> count
     biomes: list[str] = field(default_factory=list)   # in the order found
+    cards: list[str] = field(default_factory=list)    # card keys, in the order taken
 
     @property
     def total_kills(self) -> int:

@@ -20,6 +20,7 @@ from ..entities.character import Character
 from ..meta.run_stats import RunStats
 from ..ui.maps import Minimap
 from .controls import Controls
+from .progress import Progress
 
 
 @dataclass
@@ -52,6 +53,8 @@ class Player:
     minimap: Minimap | None = None
     dead_for: float = -1.0            # seconds since the hero fell; <0: alive
     aim: tuple[float, float] | None = field(default=None)   # last aim point (world)
+    progress: Progress = field(default_factory=Progress)    # level, XP, cards
+    regen: float = 0.0                # hp per second (cards)
 
     @property
     def alive(self) -> bool:

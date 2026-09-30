@@ -197,15 +197,35 @@ class SfxTest(unittest.TestCase):
         from engine import Audio
         from ascii_adventurers.engine_ext.sfx import Sfx
 
+        from ascii_adventurers.engine_ext import sfx as sfx_mod
+
+        needed = {"hit", "break", "fizzle", "zap", "swing", "pulse", "ui"}
+        needed |= {w.shell.sound for w in config.WEAPONS.values() if w.shell is not None}
         audio = Audio()
         if audio.init(volume=0.0):          # dummy SDL audio driver in tests
             sfx = Sfx(audio)
-            self.assertEqual(set(sfx._sounds), {"shot", "hit", "break", "fizzle"})
-            sfx.play("shot")
+            self.assertLessEqual(needed, set(sfx._sounds))
+            for name, variants in sfx._sounds.items():
+                self.assertEqual(len(variants), len(sfx_mod.VARIANTS), name)
+            for name in needed | {"shot", "thud"}:
+                sfx.play(name)
             audio.quit()
         silent = Sfx(Audio())               # never initialized: unavailable
         silent.play("shot")                 # must be a no-op, not an error
         self.assertEqual(silent._sounds, {})
+
+    def test_levels_follow_the_mix_table(self):
+        from ascii_adventurers.engine_ext import sfx as sfx_mod
+
+        for name, variants in sfx_mod.mixed(22050).items():
+            base = variants[sfx_mod.VARIANTS.index(1.0)]
+            rms = math.sqrt(sum(v * v for v in base) / len(base))
+            peak = max(abs(v) for v in base)
+            self.assertLessEqual(peak, 0.99, name)                     # never clips
+            # Levelled to its MIX loudness (a little under, if it would clip).
+            self.assertLessEqual(rms, sfx_mod.TARGET_RMS * sfx_mod.MIX[name] + 1e-9, name)
+            self.assertGreater(rms, sfx_mod.TARGET_RMS * sfx_mod.MIX[name] * 0.6, name)
+            self.assertNotEqual(len(variants[0]), len(variants[-1]), name)   # pitched apart
 
 
 if __name__ == "__main__":

@@ -112,36 +112,87 @@ class RunStatsTest(unittest.TestCase):
         self.assertEqual(format_time(125.9), "2:05")
 
 
-class HudFitTest(unittest.TestCase):
-    def test_fields_fit_narrow_screens_and_fps_can_hide(self):
-        from ascii_adventurers.entities.character import Character
+class HudTest(unittest.TestCase):
+    """The corners HUD (ui/hud.py)."""
+
+    def draw(self, cols, **kw):
         from ascii_adventurers.ui import hud
-        from ascii_adventurers.world.chunked import ChunkedWorld
+        d = Display(cols, 30)
+        calls = []
 
-        world = ChunkedWorld(123456)
-        hero = Character(config.HEROES["princess"], *world.spawn_point())
+        class Rec:
+            display = d
+
+            def put(self, col, row, s, *a, **k):
+                calls.append((col, row, s))
+
+        info = dict(hp=72, max_hp=100, level=4, xp_frac=0.6, kills=12, time=125.0, fps=59.7)
+        info.update(kw)
+        hud._cache["key"] = None
+        hud.draw_hud(Rec(), hud.HudInfo(**info))
+        return calls
+
+    def test_fits_every_screen_and_leaves_the_minimap_corner_free(self):
         for cols in (80, 115, 128, 172):
-            d = Display(cols, 30)
-            calls = []
+            calls = self.draw(cols, time=10.0)
+            self.assertLessEqual(max(c + len(s) for c, _, s in calls), cols, cols)
+            minimap_left = cols - config.MINIMAP_COLS - 2 - config.MINIMAP_MARGIN
+            top_rows = [(c, s) for c, r, s in calls if r <= config.MINIMAP_ROWS + 1]
+            self.assertTrue(all(c + len(s) <= minimap_left for c, s in top_rows), cols)
 
-            class Rec:
-                display = d
+    def test_shows_hp_level_kills_and_clock(self):
+        texts = " ".join(s for _, _, s in self.draw(128))
+        for part in ("HP", " 72", "LV", "  4", "KILLS 12", "2:05"):
+            self.assertIn(part, texts)
 
-                def put(self, col, row, s, *a, **k):
-                    calls.append((col, s))
+    def test_fps_is_optional(self):
+        self.assertTrue(any("FPS" in s for _, _, s in self.draw(128)))
+        self.assertFalse(any("FPS" in s for _, _, s in self.draw(128, fps=None)))
 
-            hud._cache["key"] = None
-            hud.draw_hud(Rec(), cols, 30, hero, world, world.spawn_point(), 59.7, 12)
-            self.assertLessEqual(max(c + len(s) for c, s in calls), cols, cols)
-            labels = [s for _, s in calls]
-            self.assertIn("FPS", labels)
-            self.assertIn("KILLS", labels)
-            if cols >= 128:
-                self.assertIn("SEED", labels)
-            calls.clear()
-            hud._cache["key"] = None
-            hud.draw_hud(Rec(), cols, 30, hero, world, world.spawn_point(), None, 12)
-            self.assertNotIn("FPS", [s for _, s in calls])
+    def test_no_controls_hint(self):
+        texts = " ".join(s for _, _, s in self.draw(128, time=5.0))
+        self.assertNotIn("walk", texts)
+
+    def test_only_aiming_weapons_show_a_reticle(self):
+        self.assertFalse(config.WEAPONS[config.HEROES["bard"].weapon].aims)
+        for hero in ("wizard", "knight", "princess", "huntress"):
+            self.assertTrue(config.WEAPONS[config.HEROES[hero].weapon].aims, hero)
+
+    def test_boss_bar_only_in_a_boss_fight(self):
+        self.assertFalse(any("OGRE KING" in s for _, _, s in self.draw(128)))
+        self.assertTrue(any("OGRE KING" in s for _, _, s in self.draw(128, boss=("ogre king", 0.5))))
+
+
+class ProgressTest(unittest.TestCase):
+    def test_levels_need_more_xp_each_time_and_bank_card_picks(self):
+        from ascii_adventurers.players.progress import Progress, xp_for_level
+        needs = [xp_for_level(n) for n in range(1, 6)]
+        self.assertEqual(needs, sorted(needs))
+        self.assertEqual(needs[0], config.LEVEL_XP_BASE)
+        p = Progress()
+        self.assertEqual(p.add(needs[0] - 1), 0)
+        self.assertEqual(p.add(1 + needs[1] + 2), 2)             # two levels at once
+        self.assertEqual((p.level, p.xp, p.picks), (3, 2, 2))
+        self.assertAlmostEqual(p.frac, 2 / needs[2])
+
+    def test_kills_give_xp_to_the_killer(self):
+        import random
+        from ascii_adventurers.ai import make_enemy
+        from ascii_adventurers.scenes.game import GameScene
+        d = Display(128, 30)
+        m = SceneManager(d, GameSettings(), Audio())
+        m.app = App(m.audio, GameSettings(), Records(), persist=False)
+        s = GameScene("wizard", 5)
+        m._set_scene(s)
+        e = make_enemy("ogre", s.hero.x + 4, s.hero.y, random.Random(1))
+        s.enemies.append(e)
+        e.take_damage(9999, s.hero, 0.0)
+        s.update(1 / 60)
+        xp = config.ENEMIES["ogre"].xp
+        self.assertEqual((s.me.progress.level, s.me.progress.xp), (1 + (xp >= config.LEVEL_XP_BASE),
+                                                                   xp % config.LEVEL_XP_BASE))
+        self.assertEqual(any(ef.kind == "levelup" for ef in s.effects), xp >= config.LEVEL_XP_BASE)
+        pygame.mouse.set_visible(True)
 
 
 class LogoTest(unittest.TestCase):

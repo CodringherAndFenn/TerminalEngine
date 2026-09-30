@@ -27,6 +27,12 @@ DURATIONS = {
     "spores": 0.6,          # spore puffer burst
     "eruption": 0.45,       # burrower bursting out of the sand
     "burrow": 0.5,          # dust kicked up by a burrower underground
+    # Milestone 10: hero weapons
+    "arc": 0.16,            # lightning jumping between enemies
+    "swing": 0.2,           # the knight's sword slash (render/slash.py)
+    "pulse": 0.32,          # the bard's ring of sound
+    # Milestone 11
+    "levelup": 1.2,         # "LEVEL UP!" rising over a hero
 }
 
 
@@ -39,6 +45,9 @@ class Effect:
     t: float = 0.0          # age, seconds
     value: int = 0          # "number": the damage shown
     player: bool = False    # "number": the hero got hurt (drawn in red)
+    x2: float = 0.0         # "arc": the far end (world)
+    y2: float = 0.0
+    size: float = 0.0       # "swing"/"pulse": reach in tiles ("swing": arc degrees in value)
 
     @property
     def duration(self) -> float:

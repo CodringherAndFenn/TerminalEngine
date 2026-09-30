@@ -4,7 +4,7 @@ A top-down ASCII adventure roguelike on one huge island, built on the
 narrative engine (`narrative_engine/`). Everything for the game lives in
 this folder.
 
-**Status:** Milestones 1-8 and "Adventurers" are done:
+**Status:** Milestones 1-11 and "Adventurers" are done:
 - keyboard walking, mouse aiming, a smooth scrolling camera;
 - shooting, spells and destructible terrain;
 - a seeded, chunk-streamed world with six biomes;
@@ -17,8 +17,7 @@ this folder.
   ground shows real terrain; the rest of the island shows as a dimmed biome
   outline;
 - adventurers: you play a hero (wizard, knight, bard, princess or
-  huntress). All share a placeholder magic bolt for now; each gets their
-  own attack later;
+  huntress);
 - performance (M7): terrain is drawn from cached pre-drawn blocks, sprites
   are single images, and shots, effects, HUD and minimap draw in batches
   or from cache. Measured headless on the 172-column grid: ~1 ms a frame
@@ -33,7 +32,15 @@ this folder.
   The world advances in fixed 1/60 s steps (drawing blends between steps,
   so it's smooth at any refresh rate), and the same inputs give the same
   game at any frame rate. Gamepads work everywhere (twin-stick in play).
-  Solo play looks the same as before; co-op itself comes later.
+  Solo play looks the same as before; co-op itself comes later;
+- hero weapons (M10), each hero their own:
+  - wizard, shock bolt: lightning that jumps to 2 more enemies nearby
+    (each jump weaker);
+  - huntress, longbow: fast, long-range arrows that pierce 2 enemies;
+  - princess, rainbow: a fan of 5 colored shots, deadly up close;
+  - knight, sword: a wide swing hitting everything in front; chops trees;
+  - bard, lute: plays by itself, every beat hurts everything around him.
+  Heroes never hurt each other (ready for co-op); monsters still do.
 
 The look: heroes and enemies are pixel-art sprites; everything that flies
 or pops up (bolts, arrows, hits, damage numbers, health bars) is drawn with
@@ -45,7 +52,19 @@ The enemies:
 - burrower (desert), spore puffer (mushroom), fallen warrior (plains).
 
 Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
-Next up: hero weapons (M10), then XP and cards (M11).
+- XP and cards (M11): kills give XP; every level is a card pick. Three
+  big cards come up in the middle of the screen and the game pauses (in
+  multiplayer it will keep running); choose with left / right and take one
+  with Enter, or with the mouse. Several level-ups in a row come one offer
+  after another. 19 placeholder cards (a full set is coming): damage,
+  attack speed, HP, speed, range, regeneration, lifesteal for everyone;
+  extra/piercing/faster shots for shooters; and each hero's own (the
+  wizard's lightning jumps farther, the huntress's volley, the princess's
+  extra colors, the knight's wider swing, the bard's louder beat). The
+  new "corners" HUD: HP, level/XP, kills and the run's clock top-left; the
+  world fills the screen; seed, biome and distance are in the pause menu.
+
+Next up: bigger plains and the full enemy roster (M12).
 
 ## Setup (once)
 
@@ -86,11 +105,12 @@ east out of the starting compound's gate to reach its shooting range.
 | Input          | Action                                                   |
 |----------------|----------------------------------------------------------|
 | WASD / Arrows  | walk (8 directions, same speed every way)                |
-| Left click     | attack (hold to keep firing); unlimited                  |
+| Left click     | attack (hold to keep attacking; the bard plays by himself) |
 | Mouse          | aim (true angle; the amber ring is the exact aim point, brackets mark the tile under it); you face the mouse |
 | M              | big map (pauses): wheel zoom, drag or WASD pan, C centre on you, M/ESC close |
 | ESC            | pause menu: resume, settings, abandon run, quit          |
 | R              | after you fall: go again (same hero, same seed if you chose one) |
+| Left / Right, Enter | choose and take a level-up card (or hover and click)  |
 | F11            | cycle window mode (everywhere; saved)                    |
 
 **Gamepad** (any pad SDL knows, e.g. Xbox, PlayStation, Switch Pro, Steam
@@ -143,8 +163,11 @@ It never touches save files.
 
 Every number is in **`config.py`**:
 - heroes, enemy bodies and weapons (`HEROES`, `START_HERO`, `BODIES`,
-  `WEAPONS`, defined as data via `specs.py`), walk animation speed;
+  `WEAPONS`, defined as data via `specs.py`: shots with pellets/spread,
+  pierce and chain; melee reach and arc; pulses), walk animation speed;
 - terrain hit points, effect timings, sound volume, `VSYNC`;
+- cards (`CARDS`: name, text, rarity, stack limit, which heroes, and the
+  stat changes), rarity weights, XP per enemy and the level curve;
 - camera smoothing (`CAMERA_FOLLOW_RATE`); the simulation clock
   (`SIM_HZ`, `MAX_STEPS_PER_FRAME`); players (`PLAYER_COLORS`, gamepad aim
   distance `PAD_AIM_DISTANCE`, enemy target stickiness
@@ -186,7 +209,8 @@ engine_ext/     camera.py (smooth pixel scrolling), input.py, sfx.py
                 gamepads.py (SDL game controllers, menu keys)
 players/        player.py (a player: hero, controls, camera, stats; the
                 area kept alive around them), controls.py (keyboard+mouse,
-                gamepad, auto-switching, debug ghost bot)
+                gamepad, auto-switching, debug ghost bot), progress.py
+                (level and XP), cards.py (offers and card effects)
 world/          layout.py (the island plan: which biome is where),
                 explored.py (what you've seen, for the maps),
                 chunked.py (the island world, streaming, damage memory),
@@ -201,15 +225,16 @@ ai/             brain.py (senses, memory, infighting), steering.py (clumsy
                 stuck), shooters.py (archer, warlock, ogre, tower),
                 creatures.py
 systems/        collision.py (box vs tiles), raycast.py (grid walk for
-                shots), combat.py (shots, hits, blasts, friendly fire,
-                damage numbers), spawner.py (per-chunk enemy rosters)
+                shots), combat.py (shots, pierce, chain lightning, melee
+                swings, pulses, blasts, friendly fire, damage numbers),
+                spawner.py (per-chunk enemy rosters)
 render/         terrain.py (cached pre-drawn terrain blocks), glyphs.py
                 (text pre-rendered to images for batched drawing),
                 sprites.py (baked pictures, per angle), characters.py
                 (pixel-art heroes and enemies, walk frames),
                 enemies_sprite.py (creatures, tells), ascii_fx.py (shots,
                 effects, numbers, bars as glyphs)
-ui/             hud.py, crosshair.py, maps.py (minimap + big map),
+ui/             hud.py, card_picker.py, crosshair.py, maps.py (minimap + big map),
                 overlays.py (pause menu, game over), settings_panel.py,
                 widgets.py (hero picker, seed field), logo.py, frame.py
 scenes/         title.py, new_run.py (hero select), settings.py, game.py,

@@ -74,11 +74,14 @@ class TerrainCacheTest(unittest.TestCase):
         self.assertEqual(self.world.damage_tile(tx, ty, hp), Damage.DESTROYED)
         self.assertSamePixels(*self.frames())
 
-    def test_never_draws_into_the_hud_rows(self):
-        self.camera.center_on(*self.world.spawn_point())
+    def test_never_draws_outside_the_view(self):
+        # A view shorter than the canvas (a HUD bar below it, if HUD_ROWS > 0).
+        d = self.display
+        cam = Camera(d.cols, d.rows - 3, d.cell_w, d.cell_h)
+        cam.center_on(*self.world.spawn_point())
         self.display.canvas.fill((1, 2, 3))
-        self.terrain.draw(self.world, self.camera)
-        hud_top = self.camera.view_h
+        self.terrain.draw(self.world, cam)
+        hud_top = cam.view_h
         self.assertEqual(self.display.canvas.get_at((5, hud_top + 1))[:3], (1, 2, 3))
         self.assertEqual(self.display.canvas.get_clip(), self.display.canvas.get_rect())
 

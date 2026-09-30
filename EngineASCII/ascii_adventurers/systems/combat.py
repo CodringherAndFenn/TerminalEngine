@@ -14,7 +14,13 @@ Every hit on an actor spawns a floating damage number (an Effect).
 Hits: each frame a shot's movement is a segment. Terrain along it is found
 by walking the tiles it crosses (systems/raycast.py); actors by
 segment-vs-circle intersection. Whichever comes first along the segment is
-hit. Friendly fire is on: any actor except the shooter can be hit.
+hit. Friendly fire is on: any actor except the shooter can be hit --
+except that heroes never hurt each other (co-op).
+
+Hero weapons (M10) come in kinds (specs.WeaponSpec): shots (with pellets
+fanned over a spread, arrows that pierce, lightning that chains from
+enemy to enemy), melee swings over an arc, and pulses all around.
+attack() picks the right one.
 """
 
 from __future__ import annotations
@@ -44,24 +50,147 @@ def shot_origin(shooter: Character) -> tuple[float, float]:
     )
 
 
+def attack(
+    shooter: Character, world, projectiles: list[Projectile], effects: list[Effect],
+    actors: list[Actor] = (),
+) -> list[str]:
+    """Use the shooter's weapon, whatever its kind (see specs.WeaponSpec).
+    Returns sound events."""
+    kind = shooter.weapon.spec.kind
+    if kind == "melee":
+        return swing(shooter, world, actors, effects)
+    if kind == "pulse":
+        return pulse(shooter, world, actors, effects)
+    return fire(shooter, world, projectiles, effects)
+
+
 def fire(
     shooter: Character, world, projectiles: list[Projectile], effects: list[Effect],
     angle: float | None = None, damage: float | None = None,
 ) -> list[str]:
     """Fire the shooter's weapon along its aim (or `angle`, for aim error).
-    Returns sound events."""
+    A weapon with several pellets fans them evenly over its spread, the
+    middle of the fan on the aim. Returns sound events."""
     mx, my = shot_origin(shooter)
     angle = shooter.aim_angle if angle is None else angle
     effects.append(Effect("muzzle", mx, my, angle))
-    shell = shooter.weapon.spec.shell
+    spec = shooter.weapon.spec
+    shell = spec.shell
     dmg = shell.damage if damage is None else damage
     # Standing against a wall: the shot lands on it instead of spawning on
     # the far side.
     hit = first_hit(world.tile_at, shooter.x, shooter.y, mx, my)
     if hit is not None:
-        return [SHOT, _terrain_impact(world, hit, dmg, shell.damages_terrain, angle, effects)]
-    projectiles.append(Projectile(mx, my, angle, shell, owner=shooter, damage=dmg))
-    return [SHOT]
+        return [shell.sound, _terrain_impact(world, hit, dmg, shell.damages_terrain, angle, effects)]
+    n = max(1, spec.pellets)
+    spread = math.radians(spec.spread_deg)
+    for i in range(n):
+        a = angle + (spread * (i / (n - 1) - 0.5) if n > 1 else 0.0)
+        p = Projectile(mx, my, a, shell, owner=shooter, damage=dmg)
+        p.variant = i
+        projectiles.append(p)
+    return [shell.sound]
+
+
+def _may_hurt(source: Actor | None, target: Actor) -> bool:
+    """Friendly fire is on -- except between players: heroes never hurt
+    each other (co-op). Nothing hurts its own source."""
+    if target is source:
+        return False
+    return not (source is not None and source.faction == "player" and target.faction == "player")
+
+
+def _aim_offset(shooter: Character, x: float, y: float) -> float:
+    """Angle between the shooter's aim and the direction to (x, y), measured
+    on screen (so a swing's arc looks as wide as it is)."""
+    to = screen_angle(math.atan2(y - shooter.y, x - shooter.x))
+    diff = to - screen_angle(shooter.aim_angle)
+    return abs((diff + math.pi) % math.tau - math.pi)
+
+
+def swing(shooter: Character, world, actors: list[Actor], effects: list[Effect]) -> list[str]:
+    """A melee sweep: everything whose body is within `reach` tiles and
+    inside the arc in front of the aim is hit, and destructible terrain
+    close in front is chopped."""
+    spec = shooter.weapon.spec
+    half = math.radians(spec.arc_deg) / 2
+    effects.append(Effect("swing", shooter.x, shooter.y, shooter.aim_angle, size=spec.reach,
+                          value=round(spec.arc_deg)))
+    events = ["swing"]
+    for a in actors:
+        if not a.hittable or not _may_hurt(shooter, a):
+            continue
+        d = math.hypot(a.x - shooter.x, a.y - shooter.y)
+        if d > spec.reach + a.hit_radius:
+            continue
+        if d > a.hit_radius and _aim_offset(shooter, a.x, a.y) > half:
+            continue
+        dealt = a.take_damage(spec.damage, shooter, shooter.aim_angle)
+        _number(effects, a, dealt)
+        effects.append(Effect("impact", a.x, a.y, shooter.aim_angle))
+        events.append(HIT)
+    # Chop what's right in front (trees, walls): tiles whose centre is in
+    # the inner part of the arc.
+    r = spec.reach * config.MELEE_TERRAIN_REACH
+    for ty in range(math.floor(shooter.y - r), math.floor(shooter.y + r) + 1):
+        for tx in range(math.floor(shooter.x - r), math.floor(shooter.x + r) + 1):
+            cx, cy = tx + 0.5, ty + 0.5
+            if math.hypot(cx - shooter.x, cy - shooter.y) > r or _aim_offset(shooter, cx, cy) > half:
+                continue
+            result = world.damage_tile(tx, ty, spec.damage)
+            if result is Damage.DESTROYED:
+                effects.append(Effect("debris", cx, cy))
+                events.append(BREAK)
+            elif result is Damage.DAMAGED:
+                effects.append(Effect("tile_flash", tx, ty))
+    return events
+
+
+def pulse(shooter: Character, world, actors: list[Actor], effects: list[Effect]) -> list[str]:
+    """A burst all around: everything within `reach` tiles that isn't
+    behind a wall is hit."""
+    spec = shooter.weapon.spec
+    effects.append(Effect("pulse", shooter.x, shooter.y, size=spec.reach))
+    events = ["pulse"]
+    for a in actors:
+        if not a.hittable or not _may_hurt(shooter, a):
+            continue
+        if math.hypot(a.x - shooter.x, a.y - shooter.y) > spec.reach + a.hit_radius:
+            continue
+        if first_hit(world.tile_at, shooter.x, shooter.y, a.x, a.y) is not None:
+            continue
+        angle = math.atan2(a.y - shooter.y, a.x - shooter.x)
+        dealt = a.take_damage(spec.damage, shooter, angle)
+        _number(effects, a, dealt)
+        events.append(HIT)
+    return events
+
+
+def chain_from(first: Actor, shell, damage: float, source: Actor | None, world,
+               actors: list[Actor], effects: list[Effect]) -> list[str]:
+    """Lightning jumping on from `first` (already hit) to up to shell.chain
+    more enemies: each jump goes to the nearest one within chain_range with
+    a clear line, not hit yet, for chain_falloff of the previous damage."""
+    events = []
+    current, hit = first, {id(first)}
+    for _ in range(shell.chain):
+        damage *= shell.chain_falloff
+        best, best_d = None, shell.chain_range
+        for a in actors:
+            if id(a) in hit or not a.hittable or not _may_hurt(source, a):
+                continue
+            d = math.hypot(a.x - current.x, a.y - current.y)
+            if d <= best_d and first_hit(world.tile_at, current.x, current.y, a.x, a.y) is None:
+                best, best_d = a, d
+        if best is None:
+            break
+        effects.append(Effect("arc", current.x, current.y, x2=best.x, y2=best.y))
+        angle = math.atan2(best.y - current.y, best.x - current.x)
+        _number(effects, best, best.take_damage(damage, source, angle))
+        hit.add(id(best))
+        current = best
+        events.append("zap")
+    return events
 
 
 def _number(effects: list[Effect], victim: Actor, dealt: float) -> None:
@@ -145,7 +274,7 @@ def update_projectiles(
         best_t = tile_hit.t if tile_hit is not None else math.inf
         victim, victim_i = None, -1
         for i, a in grid.near(p.x, p.y, p.x + dx, p.y + dy):
-            if a is p.owner or not a.hittable:
+            if not a.hittable or id(a) in p.hit or not _may_hurt(p.owner, a):
                 continue
             t = segment_circle_t(p.x, p.y, dx, dy, a.x, a.y, a.hit_radius)
             # Ties go to the actor earliest in `actors`, as a plain scan would.
@@ -158,6 +287,17 @@ def update_projectiles(
             effects.append(Effect("impact", hx, hy, p.angle))
             _number(effects, victim, dealt)
             events.append(HIT)
+            if p.spec.chain:
+                events += chain_from(victim, p.spec, p.damage, p.owner, world, actors, effects)
+            if p.pierce_left > 0:
+                # Through it: carry on from the hit point next step (the
+                # rest of this step's distance is dropped -- a fraction of
+                # a tile).
+                p.pierce_left -= 1
+                p.hit.add(id(victim))
+                p.x, p.y = hx, hy
+                p.travelled += step * best_t
+                continue
             p.alive = False
             continue
         if tile_hit is not None:

@@ -38,8 +38,11 @@ class HeroesTest(unittest.TestCase):
     def test_all_five_heroes_exist_and_the_wizard_is_default(self):
         self.assertEqual(set(config.HEROES), {"wizard", "knight", "bard", "princess", "huntress"})
         self.assertEqual(config.START_HERO, "wizard")
-        for spec in config.HEROES.values():
-            self.assertEqual(spec.weapon, "magic_bolt")   # shared placeholder attack
+        weapons = [spec.weapon for spec in config.HEROES.values()]
+        self.assertEqual(len(set(weapons)), 5)            # each hero their own
+        for w in weapons:
+            self.assertIn(w, config.WEAPONS)
+            self.assertTrue(config.WEAPONS[w].blurb)      # shown on hero select
 
 
 class AimTest(unittest.TestCase):

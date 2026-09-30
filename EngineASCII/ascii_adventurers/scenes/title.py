@@ -47,7 +47,7 @@ class TitleScene(MenuScene):
             return
         if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
                                                           pygame.K_SPACE):
-            self.manager.audio.play_blip()
+            self.app.ui_sound()
         self._ensure_menu().handle_event(event, self.manager.display)
 
     def _new_run(self) -> None:

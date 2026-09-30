@@ -1,105 +1,116 @@
 """
-ui/hud.py -- the status bar along the bottom of the screen.
+ui/hud.py -- the heads-up display ("corners" layout, M11).
 
-Health bar first (it's what matters in a fight), then kills, where you are
-(biome, distance from the start), the hero and their attack, the seed and
-FPS (unless hidden in the settings).
+No bar across the screen: the world fills it. What's always there sits in
+the corners, each on a small dark panel so it reads over any terrain:
+
+  top-left     HP bar, level + XP bar, kills and the run's clock
+  top-right    the minimap (ui/maps.py)
+  top-centre   a boss's name and health, during a boss fight
+  bottom-right FPS, when enabled in Settings
+
+Seed, biome, distance, hero and attack moved off the HUD: the pause menu
+and the big map show them.
+
+The top-left panel is ~80 glyphs; it's redrawn only when something on it
+changes, otherwise its last image is blitted back.
 """
 
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 
 import pygame
 
 from engine import TextRenderer
 
-from .. import config, palette
-from ..entities.character import Character
+from .. import palette
+from ..meta.run_stats import format_time
 
-HINTS = "WASD/Arrows walk   Mouse aim   Left click fire (hold)   M map   F11 window mode   ESC pause"
-HINTS_SHORT = "WASD walk  Mouse aim  Click fire  M map  F11 window  ESC pause"
-HP_BAR_CELLS = 20
+BAR = 24                 # HP / XP bar cells
+PANEL_W = BAR + 9        # "HP " + bar + " 100" + margins
 
-# Dropped first when the screen is too narrow for every field, in this order.
-_DROPPABLE = ("ATTACK", "HERO", "SEED")
-
-# Health bar color by fraction left (fixed shades; see palette note).
-_HP_COLORS = ((0.6, (90, 220, 110)), (0.3, (235, 190, 60)), (0.0, (235, 70, 60)))
+# Health bar color by fraction left.
+_HP_COLORS = ((0.6, palette.HUD_HP_GOOD), (0.3, palette.HUD_HP_WARN), (0.0, palette.HUD_HP_LOW))
 
 
-# The last HUD drawn, reused while nothing on it changes: key -> image.
+@dataclass
+class HudInfo:
+    hp: float
+    max_hp: float
+    level: int
+    xp_frac: float           # progress to the next level, 0..1
+    kills: int
+    time: float              # seconds into the run
+    fps: float | None = None     # None: hidden (a setting)
+    boss: tuple[str, float] | None = None   # (name, health fraction) during a boss fight
+
+
+# The last top-left panel drawn: key -> image.
 _cache: dict = {"key": None, "image": None}
 
 
-def draw_hud(
-    text: TextRenderer, cols: int, rows: int, hero: Character, world, spawn: tuple[float, float],
-    fps: float | None, kills: int = 0,
-) -> None:
-    """fps=None hides the FPS readout (a setting)."""
-    top = rows - config.HUD_ROWS
-    frac = max(0.0, hero.hp / hero.max_hp)
-    color = next(c for limit, c in _HP_COLORS if frac > limit or limit == 0.0)
-    filled = math.ceil(frac * HP_BAR_CELLS) if hero.hp > 0 else 0
+def _panel(text: TextRenderer, col: int, row: int, width: int, height: int) -> None:
+    for r in range(height):
+        text.put(col, row + r, " " * width, palette.HUD_PANEL, palette.HUD_PANEL)
 
-    biome_at = getattr(world, "biome_at", None)
-    biome = biome_at(math.floor(hero.x), math.floor(hero.y)).name.upper() if biome_at else "TEST MAP"
-    dist = math.hypot(hero.x - spawn[0], hero.y - spawn[1])
-    fields = [
-        ("KILLS", f"{kills:<3d}"),
-        ("BIOME", f"{biome:<8}"),
-        ("DIST", f"{dist:5.0f}"),
-        ("HERO", hero.spec.name.upper()),
-        ("ATTACK", hero.weapon.spec.name.upper()),
-    ]
-    seed = getattr(world, "seed", None)
-    if seed is not None:
-        fields.append(("SEED", str(seed)))
-    if fps is not None:
-        fields.append(("FPS", f"{fps:3.0f}"))
 
-    # The HUD is ~250 glyphs; redraw it only when something on it changed.
+def _bar(text: TextRenderer, col: int, row: int, width: int, frac: float, full: tuple,
+         empty: tuple, fill: str = "█", rest: str = "░") -> None:
+    n = max(0, min(width, round(frac * width)))
+    text.put(col, row, fill * n, full, palette.HUD_PANEL)
+    text.put(col + n, row, rest * (width - n), empty, palette.HUD_PANEL)
+
+
+def draw_hud(text: TextRenderer, info: HudInfo) -> None:
     d = text.display
-    area = pygame.Rect(0, top * d.cell_h, cols * d.cell_w, config.HUD_ROWS * d.cell_h)
-    key = (id(text), cols, rows, d.cell_w, d.cell_h, filled, color,
-           math.ceil(hero.hp), tuple(fields))
+    cols, rows = d.cols, d.rows
+    _draw_status(text, info)
+    if info.boss is not None:
+        draw_boss_bar(text, *info.boss)
+    if info.fps is not None:
+        s = f"{info.fps:3.0f} FPS"
+        text.put(cols - len(s) - 1, rows - 1, s, palette.HUD_LABEL, None)
+
+
+def _draw_status(text: TextRenderer, info: HudInfo) -> None:
+    """The top-left panel: HP, level/XP, kills and clock."""
+    d = text.display
+    frac = max(0.0, info.hp / info.max_hp) if info.max_hp else 0.0
+    hp_color = next(c for limit, c in _HP_COLORS if frac > limit or limit == 0.0)
+    hp_cells = math.ceil(frac * BAR) if info.hp > 0 else 0
+    xp_cells = round(max(0.0, min(1.0, info.xp_frac)) * BAR)
+    clock = format_time(info.time)
+    area = pygame.Rect(0, 0, PANEL_W * d.cell_w, 3 * d.cell_h)
+    key = (id(text), d.cell_w, d.cell_h, hp_cells, hp_color, math.ceil(info.hp),
+           info.level, xp_cells, info.kills, clock)
     if key == _cache["key"]:
         d.canvas.blit(_cache["image"], area)
         return
-
-    # The smoothly scrolled map can spill partway into these rows; blank
-    # them first so only the HUD shows.
-    for r in range(top + 1, rows):
-        text.put(0, r, " " * cols)
-    text.put(0, top, "─" * cols, palette.HUD_RULE)
-
-    # Health bar: block glyphs, color by how much is left.
-    col = 2
-    text.put(col, top + 1, "HP", palette.HUD_LABEL)
-    col += 3
-    text.put(col, top + 1, "█" * filled, color)
-    text.put(col + filled, top + 1, "░" * (HP_BAR_CELLS - filled), palette.HUD_RULE)
-    col += HP_BAR_CELLS + 1
-    text.put(col, top + 1, f"{math.ceil(hero.hp):3d}", color)
-    col += 7
-
-    # Narrow screens: tighten the gaps, then drop the least useful fields.
-    def width(fields, gap):
-        return sum(len(label) + 1 + len(value) for label, value in fields) + gap * (len(fields) - 1)
-    gap = 4
-    while width(fields, gap) > cols - col - 1:
-        if gap > 2:
-            gap -= 1
-        elif any(label in _DROPPABLE for label, _ in fields):
-            drop = next(f for f in _DROPPABLE if f in [label for label, _ in fields])
-            fields = [f for f in fields if f[0] != drop]
-        else:
-            break
-    for label, value in fields:
-        text.put(col, top + 1, label, palette.HUD_LABEL)
-        col += len(label) + 1
-        text.put(col, top + 1, value, palette.HUD_VALUE)
-        col += len(value) + gap
-
-    text.put(2, top + 2, HINTS if len(HINTS) <= cols - 3 else HINTS_SHORT, palette.HUD_HINT)
+    _panel(text, 0, 0, PANEL_W, 3)
+    text.put(1, 0, "HP", palette.HUD_LABEL, palette.HUD_PANEL)
+    text.put(4, 0, "█" * hp_cells, hp_color, palette.HUD_PANEL)
+    text.put(4 + hp_cells, 0, "░" * (BAR - hp_cells), palette.HUD_EMPTY, palette.HUD_PANEL)
+    text.put(PANEL_W - 4, 0, f"{math.ceil(max(0.0, info.hp)):3d}", hp_color, palette.HUD_PANEL)
+    text.put(1, 1, "LV", palette.HUD_LABEL, palette.HUD_PANEL)
+    # XP as a half-height bar: it reads as secondary to HP.
+    text.put(4, 1, "▀" * xp_cells, palette.HUD_XP, palette.HUD_PANEL)
+    text.put(4 + xp_cells, 1, "▀" * (BAR - xp_cells), palette.HUD_XP_EMPTY, palette.HUD_PANEL)
+    text.put(PANEL_W - 4, 1, f"{info.level:3d}", palette.HUD_XP, palette.HUD_PANEL)
+    text.put(1, 2, f"KILLS {info.kills}", palette.HUD_LABEL, palette.HUD_PANEL)
+    text.put(PANEL_W - 1 - len(clock), 2, clock, palette.HUD_VALUE, palette.HUD_PANEL)
     _cache["key"], _cache["image"] = key, d.canvas.subsurface(area).copy()
+
+
+def draw_boss_bar(text: TextRenderer, name: str, frac: float) -> None:
+    """A boss's name and health bar, top centre, between the status panel
+    and the minimap."""
+    from .. import config
+    cols = text.display.cols
+    room = cols - PANEL_W - (config.MINIMAP_COLS + 2 + config.MINIMAP_MARGIN) - 4
+    width = max(10, min(60, room))
+    left = PANEL_W + 2 + (room - width) // 2
+    label = name.upper()
+    text.put(left + (width - len(label)) // 2, 0, label, palette.HUD_BOSS_NAME, None)
+    _bar(text, left, 1, width, frac, palette.HUD_BOSS, palette.HUD_BOSS_EMPTY)

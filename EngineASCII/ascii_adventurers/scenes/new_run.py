@@ -51,7 +51,7 @@ class NewRunScene(MenuScene):
         return self._ui
 
     def _on_hero(self, hero: str) -> None:
-        self.manager.audio.play_blip()
+        self.app.ui_sound()
 
     def _start(self) -> None:
         from .game import GameScene
@@ -59,7 +59,7 @@ class NewRunScene(MenuScene):
         s.hero = self._picker.value
         s.seed = self._seed.seed
         self.app.save_settings()
-        self.manager.audio.play_blip()
+        self.app.ui_sound()
         self.manager.switch_to(GameScene(hero=s.hero, seed=s.seed))
 
     def _back(self) -> None:
@@ -89,7 +89,8 @@ class NewRunScene(MenuScene):
         ui = self._ensure_ui()
         self.draw_backdrop(text)
         center(text, 2, "CHOOSE YOUR ADVENTURER", colors.AMBER, bg=None)
-        center(text, 3, "(every hero has the same magic bolt for now)", colors.GREY, bg=None)
+        weapon = config.WEAPONS[config.HEROES[self._picker.value].weapon]
+        center(text, 3, f"{weapon.name.upper()}: {weapon.blurb}", colors.GREY, bg=None)
         box_w = 56
         draw_box(text, (d.cols - box_w) // 2, 5 + CARD_H + 1, box_w, 9)
         ui.draw(text)

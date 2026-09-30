@@ -28,3 +28,6 @@ class Projectile:
         self.dir_y = math.sin(angle)
         self.travelled = 0.0          # tiles
         self.alive = True
+        self.pierce_left = spec.pierce  # enemies it may still pass through
+        self.hit: set[int] = set()    # ids of actors already hit (pierce)
+        self.variant = 0              # which of a spread's pellets (its color)

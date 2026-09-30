@@ -25,15 +25,57 @@ class ShellSpec:
     max_range: float        # tiles travelled before it falls to the ground
     damages_terrain: bool = True   # False: bursts on walls/trees harmlessly
     look: str = "bolt"      # how it's drawn: key into render/ascii_fx.SHOT_LOOKS
+    sound: str = "bolt"     # played when fired: key into engine_ext/sfx.py recipes
+    pierce: int = 0         # enemies it passes through before stopping (arrows)
+    chain: int = 0          # jumps to further enemies after a hit (lightning)
+    chain_range: float = 0.0        # tiles a jump can reach (needs a clear line)
+    chain_falloff: float = 0.7      # each jump does this fraction of the previous
 
 
 @dataclass(frozen=True)
 class WeaponSpec:
+    """How an attack works. `kind`:
+      * "shot"  -- fires `pellets` projectiles (ShellSpec), fanned over
+                   `spread_deg` (bolts, arrows, the rainbow's colors);
+      * "melee" -- a swing hitting everything within `reach` tiles and
+                   `arc_deg` of the aim (the knight's sword);
+      * "pulse" -- a burst hitting everything within `reach` tiles all
+                   around (the bard's music).
+    `auto` weapons fire on their own, without the trigger."""
+
     name: str
-    fire_interval: float    # seconds between shots (hold to fire / AI cadence)
-    shell: ShellSpec
+    fire_interval: float    # seconds between attacks (hold to fire / AI cadence)
+    shell: ShellSpec | None = None  # "shot" weapons
     burst: int = 1          # shots per trigger pull (spell towers fire bursts)
     burst_gap: float = 0.12 # seconds between shots within a burst
+    kind: str = "shot"
+    pellets: int = 1        # projectiles per shot
+    spread_deg: float = 0.0 # total fan width of the pellets
+    damage: int = 0         # "melee"/"pulse" damage (shots use shell.damage)
+    reach: float = 0.0      # "melee"/"pulse" radius, tiles
+    arc_deg: float = 0.0    # "melee" swing width
+    auto: bool = False      # fires by itself on the beat (no trigger)
+    blurb: str = ""         # one line for the hero select screen
+
+    @property
+    def aims(self) -> bool:
+        """False for attacks that go all round (pulses): no reticle."""
+        return self.kind != "pulse"
+
+
+@dataclass(frozen=True)
+class CardSpec:
+    """A level-up card. `mods` are (stat, op, value) steps applied once per
+    copy taken, op "add" or "mul" (see players/cards.py for the stats).
+    `heroes` / `kinds` limit who can be offered it (empty = anyone)."""
+
+    name: str
+    text: str                        # one short line on the card
+    mods: tuple[tuple[str, str, float], ...]
+    rarity: str = "common"           # common | rare | epic (how often it's offered)
+    max_stacks: int = 3              # copies one hero can take
+    heroes: tuple[str, ...] = ()     # only for these heroes
+    kinds: tuple[str, ...] = ()      # only for these weapon kinds (shot / melee / pulse)
 
 
 @dataclass(frozen=True)
@@ -75,3 +117,4 @@ class EnemySpec:
     windup: float = 0.5             # creatures/warlock: telegraph time before attacking
     cooldown: float = 1.5           # creatures: time between attacks
     size_px: int = 16               # creatures: body size (collision + drawing)
+    xp: int = 5                     # experience for the player who kills it

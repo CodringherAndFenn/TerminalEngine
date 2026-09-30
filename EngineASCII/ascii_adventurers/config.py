@@ -11,7 +11,7 @@ Units:
 
 import math
 
-from .specs import CharacterSpec, EnemySpec, ShellSpec, WeaponSpec
+from .specs import CardSpec, CharacterSpec, EnemySpec, ShellSpec, WeaponSpec
 
 # --- Display / layout --------------------------------------------------------
 
@@ -42,8 +42,9 @@ MIN_GRID_COLS = 80
 # the monitor (width and height).
 WINDOW_SCREEN_FRACTION = 0.9
 
-# Rows reserved at the bottom of the screen for the HUD (incl. separator line).
-HUD_ROWS = 3
+# Rows reserved at the bottom of the screen for the HUD. 0: the HUD sits in
+# the corners over the world (ui/hud.py), which fills the whole screen.
+HUD_ROWS = 0
 
 # --- Maps (ui/maps.py) ---
 # Minimap: MINIMAP_COLS x MINIMAP_ROWS cells in the top-right corner (each
@@ -110,8 +111,37 @@ CAMERA_MAX_LAG_TILES = 3.0
 # Damage and hit points use one scale for everything (player, enemies, terrain).
 
 WEAPONS = {
-    # Every hero's attack for now: a placeholder until heroes get their own
-    # weapons (weapons milestone).
+    # --- Hero weapons (one per hero; cards will upgrade them) -------------------
+    # Rough damage per second against one target, for comparison: shock bolt
+    # ~57 (+ jumps), longbow ~50 (+ pierce), rainbow up to ~80 point blank
+    # (all 5 colors), sword ~71 (every enemy in the arc), lute ~13 (every
+    # enemy around, automatically). Balance comes later.
+    "shock_bolt": WeaponSpec(
+        name="shock bolt", fire_interval=0.35,
+        shell=ShellSpec(speed=34.0, damage=20, max_range=30.0, look="spark", sound="spark",
+                        chain=2, chain_range=5.0, chain_falloff=0.7),
+        blurb="lightning bolts that jump to 2 more enemies nearby",
+    ),
+    "longbow": WeaponSpec(
+        name="longbow", fire_interval=0.4,
+        shell=ShellSpec(speed=45.0, damage=16, max_range=40.0, look="longarrow", sound="bow",
+                        pierce=2),
+        blurb="fast, long-range arrows that pierce through 2 enemies",
+    ),
+    "rainbow": WeaponSpec(
+        name="rainbow", fire_interval=0.5, pellets=5, spread_deg=34.0,
+        shell=ShellSpec(speed=28.0, damage=8, max_range=13.0, look="prism", sound="chime"),
+        blurb="a fan of 5 colors: deadly up close, weak far away",
+    ),
+    "sword": WeaponSpec(
+        name="sword", kind="melee", fire_interval=0.42, damage=30, reach=5, arc_deg=150.0,
+        blurb="a wide swing hitting everything in front; chops trees",
+    ),
+    "lute": WeaponSpec(
+        name="lute", kind="pulse", fire_interval=1.2, damage=16, reach=8, auto=True,
+        blurb="plays on its own: every beat hurts everything around",
+    ),
+    # The pre-M10 placeholder all heroes shared (kept for tests and tools).
     "magic_bolt": WeaponSpec(
         name="magic bolt",
         fire_interval=0.35,       # hold left click: ~3 shots/s
@@ -121,35 +151,37 @@ WEAPONS = {
     "goblin_bow": WeaponSpec(
         name="goblin bow", fire_interval=1.6,
         shell=ShellSpec(speed=14.0, damage=8, max_range=22.0, damages_terrain=False,
-                        look="arrow"),
+                        look="arrow", sound="bow"),
     ),
     "hex": WeaponSpec(
         name="hex", fire_interval=3.5,
         shell=ShellSpec(speed=45.0, damage=30, max_range=45.0, damages_terrain=False,
-                        look="hex"),
+                        look="hex", sound="hex"),
     ),
     "tower_orbs": WeaponSpec(
         name="tower orbs", fire_interval=2.4, burst=3, burst_gap=0.14,
         shell=ShellSpec(speed=17.0, damage=6, max_range=24.0, damages_terrain=False,
-                        look="orb"),
+                        look="orb", sound="orb"),
     ),
     "boulder": WeaponSpec(
         name="boulder", fire_interval=2.8,
         shell=ShellSpec(speed=11.0, damage=25, max_range=24.0, damages_terrain=True,
-                        look="boulder"),
+                        look="boulder", sound="boulder"),
     ),
 }
 
-# The playable heroes. All the same for now except their looks.
-_HERO = dict(weapon="magic_bolt", max_speed=8.5, accel=40.0, brake=50.0,
-             size_px=26, max_hp=100)
+# The playable heroes: same body, each with their own weapon.
+_HERO = dict(max_speed=8.5, accel=40.0, brake=50.0, size_px=26, max_hp=100)
 HEROES = {
-    "wizard": CharacterSpec(name="wizard", sprite="wizard", **_HERO),
-    "knight": CharacterSpec(name="knight", sprite="knight", **_HERO),
-    "bard": CharacterSpec(name="bard", sprite="bard", **_HERO),
-    "princess": CharacterSpec(name="princess", sprite="princess", **_HERO),
-    "huntress": CharacterSpec(name="huntress", sprite="huntress", **_HERO),
+    "wizard": CharacterSpec(name="wizard", sprite="wizard", weapon="shock_bolt", **_HERO),
+    "knight": CharacterSpec(name="knight", sprite="knight", weapon="sword", **_HERO),
+    "bard": CharacterSpec(name="bard", sprite="bard", weapon="lute", **_HERO),
+    "princess": CharacterSpec(name="princess", sprite="princess", weapon="rainbow", **_HERO),
+    "huntress": CharacterSpec(name="huntress", sprite="huntress", weapon="longbow", **_HERO),
 }
+# Of a melee swing's reach, the part that also chops terrain (trees, walls):
+# a sword clears what's right in front, not the whole arc.
+MELEE_TERRAIN_REACH = 0.7
 START_HERO = "wizard"
 
 # Bodies of the enemies that shoot (their behaviour: ai/shooters.py).
@@ -185,38 +217,117 @@ ENEMIES = {
     "goblin_archer": EnemySpec(
         name="goblin archer", kind="archer", body="goblin_archer", max_hp=40, sight=16,
         biomes=("plains", "forest", "desert", "ruins", "swamp", "mushroom"), weight=3,
-        preferred_range=(7.0, 11.0),
+        preferred_range=(7.0, 11.0), xp=4,
     ),
     "warlock": EnemySpec(
         name="warlock", kind="warlock", body="warlock", max_hp=50, sight=34,
         biomes=("desert", "plains", "ruins"), weight=2,
         preferred_range=(18.0, 28.0),
         windup=1.1,               # aiming-beam time before the hex flies
+        xp=8,
     ),
     "spell_tower": EnemySpec(
         name="spell tower", kind="tower", body="spell_tower", max_hp=80, sight=20,
-        biomes=("ruins",), weight=4,
+        biomes=("ruins",), weight=4, xp=10,
     ),
     "ogre": EnemySpec(
         name="ogre", kind="ogre", body="ogre", max_hp=200, sight=18,
         biomes=("plains", "forest", "desert", "ruins", "swamp"), weight=1,
-        preferred_range=(6.0, 12.0),
+        preferred_range=(6.0, 12.0), xp=14,
     ),
     "burrower": EnemySpec(
         name="burrower", kind="burrower", max_hp=60, sight=22,
         biomes=("desert",), weight=4, speed=6.5,
-        damage=22, attack_radius=2.2, windup=0.7, cooldown=1.6, size_px=26,
+        damage=22, attack_radius=2.2, windup=0.7, cooldown=1.6, size_px=26, xp=7,
     ),
     "puffer": EnemySpec(
         name="spore puffer", kind="puffer", max_hp=10, sight=18,
         biomes=("mushroom",), weight=5, speed=1.8,
-        damage=30, attack_radius=2.6, windup=0.6, size_px=22,
+        damage=30, attack_radius=2.6, windup=0.6, size_px=22, xp=3,
     ),
     "warrior": EnemySpec(
         name="fallen warrior", kind="warrior", max_hp=50, sight=14,
         biomes=("plains", "forest"), weight=3, speed=4.2,
-        damage=18, attack_radius=1.7, windup=0.45, cooldown=1.1, size_px=24,
+        damage=18, attack_radius=1.7, windup=0.45, cooldown=1.1, size_px=24, xp=6,
     ),
+}
+
+# --- Experience (players/progress.py) ---------------------------------------------
+# Each enemy's `xp` above goes to the player who lands the killing blow.
+# XP from level n to n+1 = LEVEL_XP_BASE * LEVEL_XP_GROWTH ** (n - 1):
+# 12, 16, 22, 30, 40, 54 ... Every level gained is one card pick.
+LEVEL_XP_BASE = 12
+LEVEL_XP_GROWTH = 1.35
+
+# --- Cards (players/cards.py) ------------------------------------------------------
+#
+# Every level gained is one card pick: 3 cards are offered (drawn by rarity
+# weight from those the hero can take and hasn't maxed), and you pick one
+# with 1 / 2 / 3 (gamepad: d-pad left / up / right) while playing -- the
+# game doesn't pause. Picks bank up if you're busy.
+#
+# mods: (stat, "add" | "mul", value), applied once per copy taken, adds
+# before multiplies, on top of the hero's base stats. Stats:
+#   damage        shot / swing / pulse damage
+#   interval      seconds between attacks (mul 0.87 = attacks ~15% faster)
+#   range         shot range, or swing / pulse reach
+#   pellets, spread (degrees), pierce, chain, chain_range, chain_falloff,
+#   shot_speed    shots only
+#   arc           swing width (degrees, up to 360)
+#   max_hp, move (movement speed), regen (hp per second), lifesteal
+#   (fraction of damage dealt healed)
+CARD_RARITY_WEIGHT = {"common": 10, "rare": 4, "epic": 1}
+CARD_OFFER_SIZE = 3
+
+CARDS = {
+    # For everyone.
+    "sharpened": CardSpec("Sharpened", "+20% damage", (("damage", "mul", 1.2),), max_stacks=5),
+    "quick_hands": CardSpec("Quick Hands", "attack 15% faster", (("interval", "mul", 0.87),),
+                            max_stacks=5),
+    "iron_skin": CardSpec("Iron Skin", "+20 max HP", (("max_hp", "add", 20),), max_stacks=5),
+    "swift_boots": CardSpec("Swift Boots", "move 10% faster", (("move", "mul", 1.1),)),
+    "long_reach": CardSpec("Long Reach", "+20% range", (("range", "mul", 1.2),)),
+    "second_wind": CardSpec("Second Wind", "regain 1 HP per second", (("regen", "add", 1.0),),
+                            rarity="rare"),
+    "vampiric": CardSpec("Vampiric", "heal 5% of damage dealt", (("lifesteal", "add", 0.05),),
+                         rarity="rare"),
+    # Any hero who shoots.
+    "twin_shot": CardSpec("Twin Shot", "+1 projectile",
+                          (("pellets", "add", 1), ("spread", "add", 8)), rarity="rare",
+                          kinds=("shot",), heroes=("wizard", "huntress")),
+    "piercing": CardSpec("Piercing", "shots pass through +1 enemy", (("pierce", "add", 1),),
+                         kinds=("shot",)),
+    "velocity": CardSpec("Velocity", "shots fly 25% faster", (("shot_speed", "mul", 1.25),),
+                         max_stacks=2, kinds=("shot",)),
+    # Wizard.
+    "storm_caller": CardSpec("Storm Caller", "lightning jumps +1 more", (("chain", "add", 1),),
+                             rarity="rare", heroes=("wizard",)),
+    "conductor": CardSpec("Conductor", "jumps reach farther, fade less",
+                          (("chain_range", "mul", 1.3), ("chain_falloff", "add", 0.08)),
+                          heroes=("wizard",)),
+    # Huntress.
+    "volley": CardSpec("Volley", "+2 arrows in a fan",
+                       (("pellets", "add", 2), ("spread", "add", 14)), rarity="epic",
+                       max_stacks=2, heroes=("huntress",)),
+    # Princess.
+    "prism": CardSpec("Prism", "+2 colors in the fan",
+                      (("pellets", "add", 2), ("spread", "add", 8)), rarity="rare",
+                      heroes=("princess",)),
+    "focus": CardSpec("Focus", "tighter fan, 25% more range",
+                      (("spread", "mul", 0.7), ("range", "mul", 1.25)), max_stacks=2,
+                      heroes=("princess",)),
+    # Knight.
+    "whirlwind": CardSpec("Whirlwind", "swing 60 degrees wider", (("arc", "add", 60),),
+                          rarity="rare", max_stacks=4, heroes=("knight",)),
+    "heavy_blade": CardSpec("Heavy Blade", "+35% damage, 10% slower",
+                            (("damage", "mul", 1.35), ("interval", "mul", 1.1)),
+                            heroes=("knight",)),
+    # Bard.
+    "crescendo": CardSpec("Crescendo", "the beat reaches 25% farther",
+                          (("range", "mul", 1.25),), heroes=("bard",)),
+    "encore": CardSpec("Encore", "+30% beat damage, +1.5 HP/s",
+                       (("damage", "mul", 1.3), ("regen", "add", 1.5)), rarity="rare",
+                       heroes=("bard",)),
 }
 
 # --- How many enemies, and which --------------------------------------------------

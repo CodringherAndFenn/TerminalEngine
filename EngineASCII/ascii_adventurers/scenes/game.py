@@ -59,18 +59,21 @@ from ..entities.character import Character
 from ..entities.effects import Effect, update_effects
 from ..entities.projectile import Projectile
 from ..meta.run_stats import RunStats
+from ..players.cards import build_loadout, draw_offer
 from ..players.controls import AutoControls, GhostControls, PlayerInput
 from ..players.player import Player, player_color
 from ..render.ascii_fx import draw_effects, draw_projectiles
 from ..render.characters import draw_body
 from ..render.enemies_sprite import draw_enemy
+from ..render.slash import draw_slashes
 from ..render.sprites import SpriteBank
 from ..render.terrain import TerrainRenderer
 from ..systems import combat
 from ..systems.spawner import Spawner
 from ..ui.crosshair import draw_crosshair
 from ..ui.frame import dim_canvas
-from ..ui.hud import draw_hud
+from ..ui.card_picker import CardPicker
+from ..ui.hud import HudInfo, draw_hud
 from ..ui.maps import BigMap, Minimap
 from ..ui.overlays import GameOverPanel, PauseMenu
 from ..ui.settings_panel import SettingsPanel
@@ -207,8 +210,19 @@ class GameScene(Scene):
         if self._pause_menu is None:
             self._pause_menu = PauseMenu(
                 self.manager, self.stats, resume=lambda: self._set_overlay(None),
-                settings=self._open_settings, abandon=self._abandon, quit_game=self._quit)
+                settings=self._open_settings, abandon=self._abandon, quit_game=self._quit,
+                details=self._where)
         self._set_overlay(self._pause_menu)
+
+    def _where(self) -> str:
+        """Biome, distance from the start and seed (the pause menu's line;
+        they're not on the HUD)."""
+        h = self.viewed.hero
+        biome_at = getattr(self.world, "biome_at", None)
+        biome = biome_at(math.floor(h.x), math.floor(h.y)).name.upper() if biome_at else "TEST MAP"
+        dist = math.hypot(h.x - self.spawn[0], h.y - self.spawn[1])
+        seed = getattr(self.world, "seed", None)
+        return f"{biome}   {dist:.0f} tiles out" + (f"   seed {seed}" if seed is not None else "")
 
     def _open_settings(self) -> None:
         self._set_overlay(SettingsPanel(self.manager, self._pause))
@@ -268,6 +282,9 @@ class GameScene(Scene):
             elif isinstance(self.overlay, GameOverPanel) and event.type == pygame.KEYDOWN \
                     and event.key == pygame.K_r:
                 self._restart()
+            elif isinstance(self.overlay, CardPicker) and event.type == pygame.KEYDOWN \
+                    and event.key == pygame.K_ESCAPE:
+                self._pause()      # the cards come back when the game resumes
             else:
                 self.overlay.handle_event(event)
             return
@@ -299,8 +316,9 @@ class GameScene(Scene):
         if self.map_open:
             self.big_map.pan(*self._pan_axes(), min(dt, config.MAX_DT))
             return   # the game is paused behind the map
-        if self.overlay is not None and not isinstance(self.overlay, GameOverPanel):
-            return   # paused (pause menu or settings)
+        if self.overlay is not None and getattr(self.overlay, "pauses", True) \
+                and not isinstance(self.overlay, GameOverPanel):
+            return   # paused (pause menu, settings, or choosing a card in single player)
 
         d = self.manager.display
         for p in self.players:
@@ -320,6 +338,12 @@ class GameScene(Scene):
         frame_dt = min(dt, config.MAX_DT)
         for p in self.players:
             p.camera.follow(*self._drawn_pos(p.hero), frame_dt)
+
+        # Cards on offer: up they come (pausing the game in single player).
+        if self.overlay is None and self.me.alive and self.me.progress.offer:
+            self._set_overlay(CardPicker(self.manager, self.me.progress.offer,
+                                         self.me.progress.picks - 1, self._choose_card,
+                                         pauses=self._solo))
 
         if self.game_over_for >= _GAME_OVER_DELAY and self.overlay is None:
             self._set_overlay(GameOverPanel(
@@ -359,7 +383,14 @@ class GameScene(Scene):
         inputs: dict[int, PlayerInput] = {}
         for p in living:
             inp = p.controls.read(p.hero, p.camera, self.world, self.enemies)
+            if inp.pick is None:
+                inp.pick = p.controls.take_pick()
+            if p.ghost and p.progress.offer:
+                inp.pick = 0                  # bots take the first card
             inputs[p.index] = inp
+            self._cards(p, inp.pick)
+            if p.regen > 0:
+                p.hero.hp = min(p.hero.max_hp, p.hero.hp + p.regen * dt)
             p.hero.move(inp.move_x, inp.move_y, dt, self.world)
             biome_at = getattr(self.world, "biome_at", None)
             biome = biome_at(math.floor(p.hero.x), math.floor(p.hero.y)).name if biome_at else None
@@ -371,8 +402,10 @@ class GameScene(Scene):
             if inp.aim is not None:
                 p.hero.aim_at(*inp.aim, dt)
                 p.aim = inp.aim
-            if p.hero.weapon.update(dt, inp.fire):
-                shot = combat.fire(p.hero, self.world, self.projectiles, self.effects)
+            weapon = p.hero.weapon
+            if weapon.update(dt, inp.fire or weapon.spec.auto):
+                shot = combat.attack(p.hero, self.world, self.projectiles, self.effects,
+                                     self._actors())
                 if p.local:
                     sounds += shot
                 for e in self.enemies:
@@ -411,6 +444,61 @@ class GameScene(Scene):
         if self.spawner is not None:
             self.spawner.update_views(self.enemies, self._views())
 
+    # --- Cards ------------------------------------------------------------------------
+
+    @property
+    def _solo(self) -> bool:
+        """One human player (debug ghosts don't count): card picks pause."""
+        return sum(1 for p in self.players if not p.ghost) == 1
+
+    def _choose_card(self, index: int) -> None:
+        """The local player took card `index` from the picker. In single
+        player the game is paused, so it's applied right away; otherwise it
+        travels with the next step's input like any other."""
+        me = self.me
+        if self._solo:
+            self._cards(me, index)
+        else:
+            me.controls.queue_pick(index)
+            me.progress.offer = []
+        if me.progress.offer:                       # more picks banked: next offer
+            self.overlay.set_offer(me.progress.offer, me.progress.picks - 1)
+        else:
+            self._set_overlay(None)
+
+    def _cards(self, p: Player, pick: int | None) -> None:
+        """Take the picked card, if any, then put a new offer on the table
+        while picks are banked."""
+        prog = p.progress
+        if pick is not None and 0 <= pick < len(prog.offer):
+            key = prog.offer[pick]
+            prog.cards[key] += 1
+            prog.picks -= 1
+            prog.offer = []
+            p.stats.cards.append(key)
+            self._apply_loadout(p)
+            if p.local:
+                self._sounds.append("ui")
+        if prog.picks > 0 and not prog.offer:
+            prog.offer = draw_offer(p.stats.hero, p.hero.weapon.spec, prog.cards,
+                                    getattr(self.world, "seed", 0) or 0, p.index, prog.offers)
+            prog.offers += 1
+            if not prog.offer:
+                prog.picks = 0             # every card maxed out: nothing left to offer
+
+    @staticmethod
+    def _apply_loadout(p: Player) -> None:
+        """Rebuild the hero from the base specs plus every card taken."""
+        lo = build_loadout(p.stats.hero, p.progress.cards)
+        hero = p.hero
+        gained = lo.body.max_hp - hero.max_hp
+        hero.spec = lo.body
+        hero.weapon.spec = lo.weapon
+        hero.max_hp = lo.body.max_hp
+        hero.hp = min(hero.max_hp, hero.hp + max(0, gained))   # new max HP comes filled
+        hero.lifesteal = lo.lifesteal
+        p.regen = lo.regen
+
     def _actors(self) -> list:
         return [p.hero for p in self.players if p.hero.alive] + [e for e in self.enemies if e.alive]
 
@@ -441,6 +529,10 @@ class GameScene(Scene):
                 killer = self._player_of(e.last_hit_by)
                 if killer is not None:
                     killer.stats.killed(e.espec.name)
+                    if killer.progress.add(e.espec.xp):
+                        self.effects.append(Effect("levelup", killer.hero.x, killer.hero.y))
+                        if killer.local:
+                            events.append("chime")
             ctx.actors = self._actors()
         events += ctx.events
         ctx.events.clear()
@@ -535,20 +627,26 @@ class GameScene(Scene):
             h = p.hero
             if p.alive and x0 - margin <= h.x <= x1 + margin and y0 - margin <= h.y <= y1 + margin:
                 draw_body(self.sprites, cam, h)
+        draw_slashes(self.sprites, cam, self.effects)
         draw_projectiles(text, cam, self.projectiles)
         draw_effects(text, cam, self.world, air)
         others = [(p.hero.x, p.hero.y, p.color) for p in self.players if p is not me and p.alive]
         minimap = self.players[0].minimap
-        if minimap is not None and not self.map_open:
+        if minimap is not None and not self.map_open and not isinstance(self.overlay, CardPicker):
             minimap.draw(text, self.sprites, self.world, me.hero.x, me.hero.y,
                          me.hero.aim_angle, others)
-        if me.alive and not self.map_open and self.overlay is None and not me.ghost:
+        # No reticle for weapons that don't aim (the bard's pulse goes all round).
+        if (me.alive and not self.map_open and self.overlay is None and not me.ghost
+                and me.hero.weapon.spec.aims):
             if me.controls.uses_mouse:
                 draw_crosshair(self.sprites, cam, self.mouse.canvas_pos)
             elif me.aim is not None:
                 draw_crosshair(self.sprites, cam, cam.world_to_px(*me.aim))
-        draw_hud(text, d.cols, d.rows, me.hero, self.world, self.spawn,
-                 self.fps if self.app.settings.show_fps else None, me.stats.total_kills)
+        if not self.map_open:
+            draw_hud(text, HudInfo(
+                hp=me.hero.hp, max_hp=me.hero.max_hp, level=me.progress.level,
+                xp_frac=me.progress.frac, kills=me.stats.total_kills, time=me.stats.time,
+                fps=self.fps if self.app.settings.show_fps else None))
         if self.map_open:
             self.big_map.draw(text, self.sprites, cam.view_rows,
                               (me.hero.x, me.hero.y), me.hero.aim_angle, others)
