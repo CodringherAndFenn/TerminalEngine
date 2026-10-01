@@ -41,19 +41,19 @@ class GuildTest(unittest.TestCase):
 
     def test_hero_upgrades_are_per_hero(self):
         g = Guild(loot=10 ** 6)
-        g.buy_upgrade("mastery", "dwarf")
-        self.assertEqual(g.level("mastery", "dwarf"), 1)
-        self.assertEqual(g.level("mastery", "wizard"), 0)
-        self.assertIn(("damage", "add", 0.04), g.meta_steps("dwarf"))
+        g.buy_upgrade("strong_arm", "dwarf")
+        self.assertEqual(g.level("strong_arm", "dwarf"), 1)
+        self.assertEqual(g.level("strong_arm", "wizard"), 0)
+        self.assertIn(("range", "add", 0.06), g.meta_steps("dwarf"))
         self.assertEqual(g.meta_steps("wizard"), [])
 
     def test_card_unlocks(self):
-        g = Guild(loot=1000)
+        g = Guild(loot=3000)
         self.assertTrue(g.unlocked("sharpened"))                # start card
         self.assertFalse(g.unlocked("multishot"))
         self.assertNotIn("multishot", g.unlocked_cards())
         self.assertTrue(g.buy_card("multishot"))
-        self.assertEqual(g.loot, 1000 - card_price("multishot"))
+        self.assertEqual(g.loot, 3000 - card_price("multishot"))
         self.assertTrue(g.unlocked("multishot"))
         self.assertFalse(g.buy_card("multishot"))               # owned already
         self.assertFalse(g.buy_card("sharpened"))               # never for sale
@@ -65,16 +65,18 @@ class GuildTest(unittest.TestCase):
         g.buy_upgrade("arcane_wing")
         g.buy_upgrade("infirmary")
         lo = cards.build_loadout("bard", [("sharpened", "common")], g.meta_steps("bard"))
-        self.assertAlmostEqual(lo.stats.damage, 0.08 + 0.10)
+        self.assertAlmostEqual(lo.stats.damage, 0.04 + 0.10)
         self.assertEqual(lo.stats.spell_slots, config.SPELL_SLOTS + 1)
-        self.assertEqual(lo.body.max_hp, config.HEROES["bard"].max_hp + 8)
+        self.assertEqual(lo.body.max_hp, config.HEROES["bard"].max_hp + 5)
 
     def test_save_and_load(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "guild.json")
             g = Guild(loot=500, total_loot=900)
             g.guild = {"whetstone": 2}
-            g.heroes = {"bard": {"lullaby": 1}}
+            g.heroes = {"bard": {"soothing_strings": 1}}
+            g.pacts, g.active_pacts, g.pages = {"blood", "horde"}, {"blood"}, {"toad"}
+            g.kills = {"toad": 7}
             g.cards = {"overload"}
             g.achievements = {"level_30"}
             self.assertTrue(g.save(path))
@@ -85,13 +87,18 @@ class GuildTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "guild.json")
             with open(path, "w") as f:
-                json.dump({"loot": -5, "total_loot": "lots", "guild": {"whetstone": 99, "nope": 2,
-                           "armory": "x"}, "heroes": {"bard": {"lullaby": 2}, "knight": {}},
-                           "cards": ["overload", "no_such_card", 3]}, f)
+                json.dump({"version": 2, "loot": -5, "total_loot": "lots",
+                           "guild": {"whetstone": 99, "nope": 2, "armory": "x"},
+                           "heroes": {"bard": {"soothing_strings": 2}, "knight": {}},
+                           "cards": ["overload", "no_such_card", 3],
+                           "pacts": ["glass", "nope"], "active_pacts": ["glass", "blood"],
+                           "kills": {"toad": 3, "dragon": 9, "boar": -1}}, f)
             g = Guild.load(path)
             self.assertEqual((g.loot, g.total_loot), (0, 0))
             self.assertEqual(g.guild, {"whetstone": config.GUILD_UPGRADES["whetstone"].max_level})
-            self.assertEqual(g.heroes, {"bard": {"lullaby": 2}})
+            self.assertEqual(g.heroes, {"bard": {"soothing_strings": 2}})
+            self.assertEqual((g.pacts, g.active_pacts), ({"glass"}, {"glass"}))
+            self.assertEqual(g.kills, {"toad": 3})
             self.assertEqual(g.cards, {"overload"})
             self.assertEqual(Guild.load(os.path.join(d, "missing.json")), Guild())
 
@@ -118,9 +125,10 @@ class RunTest(unittest.TestCase):
         g = Guild(loot=10 ** 6)
         g.buy_upgrade("infirmary")
         g.buy_upgrade("fortune_teller")
-        g.buy_upgrade("toughness", "wizard")
+        g.buy_upgrade("forked_bolt", "wizard")
         _, s = self.start(g)
-        self.assertEqual(s.hero.max_hp, 100 + 8 + 8)
+        self.assertEqual(s.hero.max_hp, 100 + 5)
+        self.assertEqual(s.hero.weapon.spec.shell.chain, config.WEAPONS["shock_bolt"].shell.chain + 1)
         self.assertEqual(s.hero.hp, s.hero.max_hp)
         self.assertEqual(s.me.progress.rerolls, config.CARD_REROLLS + 1)
         self.assertEqual(s.me.progress.banishes, config.CARD_BANISHES)
@@ -137,7 +145,7 @@ class RunTest(unittest.TestCase):
     def test_locked_cards_are_never_offered(self):
         _, s = self.start(hero="huntress")
         self.assertNotIn("hunters_mark", self.offered(s))
-        g = Guild(loot=1000)
+        g = Guild(loot=5000)
         g.buy_card("hunters_mark")
         _, s = self.start(g, hero="huntress")
         self.assertIn("hunters_mark", self.offered(s, 400))
@@ -151,7 +159,7 @@ class RunTest(unittest.TestCase):
         s.enemies.append(e)
         e.take_damage(9999, s.hero, 0.0)
         s.update(1 / 60)
-        expected = config.ENEMIES["ogre"].xp * config.LOOT_PER_XP * 1.06
+        expected = config.ENEMIES["ogre"].xp * config.LOOT_PER_XP * 1.04
         self.assertAlmostEqual(s.stats.loot, expected)
         shard = [ef for ef in s.effects if ef.kind == "loot"]
         self.assertEqual(len(shard), 1)
@@ -228,7 +236,7 @@ class HallTest(unittest.TestCase):
         from ascii_adventurers.scenes.guild_hall import GuildHallScene
         from ascii_adventurers.tests.test_players import make_manager
         self.m = make_manager()
-        self.m.app.guild = Guild(loot=1000)
+        self.m.app.guild = Guild(loot=100000)
         self.s = GuildHallScene("dwarf")
         self.m._set_scene(self.s)
         self.s.update(1 / 60)
@@ -270,7 +278,7 @@ class HallTest(unittest.TestCase):
         self.s.handle_event(key(pygame.K_RETURN))                # Whetstone, level 1
         g = self.m.app.guild
         self.assertEqual(g.level("whetstone"), 1)
-        self.assertEqual(g.loot, 1000 - config.GUILD_UPGRADES["whetstone"].cost(0))
+        self.assertEqual(g.loot, 100000 - config.GUILD_UPGRADES["whetstone"].cost(0))
         self.s.draw(self.m.text)
         self.s.handle_event(key(pygame.K_ESCAPE))
         self.assertIsNone(self.s.panel)
@@ -284,7 +292,8 @@ class HallTest(unittest.TestCase):
         self.assertNotEqual(panel.hero, "dwarf")
         hero = panel.hero
         self.s.handle_event(key(pygame.K_RETURN))
-        self.assertEqual(self.m.app.guild.level("mastery", hero), 1)
+        first = list(config.HERO_UPGRADES[hero])[0]
+        self.assertEqual(self.m.app.guild.level(first, hero), 1)
         self.s.draw(self.m.text)
 
     def test_archive(self):
@@ -311,7 +320,10 @@ class HallTest(unittest.TestCase):
         from ascii_adventurers.scenes.new_run import NewRunScene
         from ascii_adventurers.scenes.title import TitleScene
         self.go("gate")
-        self.s.handle_event(key(pygame.K_RETURN))
+        self.s.handle_event(key(pygame.K_RETURN))                # the gate's panel...
+        self.assertEqual(self.s.panel.mode, "gate")
+        self.s.draw(self.m.text)
+        self.s.handle_event(key(pygame.K_RETURN))                # ..."Enter the dungeon"
         self.assertIsInstance(self.m.scene, NewRunScene)
         self.m._set_scene(self.s)
         self.s.handle_event(key(pygame.K_ESCAPE))

@@ -54,18 +54,33 @@ class CardDataTest(unittest.TestCase):
                     self.assertEqual(" ".join(card_picker.wrap(text, narrow)), text, (key, lv))
                     self.assertLessEqual(len(name), narrow, key)
 
-    def test_the_m14_batch(self):
-        """48 cards: 20 generic, 20 hero cards (no capstones), 5 status
-        enablers and 3 spells; each hero has their 4."""
+    def test_the_whole_catalog(self):
+        """design/CARDS.md rev 2: 101 cards."""
         codes = [c.code for c in config.CARDS.values()]
-        self.assertEqual(len(codes), 48)
-        self.assertEqual(len(set(codes)), 48)
-        self.assertEqual(sum(c.startswith("G") for c in codes), 20)
-        self.assertEqual(sum(c.startswith("T") for c in codes), 5)
-        self.assertEqual(sum(c.startswith("S") for c in codes), 3)
+        self.assertEqual(len(codes), 101)
+        self.assertEqual(len(set(codes)), 101)
+        for prefix, n in (("G", 21), ("T", 14), ("S", 12), ("C", 8), ("X", 6), ("R", 6),
+                          ("E", 3), ("K", 6)):
+            self.assertEqual(sum(c.startswith(prefix) for c in codes), n, prefix)
         for hero in config.HEROES:
             own = [k for k, c in config.CARDS.items() if c.heroes == (hero,)]
-            self.assertEqual(len(own), 4, hero)
+            self.assertEqual(len(own), 5, hero)
+            capstone = [k for k in own if config.CARDS[k].rarity == "legendary"]
+            self.assertEqual(len(capstone), 1, hero)
+
+    def test_no_plain_stat_is_sold_twice(self):
+        """The no-repeats rule: every "add" to a plain stat (not hero-card
+        or conditional numbers) belongs to one card."""
+        seen = {}
+        plain = {"damage", "attack_speed", "max_hp", "move", "range", "crit_chance",
+                 "crit_damage", "area", "duration", "armor", "dodge", "regen", "lifesteal",
+                 "pickup", "xp", "luck", "pierce", "pellets", "status_power", "status_chance",
+                 "spell_cooldown", "loot", "shot_speed"}
+        for key, c in config.CARDS.items():
+            for stat, op, val in c.mods:
+                if op == "add" and stat in plain and (val == "X" or val > 0):
+                    self.assertNotIn(stat, seen, (key, seen.get(stat)))
+                    seen[stat] = key
 
     def test_rarity_multipliers_are_rare_or_better(self):
         """Catalog rule: every "xN damage" card is rare+."""
@@ -92,7 +107,8 @@ class EligibilityTest(unittest.TestCase):
         self.assertIn("ricochet", dwarf)
         self.assertNotIn("piercing", dwarf)           # axes pierce everything already
         self.assertNotIn("volley", dwarf)             # the huntress's
-        self.assertNotIn("multishot", dwarf)          # the dwarf has Ricochet
+        self.assertIn("multishot", dwarf)             # rev 2: everyone who shoots
+        self.assertNotIn("multishot", bard)
         wizard = cards.eligible("wizard", weapon_of("wizard"), Counter())
         self.assertIn("storm_caller", wizard)
         self.assertIn("piercing", wizard)
@@ -224,7 +240,7 @@ class StatsTest(unittest.TestCase):
         lo = cards.build_loadout("bard", [("long_reach", "common"), ("broad_strokes", "common")])
         self.assertAlmostEqual(lo.weapon.reach, weapon_of("bard").reach * 1.18)
         lo = cards.build_loadout("princess", [("focus", "common")])
-        self.assertAlmostEqual(lo.weapon.shell.max_range, weapon_of("princess").shell.max_range * 1.25)
+        self.assertAlmostEqual(lo.weapon.spread_deg, weapon_of("princess").spread_deg * 0.7)
 
     def test_axes_never_get_pierce(self):
         lo = cards.build_loadout("dwarf", Counter(piercing=1))

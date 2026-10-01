@@ -87,6 +87,8 @@ SHOT_LOOKS = {
     "bomb": ("@", (None, None), None),       # lobbed: drawn by _draw_lobbed
     "sand": ("*", (".", "."), palette.SHOT_SAND),
     "axe": (None, (".", "."), palette.SHOT_AXE),    # head: spins (AXE_SPIN)
+    "ember": ("*", ("'", "."), palette.SHOT_EMBER),  # Fire Wand
+    "bone": ("o", (".", "."), palette.SHOT_BONE),    # Bone Turret
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).
@@ -196,6 +198,12 @@ def _frame(e: Effect) -> list:
         return [(math.cos(k * math.tau / n) * r * config.TILE_PX_W,
                  math.sin(k * math.tau / n) * r * config.TILE_PX_H,
                  "*" if k % 3 == 0 else ".", col) for k in range(n)]
+    if e.kind == "rune_burst":
+        r = e.size * (0.3 + 0.7 * p)
+        col = palette.RUNE[min(1, int(p * 2))]
+        return [(math.cos(k * math.tau / 12) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / 12) * r * config.TILE_PX_H,
+                 "+" if k % 2 else "x", col) for k in range(12)] + [(0, 0, "#", col)]
     if e.kind == "spores":
         f = min(2, int(p * 3))
         r = (18, 34, 48)[f]
@@ -250,6 +258,10 @@ def draw_effects(text: TextRenderer, camera: Camera, world, effects: list[Effect
             batch.put_c(lx, ly, loot_glyph(text), palette.LOOT)
             if f < 0.5:
                 batch.put_c(x, y - 26 - 30 * f, f"+{e.value}", palette.LOOT_TEXT)
+            continue
+        if e.kind == "toast":
+            batch.put_c(x, y - 60 - 24 * e.progress, e.label,
+                        palette.TOAST if e.progress < 0.75 else palette.TOAST_DIM)
             continue
         if e.kind == "dodge":
             batch.put_c(x, y - 20 - 20 * e.progress, "dodge", palette.DODGE)

@@ -244,11 +244,11 @@ class HeroCardTest(unittest.TestCase):
         s = start_game(make_manager(), seed=31, hero="wizard")
         s.me.progress.take("overload", "rare")
         s._apply_loadout(s.me)
-        got = [s._overload(s.hero) for _ in range(config.OVERLOAD_EVERY * 2)]
-        boosted = [g for g in got if g]
+        got = [s.rules.attack_mods(s.me) for _ in range(config.OVERLOAD_EVERY * 2)]
+        boosted = [g for g in got if g["mult"] > 1]
         self.assertEqual(len(boosted), 2)
-        self.assertEqual(boosted[0], {"mult": config.OVERLOAD_MULT,
-                                      "extra_chain": config.OVERLOAD_CHAIN})
+        self.assertEqual((boosted[0]["mult"], boosted[0]["extra_chain"]),
+                         (config.OVERLOAD_MULT, config.OVERLOAD_CHAIN))
         pygame.mouse.set_visible(True)
 
     def test_dissonance_pushes_and_chills(self):

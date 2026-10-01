@@ -82,6 +82,21 @@ class Character(Actor):
         self.marked = None
         self.attacks = 0
         self.dodged = 0
+        # More hero card state (M16), kept up by the game scene: shield HP and
+        # seconds since last hurt, a hit that wants Retaliation, Crescendo's
+        # streak, Bloodlust's kill timers, the hero's level / run loot / run
+        # clock, whether the last strike crit, bestiary kinds known.
+        self.shield = 0.0
+        self.since_hit = 0.0
+        self.retaliate = False
+        self.streak = 0
+        self.bloodlust: list[float] = []
+        self.level = 1
+        self.run_loot = 0.0
+        self.time = 0.0
+        self.last_crit = False
+        self.bestiary: set[str] = set()
+        self.idle = 0.0                   # seconds since the last attack (Capacitor)
 
     @property
     def facing_left(self) -> bool:
@@ -103,13 +118,43 @@ class Character(Actor):
             if abs(wrap_angle(came_from - self.aim_angle)) < FRONT_ARC:
                 amount *= self.spec.front_armor
         st = self.stats
-        if st is not None and self.alive and not self.invulnerable:
-            if st.dodge > 0 and self.rng.random() < st.dodge:
-                self.dodged += 1
-                return 0.0
-            if st.armor:
-                amount *= 1 - st.armor / (abs(st.armor) + config.ARMOR_K)
+        if st is None or not self.alive or self.invulnerable:
+            return super().take_damage(amount, source, from_angle)
+        if st.dodge > 0 and self.rng.random() < st.dodge:
+            self.dodged += 1
+            return 0.0
+        if st.armor:
+            amount *= 1 - st.armor / (abs(st.armor) + config.ARMOR_K)
+        if st.has("hit_cap"):                           # Heavy Plate
+            amount = min(amount, self.max_hp * 0.10)
+        self.since_hit = 0.0
+        if self.shield > 0:                             # Ward Charm, Aegis
+            absorbed = min(self.shield, amount)
+            self.shield -= absorbed
+            amount -= absorbed
+        if st.has("retaliation"):
+            self.retaliate = True
+        flat, share = st.thorns                         # Thorn Mail
+        if (flat or share) and source is not None and source is not self \
+                and source.faction != "player" and source.alive:
+            source.take_damage(flat + share * amount, self, None)
+        if amount <= 0:
+            self.hurt_flash = 0.12
+            return 0.0
         return super().take_damage(amount, source, from_angle)
+
+    def heal(self, amount: float) -> float:
+        """Aegis (a card): healing past full HP becomes shield, up to
+        AEGIS_MAX of max HP."""
+        if not self.alive or amount <= 0:
+            return 0.0
+        room = self.max_hp - self.hp
+        healed = super().heal(amount)
+        st = self.stats
+        if st is not None and st.has("aegis") and amount > room:
+            cap = max(self.shield, self.max_hp * config.AEGIS_MAX)
+            self.shield = min(cap, self.shield + amount - room)
+        return healed
 
     # --- Moving -------------------------------------------------------------------------
 

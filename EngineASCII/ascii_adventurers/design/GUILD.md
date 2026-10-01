@@ -1,11 +1,11 @@
 # AsciiAdventurers — Loot and the Guild Hall
 
-Status: **rev 2, DRAFT for review (2026-10-01).** Rev 1 (built in M15) was a first pass; this revision follows your notes:
+Status: **rev 2, approved and BUILT in M16 (2026-10-01).** Rev 1 (built in M15) was a first pass; this revision follows your notes:
 - **Nothing repeats inside the hall.** No stat or effect is sold by two places (guildmaster vs trainer) or by two heroes' trainers. Cards *may* overlap with the hall (that's how "your hero starts stronger over time" works).
 - **Longer ladders, bigger prices.** Upgrades go to 10-20 levels; a full hall is a long-term goal.
 - **The archivist grows with the game.** Its shelves get new sections and entries every milestone.
 
-Nothing here is built yet; M16 builds it after your review. All numbers are proposals: edit freely.
+All numbers live in `config.py` (`GUILD_UPGRADES`, `HERO_UPGRADES`, `PACTS`, `BESTIARY`, `ACHIEVEMENTS`); tune freely. Section 6 notes the choices made while building.
 
 ---
 
@@ -79,6 +79,7 @@ Rev 1 gave every hero the same Mastery (+damage) and Toughness (+HP), which repe
 > The bard was the hard one: his lute has no projectiles, range or crit hook of its own. An alternative 4th is **Fan Club** (allies within his reach regain HP, for co-op).
 >
 > **Question:** each hero's first upgrade is a "+1 of my weapon's thing" (jump, axe, pierce, color). They're different effects, but the same pattern. Keep, or swap some for other tricks?
+ANSWER: keep them
 
 Uniqueness check: crit only in Eagle Eye; dodge only in Royal Grace; area only in Resonance; regen only in Lullaby. None of those are in the guildmaster's list, and no hero repeats another's trick.
 
@@ -115,15 +116,17 @@ Run modifiers for more loot: buy a pact once, then switch it on or off at the **
 | Pact of Glass | you have −40% max HP | +40% | 4,000 |
 | Pact of the Veteran | enemies start 10 levels tougher | +30% | 5,000 |
 
+PACT CHANGE: pacts should cost money, and we will add about 14 more with time. they are just a way for the game to be played at an insane difficulty level
+
 ### 4.4 Bestiary 🆕 (M16)
 
 One entry per enemy type (12 now, more with every new enemy and boss).
-- An entry becomes **readable** after you've slain 25 of that enemy.
-- **Buying** it (500-1,500) shows its notes (HP, damage, behaviour, weak side) and gives **+10% damage against that enemy type** for good.
+- An entry becomes **readable** after you've slain 25 of that enemy. same effect as buying
+- **Buying** it (500-1,500) shows its notes (HP, damage, behaviour, weak side) and gives **+10% damage against that enemy type** for good. 
 
 A natural "many things over time" shelf: every new monster adds a page.
 
-### 4.5 Later shelves (proposals, not M16)
+### 4.5 Later shelves (proposals, not M16) Keep the shelves ideas in memory as possible future milestones, but for now do not implement
 
 | Shelf | Opens with | What |
 |---|---|---|
@@ -140,3 +143,16 @@ A natural "many things over time" shelf: every new monster adds a page.
 - Archivist: tabs; card prices ×5-6; **+ spells, pacts, bestiary**.
 - `LOOT_PER_XP` 0.5 → 1.0.
 - Saves: any rev-1 levels bought are refunded into the purse when M16 loads an old save, so nothing is lost.
+
+## 6. M16 implementation notes
+
+- The bard's regen upgrade is called **Soothing Strings** (the card B2 is already "Lullaby").
+- **Royal Decree:** your first offer of a run (an extra pick) only holds cards of that rarity or better: rare, then epic, then legendary.
+- **Encore Tour:** level 1 makes every 5th offer 4 cards; level 2 every 4th. Stacks with Fortune.
+- **Quiver:** level 1 every 8th arrow has a twin, level 2 every 7th, level 3 every 6th.
+- **Bright Colors:** each level (+10%) widens a color's hit circle by 0.6 px (6 px at +100%).
+- **Capacitor:** +50% per level on the first attack after 2 s without attacking (any weapon, but it's the wizard's).
+- **Pacts:** the loot bonus is kept (switch any on for more loot; they're there for brutal difficulty). Pact of the Horde adds enemies to chunks rostered from then on; Haste, Blood and the Veteran apply to enemies as they wake.
+- **Bestiary:** kills are counted over all runs (dev mode doesn't save them). A page known before a run gives its +10% at once; one that reaches 25 kills during a run turns on immediately.
+- **Old saves:** a save from before rev 2 gets every upgrade level refunded at rev-1 prices; cards bought stay bought.
+- The archive scrolls (mouse wheel too); the gate panel lists only pacts you own.

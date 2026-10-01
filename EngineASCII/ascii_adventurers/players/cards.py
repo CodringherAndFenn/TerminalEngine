@@ -86,7 +86,7 @@ def card_text(key: str, rarity: str, spells: dict | None = None) -> tuple[str, s
         if level == 0:
             return s.name, s.text
         name = s.name if len(s.name) <= 14 else s.short.title()   # room for " III"
-        return f"{name} {ROMAN[level]}", s.levels[level - 1][0]
+        return f"{name} {ROMAN[min(level, len(ROMAN) - 1)]}", s.levels[min(level, len(s.levels)) - 1][0]
     return c.name, c.label(rarity)
 
 
@@ -104,21 +104,36 @@ def build_tags(weapon: WeaponSpec, stats: HeroStats) -> set[str]:
     return tags
 
 
-def _gate_met(need: str, stats: HeroStats, tags: set[str]) -> bool:
+_ELEMENTS = {"fire", "frost", "poison", "lightning"}
+_BASE = HeroStats()
+
+
+def _gate_met(need: str, stats: HeroStats, tags: set[str], taken: Counter) -> bool:
     if need == "status":
         return bool(stats.sources)
     if need == "spell":
         return bool(stats.spells)
+    if need == "element":
+        return bool(tags & _ELEMENTS)
+    if need == "heal":
+        return stats.regen > 0 or stats.lifesteal > 0 or stats.soul_harvest > 0 \
+            or "healing_totem" in stats.spells or stats.has("lullaby")
+    if need.startswith("stat:"):
+        name = need[5:]
+        return getattr(stats, name) > getattr(_BASE, name)
+    if need in config.CARDS:
+        return taken[need] > 0
     if need in config.STATUSES:
         return need in stats.sources
     return need in tags
 
 
 def eligible(hero_key: str, weapon: WeaponSpec, taken: Counter, stats: HeroStats | None = None,
-             banished=(), unlocked: set | None = None) -> list[str]:
+             banished=(), unlocked: set | None = None, level: int | None = None) -> list[str]:
     """Card keys the hero may be offered. `unlocked`: the cards the player
     has (meta/guild.Guild.unlocked_cards); None skips that check (tools,
-    tests)."""
+    tests). `level`: the hero's level (capstones wait for CAPSTONE_LEVEL);
+    None skips that check."""
     stats = stats if stats is not None else HeroStats()
     tags = build_tags(weapon, stats)
     out = []
@@ -131,7 +146,9 @@ def eligible(hero_key: str, weapon: WeaponSpec, taken: Counter, stats: HeroStats
             continue
         if unlocked is not None and key not in unlocked:
             continue
-        if not all(_gate_met(n, stats, tags) for n in c.needs):
+        if level is not None and level < c.min_level:
+            continue
+        if not all(_gate_met(n, stats, tags, taken) for n in c.needs):
             continue
         spell = spell_of(c)
         if spell is not None and spell not in stats.spells \
@@ -150,24 +167,36 @@ def rarity_weights(luck: float) -> list[float]:
 
 def draw_offer(hero_key: str, weapon: WeaponSpec, taken: Counter, seed: int,
                player_index: int, draw_no: int, stats: HeroStats | None = None,
-               banished=(), unlocked: set | None = None) -> list[tuple[str, str]]:
-    """Up to CARD_OFFER_SIZE different (card key, rarity) pairs."""
+               banished=(), unlocked: set | None = None, level: int | None = None,
+               size: int | None = None, min_rarity: str | None = None) -> list[tuple[str, str]]:
+    """Up to `size` (default CARD_OFFER_SIZE + the build's extra cards)
+    different (card key, rarity) pairs. `min_rarity` forces every slot to
+    that rarity or better (Royal Decree)."""
     stats = stats if stats is not None else HeroStats()
     rng = random.Random(hash_coords(seed or 0, 0xCA7D, player_index, draw_no))
-    pool = eligible(hero_key, weapon, taken, stats, banished, unlocked)
+    pool = eligible(hero_key, weapon, taken, stats, banished, unlocked, level)
     tags = build_tags(weapon, stats)
     weights = rarity_weights(stats.luck)
     n_rar = len(config.RARITIES)
+    floor = config.RARITIES.index(min_rarity) if min_rarity is not None else 0
+    if floor:
+        weights = [w if i >= floor else 0.0 for i, w in enumerate(weights)]
+        pool = [k for k in pool
+                if any(config.RARITIES.index(r) >= floor for r in rarities_of(config.CARDS[k]))]
+    if size is None:
+        size = config.CARD_OFFER_SIZE + round(stats.offer_size)
     offer: list[tuple[str, str]] = []
-    while pool and len(offer) < config.CARD_OFFER_SIZE:
+    while pool and len(offer) < size:
         rolled = rng.choices(range(n_rar), weights)[0]
         # The rolled rarity, then lower ones, then higher ones.
-        order = list(range(rolled, -1, -1)) + list(range(rolled + 1, n_rar))
+        order = list(range(rolled, floor - 1, -1)) + list(range(rolled + 1, n_rar))
         for i in order:
             rarity = config.RARITIES[i]
             cands = [k for k in pool if rarity in rarities_of(config.CARDS[k])]
             if cands:
                 break
+        else:
+            break
         w = [config.CARD_SYNERGY_WEIGHT if tags & set(config.CARDS[k].tags) else 1.0
              for k in cands]
         pick = rng.choices(cands, w)[0]
@@ -212,6 +241,6 @@ def build_loadout(hero_key: str, taken, meta=()) -> Loadout:
         # A pulse's reach grows with both range and area.
         grow = stats.range + (stats.area if weapon.kind == "pulse" else 0.0)
         weapon = replace(weapon, fire_interval=interval, reach=weapon.reach * (1 + grow))
-    body = replace(body, max_hp=round(body.max_hp + stats.max_hp),
+    body = replace(body, max_hp=max(1, round((body.max_hp + stats.max_hp) * stats.max_hp_mult)),
                    max_speed=body.max_speed * (1 + stats.move))
     return Loadout(body, weapon, stats)

@@ -4,7 +4,7 @@ A top-down ASCII adventure roguelike on one huge island, built on the
 narrative engine (`narrative_engine/`). Everything for the game lives in
 this folder.
 
-**Status:** Milestones 1-15 and "Adventurers" are done:
+**Status:** Milestones 1-16 and "Adventurers" are done:
 - keyboard walking, mouse aiming, a smooth scrolling camera;
 - shooting, spells and destructible terrain;
 - a seeded, chunk-streamed world with six biomes;
@@ -105,7 +105,16 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   archivist (card unlocks) or a hero's statue (play as them), and leave
   through the dungeon gate. Prices and numbers: `design/GUILD.md`.
 
-Next up: cards up to ~100 (M16).
+- the full card catalog and Guild Hall rev 2 (M16): all 101 cards of
+  `design/CARDS.md` (12 spells and items -- wolves, runes, flasks, a storm
+  cloud, totems, turrets, wards, thorns...; conditionals, trade-offs,
+  triggers, combos and capstones), with no plain stat sold by two cards.
+  The Guild Hall has long upgrade ladders and a tree of tricks for each
+  hero; the archivist's shelves sell cards, spells, pacts (switched on at
+  the dungeon gate, for a brutal run) and bestiary pages (or slay 25 of an
+  enemy: +10% damage to its kind). Three achievements unlock cards.
+
+Next up: quests, the boss framework and the first boss (M17).
 
 ## Setup (once)
 
@@ -275,7 +284,9 @@ systems/        collision.py (box vs tiles), raycast.py (grid walk for
                 shots), combat.py (shots, pierce, chain lightning, melee
                 swings, pulses, blasts, friendly fire, damage numbers),
                 spawner.py (per-chunk enemy rosters), statuses.py (burn,
-                poison, bleed, chill, shock), spells.py (card spells)
+                poison, bleed, chill, shock), spells.py (card spells),
+                zones.py (crackles, poison pools), run_rules.py (cards that
+                react to kills, level-ups, hits; revives; pacts)
 render/         terrain.py (cached pre-drawn terrain blocks), glyphs.py
                 (text pre-rendered to images for batched drawing),
                 sprites.py (baked pictures, per angle), characters.py

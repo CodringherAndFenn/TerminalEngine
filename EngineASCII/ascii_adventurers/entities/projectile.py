@@ -35,6 +35,18 @@ class Projectile:
         self.tags: tuple[str, ...] = ()   # the weapon's damage tags (bucket T)
         self.mult = 1.0               # per-shot damage multiplier (Overload)
         self.extra_chain = 0          # per-shot extra lightning jumps (Overload)
+        # Cards (M16): how far it may fly (Deadeye doubles it), its hit radius
+        # bonus (Bright Colors), the colors of its shot (Prism), wall bounces
+        # (Ricochet), whether it split off another shot (can't split again),
+        # whether a summon fired it (no crits / statuses unless Pack
+        # Leader), and a status it carries ((name, stacks): Fire Wand).
+        self.max_range = spec.max_range
+        self.size = 0.0
+        self.group: dict | None = None
+        self.bounces = 0
+        self.child = False
+        self.summon = False
+        self.inflicts: tuple[str, int] | None = None
         self.returning = False        # boomerangs: on the way back to the owner
         # Lobbed shells: where it comes down, and how far that is (full range
         # straight ahead unless combat.fire aims it at a point).

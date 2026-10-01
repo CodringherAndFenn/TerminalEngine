@@ -37,6 +37,8 @@ class Progress:
     rerolls: int = config.CARD_REROLLS
     banishes: int = config.CARD_BANISHES
     banished: set = field(default_factory=set)         # card keys out of this run
+    resolved: int = 0        # picks spent (taken or skipped): Encore Tour counts them
+    decree: str | None = None    # Royal Decree: the next offer is this rarity or better
 
     @property
     def needed(self) -> int:

@@ -50,6 +50,7 @@ class HudInfo:
     boss: tuple[str, float] | None = None   # (name, health fraction) during a boss fight
     spells: tuple = ()           # (HUD label, level) of each spell the hero has
     loot: int = 0                # found this run
+    shield: float = 0.0          # Ward Charm / Aegis: shown in blue after the HP
 
 
 # The last top-left panel drawn: key -> image.
@@ -85,19 +86,23 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
     frac = max(0.0, info.hp / info.max_hp) if info.max_hp else 0.0
     hp_color = next(c for limit, c in _HP_COLORS if frac > limit or limit == 0.0)
     hp_cells = math.ceil(frac * BAR) if info.hp > 0 else 0
+    shield_cells = min(BAR - hp_cells, math.ceil(info.shield / info.max_hp * BAR)) \
+        if info.shield > 0 and info.max_hp else 0
     xp_cells = round(max(0.0, min(1.0, info.xp_frac)) * BAR)
     clock = format_time(info.time)
     rows = 4 if info.spells else 3
     area = pygame.Rect(0, 0, PANEL_W * d.cell_w, rows * d.cell_h)
     key = (id(text), d.cell_w, d.cell_h, hp_cells, hp_color, math.ceil(info.hp),
-           info.level, xp_cells, info.kills, clock, info.spells, info.loot)
+           info.level, xp_cells, info.kills, clock, info.spells, info.loot, shield_cells)
     if key == _cache["key"]:
         d.canvas.blit(_cache["image"], area)
         return
     _panel(text, 0, 0, PANEL_W, rows)
     text.put(1, 0, "HP", palette.HUD_LABEL, palette.HUD_PANEL)
     text.put(4, 0, "█" * hp_cells, hp_color, palette.HUD_PANEL)
-    text.put(4 + hp_cells, 0, "░" * (BAR - hp_cells), palette.HUD_EMPTY, palette.HUD_PANEL)
+    text.put(4 + hp_cells, 0, "█" * shield_cells, palette.HUD_SHIELD, palette.HUD_PANEL)
+    text.put(4 + hp_cells + shield_cells, 0, "░" * (BAR - hp_cells - shield_cells),
+             palette.HUD_EMPTY, palette.HUD_PANEL)
     text.put(PANEL_W - 4, 0, f"{math.ceil(max(0.0, info.hp)):3d}", hp_color, palette.HUD_PANEL)
     text.put(1, 1, "LV", palette.HUD_LABEL, palette.HUD_PANEL)
     # XP as a half-height bar: it reads as secondary to HP.

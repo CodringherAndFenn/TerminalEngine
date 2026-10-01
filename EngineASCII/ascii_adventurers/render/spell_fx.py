@@ -68,6 +68,62 @@ def draw_spells(text, camera: Camera, players, steps: int) -> None:
     batch.flush()
 
 
+def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
+    """What spells leave in the world (wolves, runes, flasks, the storm
+    cloud, totems, turrets) and the zones on the ground (poison pools,
+    Ball Lightning's crackle)."""
+    from ..systems.spells import cloud_position
+    batch = _Batch(text)
+    tw, th = config.TILE_PX_W, config.TILE_PX_H
+    for z in zones:
+        x, y = camera.world_to_px(z.x, z.y)
+        if z.kind == "pool":
+            n = max(8, int(z.radius * 7))
+            for k in range(n):
+                a = k * math.tau / n + steps * 0.004
+                rr = z.radius * (0.35 + 0.65 * ((k * 7) % 5) / 4)
+                batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
+                            "o" if k % 3 == 0 else ".", palette.POOL[k % 2])
+        else:
+            for k in range(6):
+                a = k * math.tau / 6 + steps * 0.3
+                batch.put_c(x + math.cos(a) * z.radius * tw * 0.6,
+                            y + math.sin(a) * z.radius * th * 0.6,
+                            "*" if (k + steps // 4) % 2 else "+", palette.CRACKLE[k % 2])
+    for p in players:
+        hero = p.hero
+        for s in p.spells.values():
+            kind = s.spec.kind
+            for t in s.things:
+                if kind == "wolf":
+                    x, y = camera.world_to_px(t["x"], t["y"])
+                    left = math.cos(t["facing"]) < 0
+                    batch.put_c(x, y, "<w" if left else "w>", palette.WOLF[0])
+                elif kind == "rune":
+                    x, y = camera.world_to_px(t["x"], t["y"])
+                    batch.put_c(x, y, "#" if (steps // 15) % 2 else "+", palette.RUNE[0])
+                elif kind == "flask":
+                    f = min(1.0, t["t"] / t["flight"])
+                    gx = t["x0"] + (t["x1"] - t["x0"]) * f
+                    gy = t["y0"] + (t["y1"] - t["y0"]) * f
+                    x, y = camera.world_to_px(gx, gy)
+                    batch.put_c(x, y - 40 * 4 * f * (1 - f), "o", palette.POOL[0])
+                elif kind == "totem":
+                    x, y = camera.world_to_px(t["x"], t["y"])
+                    batch.put_c(x, y - 12, "+", palette.TOTEM[0])
+                    batch.put_c(x, y, "||", palette.TOTEM[1])
+                elif kind == "turret":
+                    x, y = camera.world_to_px(t["x"], t["y"])
+                    batch.put_c(x, y - 10, "o", palette.TURRET[0])
+                    batch.put_c(x, y + 4, "/\\", palette.TURRET[1])
+            if kind == "cloud":
+                x, y = camera.world_to_px(*cloud_position(hero))
+                shade = palette.CLOUD[(steps // 20) % 2]
+                batch.put_c(x, y - 6, "(@@)", shade)
+                batch.put_c(x, y + 10, "' '" if (steps // 8) % 2 else " ' ", palette.CRACKLE[0])
+    batch.flush()
+
+
 def draw_statuses(text, camera: Camera, enemies, marked) -> None:
     """Pips over every enemy with a status (one per status, in a row), ice
     round a frozen one, and brackets round each hero's marked target."""

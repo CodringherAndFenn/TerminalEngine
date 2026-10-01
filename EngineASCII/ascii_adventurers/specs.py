@@ -90,7 +90,10 @@ class CardSpec:
     value for each of config.RARITIES, None where the card can't appear.
     `heroes` / `kinds` limit who can be offered it (empty = anyone);
     `needs` gates it: "status" (you inflict some status), "spell" (you own
-    a spell), or a tag / status name you must have. `tags` drive the
+    a spell), "element" (any of fire / frost / poison / lightning), "heal"
+    (you have some healing), "stat:<name>" (that stat above its base), a
+    card key (you took it), or a tag / status name you must have. Every
+    entry must hold. `tags` drive the
     "x1.5 when it shares a tag with your build" offer weighting. `unlock`
     is "start", "L:<loot>" (bought in the Guild Hall's archive) or
     "A:<achievement>"; locked cards are never offered."""
@@ -108,6 +111,7 @@ class CardSpec:
     tags: tuple[str, ...] = ()
     unlock: str = "start"
     code: str = ""                   # catalog number (G01, W3...)
+    min_level: int = 0               # offered from this level on (capstones)
 
     @property
     def tiered(self) -> bool:
@@ -159,6 +163,23 @@ class UpgradeSpec:
     def cost(self, level: int) -> int:
         """Price of the next level when `level` are owned."""
         return round(self.base_cost * self.growth ** level)
+
+
+@dataclass(frozen=True)
+class PactSpec:
+    """A pact (the archivist sells it, the dungeon gate switches it on):
+    the run gets harder in the ways given, and pays `loot` more."""
+
+    name: str
+    text: str
+    loot: float                      # +loot fraction while it's on
+    price: int
+    enemy_damage: float = 0.0        # +fraction
+    enemy_count: float = 0.0         # +fraction of enemies
+    enemy_haste: float = 0.0         # +fraction faster (move and attack)
+    enemy_levels: int = 0            # enemies wake this many levels tougher
+    hero_hp: float = 0.0             # +fraction of your max HP (negative: less)
+    famine: bool = False             # no regeneration; skip doesn't heal
 
 
 @dataclass(frozen=True)

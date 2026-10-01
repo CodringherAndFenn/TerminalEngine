@@ -24,6 +24,8 @@ class Actor:
         self.invulnerable = False         # debug ghosts
         self.lifesteal = 0.0              # fraction of damage this actor deals that heals it
         self.status = None                # systems/statuses.Statuses once it has any
+        self.last_damage = 0.0            # the last hit taken (Volatile's blast)
+        self.blasted = False              # killed by an explosion (Chain Reaction)
 
     @property
     def alive(self) -> bool:
@@ -44,11 +46,19 @@ class Actor:
         if source is not None:
             self.last_hit_by = source
             if source.lifesteal > 0 and source.alive:
-                dealt = min(amount, self.hp)
-                source.hp = min(source.max_hp, source.hp + dealt * source.lifesteal)
+                source.heal(min(amount, self.hp) * source.lifesteal)
         self.hp = max(0.0, self.hp - amount)
+        self.last_damage = amount
         self.hurt_flash = 0.12
         return amount
+
+    def heal(self, amount: float) -> float:
+        """Regain HP (never past max). Returns what was healed."""
+        if not self.alive or amount <= 0:
+            return 0.0
+        before = self.hp
+        self.hp = min(float(self.max_hp), self.hp + amount)
+        return self.hp - before
 
     def tick_flash(self, dt: float) -> None:
         self.hurt_flash = max(0.0, self.hurt_flash - dt)

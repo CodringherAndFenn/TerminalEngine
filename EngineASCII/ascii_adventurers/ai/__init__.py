@@ -36,4 +36,6 @@ KINDS = {
 
 def make_enemy(key: str, x: float, y: float, rng: random.Random, spawn_id=None):
     spec = config.ENEMIES[key]
-    return KINDS[spec.kind](spec, x, y, rng, spawn_id)
+    e = KINDS[spec.kind](spec, x, y, rng, spawn_id)
+    e.kind_key = key              # its config.ENEMIES key (the bestiary)
+    return e

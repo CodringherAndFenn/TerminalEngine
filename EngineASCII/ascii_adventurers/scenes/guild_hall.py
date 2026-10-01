@@ -6,10 +6,12 @@ You come in as your current hero. Walk (WASD / arrows / left stick) up to
 someone and press E or Enter (gamepad A) to talk:
   * the guildmaster (great hall, behind the desk): upgrades for everyone;
   * the trainer (training yard, west): each hero's own upgrades;
-  * the archivist (archive, east): cards for the level-up pool;
+  * the archivist (archive, east): shelves of cards, spells, pacts and
+    bestiary pages;
   * the heroes' statues (north): walk up to one to play as that hero
     (your own pedestal stands empty);
-  * the dungeon gate (south): off to a run (hero select / island seed).
+  * the dungeon gate (south): switch pacts on or off, then off to a run
+    (hero select / island seed).
 Esc leaves for the title screen. The shops are ui/guild_panel.py; what's
 bought is saved straight away (meta/guild.py).
 
@@ -42,7 +44,7 @@ INTERACT_RADIUS = 2.6     # tiles
 _TALK = (pygame.K_e, pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE)
 NAMES = {"guild": "GUILDMASTER", "hero": "TRAINER", "cards": "ARCHIVIST", "gate": "DUNGEON"}
 PROMPTS = {"guild": "talk to the guildmaster", "hero": "train with the trainer",
-           "cards": "browse the archive", "gate": "enter the dungeon"}
+           "cards": "browse the archive", "gate": "the dungeon gate (pacts, enter)"}
 HINT = "WASD / arrows: walk    E or Enter: talk    Esc: leave"
 
 
@@ -91,13 +93,18 @@ class GuildHallScene(Scene):
     def interact(self, station: Station) -> None:
         self.app.ui_sound()
         if station.kind in ("guild", "hero", "cards"):
-            self.panel = GuildPanel(self.manager, self.app.guild, station.kind, self.hero_key,
+            mode = "archive" if station.kind == "cards" else station.kind
+            self.panel = GuildPanel(self.manager, self.app.guild, mode, self.hero_key,
                                     on_buy=self._bought)
         elif station.kind == "gate":
-            from .new_run import NewRunScene
-            self.manager.switch_to(NewRunScene())
+            self.panel = GuildPanel(self.manager, self.app.guild, "gate", self.hero_key,
+                                    on_buy=lambda ok: self.app.save_guild(), enter=self._enter)
         elif station.kind == "statue":
             self.become(station.hero)
+
+    def _enter(self) -> None:
+        from .new_run import NewRunScene
+        self.manager.switch_to(NewRunScene())
 
     def become(self, hero: str) -> None:
         """Play as another hero: they step off the pedestal where you stood."""

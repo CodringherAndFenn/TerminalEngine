@@ -1,6 +1,6 @@
-# AsciiAdventurers — Card Catalog (draft for review)
+# AsciiAdventurers — Card Catalog
 
-Status: **rev 2, DRAFT for review (2026-10-01).** Rev 1 was approved and its first 48 cards were built in M14. Rev 2 applies your "no repeating upgrades" note (section 0): 15 cards change, 1 is added, and loot prices go up to match the new Guild Hall economy (`GUILD.md` rev 2). Every change is listed in section 12. M16 builds this after your review.
+Status: **rev 2, approved and BUILT in M16 (2026-10-01): all 101 cards.** Rev 1's first 48 cards were built in M14. Rev 2 applies the "no repeating upgrades" rule (section 0, enforced by a test); every change is listed in section 12, and section 13 notes the choices made while building.
 
 Based on `../../survivorlike_upgrade_design_guide.md` (section numbers below refer to it).
 
@@ -383,3 +383,22 @@ Choices made where the catalog left room:
 | all `L:` | prices | 200-1,000 | ×6 (1,000-3,500), capstones 6,000 | the bigger economy in `GUILD.md` rev 2 |
 
 Unchanged on purpose: W1 Storm Caller (+1 jump) and W2 Conductor are the only cards touching lightning jumps; D2 Heavy Axe and X01 Glass Cannon are both "×damage" but each with its own cost (rule 4).
+
+## 13. M16 implementation notes
+
+- **Status chance:** every status your cards give rolls on each hit: 10% + Affliction. Statuses a card or spell applies by itself (Supercell, Cleave, Spectrum, Dissonance, Ember Aura, Frost Nova, Fire Wand...) don't roll.
+- **Every Nth attack** (Overload, Volley, Grand Finale, Echo, Syncopation's alternation, Quiver) counts every attack the hero makes.
+- **Volley** tops the shot up to 5 arrows (with Multishot you already have 2, so +3).
+- **Crescendo** grows +10% for each beat in a row that hit something; the current beat uses the streak before it.
+- **Refraction** children fly the rest of the color's range; **Spray and Pray** halves split at half range (axes never split); neither split again.
+- **Deadeye:** a crit makes that arrow pierce everything and doubles its range.
+- **Cyclone:** a caught axe flies out again at the nearest enemy within its range (the re-throw can't re-throw).
+- **Ball Lightning:** a bolt's direct hit leaves a 2 s crackle (1.5 tiles, 30% of the bolt every 0.25 s); the jumps still happen.
+- **Summons** (wolves, turrets) never crit or roll your statuses unless you have Pack Leader (which also adds a wolf and a turret).
+- **Volatile:** 40% of the killing hit, 1.5 tiles. **Chain Reaction:** a body killed by an explosion always explodes.
+- **Pandemic** copies the dying enemy's statuses (stacks too) to the 2 nearest enemies within 4 tiles. **Shatter's** burst: 15 damage + 1 chill within 2 tiles.
+- **Bounty's** cache is worth 25 of the kill that triggered it. Bounty and Beacon change the spawner for the whole run (enemies already awake keep their speed).
+- **Phoenix** comes before the Guild's Second Chance; it blasts 60 fire damage + 3 burn within 3 tiles.
+- **Heavy Plate** caps a hit after armor, before the shield. **Thorn Mail** reflects flat + share of what got past the shield.
+- **Capstones** (and K cards) need level 15 and their gate: Overflow a crit card, Pandemic a status, Aegis some healing, Pack Leader a summon, Juggernaut armor.
+- **Achievements:** chain_reaction (15 kills within 1 s), crit_75 (75% crit chance in a build), level_30. They unlock Chain Reaction, Overflow and Phoenix.

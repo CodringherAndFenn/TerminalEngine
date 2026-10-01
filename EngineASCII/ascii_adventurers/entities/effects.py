@@ -38,6 +38,9 @@ DURATIONS = {
     "dodge": 0.6,           # "dodge" over a hero who dodged a hit
     # Milestone 15
     "loot": 0.55,           # a rune shard flying from a kill to the hero
+    # Milestone 16
+    "toast": 2.2,           # a line of text rising over a hero (achievements, revives)
+    "rune_burst": 0.4,      # a Rune Trap going off
 }
 
 
@@ -55,6 +58,7 @@ class Effect:
     y2: float = 0.0
     size: float = 0.0       # "swing"/"pulse": reach in tiles ("swing": arc degrees in value)
     target: object = None   # "loot": the hero it flies to
+    label: str = ""         # "toast": the text
 
     @property
     def duration(self) -> float:

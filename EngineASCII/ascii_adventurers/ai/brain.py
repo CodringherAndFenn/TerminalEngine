@@ -66,6 +66,7 @@ class Brain:
         self.spawn_id = spawn_id
         self.level = 1                        # the level it was woken at (scale_to_level)
         self.damage_mult = config.ENEMY_DAMAGE_MULTIPLIER   # grows with that level
+        self.haste = 0.0                      # +fraction faster (pacts, Bounty)
         self.rng = rng
         self.home = (self.x, self.y)
         self.target: Actor | None = None

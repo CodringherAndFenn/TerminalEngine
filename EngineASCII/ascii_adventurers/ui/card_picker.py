@@ -84,12 +84,22 @@ class CardPicker:
         n = max(1, len(self.offer))
         w = min(MAX_CARD_W, (d.cols - 4 - GAP * (n - 1)) // n)
         total = n * w + (n - 1) * GAP
-        top = max(2, (d.rows - CARD_H) // 2 - 1)
+        top = max(2, (d.rows - self.card_h()) // 2 - 1)
         return (d.cols - total) // 2, top, w
+
+    def card_h(self) -> int:
+        """Card height: CARD_H, taller if a narrow card's text needs it (4
+        cards on a small screen)."""
+        d = self.manager.display
+        n = max(1, len(self.offer))
+        inner = min(MAX_CARD_W, (d.cols - 4 - GAP * (n - 1)) // n) - 4
+        lines = max((len(wrap(card_text(k, r, self.spells)[1], inner, None))
+                     for k, r in self.offer), default=0)
+        return max(CARD_H, 6 + lines + 4)
 
     def card_at(self, col: int, row: int) -> int | None:
         left, top, w = self._layout()
-        if not top <= row < top + CARD_H:
+        if not top <= row < top + self.card_h():
             return None
         for i in range(len(self.offer)):
             c = left + i * (w + GAP)
@@ -112,7 +122,7 @@ class CardPicker:
         col = left + (total - span) // 2
         out = []
         for s in labels:
-            out.append((col, top + CARD_H + 1, s))
+            out.append((col, top + self.card_h() + 1, s))
             col += len(s) + 2
         return out
 
@@ -188,7 +198,7 @@ class CardPicker:
         hint = " LEFT / RIGHT choose   ENTER or click take   DOWN for the buttons "
         if len(hint) > total:
             hint = " ENTER take   DOWN buttons "
-        center(text, top + CARD_H + 3, hint, colors.GREY, left, total, palette.HUD_PANEL)
+        center(text, top + self.card_h() + 3, hint, colors.GREY, left, total, palette.HUD_PANEL)
 
     def _card(self, text: TextRenderer, col: int, top: int, w: int, key: str, rarity: str,
               selected: bool) -> None:
@@ -198,26 +208,28 @@ class CardPicker:
         bright = selected and self.row == 0
         edge = palette.CARD_SELECTED if bright else color
         bg = palette.CARD_BG_SELECTED if selected else palette.HUD_PANEL
+        h = self.card_h()
         text.put(col, top, "┌" + "─" * (w - 2) + "┐", edge, bg)
-        for r in range(top + 1, top + CARD_H - 1):
+        for r in range(top + 1, top + h - 1):
             text.put(col, r, "│" + " " * (w - 2) + "│", edge, bg)
-        text.put(col, top + CARD_H - 1, "└" + "─" * (w - 2) + "┘", edge, bg)
+        text.put(col, top + h - 1, "└" + "─" * (w - 2) + "┘", edge, bg)
         inner = w - 4
         center(text, top + 2, rarity.upper(), color, col, w, bg)
         center(text, top + 4, name.upper()[:inner], palette.CARD_TITLE, col, w, bg)
-        for j, line in enumerate(wrap(effect, inner)):
+        for j, line in enumerate(wrap(effect, inner, None)):
             center(text, top + 6 + j, line, palette.CARD_TEXT, col, w, bg)
         if card.heroes and len(card.heroes) == 1:
-            center(text, top + CARD_H - 3, card.heroes[0].upper(), palette.CARD_TAG, col, w, bg)
+            center(text, top + h - 3, card.heroes[0].upper(), palette.CARD_TAG, col, w, bg)
         elif key in config.SPELLS:
-            center(text, top + CARD_H - 3, "SPELL", palette.CARD_TAG, col, w, bg)
+            center(text, top + h - 3, "SPELL", palette.CARD_TAG, col, w, bg)
         if bright:
             # Bars hugging the card above and below (half blocks: the font
             # has no arrow glyphs).
             center(text, top - 1, "▄" * (w - 4), palette.CARD_SELECTED, col, w, None)
-            center(text, top + CARD_H, "▀" * (w - 4), palette.CARD_SELECTED, col, w, None)
+            center(text, top + h, "▀" * (w - 4), palette.CARD_SELECTED, col, w, None)
 
 
-def wrap(s: str, width: int) -> list[str]:
-    """A card's effect in at most four lines of `width`."""
-    return textwrap.wrap(s, max(8, width))[:4]
+def wrap(s: str, width: int, most: int | None = 4) -> list[str]:
+    """A card's effect in lines of `width` (at most `most` of them)."""
+    lines = textwrap.wrap(s, max(8, width))
+    return lines if most is None else lines[:most]

@@ -71,13 +71,15 @@ from ..render.ascii_fx import draw_effects, draw_projectiles
 from ..render.characters import draw_body
 from ..render.enemies_sprite import draw_enemy
 from ..render.slash import draw_slashes
-from ..render.spell_fx import draw_gems, draw_spells, draw_statuses
+from ..render.spell_fx import draw_gems, draw_spells, draw_statuses, draw_summons
 from ..render.sprites import SpriteBank
 from ..render.terrain import TerrainRenderer
 from ..systems import combat
 from ..systems.spawner import Spawner
+from ..systems.run_rules import RunRules, pact_totals
 from ..systems.spells import sync_spells, update_spells
 from ..systems.statuses import update_statuses
+from ..systems.zones import update_zones
 from ..ui.crosshair import draw_crosshair
 from ..ui.frame import dim_canvas
 from ..ui.card_picker import CardPicker
@@ -112,6 +114,12 @@ class GameScene(Scene):
         self.spawn = self.world.spawn_point()
         seed = getattr(self.world, "seed", None)
         self.mouse = Mouse(self.manager.display)
+        # The pacts switched on at the dungeon gate (design/GUILD.md 4.3), and
+        # the cards that react to what happens (systems/run_rules.py).
+        self.pact_keys = sorted(self.app.guild.active_pacts)
+        self.pacts = pact_totals(self.pact_keys)
+        self.rules = RunRules(self)
+        self.zones: list = []
         self.players: list[Player] = [self._make_player(0, self.hero_key, local=True)]
         for i in range(self.app.ghosts):
             heroes = [h for h in config.HEROES if h != self.hero_key] or list(config.HEROES)
@@ -125,6 +133,7 @@ class GameScene(Scene):
         self.enemies: list = []
         self.gems: list[Gem] = []
         self.spawner = Spawner(self.world, seed) if seed is not None else None
+        self._update_spawner()
         # Maps exist only on the island (the test map has no layout).
         self.big_map = BigMap(self.world) if self.players[0].minimap is not None else None
         self._run_recorded = False
@@ -153,6 +162,8 @@ class GameScene(Scene):
         hero.rng.seed(hash_coords(seed or 0, 0x5EED, index))   # crits, dodges: replayable
         guild = self.app.guild
         meta = [] if ghost else guild.meta_steps(hero_key)
+        if not ghost and self.pacts["hero_hp"]:                    # Pact of Glass
+            meta.append(("max_hp_mult", "mul", 1 + self.pacts["hero_hp"]))
         if ghost:
             hero.invulnerable = True
             controls = GhostControls((seed or 0) * 31 + index)
@@ -164,9 +175,35 @@ class GameScene(Scene):
                    minimap=Minimap() if has_maps and local else None,
                    meta=meta, unlocked=None if ghost else guild.unlocked_cards())
         self._apply_loadout(p)
-        p.progress.rerolls += round(hero.stats.rerolls)
-        p.progress.banishes += round(hero.stats.banishes)
+        st = hero.stats
+        prog = p.progress
+        prog.rerolls += round(st.rerolls)
+        prog.banishes += round(st.banishes)
+        if st.start_level:                                         # Recruit's Kit
+            prog.level += round(st.start_level)
+            prog.picks += round(st.start_level)
+        if st.royal_decree:                                        # Royal Decree
+            prog.decree = config.RARITIES[min(4, 1 + round(st.royal_decree))]
+            prog.picks += 1
+        if not ghost:
+            hero.bestiary = guild.known_pages()
         return p
+
+    def _update_spawner(self) -> None:
+        """Pacts, Beacon and Bounty: how many enemies, how tough, how fast."""
+        sp = self.spawner
+        if sp is None:
+            return
+        flags = set()
+        for p in self.players:
+            if not p.ghost and p.hero.stats is not None:
+                flags |= p.hero.stats.flags
+        pacts = self.pacts
+        sp.density = (1 + pacts["enemy_count"]) * (1 + (config.BEACON_SPAWNS if "beacon" in flags
+                                                        else 0.0))
+        sp.level_bonus = pacts["enemy_levels"]
+        sp.damage_bonus = pacts["enemy_damage"]
+        sp.haste = pacts["enemy_haste"] + (config.HASTE_BOUNTY if "bounty" in flags else 0.0)
 
     def _free_spot(self, x: float, y: float) -> tuple[float, float]:
         from ..systems.collision import hull_hits_solid
@@ -428,8 +465,9 @@ class GameScene(Scene):
                 self._hunters_mark(p, dt)
             inputs[p.index] = inp
             self._cards(p, inp.pick)
-            if p.regen > 0:
-                p.hero.hp = min(p.hero.max_hp, p.hero.hp + p.regen * dt)
+            self.rules.tick(p, dt)
+            if p.regen > 0 and not self.pacts["famine"]:
+                p.hero.heal(p.regen * dt)
             p.hero.move(inp.move_x, inp.move_y, dt, self.world)
             biome_at = getattr(self.world, "biome_at", None)
             biome = biome_at(math.floor(p.hero.x), math.floor(p.hero.y)).name if biome_at else None
@@ -442,15 +480,11 @@ class GameScene(Scene):
                 p.hero.aim_at(*inp.aim, dt)
                 p.aim = inp.aim
             weapon = p.hero.weapon
-            if weapon.update(dt, inp.fire or weapon.spec.auto):
-                shot = combat.attack(p.hero, self.world, self.projectiles, self.effects,
-                                     self._actors(), **self._overload(p.hero))
-                if p.local:
-                    sounds += shot
-                for e in self.enemies:
-                    e.hear(p.hero.x, p.hero.y)
+            if weapon.update(self.rules.weapon_dt(p, dt), inp.fire or weapon.spec.auto):
+                self._attack(p)
             if p.spells:
-                cast = update_spells(p.hero, p.spells, self.world, self._actors(), self.effects, dt)
+                cast = update_spells(p.hero, p.spells, self.world, self._actors(), self.effects, dt,
+                                     self.projectiles, self.zones)
                 if p.local:
                     sounds += cast
 
@@ -467,7 +501,8 @@ class GameScene(Scene):
             if e.alive:
                 x, y = e.x, e.y
                 # Chill slows the enemy's whole clock; frozen, it doesn't act.
-                scale = e.status.time_scale if e.status is not None else 1.0
+                # Pacts and Bounty speed it up.
+                scale = (e.status.time_scale if e.status is not None else 1.0) * (1 + getattr(e, "haste", 0.0))
                 if scale <= 0:
                     continue
                 for x0, x1, y0, y1 in boxes:
@@ -478,14 +513,13 @@ class GameScene(Scene):
         ctx.events.clear()
 
         sounds += combat.update_projectiles(self.projectiles, self.world, self.effects, dt,
-                                            self._actors())
+                                            self._actors(), self.zones)
+        update_zones(self.zones, self._actors(), self.effects, dt)
         update_statuses(self.enemies, dt, self.effects)
+        self.rules.resolve_combos()
         sounds += self._handle_deaths(ctx)
         for p, xp in update_gems(self.gems, self.players, dt):
-            if p.progress.add(xp):
-                self.effects.append(Effect("levelup", p.hero.x, p.hero.y))
-                if p.local:
-                    sounds.append("chime")
+            self._gain_xp(p, xp)
         for p in self.players:
             if p.hero.dodged:
                 self.effects.append(Effect("dodge", p.hero.x, p.hero.y - p.hero.hit_radius))
@@ -502,7 +536,24 @@ class GameScene(Scene):
         if self.spawner is not None:
             humans = [p.progress.level for p in self.players if not p.ghost]
             self.spawner.level = max(humans) if humans else 1
+            self._update_spawner()
             self.spawner.update_views(self.enemies, self._views())
+
+    def _attack(self, p: Player, echo: bool = False) -> None:
+        """The hero's weapon goes off (with this attack's card changes)."""
+        shot = combat.attack(p.hero, self.world, self.projectiles, self.effects, self._actors(),
+                             **self.rules.attack_mods(p, echo))
+        if p.local:
+            self._sounds.extend(shot)
+        for e in self.enemies:
+            e.hear(p.hero.x, p.hero.y)
+
+    def _gain_xp(self, p: Player, xp: float) -> None:
+        if p.progress.add(xp):
+            self.effects.append(Effect("levelup", p.hero.x, p.hero.y))
+            if p.local:
+                self._sounds.append("chime")
+            self.rules.on_level_up(p)
 
     # --- Cards ------------------------------------------------------------------------
 
@@ -545,9 +596,11 @@ class GameScene(Scene):
                     prog.offer = []
             elif pick == "skip":
                 prog.picks -= 1
+                prog.resolved += 1
                 prog.offer = []
-                hero = p.hero
-                hero.hp = min(hero.max_hp, hero.hp + hero.max_hp * config.SKIP_HEAL)
+                prog.decree = None
+                if not self.pacts["famine"]:                       # Pact of Famine
+                    p.hero.heal(p.hero.max_hp * config.SKIP_HEAL)
             elif isinstance(pick, tuple) and pick[0] == "banish":
                 if prog.banishes > 0 and 0 <= pick[1] < len(prog.offer):
                     prog.banishes -= 1
@@ -557,15 +610,25 @@ class GameScene(Scene):
                 key, rarity = prog.offer[pick]
                 prog.take(key, rarity)
                 prog.picks -= 1
+                prog.resolved += 1
                 prog.offer = []
+                prog.decree = None
                 p.stats.cards.append(key)
                 self._apply_loadout(p)
+                self.rules.check_build(p)
             if p.local:
                 self._sounds.append("ui")
         if prog.picks > 0 and not prog.offer:
+            st = p.hero.stats
+            size = config.CARD_OFFER_SIZE + round(st.offer_size)
+            if st.encore_tour:                                     # Encore Tour
+                every = max(2, 6 - round(st.encore_tour))
+                if (prog.resolved + 1) % every == 0:
+                    size += 1
             prog.offer = draw_offer(p.stats.hero, config.WEAPONS[config.HEROES[p.stats.hero].weapon],
                                     prog.cards, getattr(self.world, "seed", 0) or 0, p.index,
-                                    prog.offers, p.hero.stats, prog.banished, p.unlocked)
+                                    prog.offers, st, prog.banished, p.unlocked,
+                                    level=prog.level, size=size, min_rarity=prog.decree)
             prog.offers += 1
             if not prog.offer:
                 prog.picks = 0             # every card maxed out: nothing left to offer
@@ -580,6 +643,8 @@ class GameScene(Scene):
         lo = build_loadout(p.stats.hero, p.progress.taken, p.meta)
         hero = p.hero
         gained = lo.body.max_hp - hero.max_hp
+        old_shield = hero.stats.shield if hero.stats is not None else 0.0
+        hero.shield += max(0.0, lo.stats.shield - old_shield)   # a new ward comes charged
         hero.spec = lo.body
         hero.weapon.spec = lo.weapon
         hero.stats = lo.stats
@@ -588,17 +653,6 @@ class GameScene(Scene):
         hero.lifesteal = lo.stats.lifesteal
         p.regen = lo.stats.regen
         sync_spells(p.spells, lo.stats.spells)
-
-    @staticmethod
-    def _overload(hero) -> dict:
-        """Overload (a card): every OVERLOAD_EVERY-th attack hits harder and
-        jumps further."""
-        if hero.stats is None or not hero.stats.has("overload"):
-            return {}
-        hero.attacks += 1
-        if hero.attacks % config.OVERLOAD_EVERY:
-            return {}
-        return {"mult": config.OVERLOAD_MULT, "extra_chain": config.OVERLOAD_CHAIN}
 
     def _hunters_mark(self, p: Player, dt: float) -> None:
         """Hunter's Mark (a card): every MARK_INTERVAL s (or when the mark
@@ -645,11 +699,14 @@ class GameScene(Scene):
                     killer.stats.killed(e.espec.name)
                     drop(self.gems, e.x, e.y, e.espec.xp)
                     self._loot(killer, e)
+                    self.rules.on_kill(killer, e)
             ctx.actors = self._actors()
         events += ctx.events
         ctx.events.clear()
         for p in self.players:
             if not p.hero.alive and p.alive:
+                if self.rules.revive(p):              # Phoenix, Second Chance
+                    continue
                 p.dead_for = 0.0
                 self.projectiles = [s for s in self.projectiles if s.owner is not p.hero]
                 self.effects.append(Effect("explosion", p.hero.x, p.hero.y))
@@ -660,12 +717,14 @@ class GameScene(Scene):
             self._end_run()
         return events
 
-    def _loot(self, p: Player, enemy) -> None:
+    def _loot(self, p: Player, enemy, times: int = 1) -> None:
         """A kill's loot goes straight into the run's purse; a shard flies
-        from the body to the hero to show it."""
+        from the body to the hero to show it. The loot bonus and the active
+        pacts' bonus add to it; `times`: a Bounty cache, worth many kills."""
         stats = p.hero.stats
         bonus = stats.loot if stats is not None else 0.0
-        amount = enemy.espec.xp * config.LOOT_PER_XP * (1 + bonus)
+        amount = (enemy.espec.xp * config.LOOT_PER_XP * (1 + bonus) * (1 + self.pacts["loot"])
+                  * times)
         p.stats.loot += amount
         self.effects.append(Effect("loot", enemy.x, enemy.y, target=p.hero,
                                    value=max(1, round(amount))))
@@ -754,6 +813,7 @@ class GameScene(Scene):
         draw_statuses(text, cam, self.enemies, [p.hero.marked for p in self.players
                                                  if p.alive and p.hero.marked is not None])
         draw_spells(text, cam, [p for p in self.players if p.alive], self.steps)
+        draw_summons(text, cam, [p for p in self.players if p.alive], self.zones, self.steps)
         draw_slashes(self.sprites, cam, self.effects)
         draw_projectiles(text, cam, self.projectiles)
         draw_effects(text, cam, self.world, air)
@@ -775,7 +835,7 @@ class GameScene(Scene):
                 xp_frac=me.progress.frac, kills=me.stats.total_kills, time=me.stats.time,
                 fps=self.fps if self.app.settings.show_fps else None,
                 spells=tuple((s.spec.short, s.level) for s in me.spells.values()),
-                loot=int(me.stats.loot)))
+                loot=int(me.stats.loot), shield=me.hero.shield))
         if self.app.dev and not self.map_open:
             text.put(0, d.rows - 1, " DEV  L: level up ", palette.DEV_TAG, palette.HUD_PANEL)
         if self.map_open:

@@ -74,10 +74,30 @@ class HeroStats:
     xp: float = 0.0
     loot: float = 0.0
     luck: float = 0.0
-    # Hero-card numbers and rule changes
+    max_hp_mult: float = 1.0         # Glass Cannon
+    shield: float = 0.0              # Ward Charm (from the spell's level)
+    thorns: tuple = (0.0, 0.0)       # Thorn Mail: (flat, share of the hit) reflected
+    offer_size: float = 0.0          # Fortune: extra cards per offer
+    soul_harvest: float = 0.0        # HP per kill
+    phoenix: float = 0.0             # Phoenix: revivals left at the start
+    # Guild Hall (meta/guild.py)
+    start_level: float = 0.0         # Recruit's Kit
+    revives: float = 0.0             # Second Chance
+    # Hero-card and trainer numbers, and rule changes
     steady_crit: float = 0.0         # Steady Aim: crit chance while standing still
     point_blank: float = 0.0         # Point Blank: bucket A within POINT_BLANK_RANGE
     broadhead: float = 0.0           # Broadhead: bucket A per enemy already passed
+    homeward: float = 0.0            # Homeward Fury / Homecoming: bucket A on the way back
+    prism: float = 0.0               # Prism: bucket A per other color on the same enemy
+    untouched: float = 0.0           # Untouched: bucket A above UNTOUCHED_HP
+    wildfire: float = 0.0            # Wildfire: bucket A vs burning enemies
+    capacitor: float = 0.0           # Capacitor: bucket A on the first bolt after a pause
+    return_speed: float = 0.0        # Quick Catch: axes fly home faster
+    quiver: float = 0.0              # Quiver: levels
+    shot_size: float = 0.0           # Bright Colors
+    royal_decree: float = 0.0        # Royal Decree: levels
+    opening_act: float = 0.0         # Opening Act: seconds of double beats
+    encore_tour: float = 0.0         # Encore Tour: levels
     flags: set = field(default_factory=set)
 
     # --- Derived numbers -------------------------------------------------------------
@@ -113,13 +133,27 @@ class HeroStats:
         return flag in self.flags
 
     def clamp(self) -> None:
+        if self.has("overflow") and self.crit_chance > 1.0:
+            self.crit_damage += 2 * (self.crit_chance - 1.0)    # Overflow
         self.crit_chance = max(0.0, min(1.0, self.crit_chance))
+        if self.has("juggernaut"):
+            self.dodge = 0.0
         self.dodge = max(0.0, min(config.MAX_DODGE, self.dodge))
         self.lifesteal = max(0.0, min(config.MAX_LIFESTEAL, self.lifesteal))
         self.move = max(-0.9, min(config.MAX_MOVE_BONUS, self.move))
         self.area = max(-0.9, min(config.MAX_AREA_BONUS, self.area))
         self.spell_cooldown = max(0.0, min(config.MAX_SPELL_COOLDOWN, self.spell_cooldown))
         self.status_chance = max(0.0, min(1.0, self.status_chance))
+
+
+def spell_params(key: str, level: int) -> dict:
+    """A spell's numbers at `level`: its base with each level's change."""
+    spec = config.SPELLS[key]
+    p = dict(spec.base)
+    for _, changes in spec.levels[:level - 1]:
+        for name, op, val in changes:
+            p[name] = p[name] + val if op == "add" else p[name] * val
+    return p
 
 
 def apply_mods(stats: HeroStats, steps: list[tuple[str, str, float]]) -> HeroStats:
@@ -145,9 +179,14 @@ def apply_mods(stats: HeroStats, steps: list[tuple[str, str, float]]) -> HeroSta
             stats.spells[stat] = min(config.SPELL_MAX_LEVEL, stats.spells.get(stat, 0) + 1)
         else:
             raise ValueError(f"unknown card op {op!r}")
-    for key in stats.spells:
-        inflicts = config.SPELLS[key].base.get("inflicts")
+    for key, level in stats.spells.items():
+        params = spell_params(key, level)
+        inflicts = params.get("inflicts")
         if inflicts:
             stats.sources.add(inflicts)
+        if key == "ward_charm":
+            stats.shield += params["shield"]
+        elif key == "thorn_mail":
+            stats.thorns = (params["flat"], params["share"])
     stats.clamp()
     return stats

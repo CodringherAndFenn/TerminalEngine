@@ -41,6 +41,12 @@ class Spawner:
         self.awake: dict = {}          # spawn id -> enemy
         self.rosters: dict = {}        # loaded chunk -> its roster
         self.level = 1                 # the players' level: enemies wake this tough
+        # Pacts and cards (systems/run_rules.py): more enemies, tougher,
+        # harder-hitting, faster.
+        self.density = 1.0
+        self.level_bonus = 0
+        self.damage_bonus = 0.0
+        self.haste = 0.0
 
     def roster(self, cx: int, cy: int) -> list[tuple[tuple, str, float, float]]:
         """[(spawn id, enemy key, x, y)] for one chunk. Deterministic."""
@@ -51,7 +57,8 @@ class Spawner:
         if math.hypot(mx - sx, my - sy) < config.ENEMY_FREE_RADIUS:
             return []
         biome = self.world.biome_at(math.floor(mx), math.floor(my)).name
-        expected = config.BIOME_ENEMY_DENSITY.get(biome, 0.0) * config.ENEMY_DENSITY_MULTIPLIER
+        expected = (config.BIOME_ENEMY_DENSITY.get(biome, 0.0) * config.ENEMY_DENSITY_MULTIPLIER
+                    * self.density)
         count = int(expected) + (rng.random() < expected - int(expected))
         choices = [(k, s.weight) for k, s in config.ENEMIES.items() if biome in s.biomes]
         out = []
@@ -165,7 +172,9 @@ class Spawner:
                     continue            # too far, or would pop into existence on screen
                 e = make_enemy(name, x, y,
                                random.Random(hash_coords(self.seed, 0xA1, *sid)), sid)
-                e.scale_to_level(self.level)
+                e.scale_to_level(self.level + self.level_bonus)
+                e.damage_mult *= 1 + self.damage_bonus
+                e.haste = self.haste
                 self.awake[sid] = e
                 enemies.append(e)
 

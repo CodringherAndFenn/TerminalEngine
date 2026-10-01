@@ -59,6 +59,14 @@ class Player:
     mark_timer: float = 0.0           # Hunter's Mark: seconds to the next mark
     meta: list = field(default_factory=list)    # Guild upgrades, as card steps (meta/guild.py)
     unlocked: set | None = None       # cards this player may be offered (None: all)
+    # Card / guild state of the run (systems/run_rules.py)
+    frenzy: float = 0.0               # Frenzy: seconds of double attack speed left
+    echo_timer: float = 0.0           # Echo: the repeated attack comes in this many s
+    retaliate_cd: float = 0.0         # Retaliation's cooldown
+    bounty: int = 0                   # kills toward Bounty's next cache
+    kill_times: list = field(default_factory=list)   # recent kills (achievement)
+    phoenix_used: int = 0
+    revives_used: int = 0             # Second Chance
 
     @property
     def alive(self) -> bool:

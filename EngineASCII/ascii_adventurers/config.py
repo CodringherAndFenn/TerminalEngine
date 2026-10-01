@@ -11,8 +11,8 @@ Units:
 
 import math
 
-from .specs import (CardSpec, CharacterSpec, EnemySpec, ShellSpec, SpellSpec, StatusSpec,
-                    UpgradeSpec, WeaponSpec)
+from .specs import (CardSpec, CharacterSpec, EnemySpec, PactSpec, ShellSpec, SpellSpec,
+                    StatusSpec, UpgradeSpec, WeaponSpec)
 
 # --- Display / layout --------------------------------------------------------
 
@@ -415,6 +415,10 @@ MAX_AREA_BONUS = 2.0         # area x3 at most
 MAX_SPELL_COOLDOWN = 0.60    # spells at most 60% faster
 MIN_ATTACK_INTERVAL = 0.08   # fastest attack cadence any stack of cards can reach
 STEADY_SPEED = 0.3           # tiles/s: below this the hero counts as standing still
+SHIELD_RECHARGE_DELAY = 4.0  # seconds without being hit before a shield refills...
+SHIELD_RECHARGE_RATE = 0.5   # ...at this fraction of its size per second
+
+# Hero cards (catalog 6.2) and the rules they bring.
 POINT_BLANK_RANGE = 4.0      # tiles (Point Blank)
 SUPERCELL_BONUS = 0.25       # chain jumps vs shocked enemies (Supercell)
 OVERLOAD_EVERY = 5           # every Nth attack is overloaded...
@@ -426,11 +430,60 @@ DISSONANCE_PUSH = 1.2        # tiles a beat pushes enemies back (Dissonance)
 SPECTRUM_CHANCE = 0.20       # Spectrum: chance a color applies its status
 # Spectrum: rainbow pellet color (palette.RAINBOW_SHOTS order) -> status.
 SPECTRUM_STATUS = ("burn", None, "shock", "poison", "chill")
+RICOCHET_BOUNCES = 2         # Ricochet: wall bounces before an axe turns home
+VOLLEY_EVERY = 4             # Volley: every Nth shot...
+VOLLEY_ARROWS = 5            # ...is this many arrows...
+VOLLEY_SPREAD = 30.0         # ...fanned over this many degrees
+CRESCENDO_STEP = 0.10        # Crescendo: per beat in a row that hits
+CRESCENDO_MAX = 5
+LULLABY_HEAL = (1, 5)        # Lullaby: HP per enemy a beat hits, at most this many
+SYNCOPATION = ((0.6, 1.6), (1.3, 0.7))   # (reach, damage) of the loud / the soft beat
+BALL_LIGHTNING_TIME = 2.0    # Ball Lightning: seconds a bolt crackles where it hit...
+BALL_LIGHTNING_RADIUS = 1.5  # ...hitting everything this close...
+BALL_LIGHTNING_EVERY = 0.25  # ...this often...
+BALL_LIGHTNING_DAMAGE = 0.3  # ...for this fraction of the bolt's damage
+REFRACTION_SPLIT = 3         # Refraction: a color that hits splits into this many...
+REFRACTION_DAMAGE = 0.5      # ...each doing this fraction...
+REFRACTION_SPREAD = 50.0     # ...fanned over this many degrees
+GRAND_FINALE = (8, 4.0, 2.0) # Grand Finale: every Nth beat, x damage, x reach
+
+# Conditionals, trade-offs, triggers (catalog 6.5-6.7).
+UNTOUCHED_HP = 0.9
+BLOODLUST_TIME = 10.0
+BLOODLUST_MAX = 30
+GIANT_SLAYER = 0.40
+SPLIT_DAMAGE = 0.6           # Spray and Pray: each half of a split shot
+SPLIT_SPREAD = 24.0          # degrees between the halves
+FRENZY_TIME = 3.0            # Frenzy: seconds of double attack speed after a kill
+BOUNTY_EVERY = 25            # Bounty: every Nth kill drops a cache...
+HASTE_BOUNTY = 0.15          # ...and enemies are this much faster
+BEACON_SPAWNS = 0.30         # Beacon: this many more enemies
+VOLATILE_CHANCE = 0.15       # Volatile: kills explode this often...
+VOLATILE_DAMAGE = 0.40       # ...for this fraction of the killing hit...
+VOLATILE_RADIUS = 1.5        # ...this far
+RETALIATION = (30, 2.5, 3.0, 1.5)   # damage, radius, cooldown s, push tiles
+SURGE_HEAL = 0.20            # Surge: on level-up, heal this much...
+SURGE_PUSH = (4.0, 3.0)      # ...and push enemies within 4 tiles 3 tiles away
+ECHO_EVERY = 6               # Echo: every Nth attack happens twice...
+ECHO_DELAY = 0.15            # ...this much later
+GOLDEN_HOARD = (50, 0.50)    # +1% damage per this much loot, up to +50%
+WILDFIRE = 0.30
+SHATTER = (1.5, 2.0, 15)     # Shatter: x damage vs frozen; death burst radius, damage
+THERMAL_SHOCK = (10, 2.0)    # damage per burn stack, radius
+TOXIC_CURRENT = (2, 3.0)     # enemies the poison spreads to, how far
+PANDEMIC = (2, 4.0)          # enemies an enemy's statuses spread to on death, how far
+AEGIS_MAX = 0.5              # Aegis: shield from overhealing, up to this x max HP
+JUGGERNAUT = 0.02            # +damage per armor
+PHOENIX = (0.5, 3.0, 60)     # revive HP fraction, blast radius, blast damage
+CAPSTONE_LEVEL = 15          # capstones are offered from this level on
 
 # --- Statuses (systems/statuses.py) -----------------------------------------------
 # Status damage is its own bucket (S): base x (1 + status damage) x (1 + tag
 # damage); it never crits. Damage-over-time is dealt every STATUS_TICK s.
+# Every status your cards give you is rolled on each hit: STATUS_BASE_CHANCE
+# plus your status chance (Affliction).
 STATUS_TICK = 0.5
+STATUS_BASE_CHANCE = 0.10
 STATUSES = {
     "burn": StatusSpec("burn", "fire", duration=3.0, max_stacks=5, dps=4.0),
     "poison": StatusSpec("poison", "poison", duration=6.0, max_stacks=5, dps=2.0),
@@ -439,6 +492,7 @@ STATUSES = {
     "shock": StatusSpec("shock", "lightning", duration=2.0, vulnerability=0.15),
 }
 FREEZE_TIME = 1.5            # 5 chill stacks: frozen solid this long (can't act)
+VIRULENCE = (10, 1.5)        # Virulence: poison stacks up to, x duration
 
 # --- Spells and items (systems/spells.py) ------------------------------------------
 # Granted by cards; picking the card again levels the spell up (to 5).
@@ -469,14 +523,111 @@ SPELLS = {
                 ("+1 chill stack", (("stacks", "add", 1),)),
                 ("double damage, 15% faster", (("damage", "mul", 2.0), ("interval", "mul", 0.85)))),
         text="every 4 s: chill everything within 4 tiles twice"),
+    "spirit_wolf": SpellSpec(
+        "Spirit Wolf", "WOLF", "wolf", ("summon", "physical"),
+        base=dict(count=1, damage=15.0, bite=0.8, speed=9.0, sight=12.0),
+        levels=(("+30% bite damage", (("damage", "mul", 1.3),)),
+                ("+1 wolf", (("count", "add", 1),)),
+                ("bites 25% faster", (("bite", "mul", 0.75),)),
+                ("+1 wolf", (("count", "add", 1),))),
+        text="a wolf hunts the nearest enemy, 15 damage bites"),
+    "rune_trap": SpellSpec(
+        "Rune Trap", "RUNES", "rune", ("arcane", "area"),
+        base=dict(interval=3.0, damage=40.0, radius=1.5, trigger=0.9, life=12.0, max=5),
+        levels=(("+30% rune damage", (("damage", "mul", 1.3),)),
+                ("runes come 25% faster", (("interval", "mul", 0.75),)),
+                ("+30% burst size", (("radius", "mul", 1.3),)),
+                ("+3 runes at once, +30% damage", (("max", "add", 3), ("damage", "mul", 1.3)))),
+        text="drops a rune every 3 s: it bursts for 40 when stepped on"),
+    "poison_flask": SpellSpec(
+        "Poison Flask", "FLASK", "flask", ("poison", "area"),
+        base=dict(interval=3.0, radius=1.5, life=3.0, stacks=1, reach=10.0, flight=0.6,
+                  inflicts="poison"),
+        levels=(("+25% pool size", (("radius", "mul", 1.25),)),
+                ("pools last 2 s longer", (("life", "add", 2.0),)),
+                ("thrown 25% faster", (("interval", "mul", 0.75),)),
+                ("2 poison stacks per tick", (("stacks", "add", 1),))),
+        text="lobs a flask at an enemy: a pool of poison for 3 s"),
+    "storm_cloud": SpellSpec(
+        "Storm Cloud", "STORM", "cloud", ("lightning", "area"),
+        base=dict(interval=1.5, damage=20.0, reach=8.0, strikes=1, inflicts="shock"),
+        levels=(("+30% strike damage", (("damage", "mul", 1.3),)),
+                ("strikes 25% faster", (("interval", "mul", 0.75),)),
+                ("2 strikes at a time", (("strikes", "add", 1),)),
+                ("+40% damage, +30% reach", (("damage", "mul", 1.4), ("reach", "mul", 1.3)))),
+        rarity="rare", text="a cloud follows you, striking and shocking an enemy every 1.5 s"),
+    "healing_totem": SpellSpec(
+        "Healing Totem", "TOTEM", "totem", ("summon",),
+        base=dict(interval=12.0, heal=3.0, radius=3.0, life=6.0),
+        levels=(("+30% healing", (("heal", "mul", 1.3),)),
+                ("lasts 3 s longer", (("life", "add", 3.0),)),
+                ("planted 25% sooner", (("interval", "mul", 0.75),)),
+                ("+40% healing, +30% size", (("heal", "mul", 1.4), ("radius", "mul", 1.3)))),
+        rarity="rare", text="plants a totem every 12 s: 3 HP/s around it for 6 s"),
+    "ward_charm": SpellSpec(
+        "Ward Charm", "WARD", "ward", (),
+        base=dict(shield=25.0),
+        levels=(("+15 shield", (("shield", "add", 15.0),)),
+                ("+15 shield", (("shield", "add", 15.0),)),
+                ("+20 shield", (("shield", "add", 20.0),)),
+                ("+25 shield", (("shield", "add", 25.0),))),
+        text="a 25 HP shield that refills after 4 s unhurt"),
+    "fire_wand": SpellSpec(
+        "Fire Wand", "WAND", "wand", ("fire", "projectile"),
+        base=dict(interval=1.2, damage=10.0, reach=12.0, stacks=1, inflicts="burn"),
+        levels=(("+30% bolt damage", (("damage", "mul", 1.3),)),
+                ("fires 25% faster", (("interval", "mul", 0.75),)),
+                ("bolts burn twice", (("stacks", "add", 1),)),
+                ("+40% damage, 20% faster", (("damage", "mul", 1.4), ("interval", "mul", 0.8)))),
+        text="fires a burning bolt at the nearest enemy every 1.2 s"),
+    "bone_turret": SpellSpec(
+        "Bone Turret", "TURRET", "turret", ("summon", "projectile"),
+        base=dict(count=1, interval=10.0, life=8.0, fire=0.5, damage=8.0, reach=10.0),
+        levels=(("+30% bolt damage", (("damage", "mul", 1.3),)),
+                ("turrets last 4 s longer", (("life", "add", 4.0),)),
+                ("shoots 25% faster", (("fire", "mul", 0.75),)),
+                ("2 turrets at a time", (("count", "add", 1),))),
+        rarity="rare", text="places a turret every 10 s that shoots for 8 s"),
+    "thorn_mail": SpellSpec(
+        "Thorn Mail", "THORNS", "thorns", ("physical",),
+        base=dict(flat=5.0, share=0.30),
+        levels=(("+5 thorn damage", (("flat", "add", 5.0),)),
+                ("+15% reflected", (("share", "add", 0.15),)),
+                ("+10 thorn damage", (("flat", "add", 10.0),)),
+                ("+25% reflected", (("share", "add", 0.25),))),
+        text="attackers take 5 + 30% of the damage back"),
 }
 
-# Cards. See specs.CardSpec for the fields and players/stats.py for the
-# stats. "+X% damage" is always bucket A (they add up); "xN damage" is its
-# own multiplier (rare and up only).
+# Shots that spells fire (damage comes from the spell's level).
+SPELL_SHELLS = {
+    "wand": ShellSpec(speed=22.0, damage=0, max_range=14.0, damages_terrain=False,
+                      look="ember", sound="spark"),
+    "turret": ShellSpec(speed=26.0, damage=0, max_range=12.0, damages_terrain=False,
+                        look="bone", sound="bolt"),
+}
+
+# Cards (design/CARDS.md rev 2). See specs.CardSpec for the fields and
+# players/stats.py for the stats. "+X% damage" is always bucket A (they
+# add up); "xN damage" is its own multiplier (rare and up only). Each
+# plain stat is sold by exactly one card (the catalog's no-repeats rule).
 _T = 5          # copies of a tiered generic card one hero can take
+_CAP = dict(rarity="legendary", max_stacks=1, min_level=CAPSTONE_LEVEL, unlock="L:6000")
+_SHOOTERS = ("wizard", "huntress", "princess", "dwarf")
+
+
+def _spell_card(key: str, code: str, unlock: str = "start") -> CardSpec:
+    s = SPELLS[key]
+    return CardSpec(s.name, "", ((key, "spell", 1),), rarity=s.rarity, max_stacks=SPELL_MAX_LEVEL,
+                    tags=s.tags, unlock=unlock, code=code)
+
+
+def _enabler(name: str, status: str, verb: str, tag: str, code: str) -> CardSpec:
+    return CardSpec(name, f"10% of your hits {verb}", ((status, "status", 1),),
+                    rarity="uncommon", max_stacks=1, tags=(tag,), code=code)
+
+
 CARDS = {
-    # --- Generic stats (tiered: the number grows with the rarity rolled) ---
+    # --- 6.1 Generic stats (tiered: the number grows with the rarity rolled) ---
     "sharpened": CardSpec("Sharpened", "+{X}% damage", (("damage", "add", "X"),),
                           tiers=(10, 15, 22, 30, 40), max_stacks=_T, code="G01"),
     "quick_hands": CardSpec("Quick Hands", "+{X}% attack speed", (("attack_speed", "add", "X"),),
@@ -519,10 +670,12 @@ CARDS = {
                           tiers=(6, 9, 12, 16, 20), max_stacks=_T, needs=("spell",),
                           code="G19"),
     "multishot": CardSpec("Multishot", "+1 projectile",
-                          (("pellets", "add", 1), ("spread", "add", 8)), rarity="rare",
-                          heroes=("wizard", "huntress"), tags=("projectile",),
-                          unlock="L:300", code="G20"),
-    # --- Wizard ---
+                          (("pellets", "add", 1), ("spread", "add", 10)), rarity="rare",
+                          heroes=_SHOOTERS, tags=("projectile",), unlock="L:2000", code="G20"),
+    "affliction": CardSpec("Affliction", "+{X}% chance for each of your statuses",
+                           (("status_chance", "add", "X"),), tiers=(5, 8, 12, 16, 20),
+                           max_stacks=_T, needs=("status",), code="G21"),
+    # --- 6.2 Wizard ---
     "storm_caller": CardSpec("Storm Caller", "lightning jumps to +1 enemy", (("chain", "add", 1),),
                              rarity="rare", heroes=("wizard",), tags=("lightning",), code="W1"),
     "conductor": CardSpec("Conductor", "jumps reach 30% farther and fade less",
@@ -535,153 +688,377 @@ CARDS = {
                           tags=("lightning",), code="W3"),
     "overload": CardSpec("Overload", "every 5th bolt: x3 damage and +3 jumps",
                          (("overload", "flag", 1),), rarity="rare", max_stacks=1,
-                         heroes=("wizard",), tags=("lightning",), unlock="L:300", code="W4"),
+                         heroes=("wizard",), tags=("lightning",), unlock="L:2000", code="W4"),
+    "ball_lightning": CardSpec("Ball Lightning",
+                               "bolts crackle where they hit for 2 s, hurting all around",
+                               (("ball_lightning", "flag", 1),), heroes=("wizard",),
+                               tags=("lightning", "area"), code="W5", **_CAP),
     # --- Dwarf ---
-    "ricochet": CardSpec("Ricochet", "+1 axe per throw",
-                         (("pellets", "add", 1), ("spread", "add", 16)), rarity="rare",
+    "ricochet": CardSpec("Ricochet", "axes bounce off walls and fly on (2 bounces)",
+                         (("ricochet", "flag", 1),), rarity="rare", max_stacks=1,
                          heroes=("dwarf",), tags=("projectile",), code="D1"),
     "heavy_axe": CardSpec("Heavy Axe", "x1.35 damage, attacks 10% slower",
                           (("damage_mult", "mul", 1.35), ("interval_mult", "mul", 1.1)),
                           rarity="rare", heroes=("dwarf",), tags=("physical",), code="D2"),
-    "long_haul": CardSpec("Long Haul", "axes fly 30% farther and 20% faster",
-                          (("range", "add", 0.3), ("shot_speed", "add", 0.2)),
-                          heroes=("dwarf",), code="D3"),
+    "homeward_fury": CardSpec("Homeward Fury", "axes deal +50% on the way back",
+                              (("homeward", "add", 0.5),), max_stacks=2, heroes=("dwarf",),
+                              code="D3"),
     "cleave": CardSpec("Cleave", "axes make enemies bleed",
                        (("cleave", "flag", 1), ("bleed", "source", 1)), rarity="uncommon",
                        max_stacks=1, heroes=("dwarf",), tags=("physical",), code="D4"),
+    "cyclone": CardSpec("Cyclone", "a caught axe flies straight back out at the nearest enemy",
+                        (("cyclone", "flag", 1),), heroes=("dwarf",), tags=("physical",),
+                        code="D5", **_CAP),
     # --- Huntress ---
-    "volley": CardSpec("Volley", "+2 arrows in a fan",
-                       (("pellets", "add", 2), ("spread", "add", 14)), rarity="epic",
-                       max_stacks=2, heroes=("huntress",), tags=("projectile",), code="H1"),
-    "broadhead": CardSpec("Broadhead", "+2 pierce; +15% damage per enemy already passed",
-                          (("pierce", "add", 2), ("broadhead", "add", 0.15)),
-                          rarity="uncommon", heroes=("huntress",), tags=("physical",),
-                          code="H2"),
+    "volley": CardSpec("Volley", "every 4th shot looses 5 arrows in a fan",
+                       (("volley", "flag", 1),), rarity="epic", max_stacks=1,
+                       heroes=("huntress",), tags=("projectile",), code="H1"),
+    "broadhead": CardSpec("Broadhead", "+15% damage for each enemy the arrow has passed",
+                          (("broadhead", "add", 0.15),), rarity="uncommon",
+                          heroes=("huntress",), tags=("physical",), code="H2"),
     "hunters_mark": CardSpec("Hunter's Mark",
                              "every 4 s the toughest enemy in view is marked: x2 damage from you",
                              (("hunters_mark", "flag", 1),), rarity="rare", max_stacks=1,
-                             heroes=("huntress",), unlock="L:300", code="H3"),
+                             heroes=("huntress",), unlock="L:2000", code="H3"),
     "steady_aim": CardSpec("Steady Aim", "+25% crit chance while standing still",
                            (("steady_crit", "add", 0.25),), rarity="uncommon", max_stacks=2,
                            heroes=("huntress",), code="H4"),
+    "deadeye": CardSpec("Deadeye", "crits pierce every enemy and fly twice as far",
+                        (("deadeye", "flag", 1),), heroes=("huntress",), code="H5", **_CAP),
     # --- Princess ---
-    "prism": CardSpec("Prism", "+2 colors in the fan",
-                      (("pellets", "add", 2), ("spread", "add", 8)), rarity="rare",
-                      heroes=("princess",), tags=("projectile",), code="P1"),
-    "focus": CardSpec("Focus", "tighter fan, +25% range",
-                      (("spread_mult", "mul", 0.7), ("range", "add", 0.25)), max_stacks=2,
-                      heroes=("princess",), code="P2"),
+    "prism": CardSpec("Prism", "colors hitting the same enemy: +20% for each other color",
+                      (("prism", "add", 0.2),), rarity="rare", heroes=("princess",),
+                      tags=("projectile",), code="P1"),
+    "focus": CardSpec("Focus", "the fan narrows by 30%", (("spread_mult", "mul", 0.7),),
+                      max_stacks=2, heroes=("princess",), code="P2"),
     "spectrum": CardSpec("Spectrum",
                          "red burns, blue chills, green poisons, yellow shocks (20%)",
                          (("spectrum", "flag", 1), ("burn", "source", 1), ("chill", "source", 1),
                           ("poison", "source", 1), ("shock", "source", 1)),
                          rarity="rare", max_stacks=1, heroes=("princess",),
-                         tags=("fire", "frost", "poison", "lightning"), unlock="L:400",
+                         tags=("fire", "frost", "poison", "lightning"), unlock="L:2500",
                          code="P3"),
     "point_blank": CardSpec("Point Blank", "+40% damage to enemies within 4 tiles",
                             (("point_blank", "add", 0.4),), rarity="uncommon", max_stacks=2,
                             heroes=("princess",), code="P4"),
+    "refraction": CardSpec("Refraction", "each color splits into 3 when it hits an enemy",
+                           (("refraction", "flag", 1),), heroes=("princess",),
+                           tags=("projectile",), code="P5", **_CAP),
     # --- Bard ---
-    "crescendo": CardSpec("Crescendo", "beats reach 25% farther", (("range", "add", 0.25),),
-                          heroes=("bard",), tags=("area",), code="B1"),
-    "encore": CardSpec("Encore", "+30% beat damage, +1.5 HP/s",
-                       (("damage", "add", 0.3), ("regen", "add", 1.5)), rarity="rare",
-                       heroes=("bard",), code="B2"),
-    "tempo": CardSpec("Tempo", "beats come 15% sooner", (("interval_mult", "mul", 0.85),),
-                      rarity="uncommon", heroes=("bard",), tags=("area",), code="B3"),
+    "crescendo": CardSpec("Crescendo", "each beat in a row that hits: +10% damage, up to +50%",
+                          (("crescendo", "flag", 1),), max_stacks=1, heroes=("bard",),
+                          tags=("area",), code="B1"),
+    "lullaby": CardSpec("Lullaby", "each beat heals you 1 HP per enemy it hits (up to 5)",
+                        (("lullaby", "flag", 1),), rarity="rare", max_stacks=1,
+                        heroes=("bard",), code="B2"),
+    "syncopation": CardSpec("Syncopation",
+                            "beats alternate: short and loud (x1.6), wide and soft (x0.7)",
+                            (("syncopation", "flag", 1),), rarity="uncommon", max_stacks=1,
+                            heroes=("bard",), tags=("area",), code="B3"),
     "dissonance": CardSpec("Dissonance", "beats push enemies back and chill them",
                            (("dissonance", "flag", 1), ("chill", "source", 1)),
                            rarity="uncommon", max_stacks=1, heroes=("bard",),
-                           tags=("frost",), unlock="L:250", code="B4"),
-    # --- Status enablers ---
-    "kindling": CardSpec("Kindling", "+15% status chance; your hits can burn",
-                         (("status_chance", "add", 0.15), ("burn", "status", 1)),
-                         rarity="uncommon", tags=("fire",), code="T01"),
-    "venom": CardSpec("Venom", "+15% status chance; your hits can poison",
-                      (("status_chance", "add", 0.15), ("poison", "status", 1)),
-                      rarity="uncommon", tags=("poison",), code="T03"),
-    "frostbite": CardSpec("Frostbite", "+15% status chance; your hits can chill",
-                          (("status_chance", "add", 0.15), ("chill", "status", 1)),
-                          rarity="uncommon", tags=("frost",), code="T05"),
-    "static": CardSpec("Static", "+15% status chance; your hits can shock",
-                       (("status_chance", "add", 0.15), ("shock", "status", 1)),
-                       rarity="uncommon", tags=("lightning",), code="T07"),
-    "serrated": CardSpec("Serrated", "+15% status chance; your hits can bleed",
-                         (("status_chance", "add", 0.15), ("bleed", "status", 1)),
-                         rarity="uncommon", tags=("physical",), code="T08"),
-    # --- Spells (the first copy grants it, the next ones level it up) ---
-    "daggers": CardSpec("Orbiting Daggers", "", (("daggers", "spell", 1),), rarity="uncommon",
-                        max_stacks=5, tags=("physical", "orbit"), code="S01"),
-    "ember_aura": CardSpec("Ember Aura", "", (("ember_aura", "spell", 1),), rarity="uncommon",
-                           max_stacks=5, tags=("fire", "area"), code="S02"),
-    "frost_nova": CardSpec("Frost Nova", "", (("frost_nova", "spell", 1),), rarity="uncommon",
-                           max_stacks=5, tags=("frost", "area"), code="S03"),
+                           tags=("frost",), unlock="L:1500", code="B4"),
+    "grand_finale": CardSpec("Grand Finale", "every 8th beat: x4 damage, x2 reach",
+                             (("grand_finale", "flag", 1),), heroes=("bard",), tags=("area",),
+                             code="B5", **_CAP),
+    # --- 6.3 Tags and statuses ---
+    "kindling": _enabler("Kindling", "burn", "burn", "fire", "T01"),
+    "wildfire": CardSpec("Wildfire", "+30% damage to burning enemies", (("wildfire", "add", 0.3),),
+                         rarity="uncommon", max_stacks=1, needs=("burn",), tags=("fire",),
+                         code="T02"),
+    "venom": _enabler("Venom", "poison", "poison", "poison", "T03"),
+    "virulence": CardSpec("Virulence", "poison stacks to 10 and lasts 50% longer",
+                          (("virulence", "flag", 1),), rarity="rare", max_stacks=1,
+                          needs=("poison",), tags=("poison",), unlock="L:2000", code="T04"),
+    "frostbite": _enabler("Frostbite", "chill", "chill", "frost", "T05"),
+    "shatter": CardSpec("Shatter", "frozen enemies take x1.5 damage and burst into ice on death",
+                        (("shatter", "flag", 1),), rarity="rare", max_stacks=1,
+                        needs=("chill",), tags=("frost",), unlock="L:2500", code="T06"),
+    "static": _enabler("Static", "shock", "shock", "lightning", "T07"),
+    "serrated": _enabler("Serrated", "bleed", "bleed", "physical", "T08"),
+    "hemorrhage": CardSpec("Hemorrhage", "bleeding hurts twice as fast while the enemy moves",
+                           (("hemorrhage", "flag", 1),), rarity="rare", max_stacks=1,
+                           needs=("bleed",), tags=("physical",), unlock="L:2000", code="T09"),
+    "elementalist": CardSpec("Elementalist", "+{X}% fire, frost, poison and lightning damage",
+                             (("tag:fire", "add", "X"), ("tag:frost", "add", "X"),
+                              ("tag:poison", "add", "X"), ("tag:lightning", "add", "X")),
+                             tiers=(10, 15, 22, 30, 40), max_stacks=_T,
+                             needs=("element",), code="T10"),
+    "arcane_mastery": CardSpec("Arcane Mastery", "+{X}% arcane damage",
+                               (("tag:arcane", "add", "X"),), tiers=(10, 15, 22, 30, 40),
+                               max_stacks=_T, needs=("arcane",), tags=("arcane",), code="T11"),
+    "weapons_master": CardSpec("Weapons Master", "+{X}% physical damage",
+                               (("tag:physical", "add", "X"),), tiers=(10, 15, 22, 30, 40),
+                               max_stacks=_T, needs=("physical",), tags=("physical",),
+                               code="T12"),
+    "thermal_shock": CardSpec("Thermal Shock",
+                              "burning and chilled enemies explode (10 per burn stack)",
+                              (("thermal_shock", "flag", 1),), rarity="epic", max_stacks=1,
+                              needs=("burn", "chill"), tags=("fire", "frost"), unlock="L:3500",
+                              code="T13"),
+    "toxic_current": CardSpec("Toxic Current", "shocking a poisoned enemy spreads its poison to 2",
+                              (("toxic_current", "flag", 1),), rarity="epic", max_stacks=1,
+                              needs=("shock", "poison"), tags=("lightning", "poison"),
+                              unlock="L:3500", code="T14"),
+    # --- 6.4 Spells (the first copy grants it, the next ones level it up) ---
+    "daggers": _spell_card("daggers", "S01"),
+    "ember_aura": _spell_card("ember_aura", "S02"),
+    "frost_nova": _spell_card("frost_nova", "S03"),
+    "spirit_wolf": _spell_card("spirit_wolf", "S04"),
+    "rune_trap": _spell_card("rune_trap", "S05"),
+    "poison_flask": _spell_card("poison_flask", "S06"),
+    "storm_cloud": _spell_card("storm_cloud", "S07", "L:2500"),
+    "healing_totem": _spell_card("healing_totem", "S08", "L:2500"),
+    "ward_charm": _spell_card("ward_charm", "S09", "L:1000"),
+    "fire_wand": _spell_card("fire_wand", "S10"),
+    "bone_turret": _spell_card("bone_turret", "S11", "L:2500"),
+    "thorn_mail": _spell_card("thorn_mail", "S12"),
+    # --- 6.5 Conditional and scaling ---
+    "untouched": CardSpec("Untouched", "+30% damage while above 90% HP",
+                          (("untouched", "add", 0.3),), rarity="uncommon", max_stacks=1,
+                          code="C01"),
+    "berserker": CardSpec("Berserker", "+1% damage for every 1% of HP you're missing",
+                          (("berserker", "flag", 1),), rarity="rare", max_stacks=1,
+                          unlock="L:2000", code="C02"),
+    "bulwark": CardSpec("Bulwark", "+1% damage per 10 max HP", (("bulwark", "flag", 1),),
+                        rarity="rare", max_stacks=1, unlock="L:2000", code="C03"),
+    "momentum": CardSpec("Momentum", "+damage equal to half your move speed bonus",
+                         (("momentum", "flag", 1),), rarity="uncommon", max_stacks=1,
+                         code="C04"),
+    "fleet_strike": CardSpec("Fleet Strike", "+1% crit chance per 4% move speed bonus",
+                             (("fleet_strike", "flag", 1),), rarity="rare", max_stacks=1,
+                             unlock="L:2000", code="C05"),
+    "bloodlust": CardSpec("Bloodlust", "each kill: +1% damage for 10 s (up to +30%)",
+                          (("bloodlust", "flag", 1),), rarity="uncommon", max_stacks=1,
+                          code="C06"),
+    "giant_slayer": CardSpec("Giant Slayer", "+40% damage to enemies with more max HP than you",
+                             (("giant_slayer", "flag", 1),), rarity="uncommon", max_stacks=1,
+                             code="C07"),
+    "veteran": CardSpec("Veteran", "+1% damage per level", (("veteran", "flag", 1),),
+                        rarity="rare", max_stacks=1, unlock="L:1500", code="C08"),
+    # --- 6.6 Trade-offs ---
+    "glass_cannon": CardSpec("Glass Cannon", "x1.4 damage, -30% max HP",
+                             (("damage_mult", "mul", 1.4), ("max_hp_mult", "mul", 0.7)),
+                             rarity="rare", max_stacks=1, unlock="L:2000", code="X01"),
+    "heavy_plate": CardSpec("Heavy Plate", "no hit takes over 10% of your max HP; -15% move",
+                            (("hit_cap", "flag", 1), ("move", "add", -0.15)),
+                            rarity="uncommon", max_stacks=1, code="X02"),
+    "spray_and_pray": CardSpec("Spray and Pray", "shots split in two at half range; -25% range",
+                               (("split", "flag", 1), ("range", "add", -0.25)), rarity="rare",
+                               max_stacks=1, kinds=("shot",), tags=("projectile",), code="X03"),
+    "frenzy": CardSpec("Frenzy", "attack twice as fast for 3 s after a kill; -20% range",
+                       (("frenzy", "flag", 1), ("range", "add", -0.2)), rarity="uncommon",
+                       max_stacks=1, code="X04"),
+    "bounty": CardSpec("Bounty", "every 25th kill drops a loot cache; enemies 15% faster",
+                       (("bounty", "flag", 1),), rarity="rare", max_stacks=1, code="X05"),
+    "beacon": CardSpec("Beacon", "30% more enemies come for you", (("beacon", "flag", 1),),
+                       rarity="rare", max_stacks=1, unlock="L:2000", code="X06"),
+    # --- 6.7 Triggers ---
+    "volatile": CardSpec("Volatile", "kills have a 15% chance to explode",
+                         (("volatile", "flag", 1),), rarity="uncommon", max_stacks=1,
+                         tags=("area",), code="R01"),
+    "chain_reaction": CardSpec("Chain Reaction", "enemies killed by an explosion explode too",
+                               (("chain_reaction", "flag", 1),), rarity="rare", max_stacks=1,
+                               needs=("volatile",), tags=("area",),
+                               unlock="A:chain_reaction", code="R02"),
+    "retaliation": CardSpec("Retaliation", "when hit: a shockwave deals 30 and pushes (3 s)",
+                            (("retaliation", "flag", 1),), rarity="uncommon", max_stacks=1,
+                            code="R03"),
+    "soul_harvest": CardSpec("Soul Harvest", "kills heal 1 HP", (("soul_harvest", "add", 1),),
+                             max_stacks=3, code="R04"),
+    "surge": CardSpec("Surge", "level-ups heal 20% and blast enemies away",
+                      (("surge", "flag", 1),), rarity="uncommon", max_stacks=1,
+                      unlock="L:1000", code="R05"),
+    "echo": CardSpec("Echo", "every 6th attack happens twice", (("echo", "flag", 1),),
+                     rarity="uncommon", max_stacks=1, code="R06"),
+    # --- 6.8 Economy ---
+    "prospector": CardSpec("Prospector", "+{X}% loot", (("loot", "add", "X"),),
+                           tiers=(10, 15, 22, 30, 40), max_stacks=_T, code="E01"),
+    "fortune": CardSpec("Fortune", "+1 card in every offer", (("offer_size", "add", 1),),
+                        rarity="epic", max_stacks=1, unlock="L:3500", code="E02"),
+    "golden_hoard": CardSpec("Golden Hoard", "+1% damage per 50 loot this run (up to +50%)",
+                             (("golden_hoard", "flag", 1),), rarity="rare", max_stacks=1,
+                             unlock="L:2500", code="E03"),
+    # --- 6.9 Capstones and rule-breakers ---
+    "overflow": CardSpec("Overflow", "crit chance over 100% becomes double crit damage",
+                         (("overflow", "flag", 1),), needs=("stat:crit_chance",), code="K01",
+                         **dict(_CAP, unlock="A:crit_75")),
+    "pandemic": CardSpec("Pandemic", "a dying enemy's statuses spread to 2 nearby",
+                         (("pandemic", "flag", 1),), needs=("status",), code="K02", **_CAP),
+    "aegis": CardSpec("Aegis", "healing past full HP becomes shield (up to half your HP)",
+                      (("aegis", "flag", 1),), needs=("heal",), code="K03", **_CAP),
+    "pack_leader": CardSpec("Pack Leader", "summons use your crits and statuses; +1 of each",
+                            (("pack_leader", "flag", 1),), needs=("summon",), tags=("summon",),
+                            code="K04", **_CAP),
+    "juggernaut": CardSpec("Juggernaut", "+2% damage per armor; you can't dodge",
+                           (("juggernaut", "flag", 1),), needs=("stat:armor",), code="K05",
+                           **_CAP),
+    "phoenix": CardSpec("Phoenix", "once per run: rise again at 50% HP in a burst of fire",
+                        (("phoenix", "add", 1),), code="K06", **dict(_CAP, unlock="A:level_30")),
 }
 
 # --- Loot and the Guild Hall (meta/guild.py, scenes/guild_hall.py) ----------------
-# Every kill a hero makes (or their statuses / spells) is worth loot at
-# once: the enemy's xp x LOOT_PER_XP x (1 + loot bonus). The run's loot is
-# kept in full however the run ends (death, abandon, quit) and goes to the
-# guild's purse, which buys the upgrades below and card unlocks.
-LOOT_PER_XP = 0.5
+# design/GUILD.md rev 2. Every kill a hero makes (or their statuses /
+# spells) is worth loot at once: the enemy's xp x LOOT_PER_XP x (1 + loot
+# bonus) x (1 + the active pacts' bonus). The run's loot is kept in full
+# however the run ends and goes to the guild's purse, which buys the
+# upgrades below, card unlocks, pacts and bestiary pages.
+# Nothing repeats inside the hall: no effect is sold by the guildmaster and
+# a trainer, or by two heroes' trainers.
+LOOT_PER_XP = 1.0
 # Developer mode (run.py --dev): the purse holds this much (never saved).
-DEV_LOOT = 999_999
+DEV_LOOT = 9_999_999
 
-# Shared upgrades: every hero gets them.
+# The guildmaster: every hero gets these.
 GUILD_UPGRADES = {
-    "whetstone": UpgradeSpec("Whetstone", "+4% damage", (("damage", "add", 0.04),),
-                             base_cost=80),
-    "drill_yard": UpgradeSpec("Drill Yard", "+3% attack speed", (("attack_speed", "add", 0.03),),
-                              base_cost=80),
-    "infirmary": UpgradeSpec("Infirmary", "+8 max HP", (("max_hp", "add", 8),), base_cost=60),
-    "armory": UpgradeSpec("Armory", "+2 armor", (("armor", "add", 2),), base_cost=100),
-    "cobbler": UpgradeSpec("Cobbler", "+3% move speed", (("move", "add", 0.03),),
-                           max_level=3, base_cost=100),
-    "old_maps": UpgradeSpec("Old Maps", "+5% XP", (("xp", "add", 0.05),), base_cost=80),
-    "treasure_map": UpgradeSpec("Treasure Map", "+6% loot", (("loot", "add", 0.06),),
-                                base_cost=100),
-    "lodestone": UpgradeSpec("Lodestone", "+15% pickup radius", (("pickup", "add", 0.15),),
-                             max_level=3, base_cost=60),
-    "lucky_shrine": UpgradeSpec("Lucky Shrine", "+3 luck", (("luck", "add", 3),),
-                                base_cost=120),
+    "whetstone": UpgradeSpec("Whetstone", "+2% damage", (("damage", "add", 0.02),),
+                             max_level=15, base_cost=150, growth=1.2),
+    "drill_yard": UpgradeSpec("Drill Yard", "+1.5% attack speed",
+                              (("attack_speed", "add", 0.015),), max_level=15, base_cost=150,
+                              growth=1.2),
+    "infirmary": UpgradeSpec("Infirmary", "+5 max HP", (("max_hp", "add", 5),), max_level=20,
+                             base_cost=100, growth=1.18),
+    "armory": UpgradeSpec("Armory", "+1 armor", (("armor", "add", 1),), max_level=15,
+                          base_cost=150, growth=1.2),
+    "cobbler": UpgradeSpec("Cobbler", "+1% move speed", (("move", "add", 0.01),), max_level=10,
+                           base_cost=200, growth=1.25),
+    "old_maps": UpgradeSpec("Old Maps", "+3% XP", (("xp", "add", 0.03),), max_level=10,
+                            base_cost=150, growth=1.25),
+    "treasure_map": UpgradeSpec("Treasure Map", "+4% loot", (("loot", "add", 0.04),),
+                                max_level=15, base_cost=200, growth=1.2),
+    "lodestone": UpgradeSpec("Lodestone", "+10% pickup radius", (("pickup", "add", 0.10),),
+                             max_level=10, base_cost=100, growth=1.25),
+    "lucky_shrine": UpgradeSpec("Lucky Shrine", "+2 luck", (("luck", "add", 2),), max_level=15,
+                                base_cost=200, growth=1.2),
     "fortune_teller": UpgradeSpec("Fortune Teller", "+1 reroll each run",
-                                  (("rerolls", "add", 1),), max_level=3, base_cost=150,
-                                  growth=2.0),
+                                  (("rerolls", "add", 1),), max_level=5, base_cost=400,
+                                  growth=1.8),
     "exile_ledger": UpgradeSpec("Exile Ledger", "+1 banish each run", (("banishes", "add", 1),),
-                                max_level=3, base_cost=200, growth=2.0),
+                                max_level=5, base_cost=600, growth=1.8),
+    "recruits_kit": UpgradeSpec("Recruit's Kit", "start runs a level higher (+1 card pick)",
+                                (("start_level", "add", 1),), max_level=3, base_cost=1500,
+                                growth=2.0),
+    "second_chance": UpgradeSpec("Second Chance", "once per run, rise at 30% HP when you fall",
+                                 (("revives", "add", 1),), max_level=2, base_cost=3000,
+                                 growth=2.5),
     "arcane_wing": UpgradeSpec("Arcane Wing", "+1 spell slot", (("spell_slots", "add", 1),),
-                               max_level=1, base_cost=1500),
+                               max_level=1, base_cost=8000),
 }
-# Each hero's own: two shared kinds plus two of their own.
-_MASTERY = UpgradeSpec("Mastery", "+4% damage", (("damage", "add", 0.04),), base_cost=60)
-_TOUGHNESS = UpgradeSpec("Toughness", "+8 max HP", (("max_hp", "add", 8),), base_cost=50)
+SECOND_CHANCE_HP = 0.30
+
+# The trainer: each hero's own tree, only about their weapon or trick.
+_BIG = dict(max_level=2, base_cost=1200, growth=2.0)     # the "+1 of my weapon's thing"
+_LADDER = dict(max_level=5, base_cost=150, growth=1.3)
+_TRICK = dict(max_level=3, base_cost=400, growth=1.6)
 HERO_UPGRADES = {
-    "wizard": {"mastery": _MASTERY, "toughness": _TOUGHNESS,
-               "conductor_rod": UpgradeSpec("Conductor's Rod", "jumps reach 10% farther",
-                                            (("chain_range", "add", 0.1),), max_level=3),
-               "static_focus": UpgradeSpec("Static Focus", "+3% crit chance",
-                                           (("crit_chance", "add", 0.03),), max_level=3)},
-    "dwarf": {"mastery": _MASTERY, "toughness": _TOUGHNESS,
-              "strong_arm": UpgradeSpec("Strong Arm", "axes fly 10% farther and faster",
-                                        (("range", "add", 0.1), ("shot_speed", "add", 0.1)),
-                                        max_level=3),
-              "stonehide": UpgradeSpec("Stonehide", "+2 armor", (("armor", "add", 2),),
-                                       max_level=3)},
-    "huntress": {"mastery": _MASTERY, "toughness": _TOUGHNESS,
-                 "eagle_eye": UpgradeSpec("Eagle Eye", "+3% crit chance",
-                                          (("crit_chance", "add", 0.03),), max_level=3),
-                 "fleet_foot": UpgradeSpec("Fleet Foot", "+3% move speed",
-                                           (("move", "add", 0.03),), max_level=3)},
-    "princess": {"mastery": _MASTERY, "toughness": _TOUGHNESS,
-                 "radiance": UpgradeSpec("Radiance", "+8% range", (("range", "add", 0.08),),
-                                         max_level=3),
-                 "royal_grace": UpgradeSpec("Royal Grace", "+3% dodge", (("dodge", "add", 0.03),),
-                                            max_level=3)},
-    "bard": {"mastery": _MASTERY, "toughness": _TOUGHNESS,
-             "resonance": UpgradeSpec("Resonance", "+6% area", (("area", "add", 0.06),),
-                                      max_level=3),
-             "lullaby": UpgradeSpec("Lullaby", "regain 0.3 HP per second",
-                                    (("regen", "add", 0.3),), max_level=3)},
+    "wizard": {
+        "forked_bolt": UpgradeSpec("Forked Bolt", "lightning jumps to +1 enemy",
+                                   (("chain", "add", 1),), **_BIG),
+        "long_arc": UpgradeSpec("Long Arc", "jumps reach 8% farther",
+                                (("chain_range", "add", 0.08),), **_LADDER),
+        "grounding": UpgradeSpec("Grounding", "jumps fade 3% less",
+                                 (("chain_falloff", "add", 0.03),), **_LADDER),
+        "capacitor": UpgradeSpec("Capacitor", "first bolt after 2 s idle: +50% damage",
+                                 (("capacitor", "add", 0.5),), **_TRICK),
+    },
+    "dwarf": {
+        "axe_juggler": UpgradeSpec("Axe Juggler", "+1 axe per throw",
+                                   (("pellets", "add", 1), ("spread", "add", 16)), **_BIG),
+        "strong_arm": UpgradeSpec("Strong Arm", "axes fly 6% farther", (("range", "add", 0.06),),
+                                  **_LADDER),
+        "quick_catch": UpgradeSpec("Quick Catch", "axes fly home 10% faster, caught from farther",
+                                   (("return_speed", "add", 0.1),), **_LADDER),
+        "homecoming": UpgradeSpec("Homecoming", "+15% axe damage on the way back",
+                                  (("homeward", "add", 0.15),), **_TRICK),
+    },
+    "huntress": {
+        "barbed_tips": UpgradeSpec("Barbed Tips", "arrows pierce +1 enemy",
+                                   (("pierce", "add", 1),), **_BIG),
+        "eagle_eye": UpgradeSpec("Eagle Eye", "+3% crit chance", (("crit_chance", "add", 0.03),),
+                                 **_LADDER),
+        "fletcher": UpgradeSpec("Fletcher", "arrows fly 8% faster", (("shot_speed", "add", 0.08),),
+                                **_LADDER),
+        "quiver": UpgradeSpec("Quiver", "every 8th arrow has a twin (7th, 6th...)",
+                              (("quiver", "add", 1),), **_TRICK),
+    },
+    "princess": {
+        "coronation": UpgradeSpec("Coronation", "+1 color in the fan",
+                                  (("pellets", "add", 1), ("spread", "add", 6)), **_BIG),
+        "royal_grace": UpgradeSpec("Royal Grace", "+3% dodge", (("dodge", "add", 0.03),),
+                                   **_LADDER),
+        "bright_colors": UpgradeSpec("Bright Colors", "colors are 10% bigger",
+                                     (("shot_size", "add", 0.1),), **_LADDER),
+        "royal_decree": UpgradeSpec("Royal Decree", "start with a rare card (then epic, legendary)",
+                                    (("royal_decree", "add", 1),), **_TRICK),
+    },
+    "bard": {
+        "resonance": UpgradeSpec("Resonance", "+5% area", (("area", "add", 0.05),), **_LADDER),
+        "soothing_strings": UpgradeSpec("Soothing Strings", "regain 0.2 HP per second",
+                                        (("regen", "add", 0.2),), **_LADDER),
+        "opening_act": UpgradeSpec("Opening Act", "beats deal x2 for the first 60 s of a run",
+                                   (("opening_act", "add", 60.0),), **_TRICK),
+        "encore_tour": UpgradeSpec("Encore Tour", "every 5th level-up offers 4 cards (then 4th)",
+                                   (("encore_tour", "add", 1),), **_BIG),
+    },
+}
+CAPACITOR_IDLE = 2.0         # seconds without attacking that charge the Capacitor
+QUIVER_EVERY = 8             # Quiver: a twin every Nth arrow, one sooner per level after the first
+SHOT_SIZE_PX = 6             # Bright Colors: a colour's hit radius grows by this x its bonus (px)
+
+# The archivist's pacts: bought once, switched on at the dungeon gate.
+# They're there to make the game insanely hard; each also pays a little
+# more loot. More will come (~20 in all).
+PACTS = {
+    "blood": PactSpec("Pact of Blood", "enemies deal +25% damage", 0.20, 1500,
+                      enemy_damage=0.25),
+    "horde": PactSpec("Pact of the Horde", "30% more enemies", 0.20, 1500, enemy_count=0.30),
+    "haste": PactSpec("Pact of Haste", "enemies move and attack 15% faster", 0.20, 2500,
+                      enemy_haste=0.15),
+    "famine": PactSpec("Pact of Famine", "no regeneration; skipping a card doesn't heal", 0.15,
+                       2500, famine=True),
+    "glass": PactSpec("Pact of Glass", "you have 40% less max HP", 0.40, 4000, hero_hp=-0.40),
+    "veteran": PactSpec("Pact of the Veteran", "enemies are 10 levels tougher", 0.30, 5000,
+                        enemy_levels=10),
+}
+
+# The archivist's bestiary: a page per enemy. Readable after BESTIARY_KILLS
+# kills of it, or bought; either way you deal +BESTIARY_BONUS to its kind.
+BESTIARY_KILLS = 25
+BESTIARY_BONUS = 0.10
+BESTIARY = {
+    "goblin_archer": (500, "Keeps its distance and looses slow arrows. Flees when hurt badly."),
+    "warlock": (900, "A red beam marks where its hex will strike: step out of the line."),
+    "spell_tower": (900, "Never moves; fires bursts of three orbs. Ruins only."),
+    "ogre": (1500, "Armored in front (hits there do a third). Throws rocks that break walls."),
+    "burrower": (800, "Swims under the sand and erupts beneath you. Desert only."),
+    "puffer": (500, "Swells, then bursts in a spore cloud that hurts everything near."),
+    "warrior": (700, "Charges with sidesteps, raises its blade, then swings."),
+    "dust_devil": (700, "Circles close, flinging sand in spirals and stinging on touch."),
+    "wisp": (900, "Fires much faster while its searchlight is on you."),
+    "toad": (600, "Hops between rests and spits a fan of acid."),
+    "spitter": (800, "Rooted; fires a ring of spores that turns each volley."),
+    "boar": (1000, "Scrapes the ground, then charges in a line. Dodge: it stuns itself on walls."),
+}
+
+# Achievements (they unlock "A:" cards).
+ACHIEVEMENTS = {
+    "chain_reaction": "kill 15 enemies within 1 second",
+    "crit_75": "reach 75% crit chance",
+    "level_30": "reach level 30",
+}
+ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
+
+# Rev 1 (M15) prices, to refund upgrades bought before rev 2 (meta/guild.py).
+# (base, growth, max level); levels past a rev-1 maximum are never refunded.
+REV1_PRICES = {
+    "guild": {"whetstone": (80, 1.6, 5), "drill_yard": (80, 1.6, 5), "infirmary": (60, 1.6, 5),
+              "armory": (100, 1.6, 5), "cobbler": (100, 1.6, 3), "old_maps": (80, 1.6, 5),
+              "treasure_map": (100, 1.6, 5), "lodestone": (60, 1.6, 3),
+              "lucky_shrine": (120, 1.6, 5), "fortune_teller": (150, 2.0, 3),
+              "exile_ledger": (200, 2.0, 3), "arcane_wing": (1500, 1.6, 1)},
+    # every other rev-1 hero upgrade: 100, 1.6, 3 levels
+    "hero": {"mastery": (60, 1.6, 5), "toughness": (50, 1.6, 5)},
 }
 
 # --- How many enemies, and which --------------------------------------------------
