@@ -146,7 +146,7 @@ def build_chunk(layout: IslandLayout, cx: int, cy: int) -> Generator[None, None,
     if layout.all_ocean(x0, y0, x0 + n, y0 + n):
         ids = np.full((n, n), _T(tiles.WATER))
         biome_ids = np.full((n, n), biomes.OCEAN.id, dtype=np.uint8)
-        return _finish(cx, cy, ids, biome_ids, rng, None)
+        return _finish(cx, cy, ids, biome_ids, rng, None, layout)
 
     xs, ys = chunk_axes(x0, y0, n, n)
     biome_ids, smooth_ids = layout.biome_ids_both(xs, ys)
@@ -172,18 +172,23 @@ def build_chunk(layout: IslandLayout, cx: int, cy: int) -> Generator[None, None,
     ruins_tiles = int((biome_ids == biomes.RUINS.id).sum())
     buildings = ruins_tiles > n * n * 0.3
     return _finish(cx, cy, ids, biome_ids, rng,
-                   random.Random(hash_coords(seed, 0xB1D, cx, cy)) if buildings else None)
+                   random.Random(hash_coords(seed, 0xB1D, cx, cy)) if buildings else None,
+                   layout)
 
 
-def _finish(cx, cy, ids, biome_ids, rng, building_rng) -> Chunk:
+def _finish(cx, cy, ids, biome_ids, rng, building_rng, layout=None) -> Chunk:
     """Turn the index arrays into the Chunk's lists: optional ruined
-    buildings (per-tile Python, only in ruins chunks), then one glyph
+    buildings (per-tile Python, only in ruins chunks), the landmarks over
+    it (world/landmarks.py: quest camps, boss lairs), then one glyph
     variant per tile."""
     n = config.CHUNK_SIZE
     grid = [_TILES[i] for i in ids.ravel().tolist()]
     flat_biomes = bytearray(biome_ids.astype(np.uint8).tobytes())
     if building_rng is not None:
         _place_buildings(grid, flat_biomes, building_rng, n)
+    if layout is not None:
+        for mark in layout.landmarks:
+            mark.stamp(grid, cx, cy, n)
     picks = rng.random(n * n).tolist()
     glyphs = [t.glyphs[int(p * len(t.glyphs))] for t, p in zip(grid, picks)]
     return Chunk(cx, cy, grid, glyphs, flat_biomes)

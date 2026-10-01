@@ -89,6 +89,12 @@ SHOT_LOOKS = {
     "axe": (None, (".", "."), palette.SHOT_AXE),    # head: spins (AXE_SPIN)
     "ember": ("*", ("'", "."), palette.SHOT_EMBER),  # Fire Wand
     "bone": ("o", (".", "."), palette.SHOT_BONE),    # Bone Turret
+    # M17: quest enemies and bosses.
+    "wobble": ("@", (".", "."), palette.SHOT_WOBBLE),     # psychedelic frog
+    "tadpole": ("@", (",", "."), palette.SHOT_TADPOLE),  # Froggy's tadpoles (tail behind)
+    "bubble": ("O", (".", "."), palette.SHOT_BUBBLE),
+    "ripple": ("o", (".", "."), palette.SHOT_RIPPLE),
+    "psy": ("@", (".", "."), "psy"),          # colors: palette.PSY_SHOTS by p.tint
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).
@@ -125,6 +131,10 @@ def draw_projectiles(text: TextRenderer, camera: Camera, projectiles: list[Proje
         head, trail, cols = SHOT_LOOKS[p.spec.look]
         if cols is None:                     # the rainbow: one color per pellet
             cols = palette.RAINBOW_SHOTS[p.variant % len(palette.RAINBOW_SHOTS)]
+        elif cols == "psy":                  # psychedelic: each shot its own hue
+            cols = palette.PSY_SHOTS[p.tint % len(palette.PSY_SHOTS)]
+        elif p.tint and p.owner is not None and getattr(p.owner, "psychedelic", False):
+            cols = palette.PSY_SHOTS[p.tint % len(palette.PSY_SHOTS)]
         head_col, trail_cols = cols
         octant = _octant(p.angle)
         # Trail: only along the stretch the shot has actually flown.

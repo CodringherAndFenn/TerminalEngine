@@ -193,3 +193,44 @@ GIANT_SHROOM = TileType(
     wear=((") ", " (", "(."),),
     becomes=SHROOM_MUSH,
 )
+
+
+# --- Landmarks (M17, world/landmarks.py) -----------------------------------------------
+# Hand-placed structures stamped over the generated biome. None of their
+# walls can be destroyed: quest places must survive the fight.
+
+# A boss lair's ring of standing stones, and the thorn gate that seals it.
+LAIR_STONE = TileType(
+    "standing stones", ("▓▓", "█▓", "▓█"), palette.LAIR_STONE_FG, palette.LAIR_STONE_BG,
+    solid=True, blocks_shots=True,
+)
+THORN_GATE = TileType(
+    "thorn gate", ("><", "}{", "X>", "<X"), palette.THORN_FG, palette.THORN_BG,
+    solid=True, blocks_shots=True,
+)
+# Froggy's pools: like bog (can't be walked through, shots fly over), and
+# the boss dives into them.
+POND = TileType(
+    "pond", ("░ ", " ░", "  ", "▒░"), palette.POND_FG, palette.POND_BG,
+    solid=True,
+)
+LILY_PADS = TileType(
+    "lily pads", ("o ", " o", "  ", "o."), palette.LILY_FG, palette.MUD_BG,
+)
+# The frog hunter's hut on its deck.
+PLANK_WALL = TileType(
+    "plank wall", ("||", "|:", ":|"), palette.PLANK_FG, palette.PLANK_BG,
+    solid=True, blocks_shots=True,
+)
+DECK = TileType(
+    "deck", ("==", "=-", "-="), palette.DECK_FG, palette.DECK_BG,
+)
+DRYING_RACK = TileType(
+    "drying rack", ("TT", "T'", "'T"), palette.RACK_FG, palette.DECK_BG,
+    solid=True,
+)
+# Where a quest giver stands (on the deck, so nobody walks through them).
+HUNTER_POST = TileType(
+    "hunter's post", ("==",), palette.DECK_FG, palette.DECK_BG,
+    solid=True,
+)

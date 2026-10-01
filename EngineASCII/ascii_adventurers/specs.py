@@ -35,6 +35,8 @@ class ShellSpec:
     returns: bool = False   # boomerang (the dwarf's axes): flies out to max_range, then
                             # back to the thrower; passes through every enemy, hitting
                             # each once per leg
+    wobble: float = 0.0     # weaves side to side by up to this angle (radians)...
+    wobble_tiles: float = 4.0       # ...once every this many tiles flown (psychedelic frogs)
 
 
 @dataclass(frozen=True)
@@ -235,3 +237,57 @@ class EnemySpec:
     cooldown: float = 1.5           # creatures: time between attacks
     size_px: int = 16               # creatures: body size (collision + drawing)
     xp: int = 5                     # experience for the player who kills it
+
+
+@dataclass(frozen=True)
+class QuestSpec:
+    """A ring biome's quest (systems/quests.py, design/BOSSES.md): its giver
+    waits at a camp (world/landmarks.py), and finishing it summons the
+    biome's boss at its lair.
+
+    kind "hunt": kill `count` of the quest-only enemy `target` (they live
+    at the camp's spots and appear once the quest is given). `lines` are
+    what the giver says at each stage of the quest: "offer" (the first
+    talk), "progress" ("{left}" = targets left), "done" (the boss is
+    awake), "cleared" (it's beaten)."""
+
+    title: str
+    biome: str
+    giver: str                      # the quest giver's name
+    giver_sprite: str               # key into render/characters.ART
+    camp: str                       # world/landmarks.BUILDERS keys
+    lair: str
+    target: str                     # hunt: key into config.ENEMIES
+    count: int
+    boss: str                       # key into config.BOSSES
+    goal: str                       # quest log: "{n}" done of "{count}"
+    lines: tuple[tuple[str, tuple[str, ...]], ...]
+    kind: str = "hunt"
+
+    def say(self, stage: str) -> tuple[str, ...]:
+        return dict(self.lines).get(stage, ())
+
+
+@dataclass(frozen=True)
+class BossPhase:
+    """One phase of a boss fight: it starts once the boss's health drops
+    below `below` (the first phase: 1.0), and the boss picks among `moves`
+    (name, weight) with `rest` seconds between them."""
+
+    below: float
+    moves: tuple[tuple[str, float], ...]
+    rest: float
+
+
+@dataclass(frozen=True)
+class BossSpec:
+    """A boss (ai/bosses.py, design/BOSSES.md section 5). Its body, health
+    and XP are an EnemySpec in config.ENEMIES under the same key; this holds
+    the fight."""
+
+    name: str
+    phases: tuple[BossPhase, ...]
+    loot: int                       # banked by every player who sees it fall
+    achievement: str                # config.ACHIEVEMENTS key
+    pages: tuple[str, ...]          # bestiary pages it fills in (boss + quest enemy)
+    coop_hp: float = 0.7            # +max HP per extra player

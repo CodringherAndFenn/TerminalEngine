@@ -35,6 +35,12 @@ the step must keep it that way (e.g. no time.time(), no unseeded random).
 The view shows one player (the local one; F10 cycles through the others
 while debug ghosts are running).
 
+Quests (M17, systems/quests.py): each ring biome's quest giver waits at
+their camp, pinned on the maps; E (gamepad A) next to them talks. Their
+quest's targets, its boss's lair, the sealed fight and the rewards are run
+by the Quests object inside the step; the HUD shows the quest log, a boss's
+health bar, and an arrow toward the boss when it's off screen.
+
 M opens the big map (ui/maps.py), ESC the pause menu (ui/overlays.py); both
 pause the game. Gamepads: Start pauses, Back opens the map, the sticks walk
 and aim, the right trigger fires. The run's stats (meta/run_stats.py) are
@@ -57,7 +63,7 @@ from .. import config, palette
 from ..ai.brain import AIContext
 from ..app import app_of
 from ..engine_ext.camera import Camera
-from ..engine_ext.gamepads import BUTTON_LB, BUTTON_RB, EV_BUTTON
+from ..engine_ext.gamepads import BUTTON_A, BUTTON_LB, BUTTON_RB, EV_BUTTON
 from ..engine_ext.input import Mouse, move_axes
 from ..entities.character import Character
 from ..entities.effects import Effect, update_effects
@@ -68,6 +74,7 @@ from ..players.cards import build_loadout, draw_offer
 from ..players.controls import AutoControls, GhostControls, PlayerInput
 from ..players.player import Player, player_color
 from ..render.ascii_fx import draw_effects, draw_projectiles
+from ..render.bosses import draw_banner, draw_froggy, draw_npc, draw_pointer
 from ..render.characters import draw_body
 from ..render.enemies_sprite import draw_enemy
 from ..render.slash import draw_slashes
@@ -75,16 +82,18 @@ from ..render.spell_fx import draw_gems, draw_spells, draw_statuses, draw_summon
 from ..render.sprites import SpriteBank
 from ..render.terrain import TerrainRenderer
 from ..systems import combat
+from ..systems.quests import Quests, free_spot
 from ..systems.spawner import Spawner
 from ..systems.run_rules import RunRules, pact_totals
 from ..systems.spells import sync_spells, update_spells
 from ..systems.statuses import update_statuses
 from ..systems.zones import update_zones
 from ..ui.crosshair import draw_crosshair
-from ..ui.frame import dim_canvas
+from ..ui.frame import center, dim_canvas
 from ..ui.card_picker import CardPicker
 from ..ui.hud import HudInfo, draw_hud
 from ..ui.maps import BigMap, Minimap
+from ..ui.quest_log import draw_quest_log
 from ..ui.overlays import GameOverPanel, PauseMenu
 from ..ui.settings_panel import SettingsPanel
 from ..world import make_world
@@ -134,6 +143,7 @@ class GameScene(Scene):
         self.gems: list[Gem] = []
         self.spawner = Spawner(self.world, seed) if seed is not None else None
         self._update_spawner()
+        self.quests = Quests(self)
         # Maps exist only on the island (the test map has no layout).
         self.big_map = BigMap(self.world) if self.players[0].minimap is not None else None
         self._run_recorded = False
@@ -310,6 +320,25 @@ class GameScene(Scene):
             self.effects.append(Effect("levelup", self.hero.x, self.hero.y))
             self._sounds.append("chime")
 
+    def _dev_quest(self, key: int) -> None:
+        """Developer mode: F6 jumps next to the first quest giver, F7
+        finishes its hunt (the boss wakes), F8 jumps outside its lair's gate."""
+        if key == pygame.K_F7:
+            if self.quests.dev_finish_hunt():
+                self._sounds.append("chime")
+            return
+        spot = self.quests.dev_spot("giver" if key == pygame.K_F6 else "lair")
+        if spot is None or not self.me.alive:
+            return
+        h = self.hero
+        self._stream_world(budget_ms=None)
+        self.world.ensure_ready(int(spot[0]) - 48, int(spot[1]) - 20, int(spot[0]) + 48,
+                                int(spot[1]) + 20)
+        h.x, h.y = free_spot(self.world, *spot, h.half)
+        h.prev_pos = (h.x, h.y)
+        self.me.camera.center_on(h.x, h.y)
+        self._stream_world(budget_ms=None)
+
     def _restart(self) -> None:
         """Go again: same hero, and the same island if a seed was chosen."""
         self.manager.switch_to(GameScene(self.hero_key, self.seed_choice))
@@ -333,6 +362,9 @@ class GameScene(Scene):
         in_menu = self.overlay is not None or self.map_open
         if self.map_open and event.type == EV_BUTTON and event.button in (BUTTON_LB, BUTTON_RB):
             self._pad_zoom(1 if event.button == BUTTON_RB else -1)
+            return
+        if not in_menu and event.type == EV_BUTTON and event.button == BUTTON_A:
+            self.me.controls.queue_interact()     # talk (in play, A isn't a menu key)
             return
         for ev in app_events(self.manager, event, menu=in_menu):
             self._handle(ev)
@@ -376,8 +408,12 @@ class GameScene(Scene):
                 self._restart()
             elif event.key == pygame.K_F10 and len(self.players) > 1:
                 self.view_index = (self.view_index + 1) % len(self.players)
+            elif event.key == pygame.K_e:
+                self.me.controls.queue_interact()
             elif event.key == pygame.K_l and self.app.dev and self.me.alive:
                 self._dev_level_up()
+            elif event.key in (pygame.K_F6, pygame.K_F7, pygame.K_F8) and self.app.dev:
+                self._dev_quest(event.key)
 
     # --- Frame -------------------------------------------------------------------------
 
@@ -459,6 +495,7 @@ class GameScene(Scene):
             inp = p.controls.read(p.hero, p.camera, self.world, self.enemies)
             if inp.pick is None:
                 inp.pick = p.controls.take_pick()
+            inp.interact = inp.interact or p.controls.take_interact()
             if p.ghost and p.progress.offer:
                 inp.pick = 0                  # bots take the first card
             if p.hero.stats is not None and p.hero.stats.has("hunters_mark"):
@@ -503,6 +540,11 @@ class GameScene(Scene):
                 # Chill slows the enemy's whole clock; frozen, it doesn't act.
                 # Pacts and Bounty speed it up.
                 scale = (e.status.time_scale if e.status is not None else 1.0) * (1 + getattr(e, "haste", 0.0))
+                if getattr(e, "boss", False):
+                    # A boss fights wherever it is in its arena, and is
+                    # never frozen solid.
+                    e.think(ctx, dt * max(scale, config.BOSS_MIN_TIME_SCALE))
+                    continue
                 if scale <= 0:
                     continue
                 for x0, x1, y0, y1 in boxes:
@@ -518,6 +560,7 @@ class GameScene(Scene):
         update_statuses(self.enemies, dt, self.effects)
         self.rules.resolve_combos()
         sounds += self._handle_deaths(ctx)
+        self.quests.step(dt, self.players, inputs)
         for p, xp in update_gems(self.gems, self.players, dt):
             self._gain_xp(p, xp)
         for p in self.players:
@@ -695,6 +738,7 @@ class GameScene(Scene):
                 if self.spawner is not None:
                     self.spawner.killed(e)
                 killer = self._player_of(e.last_hit_by)
+                self.quests.on_death(e, killer)
                 if killer is not None:
                     killer.stats.killed(e.espec.name)
                     drop(self.gems, e.x, e.y, e.espec.xp)
@@ -738,7 +782,8 @@ class GameScene(Scene):
         right away (at startup)."""
         if getattr(self.world, "update_views", None) is None:
             return  # the fixed test map has nothing to stream
-        views = self._views()
+        # (A boss fight's arena stays loaded too: its boss roams all of it.)
+        views = self._views() + self.quests.stream_views()
         if budget_ms is None:
             for p in self.players:
                 self.world.ensure_ready(*p.camera.visible_tiles())
@@ -804,8 +849,14 @@ class GameScene(Scene):
         x0, y0 = cam.canvas_to_world(0, 0)
         x1, y1 = cam.canvas_to_world(cam.view_w, cam.view_h)
         for e in self.enemies:
-            if x0 - margin <= e.x <= x1 + margin and y0 - margin <= e.y <= y1 + margin:
+            # (A boss is always drawn: its tells reach far beyond its body.)
+            if getattr(e, "boss", False) or (x0 - margin <= e.x <= x1 + margin
+                                             and y0 - margin <= e.y <= y1 + margin):
                 draw_enemy(text, self.sprites, cam, self.world, e)
+        talk_to = self.quests.npc_near(me.hero) if me.alive else None
+        for npc in self.quests.npcs:
+            if x0 - margin <= npc.x <= x1 + margin and y0 - margin <= npc.y <= y1 + margin:
+                draw_npc(text, self.sprites, cam, npc, me.hero.x, npc is talk_to)
         for p in self.players:
             h = p.hero
             if p.alive and x0 - margin <= h.x <= x1 + margin and y0 - margin <= h.y <= y1 + margin:
@@ -818,10 +869,16 @@ class GameScene(Scene):
         draw_projectiles(text, cam, self.projectiles)
         draw_effects(text, cam, self.world, air)
         others = [(p.hero.x, p.hero.y, p.color) for p in self.players if p is not me and p.alive]
+        pins = self.quests.pins()
+        fight = self.quests.fight
+        if fight is not None and fight.boss is not None and fight.boss.alive and not self.map_open:
+            b = fight.boss
+            dist = math.hypot(b.x - me.hero.x, b.y - me.hero.y)
+            draw_pointer(text, self.sprites, cam, b.x, b.y, f"{dist:.0f}")
         minimap = self.players[0].minimap
         if minimap is not None and not self.map_open and not isinstance(self.overlay, CardPicker):
             minimap.draw(text, self.sprites, self.world, me.hero.x, me.hero.y,
-                         me.hero.aim_angle, others)
+                         me.hero.aim_angle, others, pins)
         # No reticle for weapons that don't aim (the bard's pulse goes all round).
         if (me.alive and not self.map_open and self.overlay is None and not me.ghost
                 and me.hero.weapon.spec.aims):
@@ -830,17 +887,29 @@ class GameScene(Scene):
             elif me.aim is not None:
                 draw_crosshair(self.sprites, cam, cam.world_to_px(*me.aim))
         if not self.map_open:
+            boss = None
+            if fight is not None and fight.boss is not None and fight.boss.alive:
+                boss = (fight.boss.espec.name, fight.boss.frac)
             draw_hud(text, HudInfo(
                 hp=me.hero.hp, max_hp=me.hero.max_hp, level=me.progress.level,
                 xp_frac=me.progress.frac, kills=me.stats.total_kills, time=me.stats.time,
                 fps=self.fps if self.app.settings.show_fps else None,
                 spells=tuple((s.spec.short, s.level) for s in me.spells.values()),
-                loot=int(me.stats.loot), shield=me.hero.shield))
+                loot=int(me.stats.loot), shield=me.hero.shield, boss=boss))
+            if self.quests.states:
+                draw_quest_log(text, self.quests.log(), 5 if me.spells else 4)
+            if self.quests.banner is not None and self.overlay is None:
+                draw_banner(text, self.quests.banner)
+            if talk_to is not None and self.overlay is None:
+                center(text, d.rows - 3, f"  E / A: talk to the {talk_to.name}  ",
+                       palette.HUB_PROMPT, bg=palette.HUD_PANEL)
         if self.app.dev and not self.map_open:
-            text.put(0, d.rows - 1, " DEV  L: level up ", palette.DEV_TAG, palette.HUD_PANEL)
+            text.put(0, d.rows - 1, " DEV  L: level up  F6: to quest giver  F7: finish hunt  "
+                                    "F8: to lair ", palette.DEV_TAG, palette.HUD_PANEL)
         if self.map_open:
             self.big_map.draw(text, self.sprites, cam.view_rows,
-                              (me.hero.x, me.hero.y), me.hero.aim_angle, others)
+                              (me.hero.x, me.hero.y), me.hero.aim_angle, others, pins,
+                              self.quests.log())
         elif self.overlay is not None:
             dim_canvas(text, 110)
             self.overlay.draw(text)

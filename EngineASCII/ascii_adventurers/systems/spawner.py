@@ -19,7 +19,14 @@ Life cycle (update_views, once per simulation step):
     sleep (removed); it wakes fresh at its spawn point when you come back;
   * an enemy dies -> its id is remembered forever, so kills stay killed.
 No enemies spawn within ENEMY_FREE_RADIUS of the spawn point, nor inside
-any player's view (so nothing pops into existence in front of anyone).
+any player's view (so nothing pops into existence in front of anyone), nor
+on a landmark (world/landmarks.py: quest camps and boss lairs stay quiet).
+
+Fixed spawns (M17): the quest system adds its own enemies (the
+psychedelic frogs) with `place`; they wake, sleep and stay dead like
+rostered ones, except that they may wake inside a view (marked `fresh`,
+so the quest can show them appearing). Bosses (`boss` set) are never put
+to sleep.
 """
 
 from __future__ import annotations
@@ -40,6 +47,7 @@ class Spawner:
         self.dead: set = set()
         self.awake: dict = {}          # spawn id -> enemy
         self.rosters: dict = {}        # loaded chunk -> its roster
+        self.fixed: dict = {}          # spawn id -> (enemy key, x, y): placed by quests
         self.level = 1                 # the players' level: enemies wake this tough
         # Pacts and cards (systems/run_rules.py): more enemies, tougher,
         # harder-hitting, faster.
@@ -87,6 +95,8 @@ class Spawner:
             if biome not in spec.biomes:
                 continue
             x, y = tx + 0.5, ty + 0.5
+            if any(m.contains(x, y, config.LANDMARK_QUIET) for m in self._landmarks):
+                continue
             if spec.kind == "tower" and not self._near_wall(tx, ty):
                 continue
             if spec.kind in ("puffer", "burrower"):
@@ -95,6 +105,16 @@ class Spawner:
             if not hull_hits_solid(self.world, x, y, 0.0, half, half):
                 return x, y
         return None
+
+    @property
+    def _landmarks(self) -> list:
+        return getattr(self.world, "landmarks", ())
+
+    def place(self, sid, key: str, x: float, y: float) -> None:
+        """Add one fixed enemy (a quest's): it wakes and sleeps at (x, y)
+        like any other, and once killed stays dead. `sid`: a tuple of ints
+        that no chunk roster uses (those are (cx, cy, k))."""
+        self.fixed[sid] = (key, x, y)
 
     def _near_wall(self, tx, ty) -> bool:
         from ..world import tiles
@@ -140,7 +160,7 @@ class Spawner:
         sleep_m = config.ENEMY_DESPAWN_MARGIN
         keep = []
         for e in enemies:
-            if near(e.x, e.y, sleep_m):
+            if getattr(e, "boss", False) or near(e.x, e.y, sleep_m):
                 keep.append(e)
             else:
                 self.awake.pop(e.spawn_id, None)
@@ -161,22 +181,42 @@ class Spawner:
             kx0, kx1 = math.floor((vx - hw - wake_m) / n), math.floor((vx + hw + wake_m) / n)
             ky0, ky1 = math.floor((vy - hh - wake_m) / n), math.floor((vy + hh + wake_m) / n)
             wanted.update((kx, ky) for ky in range(ky0, ky1 + 1) for kx in range(kx0, kx1 + 1))
+        rosters = []
         for key in sorted(wanted):
             roster = self.rosters.get(key)
             if roster is None:
                 roster = self.rosters[key] = self.roster(*key)
+            rosters.append(roster)
+        for roster in rosters:
             for sid, name, x, y in roster:
                 if sid in self.dead or sid in self.awake:
                     continue
                 if not near(x, y, wake_m) or near(x, y, 2):
                     continue            # too far, or would pop into existence on screen
-                e = make_enemy(name, x, y,
-                               random.Random(hash_coords(self.seed, 0xA1, *sid)), sid)
-                e.scale_to_level(self.level + self.level_bonus)
-                e.damage_mult *= 1 + self.damage_bonus
-                e.haste = self.haste
-                self.awake[sid] = e
-                enemies.append(e)
+                enemies.append(self.wake(name, x, y, sid))
+        # Quest enemies may appear in view (you're often standing at their
+        # spot when you take the quest); `fresh` lets the quest show it.
+        for sid, (name, x, y) in self.fixed.items():
+            if sid in self.dead or sid in self.awake or not near(x, y, wake_m):
+                continue
+            e = self.wake(name, x, y, sid)
+            e.fresh = True
+            enemies.append(e)
+
+    def wake(self, name: str, x: float, y: float, sid=None, rng: random.Random | None = None):
+        """A new enemy of kind `name` at (x, y), as tough as the players'
+        level (and the pacts) make it. With a spawn id (a tuple of ints)
+        it's tracked as awake and its dice come from that id; bosses' adds
+        have none and bring their own dice."""
+        if rng is None:
+            rng = random.Random(hash_coords(self.seed, 0xA1, *sid))
+        e = make_enemy(name, x, y, rng, sid)
+        e.scale_to_level(self.level + self.level_bonus)
+        e.damage_mult *= 1 + self.damage_bonus
+        e.haste = self.haste
+        if sid is not None:
+            self.awake[sid] = e
+        return e
 
     def killed(self, enemy) -> None:
         self.awake.pop(enemy.spawn_id, None)

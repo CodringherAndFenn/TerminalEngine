@@ -5,6 +5,7 @@ ai -- enemy behaviour.
   steering.py   Noita-style clumsy obstacle avoidance (no pathfinding)
   shooters.py   goblin archer, warlock, ogre, spell tower (Character bodies)
   creatures.py  fallen warrior, spore puffer, burrower
+  bosses.py     bosses (M17): phases, moves, Froggy McFrogface
 
 make_enemy() builds one from its config.ENEMIES key.
 """
@@ -14,8 +15,9 @@ from __future__ import annotations
 import random
 
 from .. import config
+from .bosses import Froggy
 from .creatures import Boar, Burrower, DustDevil, Puffer, Warrior
-from .shooters import Archer, Ogre, Spitter, Toad, Tower, Warlock, Wisp
+from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 
 KINDS = {
     "archer": Archer,
@@ -31,6 +33,9 @@ KINDS = {
     "spitter": Spitter,
     "boar": Boar,
     "devil": DustDevil,
+    # M17
+    "psyfrog": PsyFrog,
+    "froggy": Froggy,
 }
 
 

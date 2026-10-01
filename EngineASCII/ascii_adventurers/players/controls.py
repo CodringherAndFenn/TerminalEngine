@@ -22,6 +22,10 @@ Sources:
 
 After a menu closes, `block_fire()` ignores a held trigger until it's let
 go, so the click that closed the menu doesn't fire.
+
+Card picks and "talk" (E / gamepad A) arrive as events; the scene queues
+them on the player's controls, and they ride along with the next step's
+input (queue_pick / queue_interact).
 """
 
 from __future__ import annotations
@@ -47,6 +51,7 @@ class PlayerInput:
     # A card choice this step: an index into the offer (0-based), "reroll",
     # "skip" or ("banish", index).
     pick: int | str | tuple | None = None
+    interact: bool = False       # talk to whoever is near (E / gamepad A), this step
 
 
 class Controls:
@@ -56,6 +61,7 @@ class Controls:
     def __init__(self) -> None:
         self._fire_blocked = False
         self._pick: int | None = None
+        self._interact = False
 
     def queue_pick(self, action) -> None:
         """A card choice made in the picker (see PlayerInput.pick); handed
@@ -65,6 +71,15 @@ class Controls:
     def take_pick(self):
         pick, self._pick = self._pick, None
         return pick
+
+    def queue_interact(self) -> None:
+        """The talk key was pressed (a key event, so it's never missed);
+        handed over with the next step's input."""
+        self._interact = True
+
+    def take_interact(self) -> bool:
+        pressed, self._interact = self._interact, False
+        return pressed
 
     def block_fire(self) -> None:
         self._fire_blocked = True

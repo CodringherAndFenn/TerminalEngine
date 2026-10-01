@@ -71,6 +71,20 @@ class IslandLayout:
         # Found once, when the run starts (~20 ms), not in the middle of
         # generating a chunk.
         self.spawn: tuple[int, int] = self._find_spawn()
+        self._landmarks = None
+
+    @property
+    def landmarks(self) -> list:
+        """The quest camps and boss lairs (world/landmarks.py), placed on
+        first use (a few tens of ms) and the same for every use after."""
+        if self._landmarks is None:
+            from .landmarks import build_landmarks
+            self._landmarks = build_landmarks(self)
+        return self._landmarks
+
+    def landmark(self, key: str):
+        """The landmark built by `key` ("frog_camp", ...), or None."""
+        return next((m for m in self.landmarks if m.key == key), None)
 
     # --- Queries ------------------------------------------------------------------------
 

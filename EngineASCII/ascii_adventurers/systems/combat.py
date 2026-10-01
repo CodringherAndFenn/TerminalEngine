@@ -470,6 +470,11 @@ def update_projectiles(
         if p.returning:
             events += _fly_back(p, grid, world, effects, dt, actors, spawned, zones)
             continue
+        if p.hold > 0:                    # waiting to fly (harmless until then)
+            p.hold -= dt
+            continue
+        if p.spec.wobble:
+            _weave(p)
         step = p.spec.speed * dt
         remaining = p.max_range - p.travelled
         last_leg = step >= remaining
@@ -525,6 +530,14 @@ def update_projectiles(
             p.alive = False
     projectiles[:] = [p for p in projectiles if p.alive] + spawned
     return events
+
+
+def _weave(p: Projectile) -> None:
+    """A weaving shot: its heading swings to either side of its aim, a
+    full swing every spec.wobble_tiles tiles flown."""
+    a = p.base_angle + p.spec.wobble * math.sin(p.travelled / p.spec.wobble_tiles * math.tau)
+    p.angle = a
+    p.dir_x, p.dir_y = math.cos(a), math.sin(a)
 
 
 def _stats_of(p: Projectile):

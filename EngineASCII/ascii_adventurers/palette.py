@@ -309,3 +309,52 @@ TOTEM = ((120, 230, 140), (200, 170, 110))
 TURRET = ((230, 225, 205), (150, 140, 120))
 CRACKLE = ((255, 250, 150), (150, 200, 255))
 HUD_SHIELD = (120, 190, 255)
+
+# --- M17: landmarks, quests, bosses ------------------------------------------------------
+# Landmark tiles (world/landmarks.py).
+LAIR_STONE_FG = (150, 160, 130)      # the lair's ring of standing stones
+LAIR_STONE_BG = (52, 58, 44)
+THORN_FG = (170, 120, 70)            # the thorn gate that seals the lair
+THORN_BG = (48, 30, 20)
+POND_FG = (70, 150, 120)             # Froggy's pools (like bog, a bit brighter)
+POND_BG = (16, 48, 42)
+LILY_FG = (110, 200, 90)             # lily pads round the pools
+PLANK_FG = (150, 110, 70)            # the frog hunter's hut
+PLANK_BG = (70, 48, 30)
+DECK_FG = (120, 88, 56)
+DECK_BG = (44, 32, 20)
+RACK_FG = (190, 160, 110)            # his drying racks
+# Map colors for the new tiles.
+MAP_TILE.update({
+    "standing stones": (165, 170, 150), "thorn gate": (190, 120, 60), "pond": (40, 95, 90),
+    "plank wall": (150, 110, 70), "drying rack": (150, 110, 70),
+})
+MAP_TILE_BIOME.update({"lily pads": "swamp", "deck": "swamp", "hunter's post": "swamp"})
+# Map pins (quest givers, lairs): (fill, edge).
+PIN_QUEST = ((255, 220, 90), (60, 40, 0))
+PIN_LAIR = ((255, 90, 70), (60, 10, 0))
+PIN_DONE = ((150, 150, 150), (40, 40, 40))
+# Quest log (ui/quest_log.py).
+QUEST_TITLE = (255, 220, 140)
+QUEST_TEXT = (210, 210, 190)
+QUEST_DONE = (120, 200, 120)
+SPEECH = (245, 240, 220)             # an NPC's words over their head
+SPEECH_NAME = (255, 220, 140)
+# Bosses: banner text, off-screen arrow, telegraphs.
+BOSS_BANNER = (255, 120, 90)
+BOSS_BANNER_SUB = (255, 210, 160)
+BOSS_ARROW = (255, 90, 70)
+TELEGRAPH = ((255, 90, 70), (160, 50, 40))       # aim lines, landing rings: bright, dim
+RIPPLE = ((150, 230, 220), (80, 150, 150))       # where a diving boss comes up
+TONGUE = ((255, 120, 160), (190, 70, 110))
+# Boss shots: (head, (trail near, trail far)).
+SHOT_TADPOLE = ((40, 40, 40), ((90, 120, 80), (60, 80, 55)))
+SHOT_BUBBLE = ((200, 245, 255), ((120, 190, 220), (80, 130, 160)))
+SHOT_RIPPLE = ((150, 230, 220), ((90, 170, 170), (60, 110, 110)))
+SHOT_WOBBLE = ((255, 140, 255), ((200, 90, 220), (130, 60, 150)))
+# The psychedelic colors (frogs, Froggy's last phase, rainbow rain), in hue order.
+PSYCHEDELIC = ((255, 85, 85), (255, 165, 60), (255, 235, 90), (115, 230, 115),
+               (90, 220, 230), (105, 165, 255), (190, 110, 255), (255, 120, 210))
+PSY_SHOTS = tuple(
+    (c, (tuple(round(v * 0.72) for v in c), tuple(round(v * 0.45) for v in c))) for c in PSYCHEDELIC
+)

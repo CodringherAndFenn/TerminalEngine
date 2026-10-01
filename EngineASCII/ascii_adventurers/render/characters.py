@@ -329,7 +329,37 @@ ART: dict[str, list[str]] = {
         "....kk..kk....",
         "..............",
     ],
+    # --- Quest givers (M17) ---------------------------------------------------------
+    "frog_hunter": [         # wide-brimmed hat, green coat, waders, a frog net
+        "..............",
+        ".....kkkk.....",
+        "....khhhhk....",
+        "...khhhhhhk...",
+        ".kkTTTTTTTTkk.",
+        "...kssssssk...",
+        "...kskssksk..t",
+        "...kssssssk.tw",
+        "..kgkSSSSkgktw",
+        ".kgggggggggktk",
+        ".kggyggggggkt.",
+        ".kgggggggggkt.",
+        "..kgggggggkkt.",
+        "..kTTTTTTTk.t.",
+        "..kTTk.kTTk.t.",
+        "..kTTk.kTTk...",
+        "..kkkk.kkkk...",
+        "..............",
+    ],
 }
+
+# The psychedelic frogs (M17): the bog toad in each of the psychedelic hues,
+# "psyfrog0".."psyfrog7" (light and dark sprite colors swapped in for its
+# greens).
+PSY_HUES = (("r", "R"), ("a", "A"), ("y", "Y"), ("g", "G"), ("o", "O"), ("b", "B"),
+            ("v", "V"), ("p", "P"))
+for _i, (_light, _dark) in enumerate(PSY_HUES):
+    ART[f"psyfrog{_i}"] = [row.translate(str.maketrans({"g": _light, "G": _dark}))
+                           for row in ART["toad"]]
 
 ART_W, ART_H = 14, 18
 _HIT_MIX = 0.65          # hit flash: this far toward white

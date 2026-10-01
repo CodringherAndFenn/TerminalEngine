@@ -4,7 +4,7 @@ A top-down ASCII adventure roguelike on one huge island, built on the
 narrative engine (`narrative_engine/`). Everything for the game lives in
 this folder.
 
-**Status:** Milestones 1-16 and "Adventurers" are done:
+**Status:** Milestones 1-17 and "Adventurers" are done:
 - keyboard walking, mouse aiming, a smooth scrolling camera;
 - shooting, spells and destructible terrain;
 - a seeded, chunk-streamed world with six biomes;
@@ -114,7 +114,26 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   the dungeon gate, for a brutal run) and bestiary pages (or slay 25 of an
   enemy: +10% damage to its kind). Three achievements unlock cards.
 
-Next up: quests, the boss framework and the first boss (M17).
+- quests and the first boss (M17, `design/BOSSES.md`): every ring biome
+  will have a quest whose giver waits at a camp, pinned on the minimap
+  and big map from the start; finishing it wakes the biome's boss
+  ("guardian") in its lair. Beat all 5 for the main quest, "Gain
+  Adventurer's Glory" (the plains boss and its Glory come later). Built so
+  far: the swamp. Walk up to the **frog hunter** (his hut sits just past
+  the plains border) and press E (gamepad A); squash the five
+  **psychedelic frogs** in his bog; then go to **Froggy's Pond**, a walled
+  arena about 3 x 3 screens. Step in and the gate fills with thorns:
+  **Froggy McFrogface** rises, a bullet-hell boss in three phases --
+  tadpole fans, a tongue lash (red dotted aim line), belly flops (red
+  landing ring; it sits dazed after each, the time to get close), then
+  bubble spirals, dives between the pools (ripples show where it comes
+  up) and croaking up toads, and finally a psychedelic phase of rainbow
+  rain and closing rings. An arrow at the screen's edge points to it when
+  it's off screen. Beating it opens the gate and pays out: 2,500 loot, a
+  rare-or-better card offer, an achievement and two bestiary pages. The
+  quest log sits under the HUD's top-left panel.
+
+Next up: the other four ring quests and bosses (M18), one at a time.
 
 ## Setup (once)
 
@@ -136,7 +155,10 @@ to 3) adds bot players that wander off on their own and fight what they
 meet; F10 in game switches the view between players, and other players
 show as coloured dots on the minimap and big map.
 Developer mode: `run.py --dev` fills the guild purse (999,999 loot) and
-in a run L levels you up on the spot (one card pick per press). Nothing
+in a run L levels you up on the spot (one card pick per press); F6 jumps
+next to the swamp's quest giver, F7 finishes his hunt (the boss wakes),
+F8 jumps outside the boss's lair (walk in to start the fight). After a
+boss falls, dev mode prints how long the fight took to the console. Nothing
 bought and no records are saved in dev mode, so your real save stays as
 it was.
 - **Screen:** the grid is fitted to your screen's shape, so borderless and
@@ -161,7 +183,8 @@ east out of the starting compound's gate to reach its shooting range.
 | WASD / Arrows  | walk (8 directions, same speed every way)                |
 | Left click     | attack (hold to keep attacking; the bard plays by himself) |
 | Mouse          | aim (true angle; the amber ring is the exact aim point, brackets mark the tile under it); you face the mouse |
-| M              | big map (pauses): wheel zoom, drag or WASD pan, C centre on you, M/ESC close |
+| E              | talk to a quest giver standing next to you (gamepad: A)  |
+| M              | big map (pauses): wheel zoom, drag or WASD pan, C centre on you, M/ESC close; lists your quests |
 | ESC            | pause menu: resume, settings, abandon run, quit          |
 | R              | after you fall: go again (same hero, same seed if you chose one) |
 | Left / Right, Enter | choose and take a level-up card (or hover and click)  |
@@ -272,29 +295,34 @@ world/          layout.py (the island plan: which biome is where), hub.py
                 chunked.py (the island world, streaming, damage memory),
                 generator.py (chunk generation), biomes.py, noise.py
                 (seeded value noise, numpy), rng.py (deterministic hashing),
-                tiles.py, test_map.py
+                tiles.py, test_map.py, landmarks.py (quest camps and boss
+                lairs, stamped into the generated island)
 entities/       actor.py (anything with hp), character.py (walking body
                 with a weapon: hero and shooting enemies), weapon.py,
                 projectile.py, effects.py, gems.py (XP gems)
 ai/             brain.py (senses, memory, infighting), steering.py (clumsy
                 obstacle avoidance), pathing.py (small local search when
                 stuck), shooters.py (archer, warlock, ogre, tower),
-                creatures.py
+                creatures.py, bosses.py (the boss framework: phases and
+                moves; Froggy McFrogface)
 systems/        collision.py (box vs tiles), raycast.py (grid walk for
                 shots), combat.py (shots, pierce, chain lightning, melee
                 swings, pulses, blasts, friendly fire, damage numbers),
                 spawner.py (per-chunk enemy rosters), statuses.py (burn,
                 poison, bleed, chill, shock), spells.py (card spells),
                 zones.py (crackles, poison pools), run_rules.py (cards that
-                react to kills, level-ups, hits; revives; pacts)
+                react to kills, level-ups, hits; revives; pacts),
+                quests.py (quest stages, givers, the sealed boss fight,
+                rewards), patterns.py (boss bullet patterns)
 render/         terrain.py (cached pre-drawn terrain blocks), glyphs.py
                 (text pre-rendered to images for batched drawing),
                 sprites.py (baked pictures, per angle), characters.py
                 (pixel-art heroes and enemies, walk frames),
                 enemies_sprite.py (creatures, tells), ascii_fx.py (shots,
                 effects, numbers, bars as glyphs), spell_fx.py (gems,
-                spells, status pips)
-ui/             hud.py, card_picker.py, guild_panel.py (the hall's shops),
+                spells, status pips), bosses.py (bosses and their tells,
+                quest givers, the boss banner and pointer)
+ui/             hud.py, quest_log.py, card_picker.py, guild_panel.py (the hall's shops),
                 crosshair.py, maps.py (minimap + big map),
                 overlays.py (pause menu, game over), settings_panel.py,
                 widgets.py (hero picker, seed field), logo.py, frame.py
@@ -308,7 +336,8 @@ app.py          services shared by the scenes (settings, records, sounds, pads)
 save/           the player's settings and records (not in git)
 assets/maps/    test_map.txt
 design/         CARDS.md (the card catalog), GUILD.md (loot, upgrades,
-                prices), the upgrade design guide
+                prices), BOSSES.md (quests, bosses, landmarks), the
+                upgrade design guide
 tests/          unittest suite
 ```
 

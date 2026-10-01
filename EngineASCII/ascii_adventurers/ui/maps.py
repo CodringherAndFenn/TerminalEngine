@@ -127,6 +127,25 @@ def draw_mate(bank: SpriteBank, color: tuple, x: float, y: float) -> None:
     bank.draw(bank.static(f"map_mate{color}", _paint_mate(color), 7), x, y)
 
 
+_PIN_COLORS = {"quest": palette.PIN_QUEST, "lair": palette.PIN_LAIR, "done": palette.PIN_DONE}
+
+
+def _paint_pin(kind: str):
+    """A map pin (M17): a diamond, gold for a quest giver, red for a boss's
+    lair, grey once done."""
+    fill, edge = _PIN_COLORS[kind]
+
+    def paint(surf, to_px):
+        for color, r in ((edge, 7), (fill, 5)):
+            pts = [to_px(0, -r), to_px(r, 0), to_px(0, r), to_px(-r, 0)]
+            pygame.draw.polygon(surf, color, pts)
+    return paint
+
+
+def draw_pin(bank: SpriteBank, kind: str, x: float, y: float) -> None:
+    bank.draw(bank.static(f"map_pin_{kind}", _paint_pin(kind), 8), x, y)
+
+
 # --- Minimap ------------------------------------------------------------------------
 
 
@@ -166,9 +185,11 @@ class Minimap:
         self._origin = (bx0, by0)
 
     def draw(self, text: TextRenderer, bank: SpriteBank, world, x: float, y: float,
-             facing: float, others=()) -> None:
+             facing: float, others=(), pins=()) -> None:
         """`others`: other players as (x, y, color), drawn as dots when
-        they're inside the box."""
+        they're inside the box. `pins`: quest pins (x, y, kind, label),
+        drawn where they are -- or, when they're off the box, on its edge
+        in their direction, so you always know which way to go."""
         w, rows = config.MINIMAP_COLS, config.MINIMAP_ROWS
         h, k = rows * 2, config.MINIMAP_TILES_PER_PIXEL
         d = text.display
@@ -211,6 +232,13 @@ class Minimap:
             px, py = mx + (ox - x) / k * pw, my + (oy - y) / k * ph
             if inner.x + 4 <= px < inner.right - 4 and inner.y + 4 <= py < inner.bottom - 4:
                 draw_mate(bank, color, px, py)
+        for ox, oy, kind, _ in pins:
+            px, py = mx + (ox - x) / k * pw, my + (oy - y) / k * ph
+            # Off the box: slide it in along the line from the centre.
+            dx, dy = px - mx, py - my
+            lim_x, lim_y = inner.width / 2 - 6, inner.height / 2 - 6
+            f = max(abs(dx) / lim_x if lim_x else 0.0, abs(dy) / lim_y if lim_y else 0.0, 1.0)
+            draw_pin(bank, kind, mx + dx / f, my + dy / f)
         d.canvas.set_clip(old_clip)
         draw_arrow(bank, facing, mx, my)
 
@@ -335,8 +363,11 @@ class BigMap:
     # --- Drawing -------------------------------------------------------------------
 
     def draw(self, text: TextRenderer, bank: SpriteBank, view_rows: int,
-             player: tuple[float, float], facing: float, others=()) -> None:
-        """`others`: other players as (x, y, color)."""
+             player: tuple[float, float], facing: float, others=(), pins=(),
+             quests=()) -> None:
+        """`others`: other players as (x, y, color); `pins`: quest pins (x, y,
+        kind, label); `quests`: the quest log's lines (label, text, done),
+        listed in the top-left corner."""
         cols = text.display.cols
         cw, ch = text.display.cell_w, text.display.cell_h
         w, rows = cols - 2, view_rows - 2
@@ -375,6 +406,21 @@ class BigMap:
             col, row = round(px / cw - len(name) / 2), int(py // ch)
             if 1 <= col and col + len(name) <= w + 1 and 1 <= row <= rows:
                 text.put(col, row, name, palette.MAP_LABEL, None)
+
+        for ox, oy, kind, label in pins:
+            px, py = self._world_to_canvas(ox, oy, cw, ch)
+            if cw <= px < (w + 1) * cw and ch <= py < (rows + 1) * ch:
+                draw_pin(bank, kind, px, py)
+                col, row = round(px / cw - len(label) / 2), int(py // ch) + 1
+                if 1 <= col and col + len(label) <= w + 1 and 1 <= row <= rows:
+                    text.put(col, row, label, _PIN_COLORS[kind][0], palette.HUD_PANEL)
+        if quests:
+            width = max(len(f"{a:7} {b}") for a, b, _ in quests) + 2
+            text.put(2, 2, " QUESTS".ljust(width), palette.QUEST_TITLE, palette.HUD_PANEL)
+            for i, (label, what, done) in enumerate(quests):
+                line = f" {label:7} {what}".ljust(width)
+                text.put(2, 3 + i, line, palette.QUEST_DONE if done else palette.QUEST_TEXT,
+                         palette.HUD_PANEL)
 
         for ox, oy, color in others:
             px, py = self._world_to_canvas(ox, oy, cw, ch)

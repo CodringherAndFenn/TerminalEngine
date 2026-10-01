@@ -48,6 +48,13 @@ class Projectile:
         self.summon = False
         self.inflicts: tuple[str, int] | None = None
         self.returning = False        # boomerangs: on the way back to the owner
+        # M17 (bosses): the aim a weaving shot (spec.wobble) weaves around,
+        # and seconds it waits in place before flying (harmless meanwhile:
+        # a contracting ring shows where it'll close first). `tint` picks a
+        # color from a look's palette (psychedelic shots).
+        self.base_angle = angle
+        self.hold = 0.0
+        self.tint = 0
         # Lobbed shells: where it comes down, and how far that is (full range
         # straight ahead unless combat.fire aims it at a point).
         self.flight = spec.max_range

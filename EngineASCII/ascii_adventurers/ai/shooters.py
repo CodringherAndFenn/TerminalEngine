@@ -403,3 +403,18 @@ class Spitter(Shooter):
             self.spin += math.radians(config.SPITTER_RING_TURN_DEG)
         if seen:
             self.aim_angle = self.angle_to(t.x, t.y)     # (only which way it faces)
+
+
+class PsyFrog(Toad):
+    """Psychedelic frog (M17, the swamp quest's quest-only enemy): a bog
+    toad gone strange. Hops about keeping well away (preferred range
+    8-13) and spits weaving globs; it glows through the colors
+    (`glow`, render/enemies_sprite.py)."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.glow = self.rng.uniform(0, 8)
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.glow += dt * 5.0
+        super().think(ctx, dt)

@@ -21,10 +21,11 @@ import pygame
 
 from .. import config, palette
 from ..ai.creatures import Boar, Burrower, DustDevil, Puffer, Warrior
-from ..ai.shooters import Shooter, Warlock, Wisp
+from ..ai.shooters import PsyFrog, Shooter, Warlock, Wisp
 from ..engine_ext.camera import Camera
 from .ascii_fx import draw_beam, draw_boar_tell, draw_hp_bar, draw_searchlight
-from .characters import draw_body
+from .bosses import draw_froggy
+from .characters import draw_body, draw_character, walk_frame
 from .sprites import SpriteBank, quad
 
 
@@ -181,7 +182,14 @@ def _paint_devil(angle: float):
 
 def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
     x, y = camera.world_to_px(e.x, e.y)
-    if isinstance(e, Shooter):
+    if getattr(e, "boss", False):
+        draw_froggy(text, bank, camera, e)     # (its health is the HUD's boss bar)
+        return
+    if isinstance(e, PsyFrog):
+        # A bog toad body glowing through the psychedelic hues.
+        draw_character(bank, x, y, f"psyfrog{int(e.glow) % 8}", e.spec.sprite_scale,
+                       e.facing_left, walk_frame(e), e.hurt_flash > 0)
+    elif isinstance(e, Shooter):
         if isinstance(e, Warlock) and e.beam_on:
             draw_beam(text, camera, world, e)
         if isinstance(e, Wisp):

@@ -11,8 +11,8 @@ Units:
 
 import math
 
-from .specs import (CardSpec, CharacterSpec, EnemySpec, PactSpec, ShellSpec, SpellSpec,
-                    StatusSpec, UpgradeSpec, WeaponSpec)
+from .specs import (BossPhase, BossSpec, CardSpec, CharacterSpec, EnemySpec, PactSpec, QuestSpec,
+                    ShellSpec, SpellSpec, StatusSpec, UpgradeSpec, WeaponSpec)
 
 # --- Display / layout --------------------------------------------------------
 
@@ -189,6 +189,12 @@ WEAPONS = {
         shell=ShellSpec(speed=9.0, damage=7, max_range=12.0, damages_terrain=False,
                         look="acid", sound="orb"),
     ),
+    # M17: the psychedelic frogs' weaving spit (quest-only enemy).
+    "psy_spit": WeaponSpec(
+        name="psychedelic spit", fire_interval=1.4, pellets=2, spread_deg=24.0,
+        shell=ShellSpec(speed=10.0, damage=8, max_range=16.0, damages_terrain=False,
+                        look="wobble", sound="orb", wobble=0.45, wobble_tiles=3.0),
+    ),
     "sand_fling": WeaponSpec(      # the dust devil's pellets (fired by its own AI)
         name="sand fling", fire_interval=1.8,
         shell=ShellSpec(speed=9.0, damage=5, max_range=10.0, damages_terrain=False,
@@ -255,6 +261,10 @@ BODIES = {
     "toad": CharacterSpec(
         name="bog toad", weapon="acid_spit", sprite="toad", max_speed=10.0,
         accel=80.0, brake=60.0, size_px=24, aim_turn_speed=math.radians(140), hold_px=14,
+    ),
+    "psyfrog": CharacterSpec(      # M17 (drawn in shifting colors, render/enemies_sprite.py)
+        name="psychedelic frog", weapon="psy_spit", sprite="toad", max_speed=11.0,
+        accel=80.0, brake=60.0, size_px=24, aim_turn_speed=math.radians(160), hold_px=14,
     ),
     "spitter": CharacterSpec(
         name="spore spitter", weapon="spore_ring", sprite="spitter", max_speed=0.0,
@@ -335,6 +345,16 @@ ENEMIES = {
         biomes=("forest",), weight=3, speed=4.5,
         damage=22, attack_radius=9.0,   # charges from up to this far away
         windup=0.7, cooldown=1.8, size_px=28, xp=9,
+    ),
+    # M17: quest enemies and bosses. Empty `biomes`: the spawner never rolls
+    # them -- the quest system (systems/quests.py) places them.
+    "psy_frog": EnemySpec(
+        name="psychedelic frog", kind="psyfrog", body="psyfrog", max_hp=110, sight=20,
+        biomes=(), preferred_range=(8.0, 13.0), xp=25,
+    ),
+    "froggy": EnemySpec(
+        name="Froggy McFrogface", kind="froggy", max_hp=6000, sight=400,
+        biomes=(), size_px=96, xp=400,
     ),
 }
 
@@ -1039,6 +1059,9 @@ BESTIARY = {
     "toad": (600, "Hops between rests and spits a fan of acid."),
     "spitter": (800, "Rooted; fires a ring of spores that turns each volley."),
     "boar": (1000, "Scrapes the ground, then charges in a line. Dodge: it stuns itself on walls."),
+    # M17: filled in by beating the swamp's boss (or bought).
+    "psy_frog": (1500, "Five live in the frog hunter's bog. Keeps away, spits weaving globs."),
+    "froggy": (5000, "Dives between pools, lashes its tongue, belly-flops. Hit it while it's dazed."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -1046,6 +1069,7 @@ ACHIEVEMENTS = {
     "chain_reaction": "kill 15 enemies within 1 second",
     "crit_75": "reach 75% crit chance",
     "level_30": "reach level 30",
+    "froggy": "defeat Froggy McFrogface",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -1107,6 +1131,8 @@ ENEMY_DENSITY_MULTIPLIER = 1.6
 ENEMY_DAMAGE_MULTIPLIER = 0.85
 # No enemies spawn within this many tiles of the start.
 ENEMY_FREE_RADIUS = 55
+# Nor on a landmark (a quest camp or boss lair), or within this many tiles of one.
+LANDMARK_QUIET = 10
 # Sleeping enemies wake once their spawn point is within this many tiles of
 # the view (inside LOAD_MARGIN, so their chunk is always generated).
 ENEMY_WAKE_MARGIN = 28
@@ -1299,3 +1325,120 @@ MUSHROOM_SPORE_CHANCE = 0.06
 RUINS_BUILDINGS = (1, 3)     # buildings per ruins chunk (min, max)
 RUINS_WALL_GAP_CHANCE = 0.18 # wall segments already collapsed
 RUINS_RUBBLE_CHANCE = 0.12
+
+# --- Quests, landmarks and bosses (M17, design/BOSSES.md) ---------------------------
+#
+# Each ring biome draws a quest (one per biome for now). Its giver waits at
+# a camp just past the plains border, pinned on the maps from the start;
+# talking to them starts the quest, finishing it wakes the biome's boss at
+# its lair. The 5 ring bosses ("guardians") unlock the plains boss, whose
+# Adventurer's Glory can end the run (later milestones).
+
+QUESTS = {
+    "swamp": QuestSpec(
+        title="Bad Trip", biome="swamp", giver="frog hunter", giver_sprite="frog_hunter",
+        camp="frog_camp", lair="pond_lair", target="psy_frog", count=5, boss="froggy",
+        goal="Psychedelic frogs {n}/{count}",
+        lines=(
+            ("offer", ("Oi! Adventurer! Over here!",
+                       "Five frogs in my bog went all funny colours.",
+                       "Glowing, hopping, spitting rainbows at me.",
+                       "Squash all five for me, will you?")),
+            ("progress", ("{left} more of them glowing frogs.",
+                          "They're out in the bog, behind my hut.")),
+            ("done", ("That's all five! But... hear that croak?",
+                      "Something BIG woke up at the old pond.",
+                      "I've marked it on your map. Go careful!")),
+            ("fight", ("Froggy's awake! The old pond, quick!",)),
+            ("cleared", ("Froggy McFrogface, beaten! Ha!",
+                         "The bog will sleep easy tonight. Thank you!")),
+        ),
+    ),
+}
+# The main quest: beat this many ring-biome bosses ("guardians"), then the
+# plains boss, for Adventurer's Glory.
+GUARDIANS = 5
+
+# Quest givers: how close you must stand to talk (E / gamepad A), and how
+# long each line they say stays over their head.
+TALK_RADIUS = 3.0
+SPEECH_LINE_TIME = 2.6
+
+# The frog hunter's camp (world/landmarks.py): a bog oval of these radii
+# (tiles) with his hut on the side facing the plains, CAMP_BORDER_GAP tiles
+# past the plains border. Pools where the bog's noise field is above
+# CAMP_POOL_MIN (higher: fewer, smaller pools).
+CAMP_BOG_RADII = (34, 15)
+CAMP_BORDER_GAP = 30
+CAMP_POOL_MIN = 0.58
+
+# A boss lair: an oval arena LAIR_RADII tiles (half-width, half-height) --
+# one screen shows ~86 x 30 tiles, so 125 x 50 is about 3 x 3 screens (room
+# for co-op players to spread out) -- inside a LAIR_WALL-tile ring of
+# standing stones, with a LAIR_GATE_WIDTH-tile gate facing the plains and a
+# LAIR_MARGIN-tile clearing all round. LAIR_POOLS pools (one in the middle)
+# and LAIR_PILLARS stone pillars for cover, spread over the whole floor.
+LAIR_RADII = (125, 50)
+LAIR_WALL = 3
+LAIR_GATE_WIDTH = 7
+LAIR_MARGIN = 12
+LAIR_POOLS = 9
+LAIR_PILLARS = 30
+# The gate seals (thorns) once a player is this far inside the stones, and
+# opens again when the boss falls.
+LAIR_SEAL_DEPTH = 6
+
+# Bosses. HP and damage grow with the players' level like any enemy's
+# (ENEMY_HP_PER_LEVEL / ENEMY_DAMAGE_PER_LEVEL), and HP by coop_hp per
+# extra player. Fight-length target for a ring boss: ~2 min at the power
+# you usually have when you get there (design/BOSSES.md 5.4).
+BOSS_BANNER_TIME = 3.5          # the boss's name across the screen when it wakes
+# Chill and freeze slow a boss's clock at most down to this (no freeze-lock).
+BOSS_MIN_TIME_SCALE = 0.5
+# Most boss shots alive at once, per player in the arena (design/BOSSES.md 5.4).
+BOSS_MAX_SHOTS = 150
+# A boss's card reward: one extra card offer of at least this rarity.
+BOSS_CARD_RARITY = "rare"
+
+BOSSES = {
+    "froggy": BossSpec(
+        name="Froggy McFrogface",
+        phases=(
+            BossPhase(1.0, (("fan", 3), ("tongue", 2), ("flop", 3)), rest=1.1),
+            BossPhase(0.6, (("fan", 2), ("tongue", 2), ("flop", 2), ("spiral", 3), ("dive", 2),
+                            ("summon", 1)), rest=0.9),
+            BossPhase(0.25, (("tongue", 1), ("flop", 2), ("spiral", 2), ("dive", 2),
+                             ("rain", 3), ("ring", 3)), rest=0.55),
+        ),
+        loot=2500, achievement="froggy", pages=("froggy", "psy_frog"),
+    ),
+}
+
+# Froggy McFrogface's moves (ai/bosses.py). Damages are per hit at level 1
+# (x the enemy damage scaling), speeds in tiles/s.
+FROGGY_HIT_RADIUS = 2.3         # tiles (its body is ~5 x 3 tiles)
+FROGGY_TELL = 0.55              # wind-up before the tadpoles / spirals / croak
+FROGGY_FAN = (7, 60.0, 3, 0.35)         # tadpoles per volley, fan degrees, volleys, gap s
+FROGGY_TONGUE = (0.8, 16.0, 0.9, 14, 5.0)  # aim time, reach, width, damage, pull (tiles)
+FROGGY_FLOP = (1.0, 34.0, 4.0, 15, 16, 1.5)  # flight s, max leap, blast radius, damage,
+                                            # ripples on landing, dazed s (the melee window)
+FROGGY_SPIRAL = (3.0, 0.12, 2.2)        # seconds, s between bubbles, arm turn rad/s
+FROGGY_DIVE = (0.5, 0.6, 1.3, 22)       # hop in, under, ripples (tell) s, ring on surfacing
+FROGGY_SUMMON = (3, 4)                  # toads per croak, most alive at once
+FROGGY_RAIN = (4.0, 0.3, 3.0, 7.0, 20.0)  # seconds, s between rows, column gap, hole width,
+                                          # half-width of the curtain (tiles)
+FROGGY_RING = (22, 10.0, 0.7, 2, 0.9)   # bullets, radius, hold s (tell), rings, s between
+FROGGY_FAR = 40.0               # farther than this from its target: it leaps closer
+# Its shots (enemy damage scaling applies).
+FROGGY_SHOTS = {
+    "tadpole": ShellSpec(speed=12.0, damage=9, max_range=34.0, damages_terrain=False,
+                         look="tadpole", sound="orb"),
+    "bubble": ShellSpec(speed=7.0, damage=8, max_range=30.0, damages_terrain=False,
+                        look="bubble", sound="fizzle"),
+    "ripple": ShellSpec(speed=8.0, damage=10, max_range=22.0, damages_terrain=False,
+                        look="ripple", sound="fizzle"),
+    "rain": ShellSpec(speed=9.0, damage=8, max_range=40.0, damages_terrain=False,
+                      look="psy", sound="orb"),
+    "ring": ShellSpec(speed=7.0, damage=10, max_range=20.0, damages_terrain=False,
+                      look="psy", sound="orb"),
+}

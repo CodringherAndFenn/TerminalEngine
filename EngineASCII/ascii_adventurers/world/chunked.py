@@ -47,6 +47,9 @@ class ChunkedWorld:
         assert n & (n - 1) == 0, "CHUNK_SIZE must be a power of two"
         self.seed = seed
         self.layout = IslandLayout(seed, radius)
+        # Quest camps and boss lairs are placed now (~70 ms, with the start
+        # search), never in the middle of a time-budgeted chunk build.
+        self.layout.landmarks
         # What the player has seen (every chunk ever generated), for the maps.
         self.explored = ExploredMap()
         self._shift = n.bit_length() - 1   # tx >> shift == floor(tx / n)
@@ -119,6 +122,25 @@ class ChunkedWorld:
         c.glyphs[i] = tile.glyph_at(tx, ty, hp)
         self._changed.add((tx, ty))
         return Damage.DAMAGED
+
+    def set_tile(self, tx: int, ty: int, tile: TileType) -> None:
+        """Put a different tile at (tx, ty), for good (remembered like
+        damage, so it survives the chunk unloading) -- a lair's gate
+        sealing and opening."""
+        key = (tx >> self._shift, ty >> self._shift)
+        i = ((ty & self._mask) << self._shift) | (tx & self._mask)
+        self._changes.setdefault(key, {})[i] = tile
+        self._hp.pop((tx, ty), None)
+        c = self._chunks.get(key)
+        if c is not None:
+            c.tiles[i] = tile
+            c.glyphs[i] = tile.glyph_at(tx, ty)
+            self.explored.set_tile(tx, ty, tile)
+            self._changed.add((tx, ty))
+
+    @property
+    def landmarks(self) -> list:
+        return self.layout.landmarks
 
     # --- Streaming -----------------------------------------------------------------
 
