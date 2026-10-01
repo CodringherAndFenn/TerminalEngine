@@ -100,7 +100,7 @@ class RecordsTest(unittest.TestCase):
 
 class RunStatsTest(unittest.TestCase):
     def test_tracks_time_distance_biomes_and_kills(self):
-        r = RunStats("knight", 7, (10.0, 10.0))
+        r = RunStats("dwarf", 7, (10.0, 10.0))
         r.tick(0.5, 13.0, 14.0, 5.0, "plains")
         r.tick(0.5, 11.0, 10.0, 8.0, "forest")
         r.tick(0.5, 11.0, 10.0, 8.0, "plains")
@@ -155,7 +155,7 @@ class HudTest(unittest.TestCase):
 
     def test_only_aiming_weapons_show_a_reticle(self):
         self.assertFalse(config.WEAPONS[config.HEROES["bard"].weapon].aims)
-        for hero in ("wizard", "knight", "princess", "huntress"):
+        for hero in ("wizard", "dwarf", "princess", "huntress"):
             self.assertTrue(config.WEAPONS[config.HEROES[hero].weapon].aims, hero)
 
     def test_boss_bar_only_in_a_boss_fight(self):
@@ -175,7 +175,7 @@ class ProgressTest(unittest.TestCase):
         self.assertEqual((p.level, p.xp, p.picks), (3, 2, 2))
         self.assertAlmostEqual(p.frac, 2 / needs[2])
 
-    def test_kills_give_xp_to_the_killer(self):
+    def test_kills_drop_a_gem_that_gives_xp_when_picked_up(self):
         import random
         from ascii_adventurers.ai import make_enemy
         from ascii_adventurers.scenes.game import GameScene
@@ -189,6 +189,12 @@ class ProgressTest(unittest.TestCase):
         e.take_damage(9999, s.hero, 0.0)
         s.update(1 / 60)
         xp = config.ENEMIES["ogre"].xp
+        self.assertEqual((s.me.progress.level, s.me.progress.xp), (1, 0))   # not yet: a gem
+        self.assertEqual([g.value for g in s.gems], [xp])
+        s.gems[0].x, s.gems[0].y = s.hero.x + 1, s.hero.y       # within pickup reach
+        for _ in range(30):
+            s.update(1 / 60)
+        self.assertEqual(s.gems, [])
         self.assertEqual((s.me.progress.level, s.me.progress.xp), (1 + (xp >= config.LEVEL_XP_BASE),
                                                                    xp % config.LEVEL_XP_BASE))
         self.assertEqual(any(ef.kind == "levelup" for ef in s.effects), xp >= config.LEVEL_XP_BASE)

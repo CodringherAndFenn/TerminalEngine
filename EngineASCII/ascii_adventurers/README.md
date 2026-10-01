@@ -4,7 +4,7 @@ A top-down ASCII adventure roguelike on one huge island, built on the
 narrative engine (`narrative_engine/`). Everything for the game lives in
 this folder.
 
-**Status:** Milestones 1-11 and "Adventurers" are done:
+**Status:** Milestones 1-15 and "Adventurers" are done:
 - keyboard walking, mouse aiming, a smooth scrolling camera;
 - shooting, spells and destructible terrain;
 - a seeded, chunk-streamed world with six biomes;
@@ -16,7 +16,7 @@ this folder.
 - maps (M6): a minimap in the top-right corner and a big map on M. Explored
   ground shows real terrain; the rest of the island shows as a dimmed biome
   outline;
-- adventurers: you play a hero (wizard, knight, bard, princess or
+- adventurers: you play a hero (wizard, dwarf, bard, princess or
   huntress);
 - performance (M7): terrain is drawn from cached pre-drawn blocks, sprites
   are single images, and shots, effects, HUD and minimap draw in batches
@@ -38,7 +38,8 @@ this folder.
     (each jump weaker);
   - huntress, longbow: fast, long-range arrows that pierce 2 enemies;
   - princess, rainbow: a fan of 5 colored shots, deadly up close;
-  - knight, sword: a wide swing hitting everything in front; chops trees;
+  - dwarf, throwing axes: spin out through every enemy in the way and come
+    back to him, hitting again (they bounce off walls);
   - bard, lute: plays by itself, every beat hurts everything around him.
   Heroes never hurt each other (ready for co-op); monsters still do.
 
@@ -49,7 +50,8 @@ text characters, like the terrain.
 The enemies:
 - goblin archer, warlock (red aiming beam before it casts), spell tower
   (ruins), and ogre (armored front, throws rocks that break walls);
-- burrower (desert), spore puffer (mushroom), fallen warrior (plains).
+- burrower (desert), spore puffer (mushroom), fallen warrior (plains);
+- dust devil, sentry wisp, bog toad, spore spitter, thornback boar.
 
 Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
 - XP and cards (M11): kills give XP; every level is a card pick. Three
@@ -60,11 +62,50 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   attack speed, HP, speed, range, regeneration, lifesteal for everyone;
   extra/piercing/faster shots for shooters; and each hero's own (the
   wizard's lightning jumps farther, the huntress's volley, the princess's
-  extra colors, the knight's wider swing, the bard's louder beat). The
+  extra colors, the dwarf's extra axes, the bard's louder beat). The
   new "corners" HUD: HP, level/XP, kills and the run's clock top-left; the
   world fills the screen; seed, biome and distance are in the pause menu.
 
-Next up: bigger plains and the full enemy roster (M12).
+- bigger plains, more enemies (M12): the plains have twice the area (the
+  island grew to keep the biome ring as wide). Five new enemies, none of
+  them ambushers: dust devil (desert, plains; a whirlwind that circles
+  close, flinging spirals of sand and stinging on touch), sentry wisp (ruins; steady bolts, and
+  much faster while its sweeping searchlight is on you), bog toad (swamp;
+  hops, spits a fan of acid), spore spitter (mushroom; a ring of spores all
+  round, turning each volley), thornback boar (forest; scrapes, then
+  charges in a line -- dodge and it slams into a wall, dazed).
+
+- the dwarf (M13) replaced the knight, and the card catalog was written
+  (`design/CARDS.md`, 100 cards, reviewed and approved).
+- cards 2.0 (M14), the first 48 cards of the catalog:
+  - a stat layer: damage %, attack speed, crit chance (5% to start) and
+    crit damage, area, duration, status damage and chance, spell
+    cooldown, armor, dodge, regen, lifesteal, move speed, pickup radius,
+    XP, luck. "+X% damage" cards add up; "xN damage" cards multiply;
+  - five rarities (common, uncommon, rare, epic, legendary). Generic
+    cards are tiered: the same card rolls a rarity and its number grows
+    with it. Luck makes the rare ones likelier;
+  - statuses: burn, poison and bleed hurt over time, chill slows (five
+    stacks freeze), shock makes the enemy take 15% more from everything.
+    Pips over an enemy show what it has;
+  - spells from cards, up to 3, each levelling up to V: Orbiting Daggers,
+    Ember Aura, Frost Nova (shown on the HUD);
+  - four new cards per hero (the wizard's bolts can shock, the dwarf's
+    axes bleed, the huntress marks the toughest enemy, the princess's
+    colors carry statuses, the bard's beats push and chill);
+  - REROLL (3 a run), BANISH (none yet: the Guild will sell them) and
+    SKIP (heals 15%) under the cards: R / B / X, or Down then Enter;
+  - XP now drops as gems where enemies fall: walk near to pull them in
+    (Magnet widens the reach).
+
+- loot and the Guild Hall (M15): every kill is worth loot (rune shards,
+  shown flying into you), kept in full however the run ends. Spend it in
+  the Guild Hall (title screen, or the game-over box): walk up to the
+  guildmaster (upgrades for everyone), the trainer (each hero's own), the
+  archivist (card unlocks) or a hero's statue (play as them), and leave
+  through the dungeon gate. Prices and numbers: `design/GUILD.md`.
+
+Next up: cards up to ~100 (M16).
 
 ## Setup (once)
 
@@ -85,6 +126,10 @@ This works from any working directory. Debug: `run.py --ghosts N` (N up
 to 3) adds bot players that wander off on their own and fight what they
 meet; F10 in game switches the view between players, and other players
 show as coloured dots on the minimap and big map.
+Developer mode: `run.py --dev` fills the guild purse (999,999 loot) and
+in a run L levels you up on the spot (one card pick per press). Nothing
+bought and no records are saved in dev mode, so your real save stays as
+it was.
 - **Screen:** the grid is fitted to your screen's shape, so borderless and
   fullscreen have no black bars.
 - **Sound:** plays on your operating system's default output device, unless
@@ -210,8 +255,10 @@ engine_ext/     camera.py (smooth pixel scrolling), input.py, sfx.py
 players/        player.py (a player: hero, controls, camera, stats; the
                 area kept alive around them), controls.py (keyboard+mouse,
                 gamepad, auto-switching, debug ghost bot), progress.py
-                (level and XP), cards.py (offers and card effects)
-world/          layout.py (the island plan: which biome is where),
+                (level, XP, rerolls), cards.py (offers and card effects),
+                stats.py (the stat layer and damage buckets)
+world/          layout.py (the island plan: which biome is where), hub.py
+                (the Guild Hall's tiles and people),
                 explored.py (what you've seen, for the maps),
                 chunked.py (the island world, streaming, damage memory),
                 generator.py (chunk generation), biomes.py, noise.py
@@ -219,7 +266,7 @@ world/          layout.py (the island plan: which biome is where),
                 tiles.py, test_map.py
 entities/       actor.py (anything with hp), character.py (walking body
                 with a weapon: hero and shooting enemies), weapon.py,
-                projectile.py, effects.py
+                projectile.py, effects.py, gems.py (XP gems)
 ai/             brain.py (senses, memory, infighting), steering.py (clumsy
                 obstacle avoidance), pathing.py (small local search when
                 stuck), shooters.py (archer, warlock, ogre, tower),
@@ -227,23 +274,30 @@ ai/             brain.py (senses, memory, infighting), steering.py (clumsy
 systems/        collision.py (box vs tiles), raycast.py (grid walk for
                 shots), combat.py (shots, pierce, chain lightning, melee
                 swings, pulses, blasts, friendly fire, damage numbers),
-                spawner.py (per-chunk enemy rosters)
+                spawner.py (per-chunk enemy rosters), statuses.py (burn,
+                poison, bleed, chill, shock), spells.py (card spells)
 render/         terrain.py (cached pre-drawn terrain blocks), glyphs.py
                 (text pre-rendered to images for batched drawing),
                 sprites.py (baked pictures, per angle), characters.py
                 (pixel-art heroes and enemies, walk frames),
                 enemies_sprite.py (creatures, tells), ascii_fx.py (shots,
-                effects, numbers, bars as glyphs)
-ui/             hud.py, card_picker.py, crosshair.py, maps.py (minimap + big map),
+                effects, numbers, bars as glyphs), spell_fx.py (gems,
+                spells, status pips)
+ui/             hud.py, card_picker.py, guild_panel.py (the hall's shops),
+                crosshair.py, maps.py (minimap + big map),
                 overlays.py (pause menu, game over), settings_panel.py,
                 widgets.py (hero picker, seed field), logo.py, frame.py
 scenes/         title.py, new_run.py (hero select), settings.py, game.py,
+                guild_hall.py (the walkable hub),
                 common.py (menu backdrop, F11, gamepad events)
-meta/           settings.py (save/settings.json), records.py
+meta/           settings.py (save/settings.json), guild.py (loot purse,
+                upgrades, unlocks: save/guild.json), records.py
                 (save/records.json), run_stats.py, files.py
 app.py          services shared by the scenes (settings, records, sounds, pads)
 save/           the player's settings and records (not in git)
 assets/maps/    test_map.txt
+design/         CARDS.md (the card catalog), GUILD.md (loot, upgrades,
+                prices), the upgrade design guide
 tests/          unittest suite
 ```
 

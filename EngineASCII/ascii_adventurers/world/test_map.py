@@ -35,7 +35,8 @@ LEGEND: dict[str, TileType] = {
 class TestMap:
     __test__ = False  # not a unittest class, despite the name
 
-    def __init__(self, rows: list[str]) -> None:
+    def __init__(self, rows: list[str], legend: dict[str, TileType] | None = None) -> None:
+        legend = LEGEND if legend is None else legend
         self.height = len(rows)
         self.width = max((len(r) for r in rows), default=0)
         self._tiles: list[list[TileType]] = []
@@ -53,7 +54,7 @@ class TestMap:
                 if ch == "@":
                     # Spawn at the tile's center.
                     self._spawn = (tx + 0.5, ty + 0.5)
-                row.append(LEGEND.get(ch, tiles.GROUND))
+                row.append(legend.get(ch, tiles.GROUND))
             self._tiles.append(row)
             self._glyphs.append([t.glyph_at(tx, ty) for tx, t in enumerate(row)])
 

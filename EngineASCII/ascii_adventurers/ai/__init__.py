@@ -14,8 +14,8 @@ from __future__ import annotations
 import random
 
 from .. import config
-from .creatures import Burrower, Puffer, Warrior
-from .shooters import Archer, Ogre, Tower, Warlock
+from .creatures import Boar, Burrower, DustDevil, Puffer, Warrior
+from .shooters import Archer, Ogre, Spitter, Toad, Tower, Warlock, Wisp
 
 KINDS = {
     "archer": Archer,
@@ -25,6 +25,12 @@ KINDS = {
     "burrower": Burrower,
     "puffer": Puffer,
     "warrior": Warrior,
+    # M12
+    "wisp": Wisp,
+    "toad": Toad,
+    "spitter": Spitter,
+    "boar": Boar,
+    "devil": DustDevil,
 }
 
 

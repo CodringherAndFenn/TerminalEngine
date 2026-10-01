@@ -29,10 +29,15 @@ DURATIONS = {
     "burrow": 0.5,          # dust kicked up by a burrower underground
     # Milestone 10: hero weapons
     "arc": 0.16,            # lightning jumping between enemies
-    "swing": 0.2,           # the knight's sword slash (render/slash.py)
+    "swing": 0.2,           # a sword slash (render/slash.py)
     "pulse": 0.32,          # the bard's ring of sound
     # Milestone 11
     "levelup": 1.2,         # "LEVEL UP!" rising over a hero
+    # Milestone 14
+    "nova": 0.4,            # Frost Nova's ring
+    "dodge": 0.6,           # "dodge" over a hero who dodged a hit
+    # Milestone 15
+    "loot": 0.55,           # a rune shard flying from a kill to the hero
 }
 
 
@@ -45,9 +50,11 @@ class Effect:
     t: float = 0.0          # age, seconds
     value: int = 0          # "number": the damage shown
     player: bool = False    # "number": the hero got hurt (drawn in red)
+    tone: str = ""          # "number": "crit" or a status name (its color)
     x2: float = 0.0         # "arc": the far end (world)
     y2: float = 0.0
     size: float = 0.0       # "swing"/"pulse": reach in tiles ("swing": arc degrees in value)
+    target: object = None   # "loot": the hero it flies to
 
     @property
     def duration(self) -> float:

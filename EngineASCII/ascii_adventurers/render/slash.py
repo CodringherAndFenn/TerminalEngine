@@ -1,5 +1,5 @@
 """
-render/slash.py -- the knight's sword slash: a classic white crescent.
+render/slash.py -- a sword slash (the knight's, before the dwarf replaced him): a classic white crescent.
 
 The crescent follows the swing's arc at its reach: thickest in the middle,
 tapering to points at both ends, a white core inside a pale blue glow. It

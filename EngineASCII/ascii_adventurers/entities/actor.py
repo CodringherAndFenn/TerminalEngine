@@ -23,6 +23,7 @@ class Actor:
         self.last_hit_by: Actor | None = None   # who gets the credit for a kill
         self.invulnerable = False         # debug ghosts
         self.lifesteal = 0.0              # fraction of damage this actor deals that heals it
+        self.status = None                # systems/statuses.Statuses once it has any
 
     @property
     def alive(self) -> bool:
@@ -38,6 +39,8 @@ class Actor:
         the world direction the hit travelled in (None for blasts)."""
         if not self.alive or self.invulnerable:
             return 0.0
+        if self.status is not None:
+            amount *= self.status.vulnerability      # shocked: takes more from everything
         if source is not None:
             self.last_hit_by = source
             if source.lifesteal > 0 and source.alive:

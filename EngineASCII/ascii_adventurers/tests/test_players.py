@@ -202,7 +202,7 @@ class ControlsTest(unittest.TestCase):
         from ascii_adventurers.engine_ext.camera import Camera
         from ascii_adventurers.entities.character import Character
         from ascii_adventurers.engine_ext.input import Mouse
-        self.hero = Character(config.HEROES["knight"], 50.0, 50.0)
+        self.hero = Character(config.HEROES["dwarf"], 50.0, 50.0)
         self.camera = Camera(128, 27, 10, 24)
         self.camera.center_on(50.0, 50.0)
         self.mouse = Mouse(self.display)

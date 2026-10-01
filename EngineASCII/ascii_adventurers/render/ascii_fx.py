@@ -32,7 +32,7 @@ from ..entities.effects import Effect
 from ..entities.projectile import Projectile
 from ..systems.collision import screen_angle
 from ..systems.raycast import first_hit
-from .glyphs import images_for
+from .glyphs import images_for, loot_glyph
 
 # Octant of an on-screen direction: 0 = east, then clockwise (y is down).
 _HEAD = (">", "\\", "v", "/", "<", "\\", "^", "/")
@@ -81,12 +81,45 @@ SHOT_LOOKS = {
     "spark": ("*", ("+", "."), palette.SHOT_SPARK),
     "longarrow": (None, (None, None), palette.SHOT_LONGARROW),
     "prism": ("o", (".", "."), None),        # colors: palette.RAINBOW_SHOTS by pellet
+    "wisp": ("*", (".", "."), palette.SHOT_WISP),
+    "acid": ("o", (".", ","), palette.SHOT_ACID),
+    "spore": ("o", (".", "."), palette.SHOT_SPORE),
+    "bomb": ("@", (None, None), None),       # lobbed: drawn by _draw_lobbed
+    "sand": ("*", (".", "."), palette.SHOT_SAND),
+    "axe": (None, (".", "."), palette.SHOT_AXE),    # head: spins (AXE_SPIN)
 }
+# A thrown axe's head turns through these glyphs, one step every
+# AXE_SPIN_TILES of flight (so faster throws spin faster).
+AXE_SPIN = "/-\\|"
+AXE_SPIN_TILES = 0.35
+BOMB_ARC_PX = 46          # how high a lobbed bomb flies at the top of its arc
+
+
+def _draw_lobbed(batch, camera: Camera, p: Projectile) -> None:
+    """A bomb in the air: its shadow on the ground, the bomb above it on
+    an arc (highest half way), and a ring on the ground where it'll land --
+    blinking faster as it comes down."""
+    f = p.travelled / p.flight if p.flight > 0 else 1.0
+    gx, gy = camera.world_to_px(p.x, p.y)
+    batch.put_c(gx, gy, ".", palette.BOMB_SHADOW)
+    height = 4 * BOMB_ARC_PX * f * (1 - f)
+    batch.put_c(gx, gy - height, "@", palette.BOMB)
+    batch.put_c(gx + 4, gy - height - 10, "'", palette.BOMB_FUSE)
+    tx, ty = camera.world_to_px(*p.target)
+    blink = int(p.travelled * (4 + 10 * f)) % 2 == 0
+    color = palette.BOMB_MARK[0 if blink else 1]
+    r = p.spec.blast_radius
+    for dx, dy, glyph, _ in _ring(10, 1.0, ".", color):
+        batch.put_c(tx + dx * r * config.TILE_PX_W, ty + dy * r * config.TILE_PX_H, glyph, color)
+    batch.put_c(tx, ty, "x", color)
 
 
 def draw_projectiles(text: TextRenderer, camera: Camera, projectiles: list[Projectile]) -> None:
     batch = _Batch(text)
     for p in projectiles:
+        if p.spec.lob:
+            _draw_lobbed(batch, camera, p)
+            continue
         head, trail, cols = SHOT_LOOKS[p.spec.look]
         if cols is None:                     # the rainbow: one color per pellet
             cols = palette.RAINBOW_SHOTS[p.variant % len(palette.RAINBOW_SHOTS)]
@@ -98,6 +131,8 @@ def draw_projectiles(text: TextRenderer, camera: Camera, projectiles: list[Proje
                 x, y = camera.world_to_px(p.x - p.dir_x * dist, p.y - p.dir_y * dist)
                 batch.put_c(x, y, trail[k] or _LINE[octant], trail_cols[k])
         x, y = camera.world_to_px(p.x, p.y)
+        if p.spec.look == "axe":
+            head = AXE_SPIN[int(p.travelled / AXE_SPIN_TILES) % len(AXE_SPIN)]
         batch.put_c(x, y, head or _HEAD[octant], head_col)
     batch.flush()
 
@@ -154,6 +189,13 @@ def _frame(e: Effect) -> list:
         return [(math.cos(k * math.tau / 16) * r * config.TILE_PX_W,
                  math.sin(k * math.tau / 16) * r * config.TILE_PX_H,
                  "*" if k % 2 else "o", col) for k in range(16)]
+    if e.kind == "nova":
+        r = e.size * (0.2 + 0.8 * p)
+        col = palette.NOVA[min(2, int(p * 3))]
+        n = 24
+        return [(math.cos(k * math.tau / n) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / n) * r * config.TILE_PX_H,
+                 "*" if k % 3 == 0 else ".", col) for k in range(n)]
     if e.kind == "spores":
         f = min(2, int(p * 3))
         r = (18, 34, 48)[f]
@@ -189,10 +231,28 @@ def draw_effects(text: TextRenderer, camera: Camera, world, effects: list[Effect
             batch.put_c(x, y - 34 - 22 * e.progress, "LEVEL UP!", palette.LEVEL_UP)
             continue
         if e.kind == "number":
-            # Floats up and fades: bright, then a dimmer shade.
-            colors = palette.NUMBER_PLAYER if e.player else palette.NUMBER_ENEMY
-            batch.put_c(x, y - 20 - 26 * e.progress, f"-{e.value}",
-                  colors[0] if e.progress < 0.6 else colors[1])
+            # Floats up and fades: bright, then a dimmer shade. Crits and
+            # status damage have their own colors; a crit gets a "!".
+            colors = palette.NUMBER_PLAYER if e.player else \
+                palette.NUMBER_TONES.get(e.tone, palette.NUMBER_ENEMY)
+            label = f"-{e.value}!" if e.tone == "crit" else f"-{e.value}"
+            batch.put_c(x, y - 20 - 26 * e.progress, label,
+                        colors[0] if e.progress < 0.6 else colors[1])
+            continue
+        if e.kind == "loot":
+            # Pops up off the body, then arcs into the hero (wherever
+            # they've gone) and is gone.
+            f = e.progress
+            hx, hy = (camera.world_to_px(e.target.x, e.target.y) if e.target is not None
+                      else (x, y - 40))
+            ease = f * f
+            lx, ly = x + (hx - x) * ease, y + (hy - y) * ease - 36 * math.sin(math.pi * f)
+            batch.put_c(lx, ly, loot_glyph(text), palette.LOOT)
+            if f < 0.5:
+                batch.put_c(x, y - 26 - 30 * f, f"+{e.value}", palette.LOOT_TEXT)
+            continue
+        if e.kind == "dodge":
+            batch.put_c(x, y - 20 - 20 * e.progress, "dodge", palette.DODGE)
             continue
         for dx, dy, glyph, color in _frame(e):
             batch.put_c(x + dx, y + dy, glyph, color)
@@ -222,6 +282,51 @@ def _lightning(batch, e: Effect, start, end) -> None:
 # --- Enemy tells ----------------------------------------------------------------------------
 
 HP_BAR_CELLS = 4
+
+
+def draw_searchlight(text: TextRenderer, camera: Camera, w) -> None:
+    """A sentry wisp's light: a thin cone of dots from the wisp, brighter
+    (':') while it's on its target -- that's when it fires fast."""
+    half = math.radians(config.WISP_CONE_DEG) / 2
+    reach = config.WISP_LIGHT_RANGE
+    color = palette.WISP_LIGHT_HOT if w.lit else palette.WISP_LIGHT
+    glyph = ":" if w.lit else "."
+    batch = _Batch(text)
+    for side in (-1.0, 0.0, 1.0):
+        a = w.light + side * half
+        n = 7 if side else 5
+        for k in range(1, n + 1):
+            d = reach * k / n
+            x, y = camera.world_to_px(w.x + math.cos(a) * d, w.y + math.sin(a) * d)
+            batch.put_c(x, y, glyph, color)
+    batch.flush()
+
+
+def draw_boar_tell(text: TextRenderer, camera: Camera, b) -> None:
+    """Scraping: dust kicked up behind it and dots along the line it's
+    about to charge. Charging: speed streaks behind. Dazed: stars over it."""
+    batch = _Batch(text)
+    ca, sa = math.cos(b.facing), math.sin(b.facing)
+    if b.state == "scrape":
+        for k in range(1, 9):                     # the charge line
+            x, y = camera.world_to_px(b.x + ca * k * 1.4, b.y + sa * k * 1.4)
+            batch.put_c(x, y, ".", palette.BOAR_EYE)
+        flick = int(b.timer * 20) % 2
+        for dv in (-0.5, 0.5):
+            x, y = camera.world_to_px(b.x - ca * 1.2 - sa * dv, b.y - sa * 1.2 + ca * dv)
+            batch.put_c(x, y, "," if flick else ".", palette.SCRAPE_DUST[flick])
+    elif b.state == "charge":
+        glyph = _LINE[_octant(b.facing)]
+        for k in (1.3, 2.0):
+            x, y = camera.world_to_px(b.x - ca * k, b.y - sa * k)
+            batch.put_c(x, y, glyph, palette.SCRAPE_DUST[0 if k < 1.5 else 1])
+    elif b.state == "dazed":
+        x, y = camera.world_to_px(b.x, b.y)
+        spin = b.timer * 6
+        for k in range(3):
+            a = spin + k * math.tau / 3
+            batch.put_c(x + math.cos(a) * 12, y - 26 + math.sin(a) * 4, "*", palette.DAZE)
+    batch.flush()
 
 
 def draw_hp_bar(text: TextRenderer, x: float, y: float, frac: float) -> None:

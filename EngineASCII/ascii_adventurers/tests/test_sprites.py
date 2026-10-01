@@ -98,11 +98,11 @@ class CharacterArtTest(unittest.TestCase):
                 self.assertEqual(right.get_at((x, y)), left.get_at((w - 1 - x, y)))
 
     def test_walk_frames_and_hit_flash_change_the_picture(self):
-        base = pygame.image.tobytes(self._render("knight"), "RGBA")
+        base = pygame.image.tobytes(self._render("dwarf"), "RGBA")
         for kw in ({"frame": 1}, {"frame": 3}, {"hurt": True}):
-            self.assertNotEqual(pygame.image.tobytes(self._render("knight", **kw), "RGBA"), base, kw)
+            self.assertNotEqual(pygame.image.tobytes(self._render("dwarf", **kw), "RGBA"), base, kw)
         # Frames 0 and 2 are both "standing".
-        self.assertEqual(pygame.image.tobytes(self._render("knight", frame=2), "RGBA"), base)
+        self.assertEqual(pygame.image.tobytes(self._render("dwarf", frame=2), "RGBA"), base)
 
     def test_screen_angle_accounts_for_non_square_tiles(self):
         # World 45 deg = 1 tile right, 1 tile down = 20 px right, 24 px down.

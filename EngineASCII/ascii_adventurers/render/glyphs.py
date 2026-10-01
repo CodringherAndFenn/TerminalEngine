@@ -16,6 +16,8 @@ cache): images are never evicted.
 
 from __future__ import annotations
 
+import weakref
+
 import pygame
 
 from engine import TextRenderer
@@ -63,3 +65,41 @@ def images_for(text: TextRenderer) -> GlyphImages:
     if _shared is None or _shared.text is not text or _shared.cell != cell:
         _shared = GlyphImages(text)
     return _shared
+
+
+# --- The loot icon -----------------------------------------------------------------------
+# Loot isn't coins: it's rune shards, a glowing crystal splinter with a
+# golden rune in it. One custom glyph (engine register_glyph, a Private
+# Use Area character), so it can sit in any text: the HUD, menus, effects.
+LOOT = ""
+_SHARD = ("..L..",
+          ".LlL.",
+          "LlrlL",
+          "LlrlD",
+          "LlrlD",
+          ".LlD.",
+          "..D..")
+_registered: "weakref.WeakSet[TextRenderer]" = weakref.WeakSet()
+
+
+def _paint_shard(cell: pygame.Surface, fg) -> None:
+    from .. import palette
+    colors = {"L": palette.LOOT_LIGHT, "l": palette.LOOT, "D": palette.LOOT_DARK,
+              "r": palette.LOOT_RUNE}
+    w, h = cell.get_size()
+    px = max(1, min(w // len(_SHARD[0]), h // len(_SHARD)))
+    x0 = (w - px * len(_SHARD[0])) // 2
+    y0 = (h - px * len(_SHARD)) // 2
+    for y, row in enumerate(_SHARD):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                cell.fill(colors[ch], (x0 + x * px, y0 + y * px, px, px))
+
+
+def loot_glyph(text: TextRenderer) -> str:
+    """The loot icon's character, registered on this renderer if needed."""
+    register = getattr(text, "register_glyph", None)    # (test recorders have none)
+    if register is not None and text not in _registered:
+        register(LOOT, _paint_shard)
+        _registered.add(text)
+    return LOOT

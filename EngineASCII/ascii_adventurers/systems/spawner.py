@@ -40,6 +40,7 @@ class Spawner:
         self.dead: set = set()
         self.awake: dict = {}          # spawn id -> enemy
         self.rosters: dict = {}        # loaded chunk -> its roster
+        self.level = 1                 # the players' level: enemies wake this tough
 
     def roster(self, cx: int, cy: int) -> list[tuple[tuple, str, float, float]]:
         """[(spawn id, enemy key, x, y)] for one chunk. Deterministic."""
@@ -164,6 +165,7 @@ class Spawner:
                     continue            # too far, or would pop into existence on screen
                 e = make_enemy(name, x, y,
                                random.Random(hash_coords(self.seed, 0xA1, *sid)), sid)
+                e.scale_to_level(self.level)
                 self.awake[sid] = e
                 enemies.append(e)
 

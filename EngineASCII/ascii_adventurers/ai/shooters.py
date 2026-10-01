@@ -1,6 +1,6 @@
 """
 ai/shooters.py -- enemies that shoot: goblin archer, warlock, ogre, spell
-tower.
+tower; and (M12) sentry wisp, bog toad, spore spitter.
 
 They are real Characters (the same walking, box collision, aiming, armor
 and sprite drawing as the hero) with a Brain on top. The brain decides a
@@ -85,7 +85,7 @@ class Shooter(Brain, Character):
             ctx.events += combat.fire(
                 self, ctx.world, ctx.projectiles, ctx.effects,
                 angle=self.aim_angle + err,
-                damage=self.weapon.spec.shell.damage,
+                damage=self.weapon.spec.shell.damage * self.damage_mult,
             )
 
     def wander(self, ctx, dt) -> None:
@@ -198,7 +198,7 @@ class Warlock(Shooter):
             self.weapon.cooldown = self.weapon.spec.fire_interval
             ctx.events += combat.fire(
                 self, ctx.world, ctx.projectiles, ctx.effects,
-                damage=self.weapon.spec.shell.damage,
+                damage=self.weapon.spec.shell.damage * self.damage_mult,
             )
             self.beam = 0.0
             side = self.rng.choice((-1, 1))
@@ -286,3 +286,120 @@ class Tower(Shooter):
                 self.aim_angle_toward(self.angle_to(*self.last_known), dt)
             else:  # idle sweep
                 self.aim_angle_toward(wrap_angle(self.aim_angle + 0.6), dt * 0.4)
+
+
+# --- M12 --------------------------------------------------------------------------------
+
+
+class Wisp(Shooter):
+    """Sentry wisp (ruins): a floating eye circling at mid range, firing
+    steady bolts at you whenever it sees you. Its searchlight sweeps back
+    and forth around you; while the light is on you it fires much faster --
+    so stay out of the beam, don't just hide from the wisp."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.light = self.aim_angle           # where the searchlight points (world)
+        self.sweep = self.rng.uniform(0, math.tau)
+        self.lit = False                      # the light is on the target now
+        self.rapid = 0.0                      # cooldown of the fast (lit) fire
+        self.orbit = self.rng.choice((-1, 1))
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        self.sweep += dt * config.WISP_SWEEP_SPEED
+        self.rapid = max(0.0, self.rapid - dt)
+        t = self.target
+        if t is None or not self.sees_target:
+            self.lit = False
+            self.light = wrap_angle(self.light + dt * 0.8)      # idle scan
+            self.weapon.update(dt, False)
+            if self.last_known is not None:
+                self.search(ctx, dt)
+            else:
+                self.wander(ctx, dt)
+            return
+        lo, hi = self.espec.preferred_range
+        away = math.atan2(self.y - t.y, self.x - t.x)
+        r = (lo + hi) / 2
+        a = away + self.orbit * math.radians(30)
+        self.drive_to(ctx, t.x + math.cos(a) * r, t.y + math.sin(a) * r, dt)
+        # The light swings back and forth across the target.
+        to_t = self.angle_to(t.x, t.y)
+        self.light = to_t + math.sin(self.sweep) * math.radians(config.WISP_SWEEP_DEG)
+        self.lit = (abs(wrap_angle(to_t - self.light)) <= math.radians(config.WISP_CONE_DEG) / 2
+                    and self.dist_to(t) <= config.WISP_LIGHT_RANGE)
+        if self.lit and self.rapid <= 0 and self.clear_shot(ctx.world, t) and self.reaction <= 0:
+            self.aim_angle = to_t
+            self.rapid = config.WISP_LIT_INTERVAL
+            err = self.rng.gauss(0, config.AIM_ERROR)
+            ctx.events += combat.fire(self, ctx.world, ctx.projectiles, ctx.effects,
+                                      angle=to_t + err,
+                                      damage=self.weapon.spec.shell.damage * self.damage_mult)
+            self.weapon.update(dt, False)
+        else:
+            self.aim_and_fire(ctx, dt, self.clear_shot(ctx.world, t))
+
+
+class Toad(Shooter):
+    """Bog toad (swamp): gets around in hops -- a quick leap, then a pause --
+    keeping a middling distance, and spits a fan of slow acid globs while
+    it sits."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.hop = 0.0                        # >0: mid-leap
+        self.rest = self.rng.uniform(0.3, 1.0)
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        t = self.target
+        if self.hop > 0:
+            self.hop -= dt
+            self.weapon.update(dt, False)
+            self.move(math.cos(self.heading), math.sin(self.heading), dt, ctx.world)
+            if self.hop <= 0 or self.last_blocked:
+                self.hop = 0.0
+                self.rest = self.rng.uniform(*config.TOAD_REST)
+            return
+        self.hold(ctx, dt)
+        self.rest -= dt
+        if t is not None and self.sees_target:
+            self.aim_and_fire(ctx, dt, self.clear_shot(ctx.world, t))
+            goal = t.x, t.y
+            lo, hi = self.espec.preferred_range
+            d = self.dist_to(t)
+            away = math.atan2(self.y - t.y, self.x - t.x)
+            side = away + self.rng.choice((-1, 1)) * math.radians(50)
+            if d < lo:
+                goal = (t.x + math.cos(away) * hi, t.y + math.sin(away) * hi)
+            elif d <= hi:
+                goal = (t.x + math.cos(side) * d, t.y + math.sin(side) * d)
+        else:
+            self.weapon.update(dt, False)
+            goal = self.last_known or self.wander_goal(dt)
+        if self.rest <= 0:                   # leap toward the goal
+            self.heading = self.angle_to(*goal)
+            self.hop = config.TOAD_HOP_TIME
+
+
+class Spitter(Shooter):
+    """Spore spitter (mushroom): a mushroom that doesn't move. While it sees
+    someone it puffs a ring of spores all around, turning the ring a little
+    every volley -- a small bullet-hell pattern to weave through."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.spin = self.rng.uniform(0, math.tau)
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        t = self.target
+        seen = t is not None and self.sees_target
+        if self.weapon.update(dt, seen and self.reaction <= 0):
+            ctx.events += combat.fire(self, ctx.world, ctx.projectiles, ctx.effects,
+                                      angle=self.spin,
+                                      damage=self.weapon.spec.shell.damage * self.damage_mult)
+            self.spin += math.radians(config.SPITTER_RING_TURN_DEG)
+        if seen:
+            self.aim_angle = self.angle_to(t.x, t.y)     # (only which way it faces)

@@ -36,7 +36,7 @@ class AngleTest(unittest.TestCase):
 
 class HeroesTest(unittest.TestCase):
     def test_all_five_heroes_exist_and_the_wizard_is_default(self):
-        self.assertEqual(set(config.HEROES), {"wizard", "knight", "bard", "princess", "huntress"})
+        self.assertEqual(set(config.HEROES), {"wizard", "dwarf", "bard", "princess", "huntress"})
         self.assertEqual(config.START_HERO, "wizard")
         weapons = [spec.weapon for spec in config.HEROES.values()]
         self.assertEqual(len(set(weapons)), 5)            # each hero their own

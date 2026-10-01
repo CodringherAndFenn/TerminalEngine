@@ -4,7 +4,9 @@ render/enemies_sprite.py -- drawing enemies, their tells, and health bars.
 Readability rules (few, dangerous enemies must be *readable*):
   * every attack has a visible tell: the warlock's aiming beam (flickering
     as the hex nears), the warrior's raised blade, the puffer swelling up,
-    the burrower's ground cracking before it bursts out;
+    the burrower's ground cracking before it bursts out, the wisp's
+    searchlight, the boar scraping the ground (and its charge line), a
+    bomb's landing ring;
   * a small "==--" health bar appears over any damaged enemy.
 Shooting enemies are pixel-art characters (render/characters.py); the
 creatures are shapes baked by render/sprites.py; tells and bars are glyphs
@@ -18,10 +20,10 @@ import math
 import pygame
 
 from .. import config, palette
-from ..ai.creatures import Burrower, Puffer, Warrior
-from ..ai.shooters import Shooter, Warlock
+from ..ai.creatures import Boar, Burrower, DustDevil, Puffer, Warrior
+from ..ai.shooters import Shooter, Warlock, Wisp
 from ..engine_ext.camera import Camera
-from .ascii_fx import draw_beam, draw_hp_bar
+from .ascii_fx import draw_beam, draw_boar_tell, draw_hp_bar, draw_searchlight
 from .characters import draw_body
 from .sprites import SpriteBank, quad
 
@@ -123,6 +125,57 @@ def _paint_worm(hurt: bool):
     return for_angle
 
 
+def _paint_boar(pose: str, hurt: bool):
+    """Top-down boar: a bristly oval body, a ridge of thorns down the back,
+    a snout with two white tusks toward its heading. Head lowered (tucked
+    in, eyes glowing) while it scrapes before a charge."""
+    hide = palette.HIT_FLASH if hurt else palette.BOAR_HIDE
+
+    def for_angle(a):
+        def paint(surf, to_px):
+            def rot(u, v):
+                return (u * math.cos(a) - v * math.sin(a), u * math.sin(a) + v * math.cos(a))
+            head = 7 if pose == "scrape" else 9
+            for u, r in ((-6, 8), (0, 9), (6, 8)):                 # body
+                _circle(surf, to_px, palette.BOAR_DARK, *rot(u, 0), r + 1)
+                _circle(surf, to_px, hide, *rot(u, 0), r)
+            for u in (-9, -5, -1, 3):                               # thorny ridge
+                pygame.draw.line(surf, palette.BOAR_DARK, to_px(*rot(u, 0)),
+                                 to_px(*rot(u - 3, 0)), 3)
+            _circle(surf, to_px, palette.BOAR_DARK, *rot(head + 4, 0), 6)   # head
+            _circle(surf, to_px, hide, *rot(head + 4, 0), 5)
+            for v in (-3, 3):                                       # tusks
+                pygame.draw.line(surf, palette.BOAR_TUSK, to_px(*rot(head + 7, v)),
+                                 to_px(*rot(head + 12, v * 1.6)), 2)
+                eye = palette.BOAR_EYE if pose == "scrape" else palette.BOAR_DARK
+                _circle(surf, to_px, eye, *rot(head + 5, v * 0.8), 1)
+        return paint
+    return for_angle
+
+
+def _paint_devil(angle: float):
+    """A dust devil seen from above: three curved arms of sand spiralling
+    round a pale eye, specks of dust flung out -- turned by `angle` (it's
+    drawn at its spin, so it visibly whirls)."""
+    light, mid, dark = palette.DEVIL
+
+    def paint(surf, to_px):
+        for arm in range(3):
+            base = angle + arm * math.tau / 3
+            pts = []
+            for k in range(9):                    # a spiral arm, widening outward
+                a = base + k * 0.32
+                r = 2.5 + k * 1.8
+                pts.append(to_px(math.cos(a) * r, math.sin(a) * r))
+            pygame.draw.lines(surf, dark, False, pts, 4)
+            pygame.draw.lines(surf, mid if arm else light, False, pts, 2)
+        _circle(surf, to_px, light, 0, 0, 2.5)
+        for k in range(5):                        # flung specks
+            a = angle * 1.7 + k * 1.3
+            _circle(surf, to_px, mid, math.cos(a) * 17, math.sin(a) * 17, 1.5)
+    return paint
+
+
 # --- Drawing ----------------------------------------------------------------------------
 
 
@@ -131,7 +184,19 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
     if isinstance(e, Shooter):
         if isinstance(e, Warlock) and e.beam_on:
             draw_beam(text, camera, world, e)
+        if isinstance(e, Wisp):
+            draw_searchlight(text, camera, e)
         draw_body(bank, camera, e)
+    elif isinstance(e, DustDevil):
+        spin = e.spin * (1.0 if e.hurt_flash <= 0 else 0.5)
+        sprite = bank.rotated(("devil",), spin, 24, _paint_devil, 20)
+        bank.draw(sprite, x, y)
+    elif isinstance(e, Boar):
+        pose = "scrape" if e.state == "scrape" else "idle"
+        sprite = bank.rotated(("boar", pose, e.hurt_flash > 0), e.facing, 48,
+                              _paint_boar(pose, e.hurt_flash > 0), 26)
+        bank.draw(sprite, x, y)
+        draw_boar_tell(text, camera, e)
     elif isinstance(e, Warrior):
         pose = "windup" if e.windup > 0 else "swing" if e.swing > 0 else "idle"
         size = e.espec.size_px

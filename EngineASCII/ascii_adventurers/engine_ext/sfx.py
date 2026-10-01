@@ -28,7 +28,8 @@ Recipes (deterministic -- the noise uses a fixed seed):
   break    longer, darker rumble (a tile being destroyed)
   fizzle   very quiet soft puff
   zap      buzzy square wave (lightning jumping between enemies)
-  swing    soft airy whoosh (the knight's sword)
+  swing    soft airy whoosh (a sword; no hero uses one now)
+  axe      whirring whoosh, pulsing as it spins     (dwarf's throwing axes)
   pulse    soft plucked major chord (the bard's lute)
   ui       short soft sine blip (menus; replaces the engine's louder blip)
 """
@@ -54,7 +55,7 @@ VOLUME_JITTER = 0.1        # +-10% loudness per play
 MIX = {
     "bolt": 0.8, "spark": 0.75, "bow": 0.85, "chime": 0.7, "hex": 0.8, "orb": 0.7,
     "boulder": 1.0, "hit": 0.75, "break": 1.0, "fizzle": 0.2, "zap": 0.55,
-    "swing": 0.6, "pulse": 0.8, "ui": 0.55,
+    "swing": 0.6, "axe": 0.6, "pulse": 0.8, "ui": 0.55,
 }
 
 
@@ -173,6 +174,10 @@ def _recipes(freq: int) -> dict[str, list[float]]:
     # smoothly (no hard edges to grate when it repeats).
     whoosh = _lowpass(_lowpass(_render(0.2, lambda t, u: noise() * math.sin(math.pi * u) ** 2,
                                        freq), 0.09), 0.2)
+    # A thrown axe: the same dark air, chopped by its spin (~24 turns/s).
+    whirr = _lowpass(_lowpass(_render(
+        0.24, lambda t, u: noise() * math.sin(math.pi * u) * (0.35 + 0.65 * abs(math.sin(math.pi * 24 * t))),
+        freq), 0.12), 0.25)
     hit = _lowpass(_render(0.09, lambda t, u: noise() * math.exp(-t / 0.025), freq), 0.35)
     brk = _lowpass(_render(0.3, lambda t, u: noise() * math.exp(-t / 0.08), freq), 0.12)
     fizzle = _lowpass(_render(0.12, lambda t, u: noise() * (1 - u), freq), 0.2)
@@ -189,6 +194,7 @@ def _recipes(freq: int) -> dict[str, list[float]]:
         "fizzle": fizzle,
         "zap": _render(0.09, zap, freq),
         "swing": whoosh,
+        "axe": whirr,
         "pulse": _render(0.45, pulse, freq),
         "ui": _render(0.08, ui, freq),
     }
@@ -242,7 +248,8 @@ class Sfx:
 
     # Events that reuse another sound at a lower volume.
     _ALIASES = {"thud": ("hit", 0.45),    # a shell sparking off terrain it can't hurt
-                "shot": ("bolt", 1.0)}    # older name for the generic shot
+                "shot": ("bolt", 1.0),    # older name for the generic shot
+                "nova": ("pulse", 0.6)}   # Frost Nova (a softer beat)
 
     def play(self, name: str) -> None:
         """Play a named effect at master volume x effects volume (no-op if

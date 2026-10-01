@@ -1,6 +1,6 @@
 """
 ai/creatures.py -- enemies without weapons: fallen warrior, spore puffer,
-burrower.
+burrower, and (M12) thornback boar and dust devil.
 
 Every attack is telegraphed (a wind-up the player can see) and hits an
 area, so friendly fire applies: a puffer bursting next to a warrior hurts
@@ -15,6 +15,7 @@ import random
 from .. import config
 from ..entities.actor import Actor
 from ..entities.effects import Effect
+from ..entities.projectile import Projectile
 from ..specs import EnemySpec
 from ..systems import combat
 from ..systems.collision import hull_hits_solid, move_hull
@@ -100,7 +101,7 @@ class Warrior(Creature):
     def _strike(self, ctx: AIContext) -> None:
         cx = self.x + math.cos(self.facing) * 0.8
         cy = self.y + math.sin(self.facing) * 0.8
-        combat.blast(cx, cy, self.espec.attack_radius * 0.75, self.espec.damage,
+        combat.blast(cx, cy, self.espec.attack_radius * 0.75, self.espec.damage * self.damage_mult,
                      self, ctx.actors, effects=ctx.effects)
         ctx.effects.append(Effect("slash", cx, cy, self.facing))
         ctx.events.append(combat.HIT)
@@ -152,7 +153,7 @@ class Puffer(Creature):
         if self.burst_done:
             return
         self.burst_done = True
-        combat.blast(self.x, self.y, self.espec.attack_radius, self.espec.damage,
+        combat.blast(self.x, self.y, self.espec.attack_radius, self.espec.damage * self.damage_mult,
                      self, ctx.actors, effects=ctx.effects)
         ctx.effects.append(Effect("spores", self.x, self.y))
         ctx.events.append(combat.BREAK)
@@ -189,7 +190,7 @@ class Burrower(Creature):
             if self.timer <= 0:
                 self.state, self.timer = "up", 1.8
                 combat.blast(self.x, self.y, self.espec.attack_radius,
-                             self.espec.damage, self, ctx.actors, effects=ctx.effects)
+                             self.espec.damage * self.damage_mult, self, ctx.actors, effects=ctx.effects)
                 ctx.effects.append(Effect("eruption", self.x, self.y))
                 ctx.events.append(combat.BREAK)
             return
@@ -232,3 +233,144 @@ class Burrower(Creature):
         if biome_at is None:
             return True
         return biome_at(math.floor(x), math.floor(y)).name == "desert"
+
+
+class Boar(Creature):
+    """Thornback boar (forest): ambles about until it spots you, then lowers
+    its head and scrapes the ground (the wind-up: you see the charge coming
+    and where it's aimed), and charges in a straight line. Anyone it runs
+    into gets gored once per charge. Dodge it and it runs on until it slams
+    into something -- a tree or wall takes a beating -- and stands there
+    dazed for a moment: that's the time to hit it."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "roam"          # roam -> scrape -> charge -> (dazed) -> roam
+        self.timer = 0.0
+        self.cooldown = self.rng.uniform(0.5, 1.5)
+        self.gored: set[int] = set()
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        self.cooldown = max(0.0, self.cooldown - dt)
+        t = self.target
+        if self.state == "scrape":
+            self.timer -= dt
+            if self.timer <= 0:
+                self.state, self.timer = "charge", config.BOAR_CHARGE_TIME
+                self.gored = set()
+            return
+        if self.state == "charge":
+            self._charge(ctx, dt)
+            return
+        if self.state == "dazed":
+            self.timer -= dt
+            if self.timer <= 0:
+                self.state = "roam"
+            return
+        # Roaming / closing in.
+        if t is not None and self.sees_target:
+            d = self.dist_to(t)
+            if d <= self.espec.attack_radius and self.cooldown <= 0:
+                self.facing = self.angle_to(t.x, t.y)       # locked in: the charge line
+                self.state, self.timer = "scrape", self.espec.windup
+                return
+            self.walk(ctx, t.x, t.y, dt, self.espec.speed * 0.6)
+        elif self.last_known is not None:
+            self.walk(ctx, *self.last_known, dt, self.espec.speed * 0.6)
+        else:
+            self.walk(ctx, *self.wander_goal(dt), dt, self.espec.speed * 0.35)
+
+    def _charge(self, ctx: AIContext, dt: float) -> None:
+        self.timer -= dt
+        speed = config.BOAR_CHARGE_SPEED
+        dx, dy = math.cos(self.facing) * speed * dt, math.sin(self.facing) * speed * dt
+        self.x, self.y, bx, by = move_hull(ctx.world, self.x, self.y, 0.0, self.half, self.half,
+                                           dx, dy)
+        # Gore whoever it runs into (each once per charge).
+        for a in ctx.actors:
+            if a is self or not a.hittable or id(a) in self.gored:
+                continue
+            if math.hypot(a.x - self.x, a.y - self.y) <= self.hit_radius + a.hit_radius:
+                self.gored.add(id(a))
+                _numbered_hit(a, self.espec.damage * self.damage_mult, self, self.facing, ctx)
+        if bx or by:                       # slammed into something
+            ctx.events.append(combat.BREAK)
+            ahead_x = self.x + math.cos(self.facing) * (self.hit_radius + 0.6)
+            ahead_y = self.y + math.sin(self.facing) * (self.hit_radius + 0.6)
+            ev = combat.crush_tile(ctx.world, math.floor(ahead_x), math.floor(ahead_y),
+                                   config.BOAR_WALL_DAMAGE, ctx.effects)
+            if ev:
+                ctx.events.append(ev)
+            ctx.effects.append(Effect("debris", ahead_x, ahead_y))
+            self.state, self.timer = "dazed", config.BOAR_DAZE_TIME
+            self.cooldown = self.espec.cooldown
+        elif self.timer <= 0:              # ran out of steam
+            self.state = "roam"
+            self.cooldown = self.espec.cooldown
+
+
+def _numbered_hit(victim, amount: float, source, angle: float, ctx: AIContext) -> None:
+    dealt = victim.take_damage(amount, source, angle)
+    if dealt > 0:
+        ctx.effects.append(Effect("number", victim.x, victim.y - victim.hit_radius, 0.0,
+                                  value=max(1, round(dealt)),
+                                  player=victim.faction == "player"))
+        ctx.events.append(combat.HIT)
+
+
+class DustDevil(Creature):
+    """Dust devil (desert, plains): a small whirlwind that drifts at you
+    along a wobbly, never-quite-straight path and circles you at a short
+    distance, flinging a spiral of sand pellets every few seconds and
+    stinging anyone it brushes against. Visible and hittable the whole
+    time, and fragile -- it pushes you to keep moving rather than hitting
+    hard. (It replaced the goblin bombardier, which was too strong.)"""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.spin = self.rng.uniform(0, math.tau)       # how it's drawn turning
+        self.phase = self.rng.uniform(0, math.tau)      # wobble
+        self.orbit = self.rng.choice((-1, 1))
+        self.fling = self.rng.uniform(0.6, self.espec.cooldown)
+        self.sting = 0.0
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        self.spin += dt * config.DEVIL_SPIN_SPEED
+        self.phase += dt
+        self.sting = max(0.0, self.sting - dt)
+        t = self.target
+        if t is not None and self.sees_target:
+            # Aim for a point circling the target, then wobble around it.
+            round_ = self.angle_to(t.x, t.y) + math.pi + self.orbit * 0.6
+            goal = (t.x + math.cos(round_) * config.DEVIL_ORBIT,
+                    t.y + math.sin(round_) * config.DEVIL_ORBIT)
+            speed = self.espec.speed
+            self.fling -= dt
+            if self.fling <= 0:
+                self._fling(ctx)
+                self.fling = self.espec.cooldown
+            if (self.sting <= 0 and math.hypot(t.x - self.x, t.y - self.y)
+                    <= self.hit_radius + t.hit_radius + 0.15):
+                _numbered_hit(t, self.espec.damage * self.damage_mult, self,
+                              self.angle_to(t.x, t.y), ctx)
+                self.sting = config.DEVIL_STING_INTERVAL
+        else:
+            goal = self.last_known or self.wander_goal(dt)
+            speed = self.espec.speed * 0.5
+        a = self.angle_to(*goal) + math.sin(self.phase * 2.3) * 0.9
+        self.facing = a
+        self.x, self.y, _, _ = move_hull(ctx.world, self.x, self.y, 0.0, self.half, self.half,
+                                         math.cos(a) * speed * dt, math.sin(a) * speed * dt)
+
+    def _fling(self, ctx: AIContext) -> None:
+        """A spiral of sand: pellets evenly round, starting where it's
+        turned to now (so each fling comes out at a different angle)."""
+        shell = config.WEAPONS["sand_fling"].shell
+        n = config.DEVIL_PELLETS
+        for k in range(n):
+            a = self.spin + k * math.tau / n
+            ctx.projectiles.append(Projectile(self.x, self.y, a, shell, owner=self,
+                                              damage=shell.damage * self.damage_mult))
+        ctx.events.append(shell.sound)

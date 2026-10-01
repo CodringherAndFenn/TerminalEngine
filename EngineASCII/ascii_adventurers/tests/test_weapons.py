@@ -1,5 +1,6 @@
 import math
 import unittest
+from dataclasses import replace
 
 from ascii_adventurers import config
 from ascii_adventurers.entities.actor import Actor
@@ -28,7 +29,11 @@ def open_map(w=60, h=30, walls=()):
 
 
 def hero(name, x=10.5, y=10.5, aim=0.0):
-    h = Character(config.HEROES[name], x, y)
+    if name == "swordsman":     # no hero carries the sword since the dwarf came
+        spec = replace(config.HEROES["dwarf"], weapon="sword")
+    else:
+        spec = config.HEROES[name]
+    h = Character(spec, x, y)
     h.aim_angle = aim
     return h
 
@@ -46,7 +51,7 @@ class WeaponDataTest(unittest.TestCase):
         self.assertEqual(kinds["wizard"].shell.chain, 2)
         self.assertGreater(kinds["huntress"].shell.pierce, 0)
         self.assertEqual(kinds["princess"].pellets, 5)
-        self.assertEqual(kinds["knight"].kind, "melee")
+        self.assertTrue(kinds["dwarf"].shell.returns)
         self.assertEqual(kinds["bard"].kind, "pulse")
         self.assertTrue(kinds["bard"].auto)
 
@@ -124,7 +129,7 @@ class ChainLightningTest(unittest.TestCase):
 
 class SwordTest(unittest.TestCase):
     def test_hits_everything_in_the_arc_but_not_behind(self):
-        world, h, effects = open_map(w=80), hero("knight", x=30.5, y=15.5, aim=0.0), []
+        world, h, effects = open_map(w=80), hero("swordsman", x=30.5, y=15.5, aim=0.0), []
         reach = config.WEAPONS["sword"].reach    # (positions follow the tuning)
         front = Dummy(30.5 + reach * 0.8, 15.5)
         a = math.radians(55)                     # ~55 degrees off the aim
@@ -144,10 +149,62 @@ class SwordTest(unittest.TestCase):
     def test_chops_the_tree_in_front(self):
         rows = ["." * 30 for _ in range(20)]
         rows[10] = "." * 11 + "T" + "." * 18
-        world, h = TestMap(rows), hero("knight", x=10.5, y=10.5, aim=0.0)
+        world, h = TestMap(rows), hero("swordsman", x=10.5, y=10.5, aim=0.0)
         for _ in range(10):
             combat.attack(h, world, [], [], [h])
         self.assertIsNot(world.tile_at(11, 10), tiles.TREE)
+
+
+class ThrowingAxeTest(unittest.TestCase):
+    def test_flies_out_comes_back_and_hits_on_both_legs(self):
+        world, h, effects = open_map(w=80), hero("dwarf", x=10.5, y=15.5, aim=0.0), []
+        shell = config.WEAPONS["throwing_axe"].shell
+        near = Dummy(10.5 + shell.max_range * 0.5, 15.5)
+        behind = Dummy(10.5 + shell.max_range * 0.7, 15.5)   # same line: axes pass through
+        shots = []
+        combat.fire(h, world, shots, effects)
+        axe = shots[0]
+        furthest = 0.0
+        for _ in range(int(3.0 / STEP)):
+            combat.update_projectiles(shots, world, effects, STEP, [h, near, behind])
+            if shots:
+                furthest = max(furthest, axe.x - h.x)
+        self.assertEqual(shots, [], "caught")
+        self.assertAlmostEqual(furthest, shell.max_range, delta=1.0)
+        for d in (near, behind):
+            self.assertEqual(d.max_hp - d.hp, 2 * shell.damage)    # out and back
+        self.assertEqual(h.hp, h.max_hp)
+        self.assertFalse(any(e.kind == "fizzle" for e in effects))
+
+    def test_homes_on_a_thrower_who_moved(self):
+        world, h = open_map(w=80), hero("dwarf", x=10.5, y=15.5, aim=0.0)
+        shots = []
+        combat.fire(h, world, shots, [])
+        h.y = 22.5
+        fly(shots, world, [h], [], seconds=3.0)
+        self.assertEqual(shots, [])
+
+    def test_bounces_off_a_wall_and_hurts_it(self):
+        world = open_map(w=80, walls=[(15, y) for y in range(10, 20)])
+        h = hero("dwarf", x=10.5, y=15.5, aim=0.0)
+        shots = []
+        combat.fire(h, world, shots, [])
+        events = combat.update_projectiles(shots, world, [], STEP, [h])
+        for _ in range(int(0.5 / STEP)):
+            events += combat.update_projectiles(shots, world, [], STEP, [h])
+        self.assertTrue(shots and shots[0].returning or not shots)
+        self.assertIn(combat.HIT, events)          # the wall took the blow
+        fly(shots, world, [h], [], seconds=2.0)
+        self.assertEqual(shots, [])
+
+    def test_drops_when_the_thrower_dies(self):
+        world, h, effects = open_map(w=80), hero("dwarf", x=10.5, y=15.5, aim=0.0), []
+        shots = []
+        combat.fire(h, world, shots, effects)
+        h.hp = 0
+        fly(shots, world, [h], effects, seconds=3.0)
+        self.assertEqual(shots, [])
+        self.assertTrue(any(e.kind == "fizzle" for e in effects))
 
 
 class LutePulseTest(unittest.TestCase):
@@ -207,3 +264,16 @@ class NoFriendlyFireBetweenPlayersTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PulseTerrainTest(unittest.TestCase):
+    def test_wears_visible_walls_at_a_quarter_of_its_damage(self):
+        # A wall ring at distance 3 (inside reach), and a second wall right
+        # behind it that the first one hides.
+        spec = config.WEAPONS["lute"]
+        world = open_map(walls=[(13, 10), (14, 10)])
+        h = hero("bard", 10.5, 10.5)
+        combat.attack(h, world, [], [], [h])
+        wear = spec.damage * config.PULSE_TERRAIN_FACTOR
+        self.assertAlmostEqual(tiles.WALL.hp - world.hp_at(13, 10), wear)
+        self.assertIsNone(world.hp_at(14, 10))               # hidden behind the first

@@ -4,6 +4,7 @@ run.py -- AsciiAdventurers launcher.
 
     ascii_adventurers/.venv/bin/python ascii_adventurers/run.py     (from anywhere)
     ... run.py --ghosts 2      debug: two bot players roam the island too
+    ... run.py --dev           developer mode: max loot, L levels up (see App)
 
 Wires the game onto the engine without modifying it:
   1. Redirects Python's bytecode cache into ascii_adventurers/.cache/. The
@@ -11,7 +12,8 @@ Wires the game onto the engine without modifying it:
      them would leave changes outside this folder.
   2. Puts narrative_engine/ (for `import engine`) and the project root (for
      `import ascii_adventurers`) on sys.path.
-  3. Loads the player's own settings and records from ascii_adventurers/save/
+  3. Loads the player's own settings, records and guild (loot, upgrades)
+     from ascii_adventurers/save/
      (created on first save; defaults work on any machine), builds the
      Display/Audio/SceneManager from them and opens the title screen. The
      engine's settings.json is not used.
@@ -45,6 +47,7 @@ from engine import Audio, Display, DisplayMode, SceneManager  # noqa: E402
 from ascii_adventurers import config  # noqa: E402
 from ascii_adventurers.app import App  # noqa: E402
 from ascii_adventurers.engine_ext.screen import apply_window, fit_grid_to_monitor  # noqa: E402
+from ascii_adventurers.meta.guild import Guild  # noqa: E402
 from ascii_adventurers.meta.records import Records  # noqa: E402
 from ascii_adventurers.meta.settings import GameSettings  # noqa: E402
 from ascii_adventurers.scenes.title import TitleScene  # noqa: E402
@@ -81,6 +84,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--smoke", type=float, default=0.0, metavar="SECONDS",
                         help="test: start a run straight away, play SECONDS without input, "
                              "quit and report (checks a build really works); saves nothing")
+    parser.add_argument("--dev", action="store_true",
+                        help="developer mode: the guild purse is full (nothing bought is "
+                             "saved) and L levels you up in a run; records aren't saved")
     return parser.parse_args(argv)
 
 
@@ -100,7 +106,8 @@ def main() -> None:
     if not audio.available and settings.audio_device is not None:
         audio.init(device=None, volume=settings.volume)
     manager = SceneManager(display, settings, audio)
-    manager.app = App(audio, settings, Records.load(), ghosts=max(0, min(3, args.ghosts)))
+    manager.app = App(audio, settings, Records.load(), ghosts=max(0, min(3, args.ghosts)),
+                      guild=Guild.load(), dev=args.dev)
     manager.run(TitleScene())
 
 

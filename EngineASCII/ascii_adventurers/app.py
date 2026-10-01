@@ -8,12 +8,18 @@ attaches it to the manager; scenes reach it with app_of(manager).
 
 persist=False keeps everything in memory (tests, tools): nothing is
 written to save/.
+
+dev=True (run.py --dev) is developer mode for testing: the guild's purse
+is filled to DEV_LOOT, and neither the guild nor the records are saved,
+so the real save is never touched; in a run, L levels you up.
 """
 
 from __future__ import annotations
 
+from . import config
 from .engine_ext.gamepads import Gamepads
 from .engine_ext.sfx import Sfx
+from .meta.guild import Guild
 from .meta.records import Records
 from .meta.settings import GameSettings
 
@@ -21,10 +27,14 @@ from .meta.settings import GameSettings
 class App:
     def __init__(self, audio, settings: GameSettings | None = None,
                  records: Records | None = None, persist: bool = True,
-                 ghosts: int = 0) -> None:
+                 ghosts: int = 0, guild: Guild | None = None, dev: bool = False) -> None:
         self.persist = persist
         self.settings = settings if settings is not None else GameSettings()
         self.records = records if records is not None else Records()
+        self.guild = guild if guild is not None else Guild()
+        self.dev = dev
+        if dev:
+            self.guild.loot = config.DEV_LOOT
         self.sfx = Sfx(audio, self.settings.sfx_volume)
         self.pads = Gamepads()
         # Debug: extra bot players roaming the island (run.py --ghosts N).
@@ -42,8 +52,12 @@ class App:
             self.settings.save()
 
     def save_records(self) -> None:
-        if self.persist:
+        if self.persist and not self.dev:
             self.records.save()
+
+    def save_guild(self) -> None:
+        if self.persist and not self.dev:
+            self.guild.save()
 
 
 def app_of(manager) -> App:

@@ -87,6 +87,7 @@ SPRITE_COLORS = {
     "h": (116, 72, 40), "H": (244, 214, 112),        # hair brown / blonde, leather
     "v": (140, 70, 170), "V": (96, 44, 120),         # violet
     "e": (150, 132, 96), "E": (110, 95, 66),         # ogre hide
+    "a": (214, 112, 52), "A": (150, 72, 32),         # dwarf's ginger beard
 }
 # Creature sprites (warrior, worm) flash this for a moment when hit.
 HIT_FLASH = (255, 235, 220)
@@ -191,6 +192,7 @@ RECORD = (255, 220, 90)          # NEW RECORD highlights
 # (head, (trail near, trail far)) like the SHOT_* colors above.
 SHOT_SPARK = ((255, 255, 200), ((150, 235, 255), (80, 170, 235)))
 SHOT_LONGARROW = ((240, 242, 250), ((205, 165, 95), (150, 115, 65)))
+SHOT_AXE = ((225, 230, 240), ((150, 155, 170), (100, 104, 118)))   # the dwarf's axes
 # The princess's rainbow: one color set per pellet, fan order.
 _RAINBOW = ((255, 85, 85), (255, 165, 60), (255, 235, 90), (115, 230, 115), (105, 165, 255))
 RAINBOW_SHOTS = tuple(
@@ -214,10 +216,82 @@ HUD_BOSS_NAME = (255, 150, 130)
 LEVEL_UP = (255, 220, 110)          # "LEVEL UP!" over the hero
 
 # --- Cards (milestone 11) --------------------------------------------------------------
-CARD_RARITY = {"common": (185, 185, 175), "rare": (100, 170, 255), "epic": (215, 120, 255)}
+CARD_RARITY = {"common": (185, 185, 175), "uncommon": (110, 220, 120), "rare": (100, 170, 255),
+               "epic": (215, 120, 255), "legendary": (255, 170, 60)}
 CARD_TITLE = (255, 220, 120)
 CARD_TEXT = (205, 205, 195)
 CARD_KEY = (255, 255, 255)
 CARD_TAG = (130, 130, 120)          # "WIZARD" on a hero's own cards
 CARD_SELECTED = (255, 210, 90)      # the highlighted card's frame and bars
 CARD_BG_SELECTED = (28, 34, 26)
+
+# --- M12 enemies ------------------------------------------------------------------------
+SHOT_WISP = ((235, 250, 255), ((150, 225, 255), (90, 150, 210)))
+SHOT_ACID = ((200, 255, 90), ((140, 200, 60), (90, 140, 40)))
+SHOT_SPORE = ((240, 190, 255), ((190, 130, 220), (130, 90, 160)))
+BOMB = (205, 205, 215)              # the bomb in the air (light: it must show over dark ground)
+BOMB_FUSE = (255, 200, 80)
+BOMB_SHADOW = (20, 22, 18)
+BOMB_MARK = ((255, 90, 70), (170, 50, 40))    # where it will land: bright, dim
+WISP_LIGHT = (240, 230, 150)        # the searchlight cone
+WISP_LIGHT_HOT = (255, 250, 200)    # ...while it's on you
+BOAR_HIDE = (120, 80, 55)
+BOAR_DARK = (70, 45, 30)
+BOAR_TUSK = (245, 240, 220)
+BOAR_EYE = (255, 80, 60)
+DAZE = (255, 230, 120)              # stars over a dazed boar
+SCRAPE_DUST = ((170, 150, 110), (120, 105, 80))
+DEVIL = ((220, 195, 140), (175, 150, 100), (120, 100, 70))   # dust devil: light, mid, dark
+SHOT_SAND = ((235, 210, 150), ((190, 165, 115), (140, 120, 85)))
+
+# --- M14: cards 2.0 ----------------------------------------------------------------------
+# Damage numbers by tone: crits, and status damage over time (bright -> faded).
+NUMBER_TONES = {
+    "crit": ((255, 225, 60), (190, 160, 40)),
+    "burn": ((255, 140, 50), (180, 95, 35)),
+    "poison": ((150, 230, 80), (100, 160, 55)),
+    "bleed": ((230, 50, 60), (150, 35, 40)),
+}
+# Status pips over an enemy, and the frozen / marked looks.
+STATUS_PIP = {"burn": (255, 130, 40), "poison": (140, 230, 70), "bleed": (230, 45, 55),
+              "chill": (140, 200, 255), "shock": (255, 240, 90)}
+FROZEN = ((200, 235, 255), (120, 180, 240))
+MARK = (255, 70, 60)
+DODGE = (190, 230, 255)
+# XP gems: small, medium, big (bright, dark).
+GEM = (((110, 190, 255), (60, 110, 200)), ((120, 240, 140), (60, 160, 80)),
+       ((255, 110, 110), (190, 50, 60)))
+# Spells.
+DAGGER = (220, 225, 235)
+HUD_SPELL = (170, 200, 255)         # the spells line on the HUD
+EMBER = ((255, 170, 60), (230, 100, 40), (150, 60, 30))
+NOVA = ((225, 245, 255), (150, 210, 255), (90, 150, 220))
+
+# --- M15: loot (rune shards) and the Guild Hall ------------------------------------------
+LOOT = (90, 215, 200)
+LOOT_LIGHT = (190, 255, 240)
+LOOT_DARK = (40, 120, 120)
+LOOT_RUNE = (255, 210, 90)
+LOOT_TEXT = (120, 230, 210)          # loot amounts in text
+HUB_WOOD_FG = (92, 66, 44)
+HUB_WOOD_BG = (46, 32, 22)
+HUB_STONE_FG = (84, 84, 90)
+HUB_STONE_BG = (50, 50, 56)
+HUB_CARPET_FG = (150, 40, 44)
+HUB_CARPET_BG = (110, 26, 32)
+HUB_WALL_FG = (118, 116, 126)
+HUB_WALL_BG = (62, 60, 70)
+HUB_BOOKS_FG = (210, 170, 100)
+HUB_BOOKS_BG = (70, 40, 24)
+HUB_COUNTER_FG = (160, 108, 62)
+HUB_COUNTER_BG = (96, 62, 34)
+HUB_BANNER = (190, 40, 52)
+HUB_TORCH = (255, 180, 60)
+HUB_DUMMY = (200, 160, 90)
+HUB_GATE_FG = (140, 140, 150)
+HUB_GATE_BG = (16, 14, 18)
+HUB_PEDESTAL = (160, 158, 170)
+HUB_LABEL = (255, 220, 140)          # names over the guild's people
+HUB_PROMPT = (255, 255, 255)
+PIP_EMPTY = (70, 70, 78)             # levels not bought yet
+DEV_TAG = (255, 120, 220)            # developer mode marker

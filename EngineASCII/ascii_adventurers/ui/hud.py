@@ -4,7 +4,9 @@ ui/hud.py -- the heads-up display ("corners" layout, M11).
 No bar across the screen: the world fills it. What's always there sits in
 the corners, each on a small dark panel so it reads over any terrain:
 
-  top-left     HP bar, level + XP bar, kills and the run's clock
+  top-left     HP bar, level + XP bar, kills, loot found and the run's
+               clock, and
+               the hero's spells with their levels (once they have any)
   top-right    the minimap (ui/maps.py)
   top-centre   a boss's name and health, during a boss fight
   bottom-right FPS, when enabled in Settings
@@ -26,6 +28,7 @@ import pygame
 from engine import TextRenderer
 
 from .. import palette
+from ..render.glyphs import loot_glyph
 from ..meta.run_stats import format_time
 
 BAR = 24                 # HP / XP bar cells
@@ -45,6 +48,8 @@ class HudInfo:
     time: float              # seconds into the run
     fps: float | None = None     # None: hidden (a setting)
     boss: tuple[str, float] | None = None   # (name, health fraction) during a boss fight
+    spells: tuple = ()           # (HUD label, level) of each spell the hero has
+    loot: int = 0                # found this run
 
 
 # The last top-left panel drawn: key -> image.
@@ -82,13 +87,14 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
     hp_cells = math.ceil(frac * BAR) if info.hp > 0 else 0
     xp_cells = round(max(0.0, min(1.0, info.xp_frac)) * BAR)
     clock = format_time(info.time)
-    area = pygame.Rect(0, 0, PANEL_W * d.cell_w, 3 * d.cell_h)
+    rows = 4 if info.spells else 3
+    area = pygame.Rect(0, 0, PANEL_W * d.cell_w, rows * d.cell_h)
     key = (id(text), d.cell_w, d.cell_h, hp_cells, hp_color, math.ceil(info.hp),
-           info.level, xp_cells, info.kills, clock)
+           info.level, xp_cells, info.kills, clock, info.spells, info.loot)
     if key == _cache["key"]:
         d.canvas.blit(_cache["image"], area)
         return
-    _panel(text, 0, 0, PANEL_W, 3)
+    _panel(text, 0, 0, PANEL_W, rows)
     text.put(1, 0, "HP", palette.HUD_LABEL, palette.HUD_PANEL)
     text.put(4, 0, "█" * hp_cells, hp_color, palette.HUD_PANEL)
     text.put(4 + hp_cells, 0, "░" * (BAR - hp_cells), palette.HUD_EMPTY, palette.HUD_PANEL)
@@ -98,8 +104,14 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
     text.put(4, 1, "▀" * xp_cells, palette.HUD_XP, palette.HUD_PANEL)
     text.put(4 + xp_cells, 1, "▀" * (BAR - xp_cells), palette.HUD_XP_EMPTY, palette.HUD_PANEL)
     text.put(PANEL_W - 4, 1, f"{info.level:3d}", palette.HUD_XP, palette.HUD_PANEL)
-    text.put(1, 2, f"KILLS {info.kills}", palette.HUD_LABEL, palette.HUD_PANEL)
+    kills = f"KILLS {info.kills}"
+    text.put(1, 2, kills, palette.HUD_LABEL, palette.HUD_PANEL)
+    text.put(len(kills) + 3, 2, loot_glyph(text) + f" {info.loot}", palette.LOOT_TEXT,
+             palette.HUD_PANEL)
     text.put(PANEL_W - 1 - len(clock), 2, clock, palette.HUD_VALUE, palette.HUD_PANEL)
+    if info.spells:
+        line = "  ".join(f"{name} {level}" for name, level in info.spells)
+        text.put(1, 3, line[:PANEL_W - 2], palette.HUD_SPELL, palette.HUD_PANEL)
     _cache["key"], _cache["image"] = key, d.canvas.subsurface(area).copy()
 
 

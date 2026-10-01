@@ -64,6 +64,8 @@ class Brain:
     def init_brain(self, spec: EnemySpec, rng: random.Random, spawn_id) -> None:
         self.espec = spec
         self.spawn_id = spawn_id
+        self.level = 1                        # the level it was woken at (scale_to_level)
+        self.damage_mult = config.ENEMY_DAMAGE_MULTIPLIER   # grows with that level
         self.rng = rng
         self.home = (self.x, self.y)
         self.target: Actor | None = None
@@ -78,6 +80,16 @@ class Brain:
         self._wander_goal: tuple[float, float] | None = None
         self._wander_timer = 0.0
         self.steering = Steering(rng)
+
+    def scale_to_level(self, level: int) -> None:
+        """Toughen a freshly woken enemy for the players' level: +HP and
+        +damage per level above 1 (config ENEMY_*_PER_LEVEL)."""
+        level = max(1, min(config.MAX_LEVEL, level))
+        self.level = level
+        self.max_hp = round(self.max_hp * (1 + config.ENEMY_HP_PER_LEVEL * (level - 1)))
+        self.hp = float(self.max_hp)
+        self.damage_mult = config.ENEMY_DAMAGE_MULTIPLIER * (
+            1 + config.ENEMY_DAMAGE_PER_LEVEL * (level - 1))
 
     # --- Senses ---------------------------------------------------------------------
 

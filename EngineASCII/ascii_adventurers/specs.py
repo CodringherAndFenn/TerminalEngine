@@ -30,6 +30,11 @@ class ShellSpec:
     chain: int = 0          # jumps to further enemies after a hit (lightning)
     chain_range: float = 0.0        # tiles a jump can reach (needs a clear line)
     chain_falloff: float = 0.7      # each jump does this fraction of the previous
+    lob: bool = False       # lobbed: flies over everything to a target point, then bursts
+    blast_radius: float = 0.0       # lobbed shells: burst radius, tiles
+    returns: bool = False   # boomerang (the dwarf's axes): flies out to max_range, then
+                            # back to the thrower; passes through every enemy, hitting
+                            # each once per leg
 
 
 @dataclass(frozen=True)
@@ -38,7 +43,7 @@ class WeaponSpec:
       * "shot"  -- fires `pellets` projectiles (ShellSpec), fanned over
                    `spread_deg` (bolts, arrows, the rainbow's colors);
       * "melee" -- a swing hitting everything within `reach` tiles and
-                   `arc_deg` of the aim (the knight's sword);
+                   `arc_deg` of the aim (a sword; no hero uses one now);
       * "pulse" -- a burst hitting everything within `reach` tiles all
                    around (the bard's music).
     `auto` weapons fire on their own, without the trigger."""
@@ -56,6 +61,7 @@ class WeaponSpec:
     arc_deg: float = 0.0    # "melee" swing width
     auto: bool = False      # fires by itself on the beat (no trigger)
     blurb: str = ""         # one line for the hero select screen
+    tags: tuple[str, ...] = ()      # projectile / area / physical / lightning / arcane...
 
     @property
     def aims(self) -> bool:
@@ -65,17 +71,107 @@ class WeaponSpec:
 
 @dataclass(frozen=True)
 class CardSpec:
-    """A level-up card. `mods` are (stat, op, value) steps applied once per
-    copy taken, op "add" or "mul" (see players/cards.py for the stats).
-    `heroes` / `kinds` limit who can be offered it (empty = anyone)."""
+    """A level-up card (players/cards.py; the catalog: design/CARDS.md).
+
+    `mods` are (stat, op, value) steps applied once per copy taken:
+      op "add" / "mul"  -- add to / multiply a stat of players/stats.HeroStats;
+      op "flag"         -- a rule-changing effect (stat = its name, value = 1);
+      op "status"       -- adds a status to those your hits can inflict
+                           (stat = the status, see config.STATUSES);
+      op "source"       -- the card itself inflicts that status (so status
+                           payoff cards become available), without adding
+                           it to your on-hit list;
+      op "spell"        -- grants the spell (stat = key into config.SPELLS),
+                           or levels it up if already owned.
+    A value of "X" means the card's tier value (`tiers`) times `x_scale`.
+
+    Rarity: a fixed `rarity`, or `tiers` -- a tiered card rolls a rarity
+    each time it's offered and its number grows with it; `tiers` holds the
+    value for each of config.RARITIES, None where the card can't appear.
+    `heroes` / `kinds` limit who can be offered it (empty = anyone);
+    `needs` gates it: "status" (you inflict some status), "spell" (you own
+    a spell), or a tag / status name you must have. `tags` drive the
+    "x1.5 when it shares a tag with your build" offer weighting. `unlock`
+    is "start", "L:<loot>" (bought in the Guild Hall's archive) or
+    "A:<achievement>"; locked cards are never offered."""
 
     name: str
-    text: str                        # one short line on the card
-    mods: tuple[tuple[str, str, float], ...]
-    rarity: str = "common"           # common | rare | epic (how often it's offered)
+    text: str                        # one short line on the card; "{X}" = the tier value
+    mods: tuple[tuple[str, str, object], ...]
+    rarity: str = "common"
     max_stacks: int = 3              # copies one hero can take
     heroes: tuple[str, ...] = ()     # only for these heroes
     kinds: tuple[str, ...] = ()      # only for these weapon kinds (shot / melee / pulse)
+    tiers: tuple | None = None       # tiered cards: value per rarity (None: not at that rarity)
+    x_scale: float = 0.01            # tier value -> stat units (percent by default)
+    needs: tuple[str, ...] = ()
+    tags: tuple[str, ...] = ()
+    unlock: str = "start"
+    code: str = ""                   # catalog number (G01, W3...)
+
+    @property
+    def tiered(self) -> bool:
+        return self.tiers is not None
+
+    def value(self, rarity: str) -> float:
+        """The tier value at `rarity` (tiered cards)."""
+        from .config import RARITIES
+        return self.tiers[RARITIES.index(rarity)]
+
+    def label(self, rarity: str) -> str:
+        """The card's text with its number filled in for `rarity`."""
+        if not self.tiered:
+            return self.text
+        v = self.value(rarity)
+        return self.text.replace("{X}", f"{v:g}")
+
+
+@dataclass(frozen=True)
+class SpellSpec:
+    """A spell or item granted by a card (systems/spells.py). `kind` picks
+    the behaviour (orbit / aura / nova); `base` holds its level-1 numbers
+    and `levels` the change each further level makes, as (field, op,
+    value) on those numbers plus the line the level-up card shows."""
+
+    name: str
+    short: str                        # HUD label
+    kind: str
+    tags: tuple[str, ...]
+    base: dict
+    levels: tuple[tuple[str, tuple[tuple[str, str, float], ...]], ...]
+    rarity: str = "uncommon"
+    text: str = ""                    # the first card's text
+
+
+@dataclass(frozen=True)
+class UpgradeSpec:
+    """A Guild Hall upgrade (meta/guild.py), bought with loot between runs.
+    Each level adds `mods` once more (same (stat, op, value) steps as a
+    card, see CardSpec); level n+1 costs base_cost x growth ** n."""
+
+    name: str
+    text: str                        # what one level does
+    mods: tuple[tuple[str, str, float], ...]
+    max_level: int = 5
+    base_cost: int = 100
+    growth: float = 1.6
+
+    def cost(self, level: int) -> int:
+        """Price of the next level when `level` are owned."""
+        return round(self.base_cost * self.growth ** level)
+
+
+@dataclass(frozen=True)
+class StatusSpec:
+    """A status effect enemies can suffer (systems/statuses.py)."""
+
+    name: str
+    tag: str                 # fire / poison / frost / lightning / physical
+    duration: float          # seconds; a new stack refreshes it
+    max_stacks: int = 1
+    dps: float = 0.0         # damage per second per stack (bucket S)
+    slow: float = 0.0        # chill: move/attack speed lost per stack
+    vulnerability: float = 0.0   # shock: extra damage taken from everything
 
 
 @dataclass(frozen=True)

@@ -55,6 +55,10 @@ class Player:
     aim: tuple[float, float] | None = field(default=None)   # last aim point (world)
     progress: Progress = field(default_factory=Progress)    # level, XP, cards
     regen: float = 0.0                # hp per second (cards)
+    spells: dict = field(default_factory=dict)  # spell key -> systems/spells.SpellState
+    mark_timer: float = 0.0           # Hunter's Mark: seconds to the next mark
+    meta: list = field(default_factory=list)    # Guild upgrades, as card steps (meta/guild.py)
+    unlocked: set | None = None       # cards this player may be offered (None: all)
 
     @property
     def alive(self) -> bool:

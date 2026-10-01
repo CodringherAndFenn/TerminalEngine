@@ -10,12 +10,16 @@ ghost players (run.py --ghosts N) are bots that exercise this.
 Clock. The world advances in fixed steps of 1/SIM_HZ s (see config), as
 many per frame as real time calls for (at most MAX_STEPS_PER_FRAME):
 
-  step:  every player's controls are read (walk / aim point / trigger) ->
-         heroes walk (box collision) -> effects age -> heroes aim and fire
-         (enemies nearby hear it) -> awake enemies near any player think
-         and act -> shots move and hit (terrain, heroes, enemies; friendly
-         fire on) -> deaths (chain reactions, kill credit to the player who
-         landed the last hit) -> enemies wake near players / sleep far away.
+  step:  every player's controls are read (walk / aim point / trigger /
+         card choice) -> heroes walk (box collision) -> effects age ->
+         heroes aim and fire (enemies nearby hear it), their spells work ->
+         awake enemies near any player think and act (chilled ones slower,
+         frozen ones not at all) -> shots move and hit (terrain, heroes,
+         enemies; friendly fire on) -> statuses tick -> deaths (chain
+         reactions; a player's kill drops an XP gem and is worth loot at
+         once) -> gems fly to the
+         heroes who pull them in (XP, level-ups) -> enemies wake near
+         players / sleep far away.
   frame: steps -> cameras ease toward their heroes -> the frame's sounds ->
          chunk streaming with the time left.
 
@@ -57,6 +61,7 @@ from ..engine_ext.gamepads import BUTTON_LB, BUTTON_RB, EV_BUTTON
 from ..engine_ext.input import Mouse, move_axes
 from ..entities.character import Character
 from ..entities.effects import Effect, update_effects
+from ..entities.gems import Gem, drop, update_gems
 from ..entities.projectile import Projectile
 from ..meta.run_stats import RunStats
 from ..players.cards import build_loadout, draw_offer
@@ -66,10 +71,13 @@ from ..render.ascii_fx import draw_effects, draw_projectiles
 from ..render.characters import draw_body
 from ..render.enemies_sprite import draw_enemy
 from ..render.slash import draw_slashes
+from ..render.spell_fx import draw_gems, draw_spells, draw_statuses
 from ..render.sprites import SpriteBank
 from ..render.terrain import TerrainRenderer
 from ..systems import combat
 from ..systems.spawner import Spawner
+from ..systems.spells import sync_spells, update_spells
+from ..systems.statuses import update_statuses
 from ..ui.crosshair import draw_crosshair
 from ..ui.frame import dim_canvas
 from ..ui.card_picker import CardPicker
@@ -78,6 +86,7 @@ from ..ui.maps import BigMap, Minimap
 from ..ui.overlays import GameOverPanel, PauseMenu
 from ..ui.settings_panel import SettingsPanel
 from ..world import make_world
+from ..world.rng import hash_coords
 from .common import app_events
 
 # Effects drawn under the characters (they belong to the ground).
@@ -114,6 +123,7 @@ class GameScene(Scene):
         self.projectiles: list[Projectile] = []
         self.effects: list[Effect] = []
         self.enemies: list = []
+        self.gems: list[Gem] = []
         self.spawner = Spawner(self.world, seed) if seed is not None else None
         # Maps exist only on the island (the test map has no layout).
         self.big_map = BigMap(self.world) if self.players[0].minimap is not None else None
@@ -140,15 +150,23 @@ class GameScene(Scene):
         camera = Camera(d.cols, d.rows - config.HUD_ROWS, d.cell_w, d.cell_h)
         camera.center_on(sx, sy)
         seed = getattr(self.world, "seed", None)
+        hero.rng.seed(hash_coords(seed or 0, 0x5EED, index))   # crits, dodges: replayable
+        guild = self.app.guild
+        meta = [] if ghost else guild.meta_steps(hero_key)
         if ghost:
             hero.invulnerable = True
             controls = GhostControls((seed or 0) * 31 + index)
         else:
             controls = AutoControls(self.mouse, self.app.pads)
         has_maps = getattr(self.world, "layout", None) is not None
-        return Player(index, hero, controls, camera, RunStats(hero_key, seed, (sx, sy)),
-                      local=local, ghost=ghost, color=player_color(index),
-                      minimap=Minimap() if has_maps and local else None)
+        p = Player(index, hero, controls, camera, RunStats(hero_key, seed, (sx, sy)),
+                   local=local, ghost=ghost, color=player_color(index),
+                   minimap=Minimap() if has_maps and local else None,
+                   meta=meta, unlocked=None if ghost else guild.unlocked_cards())
+        self._apply_loadout(p)
+        p.progress.rerolls += round(hero.stats.rerolls)
+        p.progress.banishes += round(hero.stats.banishes)
+        return p
 
     def _free_spot(self, x: float, y: float) -> tuple[float, float]:
         from ..systems.collision import hull_hits_solid
@@ -197,6 +215,8 @@ class GameScene(Scene):
         self._run_recorded = True
         self.broken = self.app.records.add_run(self.stats)
         self.app.save_records()
+        self.app.guild.bank_run(self.stats)      # loot is kept however the run ends
+        self.app.save_guild()
 
     def _set_overlay(self, overlay) -> None:
         self.overlay = overlay
@@ -239,6 +259,19 @@ class GameScene(Scene):
     def _change_hero(self) -> None:
         from .new_run import NewRunScene
         self.manager.switch_to(NewRunScene())
+
+    def _guild_hall(self) -> None:
+        self._end_run()
+        from .guild_hall import GuildHallScene
+        self.manager.switch_to(GuildHallScene(self.hero_key))
+
+    def _dev_level_up(self) -> None:
+        """Developer mode: exactly enough XP for the next level (its card
+        offer comes up as usual)."""
+        prog = self.me.progress
+        if prog.add(prog.needed - prog.xp):
+            self.effects.append(Effect("levelup", self.hero.x, self.hero.y))
+            self._sounds.append("chime")
 
     def _restart(self) -> None:
         """Go again: same hero, and the same island if a seed was chosen."""
@@ -306,6 +339,8 @@ class GameScene(Scene):
                 self._restart()
             elif event.key == pygame.K_F10 and len(self.players) > 1:
                 self.view_index = (self.view_index + 1) % len(self.players)
+            elif event.key == pygame.K_l and self.app.dev and self.me.alive:
+                self._dev_level_up()
 
     # --- Frame -------------------------------------------------------------------------
 
@@ -341,14 +376,16 @@ class GameScene(Scene):
 
         # Cards on offer: up they come (pausing the game in single player).
         if self.overlay is None and self.me.alive and self.me.progress.offer:
-            self._set_overlay(CardPicker(self.manager, self.me.progress.offer,
-                                         self.me.progress.picks - 1, self._choose_card,
-                                         pauses=self._solo))
+            self._set_overlay(CardPicker(self.manager, self.me.progress, self._choose_card,
+                                         spells=self._spell_levels(self.me), pauses=self._solo))
+        else:
+            self._sync_picker()      # (multiplayer: choices land with the next step)
 
         if self.game_over_for >= _GAME_OVER_DELAY and self.overlay is None:
             self._set_overlay(GameOverPanel(
                 self.manager, self.stats, self.app.records, self.broken,
-                again=self._restart, change_hero=self._change_hero, title=self._abandon))
+                again=self._restart, change_hero=self._change_hero, title=self._abandon,
+                guild_hall=self._guild_hall, purse=self.app.guild.loot))
 
         for name in dict.fromkeys(self._sounds):   # each sound at most once per frame
             self.sfx.play(name)
@@ -387,6 +424,8 @@ class GameScene(Scene):
                 inp.pick = p.controls.take_pick()
             if p.ghost and p.progress.offer:
                 inp.pick = 0                  # bots take the first card
+            if p.hero.stats is not None and p.hero.stats.has("hunters_mark"):
+                self._hunters_mark(p, dt)
             inputs[p.index] = inp
             self._cards(p, inp.pick)
             if p.regen > 0:
@@ -405,11 +444,15 @@ class GameScene(Scene):
             weapon = p.hero.weapon
             if weapon.update(dt, inp.fire or weapon.spec.auto):
                 shot = combat.attack(p.hero, self.world, self.projectiles, self.effects,
-                                     self._actors())
+                                     self._actors(), **self._overload(p.hero))
                 if p.local:
                     sounds += shot
                 for e in self.enemies:
                     e.hear(p.hero.x, p.hero.y)
+            if p.spells:
+                cast = update_spells(p.hero, p.spells, self.world, self._actors(), self.effects, dt)
+                if p.local:
+                    sounds += cast
 
         # Enemies act. Only those near some player think; others wait frozen.
         heroes = [p.hero for p in self.players]
@@ -423,16 +466,30 @@ class GameScene(Scene):
             e.tick_flash(dt)
             if e.alive:
                 x, y = e.x, e.y
+                # Chill slows the enemy's whole clock; frozen, it doesn't act.
+                scale = e.status.time_scale if e.status is not None else 1.0
+                if scale <= 0:
+                    continue
                 for x0, x1, y0, y1 in boxes:
                     if x0 <= x <= x1 and y0 <= y <= y1:
-                        e.think(ctx, dt)
+                        e.think(ctx, dt * scale)
                         break
         sounds += ctx.events
         ctx.events.clear()
 
         sounds += combat.update_projectiles(self.projectiles, self.world, self.effects, dt,
                                             self._actors())
+        update_statuses(self.enemies, dt, self.effects)
         sounds += self._handle_deaths(ctx)
+        for p, xp in update_gems(self.gems, self.players, dt):
+            if p.progress.add(xp):
+                self.effects.append(Effect("levelup", p.hero.x, p.hero.y))
+                if p.local:
+                    sounds.append("chime")
+        for p in self.players:
+            if p.hero.dodged:
+                self.effects.append(Effect("dodge", p.hero.x, p.hero.y - p.hero.hit_radius))
+                p.hero.dodged = 0
 
         for p in self.players:
             if not p.alive:
@@ -440,8 +497,11 @@ class GameScene(Scene):
         if self.game_over_for >= 0:
             self.game_over_for += dt
 
-        # Enemies wake near players and sleep far from all of them.
+        # Enemies wake near players (as tough as the highest human's level)
+        # and sleep far from all of them.
         if self.spawner is not None:
+            humans = [p.progress.level for p in self.players if not p.ghost]
+            self.spawner.level = max(humans) if humans else 1
             self.spawner.update_views(self.enemies, self._views())
 
     # --- Cards ------------------------------------------------------------------------
@@ -451,53 +511,107 @@ class GameScene(Scene):
         """One human player (debug ghosts don't count): card picks pause."""
         return sum(1 for p in self.players if not p.ghost) == 1
 
-    def _choose_card(self, index: int) -> None:
-        """The local player took card `index` from the picker. In single
-        player the game is paused, so it's applied right away; otherwise it
-        travels with the next step's input like any other."""
+    def _choose_card(self, action) -> None:
+        """The local player chose in the card picker: a card's index, or
+        "reroll", "skip", ("banish", index). In single player the game is
+        paused, so it's applied right away; otherwise it travels with the
+        next step's input like any other."""
         me = self.me
         if self._solo:
-            self._cards(me, index)
+            self._cards(me, action)
         else:
-            me.controls.queue_pick(index)
-            me.progress.offer = []
-        if me.progress.offer:                       # more picks banked: next offer
-            self.overlay.set_offer(me.progress.offer, me.progress.picks - 1)
+            me.controls.queue_pick(action)
+        self._sync_picker()
+
+    def _sync_picker(self) -> None:
+        """Keep the picker showing the local player's offer; close it once
+        there's none."""
+        picker = self.overlay
+        if not isinstance(picker, CardPicker):
+            return
+        if self.me.progress.offer:
+            picker.refresh(self.me.progress, self._spell_levels(self.me))
         else:
             self._set_overlay(None)
 
-    def _cards(self, p: Player, pick: int | None) -> None:
-        """Take the picked card, if any, then put a new offer on the table
-        while picks are banked."""
+    def _cards(self, p: Player, pick) -> None:
+        """Act on the player's card choice, if any (see _choose_card), then
+        put a new offer on the table while picks are banked."""
         prog = p.progress
-        if pick is not None and 0 <= pick < len(prog.offer):
-            key = prog.offer[pick]
-            prog.cards[key] += 1
-            prog.picks -= 1
-            prog.offer = []
-            p.stats.cards.append(key)
-            self._apply_loadout(p)
+        if pick is not None and prog.offer:
+            if pick == "reroll":
+                if prog.rerolls > 0:
+                    prog.rerolls -= 1
+                    prog.offer = []
+            elif pick == "skip":
+                prog.picks -= 1
+                prog.offer = []
+                hero = p.hero
+                hero.hp = min(hero.max_hp, hero.hp + hero.max_hp * config.SKIP_HEAL)
+            elif isinstance(pick, tuple) and pick[0] == "banish":
+                if prog.banishes > 0 and 0 <= pick[1] < len(prog.offer):
+                    prog.banishes -= 1
+                    prog.banished.add(prog.offer[pick[1]][0])
+                    prog.offer = []
+            elif isinstance(pick, int) and 0 <= pick < len(prog.offer):
+                key, rarity = prog.offer[pick]
+                prog.take(key, rarity)
+                prog.picks -= 1
+                prog.offer = []
+                p.stats.cards.append(key)
+                self._apply_loadout(p)
             if p.local:
                 self._sounds.append("ui")
         if prog.picks > 0 and not prog.offer:
-            prog.offer = draw_offer(p.stats.hero, p.hero.weapon.spec, prog.cards,
-                                    getattr(self.world, "seed", 0) or 0, p.index, prog.offers)
+            prog.offer = draw_offer(p.stats.hero, config.WEAPONS[config.HEROES[p.stats.hero].weapon],
+                                    prog.cards, getattr(self.world, "seed", 0) or 0, p.index,
+                                    prog.offers, p.hero.stats, prog.banished, p.unlocked)
             prog.offers += 1
             if not prog.offer:
                 prog.picks = 0             # every card maxed out: nothing left to offer
 
     @staticmethod
+    def _spell_levels(p: Player) -> dict:
+        return dict(p.hero.stats.spells) if p.hero.stats is not None else {}
+
+    @staticmethod
     def _apply_loadout(p: Player) -> None:
         """Rebuild the hero from the base specs plus every card taken."""
-        lo = build_loadout(p.stats.hero, p.progress.cards)
+        lo = build_loadout(p.stats.hero, p.progress.taken, p.meta)
         hero = p.hero
         gained = lo.body.max_hp - hero.max_hp
         hero.spec = lo.body
         hero.weapon.spec = lo.weapon
+        hero.stats = lo.stats
         hero.max_hp = lo.body.max_hp
         hero.hp = min(hero.max_hp, hero.hp + max(0, gained))   # new max HP comes filled
-        hero.lifesteal = lo.lifesteal
-        p.regen = lo.regen
+        hero.lifesteal = lo.stats.lifesteal
+        p.regen = lo.stats.regen
+        sync_spells(p.spells, lo.stats.spells)
+
+    @staticmethod
+    def _overload(hero) -> dict:
+        """Overload (a card): every OVERLOAD_EVERY-th attack hits harder and
+        jumps further."""
+        if hero.stats is None or not hero.stats.has("overload"):
+            return {}
+        hero.attacks += 1
+        if hero.attacks % config.OVERLOAD_EVERY:
+            return {}
+        return {"mult": config.OVERLOAD_MULT, "extra_chain": config.OVERLOAD_CHAIN}
+
+    def _hunters_mark(self, p: Player, dt: float) -> None:
+        """Hunter's Mark (a card): every MARK_INTERVAL s (or when the mark
+        dies) the toughest enemy in the player's view is marked."""
+        hero = p.hero
+        p.mark_timer -= dt
+        if p.mark_timer > 0 and hero.marked is not None and hero.marked.alive:
+            return
+        p.mark_timer = config.MARK_INTERVAL
+        f = p.focus()
+        seen = [e for e in self.enemies if e.alive and e.hittable and f.near(e.x, e.y, 0.0)]
+        hero.marked = max(seen, key=lambda e: (e.max_hp, -math.hypot(e.x - hero.x, e.y - hero.y)),
+                          default=None)
 
     def _actors(self) -> list:
         return [p.hero for p in self.players if p.hero.alive] + [e for e in self.enemies if e.alive]
@@ -529,10 +643,8 @@ class GameScene(Scene):
                 killer = self._player_of(e.last_hit_by)
                 if killer is not None:
                     killer.stats.killed(e.espec.name)
-                    if killer.progress.add(e.espec.xp):
-                        self.effects.append(Effect("levelup", killer.hero.x, killer.hero.y))
-                        if killer.local:
-                            events.append("chime")
+                    drop(self.gems, e.x, e.y, e.espec.xp)
+                    self._loot(killer, e)
             ctx.actors = self._actors()
         events += ctx.events
         ctx.events.clear()
@@ -547,6 +659,16 @@ class GameScene(Scene):
             self.game_over_for = 0.0
             self._end_run()
         return events
+
+    def _loot(self, p: Player, enemy) -> None:
+        """A kill's loot goes straight into the run's purse; a shard flies
+        from the body to the hero to show it."""
+        stats = p.hero.stats
+        bonus = stats.loot if stats is not None else 0.0
+        amount = enemy.espec.xp * config.LOOT_PER_XP * (1 + bonus)
+        p.stats.loot += amount
+        self.effects.append(Effect("loot", enemy.x, enemy.y, target=p.hero,
+                                   value=max(1, round(amount))))
 
     # --- World streaming ------------------------------------------------------------------
 
@@ -574,6 +696,7 @@ class GameScene(Scene):
         yield from (p.hero for p in self.players)
         yield from self.enemies
         yield from self.projectiles
+        yield from self.gems
 
     def _remember_positions(self) -> None:
         """Where everything was before this step, for blending when drawing."""
@@ -617,6 +740,7 @@ class GameScene(Scene):
         ground = [e for e in self.effects if e.kind in _GROUND_EFFECTS]
         air = [e for e in self.effects if e.kind not in _GROUND_EFFECTS]
         draw_effects(text, cam, self.world, ground)
+        draw_gems(text, cam, self.gems, self.steps)
         margin = 3
         x0, y0 = cam.canvas_to_world(0, 0)
         x1, y1 = cam.canvas_to_world(cam.view_w, cam.view_h)
@@ -627,6 +751,9 @@ class GameScene(Scene):
             h = p.hero
             if p.alive and x0 - margin <= h.x <= x1 + margin and y0 - margin <= h.y <= y1 + margin:
                 draw_body(self.sprites, cam, h)
+        draw_statuses(text, cam, self.enemies, [p.hero.marked for p in self.players
+                                                 if p.alive and p.hero.marked is not None])
+        draw_spells(text, cam, [p for p in self.players if p.alive], self.steps)
         draw_slashes(self.sprites, cam, self.effects)
         draw_projectiles(text, cam, self.projectiles)
         draw_effects(text, cam, self.world, air)
@@ -646,7 +773,11 @@ class GameScene(Scene):
             draw_hud(text, HudInfo(
                 hp=me.hero.hp, max_hp=me.hero.max_hp, level=me.progress.level,
                 xp_frac=me.progress.frac, kills=me.stats.total_kills, time=me.stats.time,
-                fps=self.fps if self.app.settings.show_fps else None))
+                fps=self.fps if self.app.settings.show_fps else None,
+                spells=tuple((s.spec.short, s.level) for s in me.spells.values()),
+                loot=int(me.stats.loot)))
+        if self.app.dev and not self.map_open:
+            text.put(0, d.rows - 1, " DEV  L: level up ", palette.DEV_TAG, palette.HUD_PANEL)
         if self.map_open:
             self.big_map.draw(text, self.sprites, cam.view_rows,
                               (me.hero.x, me.hero.y), me.hero.aim_angle, others)

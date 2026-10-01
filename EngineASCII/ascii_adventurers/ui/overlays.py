@@ -19,6 +19,7 @@ from .. import config, palette
 from ..app import app_of
 from ..meta.records import Records
 from ..meta.run_stats import RunStats, format_time
+from ..render.glyphs import loot_glyph
 from .frame import center, draw_box
 
 _ENTER = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE)
@@ -88,13 +89,17 @@ class PauseMenu(_Box):
 
 class GameOverPanel(_Box):
     width = 76
-    height = 22
-    button_row = 14
+    height = 25
+    button_row = 15
 
     def __init__(self, manager, stats: RunStats, records: Records, broken: set[str], *,
-                 again, change_hero, title) -> None:
-        super().__init__(manager, [("Go again  (R)", again), ("Change hero", change_hero),
-                                   ("Title screen", title)])
+                 again, change_hero, title, guild_hall=None, purse: int | None = None) -> None:
+        buttons = [("Go again  (R)", again)]
+        if guild_hall is not None:
+            buttons.append(("Guild Hall", guild_hall))
+        buttons += [("Change hero", change_hero), ("Title screen", title)]
+        super().__init__(manager, buttons)
+        self.purse = purse            # the guild's loot after this run was banked
         self.stats = stats
         self.records = records
         self.broken = broken
@@ -126,6 +131,10 @@ class GameOverPanel(_Box):
         best = (f"Best: {format_time(rec.longest_time)}   {rec.most_kills} kills   "
                 f"{rec.furthest:.0f} tiles   {rec.most_biomes} biomes   ({rec.runs} runs)")
         center(text, top + 12, _fit(best, width - 4), colors.AMBER_DIM, left, width)
+        loot = f"Loot found: {loot_glyph(text)} {int(s.loot)} (kept)"
+        if self.purse is not None:
+            loot += f"    guild purse: {loot_glyph(text)} {self.purse}"
+        center(text, top + 13, loot, palette.LOOT_TEXT, left, width)
         self.ui().draw(text)
         center(text, top + height - 2, "R: go again", colors.GREY, left, width)
 

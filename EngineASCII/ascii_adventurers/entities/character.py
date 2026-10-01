@@ -20,6 +20,7 @@ points DOWN the screen. So 0 = east, +pi/2 = south, -pi/2 = north.
 from __future__ import annotations
 
 import math
+import random
 
 from .. import config
 from ..specs import CharacterSpec
@@ -72,6 +73,15 @@ class Character(Actor):
         self.last_blocked = False
         self.half = spec.size_px / 2     # collision half-size, px
         self.weapon = Weapon(config.WEAPONS[spec.weapon])
+        # Heroes (M14): their card stats (players/stats.HeroStats; None for
+        # enemies), the dice for crits / dodges / status rolls (the game
+        # seeds it per player so runs replay), Hunter's Mark's target,
+        # attacks made (Overload) and hits dodged (for the "dodge" pop-up).
+        self.stats = None
+        self.rng = random.Random(0)
+        self.marked = None
+        self.attacks = 0
+        self.dodged = 0
 
     @property
     def facing_left(self) -> bool:
@@ -85,11 +95,20 @@ class Character(Actor):
 
     def take_damage(self, amount, source, from_angle):
         """Armor: a hit coming from the side the character faces (its aim)
-        is scaled by the spec's front_armor."""
+        is scaled by the spec's front_armor. A hero's card stats may dodge
+        the hit outright, and armor `a` scales it by 1 - a / (|a| + ARMOR_K)
+        (40 armor halves it; negative armor makes hits hurt more)."""
         if from_angle is not None and self.spec.front_armor != 1.0:
             came_from = from_angle + math.pi     # a hit comes *from* opposite its travel
             if abs(wrap_angle(came_from - self.aim_angle)) < FRONT_ARC:
                 amount *= self.spec.front_armor
+        st = self.stats
+        if st is not None and self.alive and not self.invulnerable:
+            if st.dodge > 0 and self.rng.random() < st.dodge:
+                self.dodged += 1
+                return 0.0
+            if st.armor:
+                amount *= 1 - st.armor / (abs(st.armor) + config.ARMOR_K)
         return super().take_damage(amount, source, from_angle)
 
     # --- Moving -------------------------------------------------------------------------

@@ -44,7 +44,9 @@ class PlayerInput:
     move_y: float = 0.0
     aim: tuple[float, float] | None = None   # world point; None: keep aiming as before
     fire: bool = False
-    pick: int | None = None      # a card chosen from the offer (0-based), this step
+    # A card choice this step: an index into the offer (0-based), "reroll",
+    # "skip" or ("banish", index).
+    pick: int | str | tuple | None = None
 
 
 class Controls:
@@ -55,12 +57,12 @@ class Controls:
         self._fire_blocked = False
         self._pick: int | None = None
 
-    def queue_pick(self, index: int) -> None:
-        """A card chosen with a key / button press; handed over with the
-        next step's input."""
-        self._pick = index
+    def queue_pick(self, action) -> None:
+        """A card choice made in the picker (see PlayerInput.pick); handed
+        over with the next step's input."""
+        self._pick = action
 
-    def take_pick(self) -> int | None:
+    def take_pick(self):
         pick, self._pick = self._pick, None
         return pick
 
