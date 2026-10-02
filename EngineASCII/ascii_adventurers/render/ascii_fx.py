@@ -32,7 +32,7 @@ from ..entities.effects import Effect
 from ..entities.projectile import Projectile
 from ..systems.collision import screen_angle
 from ..systems.raycast import first_hit
-from .glyphs import images_for, loot_glyph
+from .glyphs import NOTE, images_for, loot_glyph, note_glyph
 
 # Octant of an on-screen direction: 0 = east, then clockwise (y is down).
 _HEAD = (">", "\\", "v", "/", "<", "\\", "^", "/")
@@ -95,6 +95,8 @@ SHOT_LOOKS = {
     "bubble": ("O", (".", "."), palette.SHOT_BUBBLE),
     "ripple": ("o", (".", "."), palette.SHOT_RIPPLE),
     "psy": ("@", (".", "."), "psy"),          # colors: palette.PSY_SHOTS by p.tint
+    # M19
+    "note": (NOTE, ("'", "."), palette.SHOT_NOTE),   # Sheet Music (a painted glyph)
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).
@@ -123,6 +125,7 @@ def _draw_lobbed(batch, camera: Camera, p: Projectile) -> None:
 
 
 def draw_projectiles(text: TextRenderer, camera: Camera, projectiles: list[Projectile]) -> None:
+    note_glyph(text)                         # (registered once per renderer)
     batch = _Batch(text)
     for p in projectiles:
         if p.spec.lob:

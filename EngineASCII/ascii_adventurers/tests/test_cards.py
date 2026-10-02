@@ -57,14 +57,15 @@ class CardDataTest(unittest.TestCase):
     def test_the_whole_catalog(self):
         """design/CARDS.md rev 2: 101 cards."""
         codes = [c.code for c in config.CARDS.values()]
-        self.assertEqual(len(codes), 112)                   # + 11 dodge roll cards (M18)
-        self.assertEqual(len(set(codes)), 112)
+        # + 11 dodge roll cards (M18), + 5 patterns and 4 hero cards (M19)
+        self.assertEqual(len(codes), 121)
+        self.assertEqual(len(set(codes)), 121)
         for prefix, n in (("G", 21), ("T", 14), ("S", 12), ("C", 8), ("X", 6), ("R", 6),
-                          ("E", 3), ("K", 6), ("V", 6)):
+                          ("E", 3), ("K", 6), ("V", 6), ("M", 5)):
             self.assertEqual(sum(c.startswith(prefix) for c in codes), n, prefix)
         for hero in config.HEROES:
             own = [k for k, c in config.CARDS.items() if c.heroes == (hero,)]
-            self.assertEqual(len(own), 6, hero)
+            self.assertEqual(len(own), 6 if hero == "wizard" else 7, hero)   # wizard: M20
             capstone = [k for k in own if config.CARDS[k].rarity == "legendary"]
             self.assertEqual(len(capstone), 1, hero)
 
@@ -180,15 +181,22 @@ class OfferTest(unittest.TestCase):
         self.assertAlmostEqual(w[2] / config.CARD_RARITY_WEIGHT["rare"], 1.2 ** 2)
 
     def test_synergy_weighting(self):
-        """Frost cards come up more once the build has frost."""
-        def frost_share(stats):
+        """Frost cards come up more once the build has frost. (Same pool
+        both times, only the frost tag differs: a real frost source also
+        opens status payoffs that crowd the offers, M18/M19.)"""
+        from dataclasses import replace
+        plain = weapon_of("wizard")
+        frosty = replace(plain, tags=plain.tags + ("frost",))
+        self.assertEqual(cards.eligible("wizard", plain, Counter()),
+                         cards.eligible("wizard", frosty, Counter()))
+
+        def frost_share(weapon):
             n = 0
             for i in range(2000):
                 n += sum(k == "frostbite" for k, _ in
-                         cards.draw_offer("wizard", weapon_of("wizard"), Counter(), 11, 0, i, stats))
+                         cards.draw_offer("wizard", weapon, Counter(), 11, 0, i))
             return n
-        self.assertGreater(frost_share(stats_with(("frost_nova", "uncommon"))),
-                           frost_share(HeroStats()) * 1.2)
+        self.assertGreater(frost_share(frosty), frost_share(plain) * 1.2)
 
 
 class StatsTest(unittest.TestCase):

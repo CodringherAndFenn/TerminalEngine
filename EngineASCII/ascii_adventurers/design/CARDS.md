@@ -1,6 +1,6 @@
 # AsciiAdventurers — Card Catalog
 
-Status: **rev 2, approved and BUILT in M16 (2026-10-01): all 101 cards. M18 (2026-10-02) added the dodge roll and 11 roll cards (section 6.10, 112 in all), gated Lingering, replaced three spell levels and added the archetype lean (section 14).** Rev 1's first 48 cards were built in M14. Rev 2 applies the "no repeating upgrades" rule (section 0, enforced by a test); every change is listed in section 12, and section 13 notes the choices made while building.
+Status: **rev 2, approved and BUILT in M16 (2026-10-01): all 101 cards. M18 (2026-10-02) added the dodge roll and 11 roll cards (section 6.10, 112 in all), gated Lingering, replaced three spell levels and added the archetype lean (section 14). M19 (2026-10-02) added multiple projectiles for every hero: 5 pattern cards, 4 hero cards (6.11, 121 in all) and the fan rule (section 15).** Rev 1's first 48 cards were built in M14. Rev 2 applies the "no repeating upgrades" rule (section 0, enforced by a test); every change is listed in section 12, and section 13 notes the choices made while building.
 
 Based on `../../survivorlike_upgrade_design_guide.md` (section numbers below refer to it).
 
@@ -158,7 +158,7 @@ A spell card is an **enabler**. Its first pick grants the spell; picking it agai
 | G17 | Piercing | +1 pierce (not axes, which pierce everything) | fixed uncommon | sniper, volley | start |
 | G18 | Potency | +X% status damage (needs a status) | 10/15/22/30/40 | all statuses | start |
 | G19 | Quickened | −X% spell cooldown (needs a spell) | 6/9/12/16/20 | summoner, spells | start |
-| G20 | Multishot | +1 projectile, for everyone who shoots (the only "+projectile" card now) | fixed rare | volley | L:2000 |
+| G20 | Multishot | +1 projectile (the only "+projectile" card). M19: for anyone with a projectile (Sheet Music's notes, Fire Wand and Bone Turret count), in the pool from the start | fixed rare | volley | start |
 | G21 🆕 | Affliction | +X% status chance (needs a status) | 5/8/12/16/20 | all statuses | start |
 
 ### 6.2 Hero cards (25) — 5 per hero, the 5th is that hero's capstone
@@ -305,6 +305,24 @@ The roll: ~4 tiles in 0.25 s toward where you walk (your aim if standing still),
 
 Dropped from the M18 proposal (your call): Long Roll, Afterimage.
 
+### 6.11 Projectile patterns (9, M19)
+
+Pattern cards need an attack that shoots: every hero but the bard, and the bard once he has Sheet Music. Each one fires shots of the hero's own weapon, so the rainbow's are whole fans, the axes come home and the bolts still jump. The bard's are notes.
+
+| # | Card | Text | Rarity | Archetype |
+|---|---|---|---|---|
+| M01 | Cross Fire | every 4th attack also fires at 90°, 180° and 270° | uncommon | volley |
+| M02 | Starburst | every 10th attack: 8 single shots all around | rare | volley |
+| M03 | Rear Guard | every attack also fires one shot behind you (60%) | uncommon | volley |
+| M04 | Spiral | an extra shot each attack, 37° further round each time | uncommon | volley |
+| M05 | Twin Lanes | every shot flies as two, half a tile apart (65% each) | rare | volley |
+| B7 | Sheet Music (bard) | each beat flings 3 notes (9 each) at the nearest enemies in sight; +1 note per Multishot; with nobody near they spread all round | uncommon | volley |
+| H7 | Split Arrow (huntress) | **her power: a spell, uses a slot, levels I-V.** I: an arrow's first hit splits it into a 3-arrow fan (50% each, 40°); II +1 arrow; III +30% split damage; IV splits on every enemy it passes; V +2 arrows, wider fan. Split arrows don't split again | uncommon | volley, sniper |
+| P7 | Double Rainbow (princess) | every 3rd shot, a second fan 0.08 s behind, turned half a color | rare | volley |
+| D7 | Twin Axes (dwarf) | every 3rd throw is two axes in a V (30° apart); both come home | rare | volley |
+
+Dropped (your call): Barrage. Multishot is the one plain "+1 projectile" card. The wizard's projectile cards come with his new weapon (M20).
+
 ## 7. Archetype coverage (guide 7.2)
 
 Each row should have an enabler, 2-4 payoffs, a capstone and overlap with at least 2 others.
@@ -436,3 +454,12 @@ Unchanged on purpose: W1 Storm Caller (+1 jump) and W2 Conductor are the only ca
   - Healing Totem III: lasts 3 s longer → **also chills enemies near it** (1 stack a second; it counts as a chill source);
   - Bone Turret III: turrets last 4 s longer → **bolts pierce +1 enemy**.
 - **Archetype lean:** the build's leading archetype is the one with the most cards taken (copies and spell levels count), once it reaches `ARCHETYPE_MIN` = 2. That archetype then gets `ARCHETYPE_SLOTS` = 1 slot of every offer. That slot is drawn first, the usual way (rarity roll, synergy weight) but only among that archetype's eligible cards, and then shuffled in among the others. Ties go to the archetype listed first in `config.ARCHETYPES`. A build without a lean draws exactly as before. Example: two Spirit Wolf picks mean every offer has a summoner card (Bone Turret, Healing Totem, Quickened, Lingering, Pack Leader, or a wolf level).
+
+## 15. M19 changes (2026-10-02)
+
+- **Fan rule:** every projectile beyond a weapon's own adds at least 12° (`MIN_PELLET_GAP`) to the fan. This covers Multishot, Coronation, Quiver, Volley, Backflip and Twin Axes. One Multishot gives the wizard two bolts 12° apart. A weapon's own fan is kept (the rainbow's 5 colors over 34°; with one Multishot, 6 over 46°). Focus still narrows the result.
+- **Echo** repeats the attack 10° off the aim, left and right in turn, so the repeat doesn't fly down the same line.
+- **Multishot** is in the pool from the start (it was 2,000 loot). It's for anyone with a projectile, and Fire Wand and Bone Turret fire one more bolt per copy (12° apart). Its old "+10° spread" is replaced by the fan rule.
+- **Split Arrow** is a spell (huntress-only card, own spell slot, HUD "SPLIT"), as the user asked: "a power that levels like a spell".
+- `config.ARCHETYPES["volley"]` now includes M01-M05, B7, H7, P7 and D7.
+- The synergy test now compares the same pool with and without the frost tag. A real frost source (Frost Nova) also opens Potency, Affliction and Lingering, and those crowd Frostbite out more than the ×1.5 weight lifts it.

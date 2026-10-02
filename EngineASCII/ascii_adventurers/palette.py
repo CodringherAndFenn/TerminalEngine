@@ -262,6 +262,7 @@ STATUS_PIP = {"burn": (255, 130, 40), "poison": (140, 230, 70), "bleed": (230, 4
 FROZEN = ((200, 235, 255), (120, 180, 240))
 MARK = (255, 70, 60)
 EVADE = (190, 230, 255)
+SHOT_NOTE = ((255, 225, 120), ((235, 170, 90), (150, 110, 70)))   # Sheet Music's notes
 # The dodge roll (M18): dust kicked up behind it (fresh, settling), Blink's
 # flash, and a trail patch's two shades per status (Scorched Trail, Prism Dash).
 ROLL_DUST = ((200, 190, 165), (130, 122, 105))

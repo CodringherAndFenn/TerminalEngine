@@ -119,6 +119,7 @@ class Character(Actor):
         self.roll_trail = 0.0
         self.roll_steps = 0
         self.speed_mult = 1.0             # Slipstream
+        self.spiral = 0                   # Spiral: how far round its extra shot has turned
 
     @property
     def rolling(self) -> bool:

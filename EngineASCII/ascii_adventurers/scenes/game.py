@@ -597,8 +597,10 @@ class GameScene(Scene):
 
     def _attack(self, p: Player, echo: bool = False) -> None:
         """The hero's weapon goes off (with this attack's card changes)."""
+        kw = self.rules.attack_mods(p, echo)
         shot = combat.attack(p.hero, self.world, self.projectiles, self.effects, self._actors(),
-                             **self.rules.attack_mods(p, echo))
+                             **kw)
+        shot += self.rules.patterns(p, kw)
         if p.local:
             self._sounds.extend(shot)
         for e in self.enemies:

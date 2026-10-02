@@ -10,6 +10,7 @@ Units:
 """
 
 import math
+from dataclasses import replace
 
 from .specs import (BossPhase, BossSpec, CardSpec, CharacterSpec, EnemySpec, PactSpec, QuestSpec,
                     ShellSpec, SpellSpec, StatusSpec, UpgradeSpec, WeaponSpec)
@@ -512,7 +513,25 @@ RETALIATION = (30, 2.5, 3.0, 1.5)   # damage, radius, cooldown s, push tiles
 SURGE_HEAL = 0.20            # Surge: on level-up, heal this much...
 SURGE_PUSH = (4.0, 3.0)      # ...and push enemies within 4 tiles 3 tiles away
 ECHO_EVERY = 6               # Echo: every Nth attack happens twice...
-ECHO_DELAY = 0.15            # ...this much later
+ECHO_DELAY = 0.15            # ...this much later...
+ECHO_ANGLE = 10.0            # ...turned this many degrees off the aim (left and right in turn)
+
+# --- Multiple projectiles (M19) -------------------------------------------------------
+# Every projectile beyond a weapon's own adds at least MIN_PELLET_GAP degrees
+# to its fan (Multishot, Quiver, Volley, Twin Axes...), so extra shots always
+# fan out visibly instead of flying as one line. A weapon's own fan (the
+# rainbow's 5 colors over 34 degrees) is left as it is.
+MIN_PELLET_GAP = 12.0
+CROSS_FIRE_EVERY = 4         # Cross Fire: every Nth attack also goes off at 90/180/270 degrees
+STARBURST = (10, 8)          # Starburst: every Nth attack, this many single shots all round
+REAR_GUARD = 0.6             # Rear Guard: x damage of the shot fired behind you
+SPIRAL_STEP = 37.0           # Spiral: degrees the extra shot turns further each attack
+TWIN_LANES = (0.5, 0.65)     # Twin Lanes: tiles between the two lanes, x damage of each
+DOUBLE_RAINBOW = (3, 0.08)   # Double Rainbow: every Nth shot, a 2nd fan this many s later
+TWIN_AXES = (3, 30.0)        # Twin Axes: every Nth throw is 2 axes this many degrees apart
+SHEET_MUSIC = 3              # Sheet Music: notes flung per beat (+1 per Multishot)...
+SHEET_MUSIC_DAMAGE = 9.0     # ...each this much (hero buckets apply)...
+SHEET_MUSIC_REACH = 12.0     # ...aimed at enemies this close (else spread all round)
 GOLDEN_HOARD = (50, 0.50)    # +1% damage per this much loot, up to +50%
 WILDFIRE = 0.30
 SHATTER = (1.5, 2.0, 15)     # Shatter: x damage vs frozen; death burst radius, damage
@@ -646,10 +665,23 @@ SPELLS = {
                 ("+10 thorn damage", (("flat", "add", 10.0),)),
                 ("+25% reflected", (("share", "add", 0.25),))),
         text="attackers take 5 + 30% of the damage back"),
+    # M19: the huntress's own power (her card only; it takes a spell slot).
+    # Passive: her arrows split on hitting (systems/combat._split_arrow).
+    "split_arrow": SpellSpec(
+        "Split Arrow", "SPLIT", "split_arrow", ("physical", "projectile"),
+        base=dict(count=3, spread=40.0, damage=0.5, every=0),
+        levels=(("+1 arrow in the split", (("count", "add", 1),)),
+                ("+30% split damage", (("damage", "mul", 1.3),)),
+                ("arrows split on every enemy they pass", (("every", "add", 1),)),
+                ("+2 arrows, wider fan", (("count", "add", 2), ("spread", "add", 20.0)))),
+        text="an arrow's first hit splits it into a fan of 3 (50% each)"),
 }
 
 # Shots that spells fire (damage comes from the spell's level).
 SPELL_SHELLS = {
+    # Sheet Music's notes (M19; damage comes from SHEET_MUSIC_DAMAGE).
+    "note": ShellSpec(speed=20.0, damage=0, max_range=11.0, damages_terrain=False,
+                      look="note", sound="pulse"),
     "wand": ShellSpec(speed=22.0, damage=0, max_range=14.0, damages_terrain=False,
                       look="ember", sound="spark"),
     "turret": ShellSpec(speed=26.0, damage=0, max_range=12.0, damages_terrain=False,
@@ -662,7 +694,6 @@ SPELL_SHELLS = {
 # plain stat is sold by exactly one card (the catalog's no-repeats rule).
 _T = 5          # copies of a tiered generic card one hero can take
 _CAP = dict(rarity="legendary", max_stacks=1, min_level=CAPSTONE_LEVEL, unlock="L:6000")
-_SHOOTERS = ("wizard", "huntress", "princess", "dwarf")
 
 
 def _spell_card(key: str, code: str, unlock: str = "start") -> CardSpec:
@@ -723,9 +754,12 @@ CARDS = {
     "quickened": CardSpec("Quickened", "spells {X}% faster", (("spell_cooldown", "add", "X"),),
                           tiers=(6, 9, 12, 16, 20), max_stacks=_T, needs=("spell",),
                           code="G19"),
-    "multishot": CardSpec("Multishot", "+1 projectile",
-                          (("pellets", "add", 1), ("spread", "add", 10)), rarity="rare",
-                          heroes=_SHOOTERS, tags=("projectile",), unlock="L:2000", code="G20"),
+    # M19: for everyone with a projectile (Sheet Music's notes, Fire Wand
+    # and Bone Turret count), in the pool from the start; the fan comes from
+    # MIN_PELLET_GAP.
+    "multishot": CardSpec("Multishot", "+1 projectile", (("pellets", "add", 1),),
+                          rarity="rare", needs=("projectile",), tags=("projectile",),
+                          code="G20"),
     "affliction": CardSpec("Affliction", "+{X}% chance for each of your statuses",
                            (("status_chance", "add", "X"),), tiers=(5, 8, 12, 16, 20),
                            max_stacks=_T, needs=("status",), code="G21"),
@@ -988,6 +1022,34 @@ CARDS = {
     "drop_the_beat": CardSpec("Drop the Beat", "a free x1.5 beat as each roll ends",
                               (("drop_the_beat", "flag", 1),), rarity="uncommon", max_stacks=1,
                               heroes=("bard",), tags=("roll", "area"), code="B6"),
+    # --- 6.11 Projectile patterns (M19): every hero whose attack shoots, the
+    # bard through Sheet Music ("shots" gate) ---
+    "cross_fire": CardSpec("Cross Fire", "every 4th attack also fires sideways and behind",
+                           (("cross_fire", "flag", 1),), rarity="uncommon", max_stacks=1,
+                           needs=("shots",), tags=("projectile",), code="M01"),
+    "starburst": CardSpec("Starburst", "every 10th attack: 8 shots all around you",
+                          (("starburst", "flag", 1),), rarity="rare", max_stacks=1,
+                          needs=("shots",), tags=("projectile",), code="M02"),
+    "rear_guard": CardSpec("Rear Guard", "every attack also fires a shot behind you (60%)",
+                           (("rear_guard", "flag", 1),), rarity="uncommon", max_stacks=1,
+                           needs=("shots",), tags=("projectile",), code="M03"),
+    "spiral": CardSpec("Spiral", "an extra shot each attack, turning further around you",
+                       (("spiral", "flag", 1),), rarity="uncommon", max_stacks=1,
+                       needs=("shots",), tags=("projectile",), code="M04"),
+    "twin_lanes": CardSpec("Twin Lanes", "every shot flies as two side by side (65% each)",
+                           (("twin_lanes", "flag", 1),), rarity="rare", max_stacks=1,
+                           needs=("shots",), tags=("projectile",), code="M05"),
+    # Hero projectile cards (the wizard's come with his new weapon, M20).
+    "sheet_music": CardSpec("Sheet Music", "each beat flings 3 notes at the nearest enemies",
+                            (("sheet_music", "flag", 1),), rarity="uncommon", max_stacks=1,
+                            heroes=("bard",), tags=("projectile", "arcane"), code="B7"),
+    "split_arrow": replace(_spell_card("split_arrow", "H7"), heroes=("huntress",)),
+    "double_rainbow": CardSpec("Double Rainbow", "every 3rd shot: a second fan right behind",
+                               (("double_rainbow", "flag", 1),), rarity="rare", max_stacks=1,
+                               heroes=("princess",), tags=("projectile",), code="P7"),
+    "twin_axes": CardSpec("Twin Axes", "every 3rd throw is two axes in a V",
+                          (("twin_axes", "flag", 1),), rarity="rare", max_stacks=1,
+                          heroes=("dwarf",), tags=("projectile", "physical"), code="D7"),
 }
 
 # Spells whose things last a while, so Lingering (+duration) does something
@@ -1007,7 +1069,8 @@ ARCHETYPES = {
     "frost": ("T05", "S03", "B4", "P3", "T06", "G09", "T13"),
     "shock": ("W3", "T07", "S07", "W1", "W2", "W4", "W5", "T14", "W6"),
     "bleed": ("D4", "T08", "T09", "G18", "D5", "K02"),
-    "volley": ("G20", "D1", "H1", "P1", "X03", "R06", "C06", "G02", "P5", "D5", "H6"),
+    "volley": ("G20", "D1", "H1", "P1", "X03", "R06", "C06", "G02", "P5", "D5", "H6",
+               "M01", "M02", "M03", "M04", "M05", "B7", "H7", "P7", "D7"),
     "sniper": ("D2", "H2", "C07", "H3", "G07", "G17", "H5"),
     "area": ("R01", "S05", "R02", "G08", "B3", "X06", "B5", "W5", "B1", "B6"),
     "summoner": ("S04", "S11", "S08", "G19", "G09", "K04"),

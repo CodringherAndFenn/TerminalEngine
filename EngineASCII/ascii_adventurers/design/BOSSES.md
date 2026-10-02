@@ -1,12 +1,12 @@
 # AsciiAdventurers — Quests, Bosses and Landmarks
 
-Status: **rev 1 — the framework and the swamp are BUILT in M17 (2026-10-01).** Rev 1 applies the user's answers to the rev 0 questions (section 9). What M17 built, and where it differs from the draft below, is in section 10. The user decides every boss; this doc holds the shared rules, the vocabulary to build bosses from (like the card archetypes in CARDS.md), and the first quest + boss to prove the framework. Open questions are in section 9.
+Status: **rev 1 — the framework and the swamp are BUILT in M17 (2026-10-01).** Rev 1 applies the user's answers to the rev 0 questions (section 9). What M17 built, and where it differs from the draft below, is in section 10. The user decides every boss; this doc holds the shared rules, the vocabulary to build bosses from (like the card archetypes in CARDS.md), and the first quest + boss to prove the framework. Open questions are in section 9. **2026-10-02:** the user set the boss roster (section 11, three per ring biome) and the roadmap was redone (section 8).
 
 ---
 
 ## 1. Run structure (what quests are for)
 
-1. Each run draws **one quest per ring biome** from that biome's quest list. Finishing it **summons that biome's boss**.
+1. Each run draws **one quest per ring biome** from that biome's quest list. Finishing it **summons that biome's boss**. Since 2026-10-02 each ring biome has **three bosses** (section 11), and the run's seed picks one of them, together with the quest that leads to it.
 2. Beating all 5 ring bosses unlocks the **plains boss**.
 3. The plains boss drops **Adventurer's Glory** — the main quest, "Gain Adventurer's Glory". Holding it, the player **may end the run** (a victory) or keep going.
 4. Later: the plains boss also grants water movement → 4 cardinal ocean regions → cardinal bosses → kill order picks the final boss (unchanged from the vision).
@@ -166,15 +166,36 @@ Suggested angles only (to keep playstyles different — change freely):
 - leprechaun: tricks and greed (B7 decoys, gold that baits you)
 - plains (tier II): a "best of" fight that tests everything, own signature on top
 
-## 8. Roadmap
+## 8. Roadmap (redone 2026-10-02)
 
 | Milestone | Content |
 |-----------|---------|
-| **M17 (built)** | Quest framework + landmark stamping + quest log/HUD + boss framework (BossSpec, pattern library, HP bar, arena) + swamp: frog hunter hut, big bog, psychedelic frogs, **Froggy McFrogface** |
-| M17.5 | Forest → leprechaun biome swap (open, green, reuses assets, boar carries over) |
-| M18 | Other 4 ring quests + bosses, **one at a time**, each reviewed as a draft first |
-| M19 | Plains boss + Adventurer's Glory + "end run" victory, usable any time after you get it (+ water movement) |
+| M17 (built) | Quest framework, landmarks, quest log, boss framework, swamp: frog hunter, **Froggy McFrogface** |
+| M17.1 (built) | Froggy's phase-1 bubble stream |
+| M18 (built) | Dodge roll + 11 roll cards, evasion rename, Lingering gate, spell levels, archetype lean |
+| M19 (built) | Multiple projectiles for every hero (section 8.1; as built: `CARDS.md` 6.11 and 15) |
+| **M20** | Wizard's new weapon: **arcane missiles** (3 darts fan out, then home); the shock bolt becomes a card/spell; wizard cards redone |
+| **M21** | **New forest biome** (replaces the bushy forest; open, green, reuses assets, boar carries over; theme picked when built) |
+| **M22** | **Boss pools**: 3 bosses per biome, the seed picks one per run, each with its own quest; the boss's real kind can be hidden behind one name (Mycelium); per-boss bestiary pages and achievements. Froggy is the swamp's first; proven with the second swamp boss |
+| M22.1 | Swamp: **leech swarm** |
+| M22.2 | Swamp: **mosquito** |
+| M23.1-3 | Desert: **beetle**, **spitting camel**, **nomad sand wizard** |
+| M24.1-3 | Ruins: **radioactive monster**, **ice wizard**, **vampire girl** |
+| M25.1-3 | Forest: **corrupted pixie**, **mad murderer squirrel**, **mimic tree** |
+| M26.1-3 | Mushroom: **Mycelium** (three variants: amanita muscaria + two more) |
+| M27 | Plains boss (not designed yet) + Adventurer's Glory + "end run" victory (+ water movement) |
 | later | NPC side quests, cardinal regions + tier III bosses, kill order + finals, co-op, balance |
+
+Each boss is still drafted first and reviewed before it's built, one at a time: signature, 2-3 supporting patterns, a phase table like section 6.
+
+### 8.1 M19: multiple projectiles, every hero
+
+- **Real fans:** each extra projectile adds at least ~12 degrees of spread, so Multishot visibly fans even on single-shot weapons. Echo and Quiver repeats come out offset or side by side, not stacked in one line.
+- **Pattern cards (everyone who shoots):** Cross Fire (every Nth attack also fires at 90/180/270 degrees), Starburst (every 10th attack in 8 directions), Rear Guard (one extra shot behind you), Twin Lanes (two parallel shots), Spiral (an extra shot that turns further round you each attack), Barrage (+2 projectiles, less damage each).
+- **Weapon versions:** bow, rainbow and axe each get one of their own (e.g. a split arrow, a double rainbow, juggled axes).
+- **Every hero, the bard too:** the dwarf's axes already count as projectiles (an extra axe fans out and each one comes home). The bard's beat isn't a projectile, so he gets a bard card that makes beats fling notes outward (e.g. "Sheet Music": each beat throws 3 notes). Multishot and the pattern cards then work on those notes, so no hero is left out of the projectile archetype.
+- Spells that shoot (Fire Wand, Bone Turret) pick up the extra projectiles too, so a summoner/spell build can use the archetype.
+- Numbers, names and the final list are reviewed before building, like M18's roll cards.
 
 ## 9. Answers (user, 2026-10-01)
 
@@ -217,3 +238,15 @@ Still open (decide while building M17): Froggy's exact numbers, the psychedelic 
 
 **Developer mode** (`run.py --dev`): F6 jumps to the quest giver, F7 finishes the hunt, F8 jumps outside the lair's gate; the fight's length is printed to the console when the boss falls.
 
+## 11. Boss roster (user, 2026-10-02)
+
+Three bosses per ring biome. Each run meets one of them, picked by the seed (section 1; confirmed by the user). All three in a biome are tier I: about equal strength, different playstyles.
+
+| Biome | Bosses | Notes |
+|-------|--------|-------|
+| Swamp | **Froggy McFrogface** (built), a **leech swarm**, a **mosquito** | the swarm is many bodies with one shared health bar (a new boss shape); the mosquito is fast, flies, drains blood |
+| Desert | a **beetle**, a **spitting camel**, a **nomad sand wizard** | |
+| Ruins | a **radioactive monster**, an **ice wizard**, a **vampire girl** | Adventure Time nods (the glowing lich-like monster, the ice king, the vampire queen). Use our own names and looks so the built game doesn't copy the show (the user will rename them) |
+| Forest (new, M21) | a **corrupted pixie**, a **mad murderer squirrel**, a **mimic tree** | the mimic hides among ordinary trees |
+| Mushroom | **Mycelium**, always: one of three real mushrooms (**amanita muscaria** + two others), but the name, quest and HUD always say just "Mycelium", so you only find out which one in the fight | the other two (user, 2026-10-02): **shaggy ink cap** (melts into ink pools) and **giant puffball** (spore bursts) |
+| Plains (tier II) | not decided | |

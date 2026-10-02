@@ -7,8 +7,11 @@ step; everything here stays deterministic (randomness comes from each
 hero's seeded dice, time from the hero's run clock).
 
   attack_mods   before an attack: cards that act on every Nth attack
-                (Overload, Volley, Quiver, Grand Finale, Syncopation, Echo)
-                or on timing (Capacitor, Opening Act, Riposte);
+                (Overload, Volley, Quiver, Grand Finale, Syncopation, Echo,
+                Twin Axes) or on timing (Capacitor, Opening Act, Riposte);
+  patterns      after an attack: the extra shots of the projectile pattern
+                cards (Cross Fire, Starburst, Rear Guard, Spiral, Double
+                Rainbow) and Sheet Music's notes;
   tick          every step, per living player: run clock, shield refill,
                 Bloodlust / Frenzy timers, Retaliation, Echo's late attack;
   on_kill       a player's kill: Bloodlust, Frenzy, Soul Harvest, Bounty,
@@ -27,7 +30,8 @@ import math
 from .. import config
 from ..entities.effects import Effect
 from . import statuses
-from .combat import _may_hurt, push, strike
+from .combat import _may_hurt, push, strike, volley
+from .raycast import first_hit
 from .statuses import inflict
 
 
@@ -67,6 +71,10 @@ class RunRules:
         n = hero.attacks
         kw = {"mult": 1.0, "extra_chain": 0, "extra_pellets": 0, "spread_add": 0.0,
               "reach_mult": 1.0}
+        if echo:
+            # Echo's repeat comes out turned off the aim, left and right in
+            # turn, so it doesn't fly in the first one's line (M19).
+            kw["angle_offset"] = math.radians(config.ECHO_ANGLE) * (1 if n % 2 else -1)
         if st is None:
             return kw
         flags = st.flags
@@ -81,6 +89,9 @@ class RunRules:
             if n % every == 0:
                 kw["extra_pellets"] += 1
                 kw["spread_add"] += 4.0
+        if "twin_axes" in flags and n % config.TWIN_AXES[0] == 0:
+            kw["extra_pellets"] += 1
+            kw["spread_add"] += config.TWIN_AXES[1]
         if "grand_finale" in flags and n % config.GRAND_FINALE[0] == 0:
             kw["mult"] *= config.GRAND_FINALE[1]
             kw["reach_mult"] *= config.GRAND_FINALE[2]
@@ -99,6 +110,82 @@ class RunRules:
             p.echo_timer = config.ECHO_DELAY
         hero.idle = 0.0
         return kw
+
+    def patterns(self, p, kw: dict) -> list[str]:
+        """The extra shots the pattern cards add to the attack just made
+        (with its keywords `kw`: damage, Riposte's crit). They're shots of
+        the hero's own weapon, or Sheet Music's notes for the bard, and go
+        off around the aim (the bard's: toward the nearest enemy)."""
+        hero, st = p.hero, p.hero.stats
+        if st is None:
+            return []
+        flags = st.flags
+        spec = hero.weapon.spec
+        notes = "sheet_music" in flags and spec.shell is None
+        if spec.shell is not None:
+            shell, damage, tags = spec.shell, spec.shell.damage, spec.tags
+            pellets, spread, aim = spec.pellets, spec.spread_deg, hero.aim_angle
+            origin = None
+        elif notes:
+            shell, damage = config.SPELL_SHELLS["note"], config.SHEET_MUSIC_DAMAGE
+            tags = ("arcane", "projectile")
+            pellets, spread, origin = 1, 0.0, (hero.x, hero.y)
+            targets = self._note_targets(hero)
+            aim = math.atan2(targets[0].y - hero.y, targets[0].x - hero.x) if targets \
+                else hero.aim_angle
+        else:
+            return []
+        scene = self.scene
+        n = hero.attacks
+        sounds: list[str] = []
+
+        def shoot(angle, count=1, fan=0.0, mult=1.0, hold=0.0):
+            sounds.extend(volley(hero, scene.world, scene.projectiles, scene.effects, angle,
+                                 count, fan, shell, tags, damage, mult=kw["mult"] * mult,
+                                 extra_chain=kw["extra_chain"],
+                                 sure_crit=kw.get("sure_crit", False), hold=hold,
+                                 origin=origin))
+
+        if notes:
+            # Sheet Music: one note at each of the nearest enemies; spare
+            # notes (and all of them with nobody near) spread all round.
+            count = config.SHEET_MUSIC + round(st.pellets)
+            for i in range(count):
+                if i < len(targets):
+                    t = targets[i]
+                    shoot(math.atan2(t.y - hero.y, t.x - hero.x))
+                else:
+                    shoot(aim + math.tau * i / count)
+        if "cross_fire" in flags and n % config.CROSS_FIRE_EVERY == 0:
+            for k in (1, 2, 3):
+                shoot(aim + k * math.pi / 2, pellets, spread)
+        every, rays = config.STARBURST
+        if "starburst" in flags and n % every == 0:
+            for k in range(rays):
+                shoot(aim + k * math.tau / rays)
+        if "rear_guard" in flags:
+            shoot(aim + math.pi, mult=config.REAR_GUARD)
+        if "spiral" in flags:
+            hero.spiral += 1
+            shoot(aim + math.radians(config.SPIRAL_STEP) * hero.spiral)
+        if "double_rainbow" in flags and n % config.DOUBLE_RAINBOW[0] == 0 and pellets > 1:
+            half = math.radians(spread) / (pellets - 1) / 2       # half a color over
+            shoot(aim + half, pellets, spread, hold=config.DOUBLE_RAINBOW[1])
+        return list(dict.fromkeys(sounds))
+
+    def _note_targets(self, hero) -> list:
+        """Enemies Sheet Music aims at: in sight within reach, nearest first."""
+        reach = config.SHEET_MUSIC_REACH
+        world = self.scene.world
+        near = []
+        for a in self.scene._actors():
+            if not a.hittable or not _may_hurt(hero, a):
+                continue
+            d = math.hypot(a.x - hero.x, a.y - hero.y)
+            if d <= reach and first_hit(world.tile_at, hero.x, hero.y, a.x, a.y) is None:
+                near.append((d, a))
+        near.sort(key=lambda da: da[0])
+        return [a for _, a in near]
 
     def weapon_dt(self, p, dt: float) -> float:
         """Frenzy: the weapon's clock runs double for a while after a kill."""

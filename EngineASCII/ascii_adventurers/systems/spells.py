@@ -29,7 +29,7 @@ on its own, every simulation step, around the hero:
          every hero within `radius` by `heal` HP/s, and (with `chill`)
          chills every enemy there `chill` times every `chill_every` s.
   wand   (Fire Wand) every `interval` s a burning bolt flies at the
-         nearest enemy in sight within `reach`.
+         nearest enemy in sight within `reach` (Multishot: more bolts, fanned).
   turret (Bone Turret) every `interval` s a turret is placed (at most
          `count` standing), shooting the nearest enemy in sight within
          `reach` every `fire` s for `life` s; its bolts pass through
@@ -365,14 +365,20 @@ def _totem(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) 
 
 def _shoot(hero, x: float, y: float, target, shell, damage: float, tags, effects,
            projectiles, summon: bool = False, inflicts=None, pierce: int = 0) -> None:
-    angle = math.atan2(target.y - y, target.x - x)
-    shot = Projectile(x, y, angle, shell, owner=hero, damage=damage)
-    shot.tags = tags
-    shot.summon = summon
-    shot.inflicts = inflicts
-    shot.pierce_left += pierce
-    projectiles.append(shot)
-    effects.append(Effect("muzzle", x, y, angle))
+    """A spell's bolt at `target`; Multishot adds bolts, fanned
+    MIN_PELLET_GAP degrees apart around the aim (M19)."""
+    aim = math.atan2(target.y - y, target.x - x)
+    n = 1 + (max(0, round(hero.stats.pellets)) if hero.stats is not None else 0)
+    gap = math.radians(config.MIN_PELLET_GAP)
+    for i in range(n):
+        angle = aim + gap * (i - (n - 1) / 2)
+        shot = Projectile(x, y, angle, shell, owner=hero, damage=damage)
+        shot.tags = tags
+        shot.summon = summon
+        shot.inflicts = inflicts
+        shot.pierce_left += pierce
+        projectiles.append(shot)
+    effects.append(Effect("muzzle", x, y, aim))
 
 
 def _wand(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -> list[str]:

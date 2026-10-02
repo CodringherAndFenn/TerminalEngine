@@ -50,12 +50,13 @@ class GuildTest(unittest.TestCase):
     def test_card_unlocks(self):
         g = Guild(loot=3000)
         self.assertTrue(g.unlocked("sharpened"))                # start card
-        self.assertFalse(g.unlocked("multishot"))
-        self.assertNotIn("multishot", g.unlocked_cards())
-        self.assertTrue(g.buy_card("multishot"))
-        self.assertEqual(g.loot, 3000 - card_price("multishot"))
-        self.assertTrue(g.unlocked("multishot"))
-        self.assertFalse(g.buy_card("multishot"))               # owned already
+        self.assertFalse(g.unlocked("berserker"))
+        self.assertNotIn("berserker", g.unlocked_cards())
+        self.assertTrue(g.buy_card("berserker"))
+        self.assertEqual(g.loot, 3000 - card_price("berserker"))
+        self.assertTrue(g.unlocked("berserker"))
+        self.assertFalse(g.buy_card("berserker"))               # owned already
+        self.assertTrue(g.unlocked("multishot"))                # a start card since M19
         self.assertFalse(g.buy_card("sharpened"))               # never for sale
 
     def test_meta_steps_stack_with_cards(self):

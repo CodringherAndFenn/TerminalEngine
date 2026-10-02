@@ -4,7 +4,7 @@ A top-down ASCII adventure roguelike on one huge island, built on the
 narrative engine (`narrative_engine/`). Everything for the game lives in
 this folder.
 
-**Status:** Milestones 1-18 and "Adventurers" are done:
+**Status:** Milestones 1-19 and "Adventurers" are done:
 - keyboard walking, mouse aiming, a smooth scrolling camera;
 - shooting, spells and destructible terrain;
 - a seeded, chunk-streamed world with six biomes;
@@ -146,9 +146,19 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   bolts). Once your build has 2 cards of one archetype, one card of
   every offer is from it (`design/CARDS.md` sections 6.10 and 14).
 
-Next up (agreed order): M19 multi-projectile overhaul, M20 the wizard's
-arcane missiles, then the other four ring quests and bosses, one at a
-time.
+- multiple projectiles for every hero (M19): extra shots always fan out
+  (at least 12° each), Echo's repeat comes out at an angle, Multishot is
+  in the pool from the start and adds bolts to Fire Wand and Bone Turret.
+  New cards: Cross Fire, Starburst, Rear Guard, Spiral, Twin Lanes, plus
+  Sheet Music (the bard's beats fling notes, so the patterns work for him
+  too), Split Arrow (the huntress's power, levels I-V like a spell),
+  Double Rainbow (princess) and Twin Axes (dwarf). See `design/CARDS.md`
+  sections 6.11 and 15.
+
+Next up (agreed order, `design/BOSSES.md` section 8): M20 the wizard's
+arcane missiles, M21 the new
+forest biome, M22 boss pools (three bosses per ring biome) and then every
+boss one at a time, M27 the plains boss and the victory.
 
 ## Setup (once)
 

@@ -63,19 +63,23 @@ def attack(
     shooter: Character, world, projectiles: list[Projectile], effects: list[Effect],
     actors: list[Actor] = (), mult: float = 1.0, extra_chain: int = 0, extra_pellets: int = 0,
     spread_add: float = 0.0, reach_mult: float = 1.0, sure_crit: bool = False,
+    angle_offset: float = 0.0,
 ) -> list[str]:
     """Use the shooter's weapon, whatever its kind (see specs.WeaponSpec).
     The keywords are one attack's changes (cards that work every Nth
     attack, see systems/run_rules.attack_mods): x damage, + lightning
-    jumps, + projectiles over + degrees of fan, x pulse reach, and
-    whether its hits always crit (Riposte). Returns sound events."""
+    jumps, + projectiles over + degrees of fan, x pulse reach, whether
+    its hits always crit (Riposte), and a turn off the aim in radians
+    (Echo). Returns sound events."""
     kind = shooter.weapon.spec.kind
     if kind == "melee":
         return swing(shooter, world, actors, effects, mult, sure_crit)
     if kind == "pulse":
         return pulse(shooter, world, actors, effects, mult, reach_mult, sure_crit)
-    return fire(shooter, world, projectiles, effects, mult=mult, extra_chain=extra_chain,
-                extra_pellets=extra_pellets, spread_add=spread_add, sure_crit=sure_crit)
+    return fire(shooter, world, projectiles, effects,
+                angle=shooter.aim_angle + angle_offset if angle_offset else None, mult=mult,
+                extra_chain=extra_chain, extra_pellets=extra_pellets, spread_add=spread_add,
+                sure_crit=sure_crit)
 
 
 # --- Hero damage ---------------------------------------------------------------------
@@ -192,14 +196,16 @@ def fire(
 ) -> list[str]:
     """Fire the shooter's weapon along its aim (or `angle`, for aim error).
     A weapon with several pellets fans them evenly over its spread, the
-    middle of the fan on the aim. Returns sound events."""
+    middle of the fan on the aim; pellets added for this attack only
+    (`extra_pellets`) widen it by at least MIN_PELLET_GAP each. Returns
+    sound events."""
     mx, my = shot_origin(shooter)
     angle = shooter.aim_angle if angle is None else angle
-    effects.append(Effect("muzzle", mx, my, angle))
     spec = shooter.weapon.spec
     shell = spec.shell
     dmg = shell.damage if damage is None else damage
     if shell.lob:
+        effects.append(Effect("muzzle", mx, my, angle))
         # Lobbed: arcs over walls and everything else to the target point
         # (or as far as its range allows toward it).
         tx, ty = target if target is not None else (
@@ -210,28 +216,55 @@ def fire(
         p.target = (mx + math.cos(a) * p.flight, my + math.sin(a) * p.flight)
         projectiles.append(p)
         return [shell.sound]
+    n = max(1, spec.pellets + extra_pellets)
+    if extra_pellets > 0:
+        spread_add = max(spread_add, config.MIN_PELLET_GAP * extra_pellets)
+    return volley(shooter, world, projectiles, effects, angle, n, spec.spread_deg + spread_add,
+                  shell, spec.tags, dmg, mult=mult, extra_chain=extra_chain, sure_crit=sure_crit)
+
+
+def volley(shooter: Character, world, projectiles: list[Projectile], effects: list[Effect],
+           angle: float, n: int, spread_deg: float, shell, tags=(), damage: float | None = None,
+           mult: float = 1.0, extra_chain: int = 0, sure_crit: bool = False,
+           hold: float = 0.0, origin: tuple[float, float] | None = None) -> list[str]:
+    """`n` shots of `shell` fanned evenly over `spread_deg` around `angle`,
+    from the shooter's hand (or `origin`). The weapon's own fire and the
+    pattern cards (systems/run_rules.patterns) both come through here.
+    Twin Lanes (a card) turns each shot into two side by side. `hold`: the
+    shots wait this long before flying (Double Rainbow)."""
+    mx, my = origin if origin is not None else shot_origin(shooter)
+    effects.append(Effect("muzzle", mx, my, angle))
+    dmg = shell.damage if damage is None else damage
     # Standing against a wall: the shot lands on it instead of spawning on
     # the far side.
     hit = first_hit(world.tile_at, shooter.x, shooter.y, mx, my)
     if hit is not None:
-        return [shell.sound, _terrain_impact(world, hit, outgoing(shooter, dmg, spec.tags) * mult,
+        return [shell.sound, _terrain_impact(world, hit, outgoing(shooter, dmg, tags) * mult,
                                              shell.damages_terrain, angle, effects)]
-    n = max(1, spec.pellets + extra_pellets)
-    spread = math.radians(spec.spread_deg + spread_add)
+    spread = math.radians(spread_deg)
     stats = getattr(shooter, "stats", None)
     size = stats.shot_size * config.SHOT_SIZE_PX / config.TILE_PX_W if stats is not None else 0.0
+    lanes = (0.0,)
+    lane_mult = 1.0
+    if stats is not None and stats.has("twin_lanes"):
+        gap, lane_mult = config.TWIN_LANES
+        lanes = (-gap / 2, gap / 2)
     group: dict = {}                  # Prism: which colors of this shot hit whom
     for i in range(n):
         a = angle + (spread * (i / (n - 1) - 0.5) if n > 1 else 0.0)
-        p = Projectile(mx, my, a, shell, owner=shooter, damage=dmg)
-        p.variant = i
-        p.tags = spec.tags
-        p.mult = mult
-        p.extra_chain = extra_chain
-        p.sure_crit = sure_crit
-        p.size = size
-        p.group = group
-        projectiles.append(p)
+        for side in lanes:
+            # Lanes sit side by side, across the shot's own heading.
+            ox, oy = -math.sin(a) * side, math.cos(a) * side
+            p = Projectile(mx + ox, my + oy, a, shell, owner=shooter, damage=dmg)
+            p.variant = i
+            p.tags = tags
+            p.mult = mult * lane_mult
+            p.extra_chain = extra_chain
+            p.sure_crit = sure_crit
+            p.size = size
+            p.group = group
+            p.hold = hold
+            projectiles.append(p)
     return [shell.sound]
 
 
@@ -632,6 +665,8 @@ def _hit_actor(p: Projectile, victim: Actor, hx: float, hy: float, world,
         if victim.alive:
             _card_effects(p, victim, owner, stats)
         _capstones(p, victim, hx, hy, owner, stats, spawned, zones)
+        if stats.arrow_split and spawned is not None:
+            _split_arrow(p, victim, hx, hy, stats, spawned)
     events = [HIT]
     if p.spec.chain or p.extra_chain:
         events += chain_from(victim, p.spec, p.damage, owner, world, actors, effects, p.tags,
@@ -671,6 +706,24 @@ def _capstones(p: Projectile, victim: Actor, hx: float, hy: float, owner: Actor,
         zones.append(Zone("crackle", hx, hy, config.BALL_LIGHTNING_RADIUS,
                           config.BALL_LIGHTNING_TIME, config.BALL_LIGHTNING_EVERY,
                           p.damage * config.BALL_LIGHTNING_DAMAGE, owner, p.tags))
+
+
+def _split_arrow(p: Projectile, victim: Actor, hx: float, hy: float, stats,
+                 spawned: list) -> None:
+    """Split Arrow (the huntress's power): on its first hit (on every
+    enemy it passes, from level IV) an arrow throws off a fan of `count`
+    arrows at `damage` x its own, centred on its flight, that fly the rest
+    of its range. They don't split again."""
+    count, spread_deg, factor, every = stats.arrow_split
+    if p.child or (p.hit and not every):
+        return
+    spread = math.radians(spread_deg)
+    for i in range(count):
+        a = p.angle + (spread * (i / (count - 1) - 0.5) if count > 1 else 0.0)
+        c = _child(p, hx, hy, a, factor)
+        c.hit.add(id(victim))
+        c.max_range = max(1.0, p.max_range - p.travelled)
+        spawned.append(c)
 
 
 def _turn_back(p: Projectile) -> None:

@@ -105,6 +105,8 @@ def build_tags(weapon: WeaponSpec, stats: HeroStats) -> set[str]:
     tags = set(weapon.tags)
     for key in stats.spells:
         tags.update(config.SPELLS[key].tags)
+    if stats.has("sheet_music"):                  # the bard's notes are projectiles
+        tags.add("projectile")
     for s in stats.sources:
         tags.add(config.STATUSES[s].tag)
     return tags
@@ -114,9 +116,12 @@ _ELEMENTS = {"fire", "frost", "poison", "lightning"}
 _BASE = HeroStats()
 
 
-def _gate_met(need: str, stats: HeroStats, tags: set[str], taken: Counter) -> bool:
+def _gate_met(need: str, stats: HeroStats, tags: set[str], taken: Counter,
+              weapon: WeaponSpec | None = None) -> bool:
     if need == "status":
         return bool(stats.sources)
+    if need == "shots":                       # pattern cards: the attack itself shoots
+        return (weapon is not None and weapon.shell is not None) or stats.has("sheet_music")
     if need == "duration":                    # Lingering: something that lasts
         return bool(stats.sources) or any(k in stats.spells for k in config.DURATION_SPELLS)
     if need == "spell":
@@ -156,7 +161,7 @@ def eligible(hero_key: str, weapon: WeaponSpec, taken: Counter, stats: HeroStats
             continue
         if level is not None and level < c.min_level:
             continue
-        if not all(_gate_met(n, stats, tags, taken) for n in c.needs):
+        if not all(_gate_met(n, stats, tags, taken, weapon) for n in c.needs):
             continue
         spell = spell_of(c)
         if spell is not None and spell not in stats.spells \
@@ -266,7 +271,10 @@ def build_loadout(hero_key: str, taken, meta=()) -> Loadout:
     weapon = config.WEAPONS[body.weapon]
     shell = weapon.shell
     interval = stats.interval(weapon.fire_interval)
-    spread = min(160.0, max(0.0, (weapon.spread_deg + stats.spread) * stats.spread_mult))
+    # Extra projectiles widen the fan by at least MIN_PELLET_GAP each (M19).
+    extra = max(0, round(stats.pellets))
+    fan = max(weapon.spread_deg + stats.spread, weapon.spread_deg + config.MIN_PELLET_GAP * extra)
+    spread = min(160.0, max(0.0, fan * stats.spread_mult))
     if shell is not None:
         shell = replace(
             shell,

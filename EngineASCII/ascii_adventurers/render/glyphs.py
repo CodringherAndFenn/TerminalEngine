@@ -103,3 +103,38 @@ def loot_glyph(text: TextRenderer) -> str:
         register(LOOT, _paint_shard)
         _registered.add(text)
     return LOOT
+
+
+# --- The music note (M19: Sheet Music's notes) -------------------------------------------
+# VT323 has no note symbol, so it's painted: an eighth note in the glyph's
+# own colour (fg), so one glyph serves every shade.
+NOTE = ""
+_NOTE = ("...XX.",
+         "...XXX",
+         "...X.X",
+         "...X..",
+         "...X..",
+         ".XXX..",
+         "XXXX..",
+         ".XX...")
+_notes: "weakref.WeakSet[TextRenderer]" = weakref.WeakSet()
+
+
+def _paint_note(cell: pygame.Surface, fg) -> None:
+    w, h = cell.get_size()
+    px = max(1, min(w // len(_NOTE[0]), h // len(_NOTE)))
+    x0 = (w - px * len(_NOTE[0])) // 2
+    y0 = (h - px * len(_NOTE)) // 2
+    for y, row in enumerate(_NOTE):
+        for x, ch in enumerate(row):
+            if ch == "X":
+                cell.fill(fg, (x0 + x * px, y0 + y * px, px, px))
+
+
+def note_glyph(text: TextRenderer) -> str:
+    """The note's character, registered on this renderer if needed."""
+    register = getattr(text, "register_glyph", None)
+    if register is not None and text not in _notes:
+        register(NOTE, _paint_note)
+        _notes.add(text)
+    return NOTE

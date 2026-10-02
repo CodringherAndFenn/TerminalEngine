@@ -79,6 +79,7 @@ class HeroStats:
     max_hp_mult: float = 1.0         # Glass Cannon
     shield: float = 0.0              # Ward Charm (from the spell's level)
     thorns: tuple = (0.0, 0.0)       # Thorn Mail: (flat, share of the hit) reflected
+    arrow_split: tuple = ()          # Split Arrow: (count, spread deg, x damage, on every hit)
     offer_size: float = 0.0          # Fortune: extra cards per offer
     soul_harvest: float = 0.0        # HP per kill
     phoenix: float = 0.0             # Phoenix: revivals left at the start
@@ -202,5 +203,8 @@ def apply_mods(stats: HeroStats, steps: list[tuple[str, str, float]]) -> HeroSta
             stats.shield += params["shield"]
         elif key == "thorn_mail":
             stats.thorns = (params["flat"], params["share"])
+        elif key == "split_arrow":
+            stats.arrow_split = (int(params["count"]), params["spread"], params["damage"],
+                                 bool(params["every"]))
     stats.clamp()
     return stats
