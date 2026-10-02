@@ -6,7 +6,7 @@ generated there: a quest giver's camp, a boss's lair. Each ring biome's
 quest for the run (pick_quests: one of the biome's pool in config.QUESTS)
 names a camp and a lair builder, its names on the map and a tile skin
 (SKINS: the leech doctor's quest reuses the frog hunter's and the pond's
-layouts in blood); the run's landmarks
+layouts in blood, the smoke keeper's gone stagnant); the run's landmarks
 are placed once per seed (IslandLayout.landmarks, built on first use) and
 every chunk that overlaps one has its tiles replaced by the generator
 (world/generator.py), so they stream, persist and show on the maps like
@@ -196,6 +196,8 @@ def pick_quests(seed: int) -> dict[str, str]:
 SKINS = {
     "blood": {tiles.BOG: tiles.BLOOD_POOL, tiles.POND: tiles.BLOOD_POOL,
               tiles.LILY_PADS: tiles.CLOTS},
+    "stagnant": {tiles.BOG: tiles.STAGNANT, tiles.POND: tiles.STAGNANT,
+                 tiles.LILY_PADS: tiles.SCUM},
 }
 
 
@@ -218,7 +220,7 @@ def build_landmarks(layout) -> list[Landmark]:
         out += [m for m in (camp, lair) if m is not None]
         if camp is not None:
             camp.spots = _scatter(layout, q, camp, lair, rng)
-            out += [_clearing(q.biome, x, y) for x, y in camp.spots]
+            out += [_clearing(q.biome, x, y, brazier=q.kind == "light") for x, y in camp.spots]
     return out
 
 
@@ -263,14 +265,17 @@ def _scatter(layout, quest, camp, lair, rng: random.Random) -> list[tuple[float,
         sep *= 0.8
 
 
-def _clearing(biome: str, x: float, y: float) -> Landmark:
+def _clearing(biome: str, x: float, y: float, brazier: bool = False) -> Landmark:
     """A small round patch of open ground at a quest target's spot, so it
     never wakes up stuck in a mangrove or a wall. Only the circle is laid
-    (None round it), so it blends into the generated terrain."""
+    (None round it), so it blends into the generated terrain. A "light"
+    quest's (M22.2) has a cold brazier in the middle."""
     r = config.QUEST_SPOT_CLEARING
     tx, ty = math.floor(x), math.floor(y)
     rows = [[tiles.MUD if (i - r) ** 2 + (j - r) ** 2 <= r * r + r else None
              for i in range(2 * r + 1)] for j in range(2 * r + 1)]
+    if brazier:
+        rows[r][r] = tiles.BRAZIER
     return Landmark("quest_spot", "spot", biome, "", tx - r, ty - r, rows, cx=x, cy=y)
 
 

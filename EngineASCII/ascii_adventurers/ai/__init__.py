@@ -5,7 +5,8 @@ ai -- enemy behaviour.
   steering.py   Noita-style clumsy obstacle avoidance (no pathfinding)
   shooters.py   goblin archer, warlock, ogre, spell tower (Character bodies)
   creatures.py  fallen warrior, spore puffer, burrower
-  bosses.py     bosses (M17): phases, moves, Froggy McFrogface
+  bosses.py     bosses (M17): phases, moves, Froggy McFrogface, the Leech
+                Swarm (M22), Lady Proboscia (M22.2)
 
 make_enemy() builds one from its config.ENEMIES key.
 """
@@ -15,8 +16,8 @@ from __future__ import annotations
 import random
 
 from .. import config
-from .bosses import Froggy, LeechSwarm
-from .creatures import Boar, Burrower, DustDevil, Leech, Puffer, Warrior
+from .bosses import Froggy, LeechSwarm, Proboscia
+from .creatures import Boar, Burrower, DustDevil, Leech, Mosquito, Puffer, Warrior
 from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 
 KINDS = {
@@ -39,6 +40,9 @@ KINDS = {
     # M22
     "leech": Leech,
     "leech_swarm": LeechSwarm,
+    # M22.2
+    "mosquito": Mosquito,
+    "proboscia": Proboscia,
 }
 
 

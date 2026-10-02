@@ -86,7 +86,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "quit and report (checks a build really works); saves nothing")
     parser.add_argument("--boss", metavar="KEY", default=None,
                         help="test: make every run use the quest of this boss in its biome "
-                             "(e.g. froggy, leech_swarm) instead of the seed's pick")
+                             "(e.g. froggy, leech_swarm, proboscia) instead of the seed's pick")
     parser.add_argument("--dev", action="store_true",
                         help="developer mode: the guild purse is full (nothing bought is "
                              "saved) and L levels you up in a run; records aren't saved")

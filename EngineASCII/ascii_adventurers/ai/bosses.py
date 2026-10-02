@@ -44,6 +44,14 @@ splits into three groups that circle and close in. Phase 2 adds rings of
 blood drops and nesting (into one pool, out of the one nearest you).
 Phase 3: frenzy (faster) and the whirlpool -- a ring of leeches round you
 that tightens, with a gap to escape through (or roll through the ring).
+
+Lady Proboscia (swamp, M22.2): a giant mosquito who flies over everything,
+circling her target between moves. Signature: ENGORGE -- bites that land
+and sips at the pools fill her belly; full, she slows and glows, and enough
+damage before it's digested POPS her (a big hit, a ring of blood, stunned
+on the ground). Phase 1: dive bites, needle fans, sips. Phase 2 adds buzz
+rings (closing, with a gap) and calls for mosquitoes. Phase 3: faster,
+three dives in a row, each leaving fever clouds.
 """
 
 from __future__ import annotations
@@ -903,3 +911,371 @@ class LeechSwarm(Boss):
             yield 0
         self.whirl = None
         self.mode = "flock"
+
+
+# --- Lady Proboscia (M22.2) --------------------------------------------------------------
+
+
+class Proboscia(Boss):
+    """A giant mosquito. She flies over everything (walls, pillars, pools),
+    hovering at a distance from her target between moves -- circling it,
+    and always facing it.
+
+    Signature, ENGORGE: every bite that lands and every sip at a pool puts
+    a gulp of blood in her belly (a bite heals her too). With a full belly
+    she's engorged for a while: slower, glowing, a bar under her showing
+    how much more it takes -- deal that and she POPS (a big chunk of her
+    health, a ring of blood drops, and she drops to the ground stunned:
+    the melee window). If the time runs out she digests it and heals."""
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.PROBOSCIA_HIT_RADIUS)
+        self.shots = config.PROBOSCIA_SHOTS
+        self.hover = True                 # between moves (and during some): circling the target
+        self.orbit = rng.uniform(0, math.tau)
+        self.orbit_way = rng.choice((-1, 1))
+        self.belly = 0                    # gulps of blood (0..ENGORGE_FULL)
+        self.engorged = 0.0               # seconds left engorged
+        self.pop_dmg = 0.0                # damage taken while engorged
+        self.sip_dmg = 0.0                # damage taken while sipping
+        self.sipping = False              # landed at a pool, drinking (low, easy to reach)
+        self.dashing = False
+        self.clouds: list[list[float]] = []   # fever clouds: [x, y, age]
+        self._cloud_tick = 0.0
+        self.wings = 0.0                  # wing beat (drawing)
+
+    # --- State -------------------------------------------------------------------------
+
+    @property
+    def speed_mult(self) -> float:
+        m = config.PROBOSCIA_FRENZY[0] if self.phase >= 2 else 1.0
+        return m * (config.ENGORGE_SLOW if self.engorged > 0 else 1.0)
+
+    @property
+    def grounded(self) -> bool:
+        """Down low: sipping or stunned after a pop (drawn on the ground)."""
+        return self.sipping or self.dazed > 0
+
+    @property
+    def pop_frac(self) -> float:
+        """How close an engorged belly is to popping (0..1)."""
+        need = config.ENGORGE_POP * self.max_hp
+        return min(1.0, self.pop_dmg / need) if need > 0 else 1.0
+
+    def take_damage(self, amount, source, from_angle):
+        dealt = super().take_damage(amount, source, from_angle)
+        if self.engorged > 0:
+            self.pop_dmg += dealt
+        if self.sipping:
+            self.sip_dmg += dealt
+        return dealt
+
+    def shove_heroes(self, extra: float = 0.3) -> None:
+        pass                              # she flies: nothing to bump into
+
+    def gulp(self, n: int = 1) -> None:
+        """Blood in the belly; a full one engorges her."""
+        if self.engorged > 0:
+            return
+        self.belly = min(config.ENGORGE_FULL, self.belly + n)
+        if self.belly >= config.ENGORGE_FULL:
+            self.engorged = config.ENGORGE_WINDOW
+            self.pop_dmg = 0.0
+            self.ctx.effects.append(Effect("toast", self.x, self.y - 3, label="ENGORGED! POP HER!"))
+            self.ctx.events.append("chime")
+
+    # --- Every step ---------------------------------------------------------------------
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.ctx = ctx
+        self.wings += dt * (30.0 if not self.grounded else 4.0)
+        self._clouds(dt)
+        if self.engorged > 0:
+            if self.pop_frac >= 1.0:
+                self._pop()
+            else:
+                self.engorged -= dt
+                if self.engorged <= 0:
+                    self._digest()
+        if self.dazed > 0:                # popped: lying there, nothing else
+            self.time += dt
+            self.dt = dt
+            self.dazed = max(0.0, self.dazed - dt)
+            if self.dazed <= 0:
+                self.hover = True         # up again
+            self._check_phase(ctx)
+            return
+        t = self.target_now() if self.ctx is not None else None
+        if self.hover:
+            self._hover(dt)
+        elif t is not None and not self.dashing and not self.sipping:
+            self.facing = math.atan2(t.y - self.y, t.x - self.x)
+        super().think(ctx, dt)
+
+    def _hover(self, dt: float) -> None:
+        """Circle the target at a distance, facing it."""
+        t = self.target_now()
+        if t is None:
+            return
+        speed, dist, orbit = config.PROBOSCIA_HOVER
+        self.orbit += self.orbit_way * orbit * dt
+        gx = t.x + math.cos(self.orbit) * dist
+        gy = t.y + math.sin(self.orbit) * dist * 0.7
+        gx, gy = self.clamp_to_lair(gx, gy, 3.0)
+        self._fly_to(gx, gy, speed * self.speed_mult, dt)
+        self.facing = math.atan2(t.y - self.y, t.x - self.x)
+
+    def _fly_to(self, gx: float, gy: float, speed: float, dt: float) -> bool:
+        """A step toward (gx, gy) through the air; True once there."""
+        dx, dy = gx - self.x, gy - self.y
+        d = math.hypot(dx, dy)
+        step = speed * dt
+        if d <= step or d < 1e-6:
+            self.x, self.y = gx, gy
+            return True
+        self.x += dx / d * step
+        self.y += dy / d * step
+        return False
+
+    def _clouds(self, dt: float) -> None:
+        """Fever clouds age, and hurt the heroes in them every tick."""
+        if not self.clouds:
+            return
+        radius, life, tick, damage, _ = config.FEVER_CLOUD
+        for c in self.clouds:
+            c[2] += dt
+        self.clouds = [c for c in self.clouds if c[2] < life]
+        self._cloud_tick -= dt
+        if self._cloud_tick > 0:
+            return
+        self._cloud_tick += tick
+        for h in self.ctx.players:
+            if not h.hittable:
+                continue
+            if any(math.hypot(h.x - c[0], h.y - c[1]) <= radius + h.hit_radius for c in self.clouds):
+                combat.strike(h, damage * self.damage_mult, self, None, self.ctx.effects)
+
+    def _abort_move(self) -> None:
+        if self._gen is not None:
+            self._gen.close()
+        self.move = None
+        self._gen = None
+        self.tell = None
+        self.dashing = False
+        self.sipping = False
+
+    def _pop(self) -> None:
+        """Burst: a big hit of her own blood, a ring of drops, and down she goes."""
+        ctx = self.ctx
+        self._abort_move()
+        self.engorged = 0.0
+        self.belly = 0
+        bonus = config.ENGORGE_BONUS * self.max_hp
+        self.hp = max(0.0, self.hp - bonus)
+        self.hurt_flash = 0.2
+        ctx.effects.append(Effect("number", self.x, self.y - self.hit_radius, value=round(bonus)))
+        ctx.effects.append(Effect("toast", self.x, self.y - 3, label="POP!"))
+        ctx.effects.append(Effect("explosion", self.x, self.y))
+        ctx.effects.append(Effect("nova", self.x, self.y, size=3.0))
+        ctx.events.append(combat.BREAK)
+        if self.room_for_shots():
+            patterns.radial(self, self.x, self.y, config.ENGORGE_RING, self.shots["pop"],
+                            ctx.projectiles, self.rng.uniform(0, math.tau))
+        self.dazed = config.ENGORGE_STUN
+        self.hover = False
+        self._rest = 0.4                  # a breath once she's up again
+
+    def _digest(self) -> None:
+        self.engorged = 0.0
+        self.belly = 0
+        self.heal(config.ENGORGE_DIGEST * self.max_hp)
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 3, label="SHE DIGESTS..."))
+
+    def _end_move(self) -> None:
+        super()._end_move()
+        self.hover = True
+        self.dashing = False
+        self.sipping = False
+
+    def _pick_move(self) -> str:
+        """Not a sip with a full belly (or no pools), not a call with the
+        air already full of her brood."""
+        skip = {self.last_move}
+        if self.belly >= config.ENGORGE_FULL or self.engorged > 0 or not self._pools():
+            skip.add("sip")
+        if self._brood() >= config.PROBOSCIA_CALL[2]:
+            skip.add("call")
+        moves = [(m, w) for m, w in self.bspec.phases[self.phase].moves if m not in skip]
+        if not moves:
+            return "bite"
+        total = sum(w for _, w in moves)
+        r = self.rng.uniform(0, total)
+        for m, w in moves:
+            r -= w
+            if r <= 0:
+                return m
+        return moves[-1][0]
+
+    def _pools(self) -> list:
+        return self.lair.spots if self.lair is not None else []
+
+    def _brood(self) -> int:
+        return sum(1 for a in self.ctx.actors if getattr(a, "summoner", None) is self and a.alive)
+
+    def on_phase(self, phase: int, ctx: AIContext) -> None:
+        label = ("HER LADYSHIP IS THIRSTY!", "FEVER!")[min(phase, 2) - 1] if phase else ""
+        if label:
+            ctx.effects.append(Effect("toast", self.x, self.y - 3, label=label))
+
+    @property
+    def nose(self) -> tuple[float, float]:
+        """The tip of her proboscis (where needles come from)."""
+        return self.x + math.cos(self.facing) * 1.8, self.y + math.sin(self.facing) * 1.2
+
+    # --- Moves --------------------------------------------------------------------------
+
+    def m_bite(self):
+        """The dive: an aim line through the target, then she lunges along
+        it; whoever she passes through is bitten (she drinks: heals, and a
+        gulp in the belly). Then she hangs there a moment. Last phase: three
+        dives in a row, leaving fever clouds along each."""
+        tell, speed, longest, width, damage, after = config.PROBOSCIA_BITE
+        frenzy = self.phase >= 2
+        dives = config.PROBOSCIA_FRENZY[1] if frenzy else 1
+        for k in range(dives):
+            t = self.target_now()
+            if t is None:
+                break
+            self.hover = False
+            a = math.atan2(t.y - self.y, t.x - self.x)
+            self.facing = a
+            length = min(longest, math.hypot(t.x - self.x, t.y - self.y) + 6.0)
+            x0, y0 = self.x, self.y
+            x1, y1 = self.clamp_to_lair(x0 + math.cos(a) * length, y0 + math.sin(a) * length, 3.0)
+            self.tell = ("bite", x0, y0, x1, y1)
+            yield tell if k == 0 else config.PROBOSCIA_FRENZY[2]
+            self.tell = None
+            self.dashing = True
+            self.ctx.events.append("swing")
+            bitten = set()
+            spacing = config.FEVER_CLOUD[4]
+            next_cloud = spacing
+            gone = 0.0
+            total = math.hypot(x1 - x0, y1 - y0)
+            while gone < total:
+                step = min(total - gone, speed * self.speed_mult * self.dt)
+                gone += step
+                f = gone / total if total > 0 else 1.0
+                self.x, self.y = x0 + (x1 - x0) * f, y0 + (y1 - y0) * f
+                for h in self.ctx.players:
+                    if id(h) in bitten or not h.hittable:
+                        continue
+                    if math.hypot(h.x - self.x, h.y - self.y) <= width + h.hit_radius:
+                        bitten.add(id(h))
+                        dealt = combat.strike(h, damage * self.damage_mult, self, a,
+                                              self.ctx.effects)
+                        if dealt > 0:
+                            self.heal(dealt * config.PROBOSCIA_DRINK)
+                            self.gulp()
+                            self.ctx.events.append("hit")
+                if frenzy and gone >= next_cloud:
+                    self.clouds.append([self.x, self.y, 0.0])
+                    next_cloud += spacing
+                yield 0
+            self.dashing = False
+            yield after
+
+    def m_fan(self):
+        """P3: she stops, wings blurring and her proboscis glowing (the
+        tell), then fans of needles at the target, moving between volleys."""
+        tell, n, spread, volleys, gap = config.PROBOSCIA_FAN
+        self.hover = False
+        self.tell = ("needle",)
+        yield tell
+        self.tell = None
+        for _ in range(volleys):
+            t = self.target_now()
+            if t is None:
+                break
+            if self.room_for_shots():
+                nx, ny = self.nose
+                patterns.fan(self, nx, ny, math.atan2(t.y - ny, t.x - nx), n, spread,
+                             self.shots["needle"], self.ctx.projectiles)
+                self.ctx.events.append("bow")
+            self.hover = True
+            yield gap
+        self.hover = True
+
+    def m_buzz(self):
+        """P5 with a gap: a whine (the tell), then rings of sound pulses
+        round the target that hang a moment, then close. Out through the gap,
+        or roll through the ring."""
+        whine, n, radius, hold, gap, rings, between = config.PROBOSCIA_BUZZ
+        self.tell = ("buzz",)
+        self.ctx.events.append("hex")
+        yield whine
+        gap_at = self.rng.uniform(0, math.tau)
+        for k in range(rings):
+            t = self.target_now()
+            if t is None:
+                break
+            patterns.ring_in(self, t.x, t.y, radius, n, self.shots["buzz"], self.ctx.projectiles,
+                             hold, turn=k * math.pi / n, gap_deg=gap, gap_at=gap_at)
+            self.ctx.events.append("orb")
+            gap_at += self.rng.choice((-1, 1)) * self.rng.uniform(1.6, 2.6)
+            yield between
+        self.tell = None
+
+    def m_call(self):
+        """B2: a shrill call (a pulsing ring), and mosquitoes come out of the
+        air round her (never more than a dozen at once)."""
+        tell, k, cap = config.PROBOSCIA_CALL
+        self.tell = ("call",)
+        yield tell
+        self.tell = None
+        for _ in range(min(k, cap - self._brood())):
+            if self.recruit is None:
+                break
+            a = self.rng.uniform(0, math.tau)
+            r = self.rng.uniform(3.0, 6.0)
+            x, y = self.clamp_to_lair(self.x + math.cos(a) * r, self.y + math.sin(a) * r, 3.0)
+            add = self.recruit("mosquito", x, y)
+            if add is not None:
+                add.summoner = self
+                add.alert = True
+                self.ctx.effects.append(Effect("impact", x, y))
+        self.ctx.events.append("orb")
+        yield 0.3
+
+    def m_sip(self):
+        """She flies down to the nearest pool and drinks: low, still, easy
+        to reach. Hurt her enough and she's shooed off without her gulp."""
+        drink, shoo, fly = config.PROBOSCIA_SIP
+        pools = self._pools()
+        if not pools:
+            return
+        px, py = min(pools, key=lambda p: math.hypot(p[0] - self.x, p[1] - self.y))
+        self.hover = False
+        t0 = self.time
+        while not self._fly_to(px, py, fly * self.speed_mult, self.dt):
+            self.facing = math.atan2(py - self.y, px - self.x)
+            if self.time - t0 > 6.0:
+                break
+            yield 0
+        self.sipping = True
+        self.sip_dmg = 0.0
+        self.tell = ("sip",)
+        t0 = self.time
+        while self.time - t0 < drink:
+            if self.sip_dmg >= shoo * self.max_hp:
+                self.ctx.effects.append(Effect("toast", self.x, self.y - 3, label="SHOO!"))
+                self.sipping = False
+                self.tell = None
+                return
+            yield 0
+        self.sipping = False
+        self.tell = None
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 3, label="SLURP"))
+        self.gulp()
+        yield 0.2

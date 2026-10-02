@@ -13,6 +13,9 @@ be placed on this island gets a QuestState, going through these stages:
              and pinned on the maps once you're near one (they wake,
              sleep and stay dead like any enemy, systems/spawner.place);
              every one that dies counts, whoever killed it;
+             (a "light" quest, M22.2: the spots hold braziers instead;
+             one catches after a hero stands by it for a while, and
+             mosquitoes swarm whoever is lighting it);
   "awake"    all found: the boss waits in its lair (now pinned too);
   "fight"    a player went LAIR_SEAL_DEPTH tiles into the arena: the gate
              fills with thorns (each tile as soon as nobody stands in it),
@@ -90,6 +93,9 @@ class QuestState:
     pending: list = field(default_factory=list)   # gate tiles still to seal
     fight_time: float = 0.0
     damage_taken: float = 0.0          # by the players during the fight (dev report)
+    lit: set = field(default_factory=set)       # light quests: spot indices lit
+    heat: dict = field(default_factory=dict)    # light quests: spot index -> s of heat
+    swarmed: set = field(default_factory=set)   # light quests: (spot, wave) already sent
 
     @property
     def biome(self) -> str:
@@ -182,12 +188,16 @@ class Quests:
             out.append((s.npc.x, s.npc.y, "done" if giver_done else "quest", s.spec.giver.upper()))
             if s.stage == "hunt":
                 bid = biomes.BY_NAME[s.biome].id
-                label = config.ENEMIES[s.spec.target].name.split()[-1].upper()
+                light = s.spec.kind == "light"
+                label = "BRAZIER" if light else config.ENEMIES[s.spec.target].name.split()[-1].upper()
                 for i, (x, y) in enumerate(s.camp.spots):
                     if near is not None and math.hypot(x - near[0], y - near[1]) \
                             > config.QUEST_TARGET_PIN_RADIUS:
                         continue
-                    if sp is None or (QUEST_SID, bid, i, 0) not in sp.dead:
+                    if light:
+                        if i not in s.lit:
+                            out.append((x, y, "target", label))
+                    elif sp is None or (QUEST_SID, bid, i, 0) not in sp.dead:
                         out.append((x, y, "target", label))
             if s.stage in ("awake", "fight", "cleared"):
                 out.append((s.lair.cx, s.lair.cy, "done" if giver_done else "lair", s.lair.name))
@@ -211,7 +221,9 @@ class Quests:
                 if npc is not None:
                     self.talk(npc, p)
         for s in self.states.values():
-            if s.stage == "awake":
+            if s.stage == "hunt" and s.spec.kind == "light":
+                self._tend_braziers(s, players, dt)
+            elif s.stage == "awake":
                 self._maybe_start_fight(s, players)
             elif s.stage == "fight":
                 s.fight_time += dt
@@ -243,7 +255,7 @@ class Quests:
         s.stage = "hunt"
         sp = self.scene.spawner
         bid = biomes.BY_NAME[s.biome].id
-        if sp is not None:
+        if sp is not None and s.spec.kind == "hunt":
             for i, (x, y) in enumerate(s.camp.spots):
                 sp.place((QUEST_SID, bid, i, 0), s.spec.target, x, y)
 
@@ -255,21 +267,73 @@ class Quests:
     def on_death(self, enemy, killer) -> None:
         """An enemy died (`killer`: the player who killed it, or None)."""
         for s in self.states.values():
-            if s.stage == "hunt" and self.is_target(s, enemy):
-                s.found += 1
-                hero = killer.hero if killer is not None else enemy
-                if s.found >= s.spec.count:
-                    s.stage = "awake"
-                    self.banner = Banner("SOMETHING STIRS...",
-                                         f"{s.lair.name.title()} is marked on your map")
-                    self.scene._sounds.append("chime")
-                else:
-                    self.scene.effects.append(Effect(
-                        "toast", hero.x, hero.y - 1,
-                        label=s.spec.goal.format(n=s.found, count=s.spec.count).upper()))
-                    self.scene._sounds.append("chime")
+            if s.stage == "hunt" and s.spec.kind == "hunt" and self.is_target(s, enemy):
+                self._found(s, killer.hero if killer is not None else enemy)
             elif s.stage == "fight" and enemy is s.boss:
                 self._win(s, killer)
+
+    def _found(self, s: QuestState, at) -> None:
+        """One more target done (a hunt's kill, a brazier lit): a toast over
+        `at`, or, the last one, the boss wakes."""
+        s.found += 1
+        if s.found >= s.spec.count:
+            s.stage = "awake"
+            self.banner = Banner("SOMETHING STIRS...",
+                                 f"{s.lair.name.title()} is marked on your map")
+        else:
+            self.scene.effects.append(Effect(
+                "toast", at.x, at.y - 1,
+                label=s.spec.goal.format(n=s.found, count=s.spec.count).upper()))
+        self.scene._sounds.append("chime")
+
+    # --- Light quests (M22.2) -----------------------------------------------------------
+
+    def _tend_braziers(self, s: QuestState, players, dt: float) -> None:
+        """Every unlit brazier with a hero by it heats up (and calls in the
+        mosquitoes as it passes each BRAZIER_SWARMS fraction); with nobody
+        there it cools. One that's hot enough catches: it smokes for good."""
+        heroes = [p.hero for p in players if p.alive]
+        full = config.BRAZIER_LIGHT_TIME
+        for i, (x, y) in enumerate(s.camp.spots):
+            if i in s.lit:
+                continue
+            by = [h for h in heroes if math.hypot(h.x - x, h.y - y) <= config.BRAZIER_RADIUS]
+            heat = s.heat.get(i, 0.0)
+            if not by:
+                if heat > 0:
+                    s.heat[i] = max(0.0, heat - dt * config.BRAZIER_COOL)
+                continue
+            for wave, at in enumerate(config.BRAZIER_SWARMS):
+                if heat >= at * full and (i, wave) not in s.swarmed:
+                    s.swarmed.add((i, wave))
+                    self._swarm(s, i, wave, x, y)
+            heat += dt
+            s.heat[i] = heat
+            if heat >= full:
+                s.lit.add(i)
+                s.heat.pop(i, None)
+                if hasattr(self.world, "set_tile"):
+                    self.world.set_tile(math.floor(x), math.floor(y), tiles.BRAZIER_LIT)
+                self.scene.effects.append(Effect("nova", x, y, size=2.5))
+                self._found(s, by[0])
+                if s.stage != "hunt":
+                    return
+
+    def _swarm(self, s: QuestState, i: int, wave: int, x: float, y: float) -> None:
+        """BRAZIER_SWARM_SIZE mosquitoes buzzing in at the brazier (dice
+        from the seed, the spot and the wave: deterministic)."""
+        sp = self.scene.spawner
+        if sp is None:
+            return
+        rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0xB4A2, i, wave))
+        lo, hi = config.BRAZIER_SWARM_RANGE
+        for _ in range(config.BRAZIER_SWARM_SIZE):
+            a = rng.uniform(0, math.tau)
+            r = rng.uniform(lo, hi)
+            e = sp.wake("mosquito", x + math.cos(a) * r, y + math.sin(a) * r, None,
+                        random.Random(rng.random()))
+            e.alert = True
+            self.scene.enemies.append(e)
 
     # --- The fight ------------------------------------------------------------------
 
@@ -374,6 +438,10 @@ class Quests:
                 if s.stage == "offered":
                     self._start_hunt(s)
                 s.found = s.spec.count
+                s.lit = set(range(len(s.camp.spots)))
+                if s.spec.kind == "light" and hasattr(self.world, "set_tile"):
+                    for x, y in s.camp.spots:
+                        self.world.set_tile(math.floor(x), math.floor(y), tiles.BRAZIER_LIT)
                 s.stage = "awake"
                 sp = self.scene.spawner
                 if sp is not None:

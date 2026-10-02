@@ -285,6 +285,28 @@ CLOT_FG = (120, 30, 36)
 LEECH = ((70, 32, 36), (120, 50, 52), (190, 70, 70))   # body, belly, gorged (latched)
 LEECH_TELL = ((230, 60, 60), (120, 30, 30))           # surge line / whirlpool / nest ripples
 SHOT_BLOOD = ((230, 60, 70), ((160, 30, 40), (90, 20, 26)))
+# Lady Proboscia and the smoke keeper's quest (M22.2).
+STAGNANT_FG = (96, 110, 60)
+STAGNANT_BG = (34, 40, 22)
+SCUM_FG = (130, 150, 70)
+BRAZIER_FG = (150, 150, 160)
+BRAZIER_BG = (40, 38, 40)
+BRAZIER_LIT_FG = (255, 170, 70)
+BRAZIER_LIT_BG = (80, 34, 18)
+SMOKE = ((190, 190, 190), (130, 130, 135), (85, 85, 90))   # fresh, drifting, thin
+FLAME = ((255, 220, 120), (255, 130, 40))
+HEAT_BAR = ((255, 160, 60), (70, 60, 55))                  # filled, empty
+MOSQUITO = {
+    "body": (58, 52, 50), "stripe": (225, 225, 230), "eye": (200, 40, 40),
+    "wing": (200, 220, 235, 110), "wing_edge": (220, 235, 250, 170),
+    "belly": ((96, 80, 72), (150, 60, 58), (190, 40, 46), (230, 30, 40)),  # by gulps
+    "glow": (255, 110, 110), "nose": (40, 32, 30), "nose_hot": (255, 90, 80),
+}
+MOSQUITO_TELL = ((255, 90, 70), (160, 50, 40))
+FEVER = ((170, 200, 80), (110, 140, 50))
+POP_BAR = ((255, 80, 90), (70, 30, 34))
+SHOT_NEEDLE = ((240, 240, 250), ((200, 60, 60), (110, 40, 40)))
+SHOT_BUZZ = ((230, 230, 150), ((160, 160, 100), (100, 100, 70)))
 # The dodge roll (M18): dust kicked up behind it (fresh, settling), Blink's
 # flash, and a trail patch's two shades per status (Scorched Trail, Prism Dash).
 ROLL_DUST = ((200, 190, 165), (130, 122, 105))
@@ -365,6 +387,9 @@ MAP_TILE.update({
 MAP_TILE_BIOME.update({"lily pads": "swamp", "deck": "swamp", "hunter's post": "swamp",
                        "clots": "swamp"})
 MAP_TILE["blood pool"] = (110, 24, 30)
+MAP_TILE.update({"stagnant water": (70, 82, 44), "cold brazier": (150, 150, 160),   # M22.2
+                 "smoking brazier": (255, 160, 70)})
+MAP_TILE_BIOME["scum"] = "swamp"
 # Map pins (quest givers, lairs): (fill, edge).
 PIN_QUEST = ((255, 220, 90), (60, 40, 0))
 PIN_LAIR = ((255, 90, 70), (60, 10, 0))

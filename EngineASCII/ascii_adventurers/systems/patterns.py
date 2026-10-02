@@ -52,12 +52,18 @@ def fan(owner, x: float, y: float, angle: float, n: int, spread_deg: float, shel
 
 
 def ring_in(owner, cx: float, cy: float, radius: float, n: int, shell: ShellSpec,
-            projectiles: list, hold: float, turn: float = 0.0, tint: int = 0) -> None:
+            projectiles: list, hold: float, turn: float = 0.0, tint: int = 0,
+            gap_deg: float = 0.0, gap_at: float = 0.0) -> None:
     """P5: n shots on a circle round (cx, cy) that wait `hold` seconds (the
     tell: you see the ring before it moves), then fly in through the centre
-    and out the other side (the shell's range should be ~2 x radius)."""
+    and out the other side (the shell's range should be ~2 x radius). With
+    `gap_deg`, the shots within that arc round angle `gap_at` are left out:
+    a way out."""
+    half = math.radians(gap_deg) / 2
     for k in range(n):
         a = turn + k * math.tau / n
+        if half > 0 and abs((a - gap_at + math.pi) % math.tau - math.pi) < half:
+            continue
         p = shoot(owner, cx + math.cos(a) * radius, cy + math.sin(a) * radius, a + math.pi,
                   shell, projectiles, tint + k)
         p.hold = hold

@@ -258,6 +258,10 @@ class QuestSpec:
     talk), "progress" ("{left}" = targets left), "done" (the boss is
     awake), "cleared" (it's beaten).
 
+    kind "light" (M22.2): no enemies to hunt -- the camp's spots hold
+    braziers (`target` unused); stand by `count` of them until each
+    catches (config.BRAZIER_*), while mosquitoes come for you.
+
     Pools (M22): a biome can have several quests; the run's seed picks one
     per biome (world/landmarks.pick_quests). Quests may share camp and lair
     builders: `camp_name` / `lair_name` label them on the map and `skin`

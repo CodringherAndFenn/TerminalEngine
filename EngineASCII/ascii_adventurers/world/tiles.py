@@ -280,6 +280,24 @@ BLOOD_POOL = TileType(
 CLOTS = TileType(
     "clots", ("o ", " o", "  ", "o."), palette.CLOT_FG, palette.MUD_BG,
 )
+# The smoke keeper's quest (M22.2): her bog and the Stagnant Court are the
+# same layouts gone stagnant (world/landmarks.SKINS); her braziers stand
+# at the quest's spots, lit one by one (systems/quests.py).
+STAGNANT = TileType(
+    "stagnant water", ("░ ", " ░", "  ", "▒░"), palette.STAGNANT_FG, palette.STAGNANT_BG,
+    solid=True,
+)
+SCUM = TileType(
+    "scum", (", ", " ,", "  ", ".,"), palette.SCUM_FG, palette.MUD_BG,
+)
+BRAZIER = TileType(
+    "cold brazier", ("[]",), palette.BRAZIER_FG, palette.BRAZIER_BG,
+    solid=True,
+)
+BRAZIER_LIT = TileType(
+    "smoking brazier", ("[]",), palette.BRAZIER_LIT_FG, palette.BRAZIER_LIT_BG,
+    solid=True,
+)
 # The frog hunter's hut on its deck.
 PLANK_WALL = TileType(
     "plank wall", ("||", "|:", ":|"), palette.PLANK_FG, palette.PLANK_BG,

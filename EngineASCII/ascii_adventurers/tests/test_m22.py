@@ -32,7 +32,7 @@ class PoolTest(unittest.TestCase):
 
     def test_the_seed_picks_one_quest_per_biome(self):
         seen = {pick_quests(seed)["swamp"] for seed in range(40)}
-        self.assertEqual(seen, {"bad_trip", "leech_doctor"})
+        self.assertEqual(seen, {"bad_trip", "leech_doctor", "smoke_keeper"})   # (M22.2)
         self.assertEqual(pick_quests(7), pick_quests(7))
 
     def test_override(self):

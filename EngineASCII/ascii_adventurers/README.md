@@ -176,9 +176,20 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   in the pools and, at the end, rings you in a tightening whirlpool
   (`design/BOSSES.md` section 12).
 
-Next up (agreed order, `design/BOSSES.md` section 8): M22.2 the swamp's
-mosquito, then the desert, ruins, haunted forest and mushroom bosses one at
-a time, M27 the plains boss and the victory.
+- Lady Proboscia (M22.2), the swamp's third boss. The smoke keeper wants
+  4 of her old braziers lit around the swamp: stand by one for 5 seconds
+  while mosquitoes swarm you, and it smokes for good. The **Lady** is a giant
+  mosquito who flies over everything. Each bite that lands, and each sip
+  at a pool, fills her belly. Full, she's **engorged**: slower, glowing,
+  with a bar under her. Hit her hard enough before she digests it and she
+  **POPS** (a big chunk of health, a ring of blood, stunned on the ground).
+  She dive-bites, fans needles, rings you in closing buzz rings, calls
+  mosquitoes, and at the end chains three dives that leave fever clouds
+  (`design/BOSSES.md` section 13).
+
+Next up (agreed order, `design/BOSSES.md` section 8): the desert, ruins,
+haunted forest and mushroom bosses one at a time, M27 the plains boss and
+the victory.
 
 ## Setup (once)
 

@@ -20,14 +20,15 @@ import math
 import pygame
 
 from .. import config, palette
-from ..ai.bosses import LeechPart, LeechSwarm
-from ..ai.creatures import Boar, Burrower, DustDevil, Leech, Puffer, Warrior
+from ..ai.bosses import LeechPart, LeechSwarm, Proboscia
+from ..ai.creatures import Boar, Burrower, DustDevil, Leech, Mosquito, Puffer, Warrior
 from ..ai.shooters import PsyFrog, Shooter, Warlock, Wisp
 from ..engine_ext.camera import Camera
 from .ascii_fx import draw_beam, draw_boar_tell, draw_hp_bar, draw_searchlight
 from .bosses import draw_froggy
 from .characters import draw_body, draw_character, walk_frame
 from .leeches import draw_leech_creature, draw_leech_part, draw_swarm
+from .mosquito import draw_mosquito, draw_proboscia
 from .sprites import SpriteBank, quad
 
 
@@ -190,6 +191,9 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
     if isinstance(e, LeechSwarm):               # the swarm: its tells
         draw_swarm(text, camera, e)
         return
+    if isinstance(e, Proboscia):               # M22.2
+        draw_proboscia(text, bank, camera, e)
+        return
     if getattr(e, "boss", False):
         draw_froggy(text, bank, camera, e)     # (its health is the HUD's boss bar)
         return
@@ -221,6 +225,8 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
         bank.draw(sprite, x, y)
     elif isinstance(e, Leech):
         draw_leech_creature(bank, camera, e)
+    elif isinstance(e, Mosquito):
+        draw_mosquito(bank, camera, e)
     elif isinstance(e, Puffer):
         step = min(3, int(e.swelling * 4))
         bob = math.sin(e.phase * 1.7) * 2

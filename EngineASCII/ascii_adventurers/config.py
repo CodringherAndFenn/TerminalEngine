@@ -383,6 +383,17 @@ ENEMIES = {
         name="The Leech Swarm", kind="leech_swarm", max_hp=8500, sight=400,
         biomes=(), size_px=16, xp=400,
     ),
+    # M22.2: the smoke keeper's quest and Lady Proboscia. Mosquitoes fly
+    # over everything, buzz in, hover a moment (the tell) and sting, then
+    # dart off. They swarm whoever lights a brazier, and the Lady calls them.
+    "mosquito": EnemySpec(
+        name="mosquito", kind="mosquito", max_hp=15, sight=22, biomes=(), speed=7.5,
+        damage=4, attack_radius=0.9, windup=0.3, cooldown=1.0, size_px=12, xp=2,
+    ),
+    "proboscia": EnemySpec(
+        name="Lady Proboscia", kind="proboscia", max_hp=8000, sight=400,
+        biomes=(), size_px=80, xp=400,
+    ),
 }
 
 # M12 enemy behaviour.
@@ -1303,6 +1314,9 @@ BESTIARY = {
     # M22
     "bloated_leech": (1500, "Crawls at you and bites. Popped, it bursts into leechlings."),
     "leech_swarm": (5000, "Forty leeches, one hunger. If they latch on, roll to shake them off."),
+    # M22.2
+    "mosquito": (800, "Buzzes in, hovers a moment, stings, darts off. Flies over everything."),
+    "proboscia": (5000, "Dives to bite and drinks. Fat with blood she slows: hit hard and POP her."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -1312,6 +1326,7 @@ ACHIEVEMENTS = {
     "level_30": "reach level 30",
     "froggy": "defeat Froggy McFrogface",
     "leech_swarm": "defeat the Leech Swarm",
+    "proboscia": "defeat Lady Proboscia",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -1635,6 +1650,32 @@ QUESTS = {
                          "I'll start a new collection. Smaller ones.")),
         ),
     ),
+    # M22.2. A "light" quest: stand by `count` of the smoke keeper's old
+    # braziers (scattered over the swamp like hunt targets) until each
+    # catches; the mosquitoes come for whoever is lighting one. The camp and
+    # the lair are the frog hunter's and the pond's layouts, gone stagnant.
+    "smoke_keeper": QuestSpec(
+        title="Smoke Signals", biome="swamp", giver="smoke keeper", giver_sprite="smoke_keeper",
+        camp="frog_camp", lair="pond_lair", target="", count=4, boss="proboscia",
+        goal="Braziers lit {n}/{count}", camp_name="SMOKE KEEPER", lair_name="THE STAGNANT COURT",
+        skin="stagnant", kind="light",
+        lines=(
+            ("offer", ("Hear that whine? That's HER brood.",
+                       "Lady Proboscia. Drinks a cow dry by night.",
+                       "Smoke drives the swarm home to her court.",
+                       "Light four of my old braziers out there.",
+                       "Stand by one a while and it'll catch.",
+                       "The biters won't like it. Swat 'em.")),
+            ("progress", ("{left} more braziers to light.",
+                          "Stand close till the smoke rises.")),
+            ("done", ("Smell that smoke? The swarm's flown home.",
+                      "Her Ladyship's awake at the Stagnant Court.",
+                      "When she's fat with blood, hit her HARD!")),
+            ("fight", ("Her Ladyship's at court! Go!",)),
+            ("cleared", ("Lady Proboscia, swatted! Ha!",
+                         "I'll sleep without a net tonight.")),
+        ),
+    ),
 }
 # Developer / test override: biome -> quest key to use instead of the seed's
 # pick (run.py --boss sets it). Empty in normal play.
@@ -1672,6 +1713,17 @@ QUEST_SPOT_CANDIDATES = 400
 # A living target shows on the maps only within this many tiles of you
 # (the minimap then points the way in).
 QUEST_TARGET_PIN_RADIUS = 160
+# "light" quests (M22.2, systems/quests.py): a brazier catches after
+# BRAZIER_LIGHT_TIME s with a hero within BRAZIER_RADIUS tiles of it; with
+# nobody there its heat falls back BRAZIER_COOL x as fast. As its heat
+# passes each fraction in BRAZIER_SWARMS, BRAZIER_SWARM_SIZE mosquitoes come
+# buzzing in from BRAZIER_SWARM_RANGE tiles away (each wave once).
+BRAZIER_LIGHT_TIME = 5.0
+BRAZIER_RADIUS = 3.0
+BRAZIER_COOL = 0.5
+BRAZIER_SWARMS = (0.0, 0.5)
+BRAZIER_SWARM_SIZE = 3
+BRAZIER_SWARM_RANGE = (10.0, 13.0)
 
 # A boss lair: an oval arena LAIR_RADII tiles (half-width, half-height) --
 # one screen shows ~86 x 30 tiles, so 125 x 50 is about 3 x 3 screens (room
@@ -1723,6 +1775,60 @@ BOSSES = {
         ),
         loot=2500, achievement="leech_swarm", pages=("leech_swarm", "bloated_leech"),
     ),
+    # M22.2 (ai/bosses.Proboscia, design/BOSSES.md section 13).
+    "proboscia": BossSpec(
+        name="Lady Proboscia",
+        phases=(
+            BossPhase(1.0, (("bite", 3), ("fan", 3), ("sip", 2)), rest=1.0),
+            BossPhase(0.6, (("bite", 2), ("fan", 2), ("buzz", 3), ("call", 2), ("sip", 1)),
+                      rest=0.85),
+            BossPhase(0.25, (("bite", 3), ("fan", 1), ("buzz", 2), ("call", 1), ("sip", 1)),
+                      rest=0.6),
+        ),
+        loot=2500, achievement="proboscia", pages=("proboscia", "mosquito"),
+    ),
+}
+
+# Lady Proboscia (ai/bosses.Proboscia): a giant mosquito. She flies over
+# everything, hovering PROBOSCIA_HOVER[1] tiles from her target between
+# moves. Damages are per hit at level 1 (x the enemy damage scaling).
+# Signature, ENGORGE: each bite that lands and each sip at a pool puts one
+# gulp of blood in her belly (a bite also heals her PROBOSCIA_DRINK x the
+# damage). ENGORGE_FULL gulps and she's engorged for ENGORGE_WINDOW s:
+# slower (x ENGORGE_SLOW) and glowing. Deal ENGORGE_POP x her max HP in that
+# time and she POPS: ENGORGE_BONUS x max HP more damage, a ring of
+# ENGORGE_RING blood drops, and she's down for ENGORGE_STUN s (the melee
+# window). Fail and she digests it: heals ENGORGE_DIGEST x max HP.
+PROBOSCIA_HIT_RADIUS = 1.9
+PROBOSCIA_HOVER = (9.0, 11.0, 0.6)      # speed tiles/s, distance from the target, orbit rad/s
+PROBOSCIA_BITE = (0.65, 34.0, 30.0, 1.0, 12, 0.6)  # tell s, dash speed, longest dash, width,
+                                                   # damage, hovering still after (s)
+PROBOSCIA_DRINK = 3.0
+PROBOSCIA_FAN = (0.5, 5, 40.0, 3, 0.5)  # tell s, needles per volley, fan degrees, volleys, gap s
+PROBOSCIA_BUZZ = (0.4, 26, 10.0, 0.8, 55.0, 2, 1.0)  # whine (tell) s, shots, radius, ring
+                                                     # hold s, gap degrees, rings, s between
+PROBOSCIA_CALL = (0.7, 4, 8)             # tell s, mosquitoes per call, most alive at once
+PROBOSCIA_SIP = (2.4, 0.03, 14.0)       # seconds drinking, damage (x max HP) that shoos her
+                                        # off it, flying speed to the pool
+PROBOSCIA_FRENZY = (1.3, 3, 0.4)        # last phase: speed x, dives chained, tell s between
+# Last phase: her dives leave fever clouds, one every FEVER_CLOUD[4] tiles
+# of the dive: radius, seconds, tick s, damage per tick, spacing.
+FEVER_CLOUD = (1.8, 4.0, 0.5, 4, 3.0)
+ENGORGE_FULL = 3
+ENGORGE_WINDOW = 6.0
+ENGORGE_SLOW = 0.55
+ENGORGE_POP = 0.035
+ENGORGE_BONUS = 0.08
+ENGORGE_RING = 20
+ENGORGE_STUN = 2.5
+ENGORGE_DIGEST = 0.04
+PROBOSCIA_SHOTS = {
+    "needle": ShellSpec(speed=15.0, damage=8, max_range=32.0, damages_terrain=False,
+                        look="needle", sound="bow"),
+    "buzz": ShellSpec(speed=7.0, damage=9, max_range=22.0, damages_terrain=False,
+                      look="buzz", sound="orb"),
+    "pop": ShellSpec(speed=8.0, damage=9, max_range=24.0, damages_terrain=False,
+                     look="blood", sound="fizzle"),
 }
 
 # The Leech Swarm (ai/bosses.LeechSwarm). LEECHES bodies share the health

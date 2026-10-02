@@ -178,7 +178,7 @@ Suggested angles only (to keep playstyles different — change freely):
 | M20 (built) | Wizard's arcane missiles; the shock bolt became his spell Chain Lightning; wizard cards and trainer redone (`CARDS.md` section 16) |
 | M21 (built) | **Haunted forest** replaces the bushy forest (section 7) |
 | M22 (built) | Boss pools (the seed picks one quest per biome per run; `run.py --boss KEY` forces one) + the swamp's **Leech Swarm** (section 12). Hidden names (Mycelium) need nothing extra: a boss shows its spec's name, so the three Mycelium variants simply share it |
-| M22.2 | Swamp: **mosquito** |
+| M22.2 (built) | Swamp: **Lady Proboscia**, the mosquito, and the smoke keeper's "light" quest (section 13) |
 | M23.1-3 | Desert: **beetle**, **spitting camel**, **nomad sand wizard** |
 | M24.1-3 | Ruins: **radioactive monster**, **ice wizard**, **vampire girl** |
 | M25.1-3 | Forest: **corrupted pixie**, **mad murderer squirrel**, **mimic tree** |
@@ -244,7 +244,7 @@ Three bosses per ring biome. Each run meets one of them, picked by the seed (sec
 
 | Biome | Bosses | Notes |
 |-------|--------|-------|
-| Swamp | **Froggy McFrogface** (built), a **leech swarm**, a **mosquito** | the swarm is many bodies with one shared health bar (a new boss shape); the mosquito is fast, flies, drains blood |
+| Swamp | **Froggy McFrogface** (built), a **leech swarm** (built), a **mosquito** (built: Lady Proboscia) | the swarm is many bodies with one shared health bar (a new boss shape); the mosquito is fast, flies, drains blood |
 | Desert | a **beetle**, a **spitting camel**, a **nomad sand wizard** | |
 | Ruins | a **radioactive monster**, an **ice wizard**, a **vampire girl** | Adventure Time nods (the glowing lich-like monster, the ice king, the vampire queen). Use our own names and looks so the built game doesn't copy the show (the user will rename them) |
 | Haunted forest (M21) | a **corrupted pixie**, a **mad murderer squirrel**, a **mimic tree** | the mimic hides among ordinary trees |
@@ -270,3 +270,27 @@ Three bosses per ring biome. Each run meets one of them, picked by the seed (sec
 **Measured (headless, seed 31, a level-1 wizard bot with perfect aim and two cards, invulnerable, rolling whenever latched):** with 6,500 HP the fight took 1:24 and used every move. It thinned from 40 leeches steadily (36 at 60% health, 15 at 14%). Health was raised to 8,500 for about 2 minutes. **Tune in real play**, like Froggy. Numbers: `LEECH*`, `LATCH_*` in `config.py`.
 
 **How it's built:** `ai/bosses.LeechSwarm` is the "core", a point at the leeches' middle that can't be hit; it runs the moves and steers the leeches. `LeechPart` is each leech (an Actor; it never sleeps, and its damage counts toward the swarm). The swarm's own drops pass through its leeches (`combat._may_hurt`). Leeches swim over everything inside the arena (no walls for them). The quest adds the leeches to the enemies when the fight starts. Drawing is in `render/leeches.py`.
+
+## 13. Lady Proboscia (swamp, built in M22.2, 2026-10-02)
+
+The user's picks from the draft: the **Engorge** signature, all four extra moves (needle fan, buzz ring, swarm call, fever clouds + frenzy), the **bait-trail** quest given by an NPC, and the name **Lady Proboscia**.
+
+**Quest: "Smoke Signals"** (the smoke keeper). A new quest kind, `"light"` (`QuestSpec.kind`). The camp's spots hold **braziers** instead of enemies (cold: a `[]` tile in the spot's clearing). Stand within 3 tiles of one for 5 s and it catches: it smokes for good, and the tile turns into a lit brazier. With nobody there its heat falls back at half speed. As the heat passes 0% and 50%, 3 **mosquitoes** come buzzing in each time (once per brazier). Light 4 of the 7 to wake her. The keeper's camp and **The Stagnant Court** are the frog hunter's camp and Froggy's pond, gone stagnant (`landmarks.SKINS["stagnant"]`: stagnant water, scum). Numbers: `BRAZIER_*` in `config.py`.
+
+**Mosquito** (15 HP, 2 XP): flies over everything, buzzing at you on a wobbly line. In reach it hovers still for 0.3 s (the tell), stings for 4, then darts off sideways. Its sting hits heroes only (otherwise a cloud of them stings itself to death).
+
+**Boss: Lady Proboscia.** 8,000 HP at level 1 (scaled like every boss). She flies over walls, pillars and pools, circling her target about 11 tiles out and always facing it. Her body doesn't shove you.
+
+**Signature: Engorge.** Each bite that lands and each **sip** at a pool puts a gulp of blood in her belly (her abdomen swells and reddens). A bite also heals her by 3× the damage it did. With 3 gulps she's **engorged** for 6 s: 0.55× speed, a blinking belly, and a bar under her. Deal 3.5% of her max HP in that time and she **POPS**: 8% of her max HP more damage, a ring of 20 blood drops, and she drops to the ground stunned for 2.5 s (the melee window). If the time runs out, she **digests** it and heals 4%. Sipping is the other melee window: she lands at the nearest pool for 2.4 s, low and still. Deal 3% of her max HP and she's shooed off without her gulp.
+
+| Phase | HP | Moves |
+|-------|----|-------|
+| 1 | 100–60% | **bite** (a red dotted line through you, 0.65 s, then a lunge along it; she hangs still for 0.6 s after), **fan** (stops, the proboscis glows, then 3 fans of 5 needles, repositioning between them), **sip** |
+| 2 | 60–25% | adds **buzz** (a whine, then 2 rings of 26 sound pulses round you that hang for 0.8 s and close, each with a 55° gap) and **call** (4 mosquitoes, at most 8 alive) |
+| 3 | 25–0% | **frenzy** (1.3× speed); a bite is **three dives in a row** (0.4 s tells after the first), each leaving **fever clouds** (every 3 tiles, radius 1.8, 4 s, 4 damage every 0.5 s) |
+
+She never sips with a full belly and never calls with 8 mosquitoes already out.
+
+**Measured (headless, seeds 31/7/12, a level-1 wizard bot without cards: perfect aim, circle-strafing, shooting mosquitoes within 6 tiles first, healed every step so her bites land):** fights took 1:58–2:36, with 1–3 pops and 0–2 digests each, and the bot took ~95–190 damage a minute. The first try (7,000 HP, 6 mosquitoes per call, at most 12, a 6% digest) stalled on one seed: the bot's missiles hit a wall of mosquitoes while she kept digesting. Hence the smaller calls, the smaller digest heal, and an easier pop (3.5%). **Tune in real play**, like the other two.
+
+**How it's built:** `ai/bosses.Proboscia` (her `take_damage` counts damage toward the pop and toward shooing her off a sip; a pop aborts the current move), `ai/creatures.Mosquito`, `systems/quests.py` (`_tend_braziers`, `_swarm`, and the shared `_found`), `systems/patterns.ring_in(gap_deg=, gap_at=)`, `render/mosquito.py` (her, her tells and clouds, the mosquitoes, the braziers' smoke and heat bar), tiles `STAGNANT`/`SCUM`/`BRAZIER`/`BRAZIER_LIT`, NPC art `smoke_keeper`. `run.py --boss proboscia` forces her.

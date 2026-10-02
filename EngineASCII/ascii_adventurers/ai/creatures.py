@@ -429,3 +429,63 @@ class Leech(Creature):
             a = self.rng.uniform(0, math.tau)
             ctx.spawned.append(("leechling", self.x + math.cos(a) * 0.8,
                                 self.y + math.sin(a) * 0.8))
+
+
+class Mosquito(Creature):
+    """Mosquito (M22.2: the smoke keeper's braziers, Lady Proboscia's
+    calls): flies over everything, buzzing at its target on a wobbly line.
+    In reach it hovers still a moment (the tell), stings what's in front,
+    then darts off sideways before coming back for more."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.windup = 0.0
+        self.cooldown = 0.0
+        self.dart = 0.0               # > 0 while darting off after a sting
+        self.dart_angle = 0.0
+        self.phase = self.rng.uniform(0, math.tau)
+        self.summoner = None
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        self.cooldown = max(0.0, self.cooldown - dt)
+        self.phase += dt * 9.0
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            if self.windup <= 0:
+                self._sting(ctx)
+            return
+        speed = self.espec.speed
+        if self.dart > 0:
+            self.dart -= dt
+            a = self.dart_angle
+        else:
+            if t is None or not self.alert:
+                gx, gy = self.wander_goal(dt)
+                speed *= 0.5
+            else:
+                gx, gy = (t.x, t.y) if self.sees_target else (self.last_known or (t.x, t.y))
+                reach = self.espec.attack_radius + t.hit_radius
+                if self.sees_target and self.dist_to(t) <= reach and self.cooldown <= 0:
+                    self.facing = self.angle_to(t.x, t.y)
+                    self.windup = self.espec.windup
+                    return
+            a = self.angle_to(gx, gy) + math.sin(self.phase * 0.5) * 0.7
+        # Straight through the air (no collision), on a wobbly line.
+        self.facing = a
+        self.x += math.cos(a) * speed * dt
+        self.y += math.sin(a) * speed * dt
+
+    def _sting(self, ctx: AIContext) -> None:
+        cx = self.x + math.cos(self.facing) * 0.5
+        cy = self.y + math.sin(self.facing) * 0.5
+        # Only heroes: a cloud of them stinging round you would otherwise
+        # sting each other to death.
+        for h in ctx.players:
+            if h.hittable and math.hypot(h.x - cx, h.y - cy) <= self.espec.attack_radius * 0.8 + h.hit_radius:
+                combat.strike(h, self.espec.damage * self.damage_mult, self, self.facing, ctx.effects)
+        ctx.events.append(combat.HIT)
+        self.cooldown = self.espec.cooldown
+        self.dart = 0.45
+        self.dart_angle = self.facing + math.pi + self.rng.choice((-1, 1)) * self.rng.uniform(0.6, 1.2)

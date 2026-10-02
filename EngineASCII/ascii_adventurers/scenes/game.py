@@ -79,6 +79,7 @@ from ..players.controls import AutoControls, GhostControls, PlayerInput
 from ..players.player import Player, player_color
 from ..render.ascii_fx import draw_effects, draw_projectiles
 from ..render.bosses import draw_banner, draw_froggy, draw_npc, draw_pointer
+from ..render.mosquito import draw_braziers
 from ..render.characters import draw_body
 from ..render.enemies_sprite import draw_enemy
 from ..render.haunt import draw_wisps
@@ -899,6 +900,7 @@ class GameScene(Scene):
         for npc in self.quests.npcs:
             if x0 - margin <= npc.x <= x1 + margin and y0 - margin <= npc.y <= y1 + margin:
                 draw_npc(text, self.sprites, cam, npc, me.hero.x, npc is talk_to)
+        draw_braziers(text, cam, self.quests, self.steps / config.SIM_HZ)
         for p in self.players:
             h = p.hero
             if p.alive and x0 - margin <= h.x <= x1 + margin and y0 - margin <= h.y <= y1 + margin:

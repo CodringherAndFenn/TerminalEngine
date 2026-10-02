@@ -101,6 +101,9 @@ SHOT_LOOKS = {
     "dart": ("*", ("+", "."), palette.SHOT_DART),    # the wizard's arcane missiles
     # M22
     "blood": ("o", (".", "."), palette.SHOT_BLOOD),  # the leech swarm's drops
+    # M22.2: Lady Proboscia's needles and the buzz rings' sound pulses.
+    "needle": ("+", ("-", "."), palette.SHOT_NEEDLE),
+    "buzz": ("z", (".", "."), palette.SHOT_BUZZ),
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).
