@@ -1,8 +1,9 @@
 """
 systems/quests.py -- the run's quests (M17, design/BOSSES.md).
 
-Each ring biome with a quest (config.QUESTS) whose camp and lair could be
-placed on this island gets a QuestState, going through these stages:
+Each ring biome's quest for this run (one of its pool in config.QUESTS,
+picked by the seed: world/landmarks.pick_quests) whose camp and lair could
+be placed on this island gets a QuestState, going through these stages:
 
   "offered"  the giver waits at their camp (pinned on the maps from the
              start); talking to them (E / gamepad A within TALK_RADIUS)
@@ -112,7 +113,8 @@ class Quests:
         layout = getattr(self.world, "layout", None)
         self.states: dict[str, QuestState] = {}
         if layout is not None:
-            for spec in config.QUESTS.values():
+            from ..world.landmarks import pick_quests
+            for spec in (config.QUESTS[k] for k in pick_quests(layout.seed).values()):
                 camp, lair = layout.landmark(spec.camp), layout.landmark(spec.lair)
                 if camp is None or lair is None or camp.npc is None:
                     continue
@@ -294,6 +296,8 @@ class Quests:
         boss.recruit = self._recruiter(rng)
         s.boss = boss
         self.scene.enemies.append(boss)
+        # A swarm boss (M22) fights with many bodies: they join the enemies.
+        self.scene.enemies.extend(getattr(boss, "parts", ()))
         self.banner = Banner(boss.espec.name.upper(), "guardian of the " + s.biome)
         self.scene.effects.append(Effect("explosion", x, y))
         self.scene._sounds.append("boulder")

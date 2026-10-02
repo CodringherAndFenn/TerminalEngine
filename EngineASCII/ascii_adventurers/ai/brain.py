@@ -47,6 +47,9 @@ class AIContext:
     projectiles: list
     effects: list
     events: list = field(default_factory=list)   # sound events to play
+    # Enemies an enemy brings into the world (key, x, y), e.g. leechlings out
+    # of a popped bloated leech; the game wakes them after the deaths (M22).
+    spawned: list = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not isinstance(self.players, (list, tuple)):

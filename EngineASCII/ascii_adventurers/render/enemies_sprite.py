@@ -20,12 +20,14 @@ import math
 import pygame
 
 from .. import config, palette
-from ..ai.creatures import Boar, Burrower, DustDevil, Puffer, Warrior
+from ..ai.bosses import LeechPart, LeechSwarm
+from ..ai.creatures import Boar, Burrower, DustDevil, Leech, Puffer, Warrior
 from ..ai.shooters import PsyFrog, Shooter, Warlock, Wisp
 from ..engine_ext.camera import Camera
 from .ascii_fx import draw_beam, draw_boar_tell, draw_hp_bar, draw_searchlight
 from .bosses import draw_froggy
 from .characters import draw_body, draw_character, walk_frame
+from .leeches import draw_leech_creature, draw_leech_part, draw_swarm
 from .sprites import SpriteBank, quad
 
 
@@ -182,6 +184,12 @@ def _paint_devil(angle: float):
 
 def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
     x, y = camera.world_to_px(e.x, e.y)
+    if isinstance(e, LeechPart):                # one leech of the swarm (M22)
+        draw_leech_part(bank, camera, e)
+        return
+    if isinstance(e, LeechSwarm):               # the swarm: its tells
+        draw_swarm(text, camera, e)
+        return
     if getattr(e, "boss", False):
         draw_froggy(text, bank, camera, e)     # (its health is the HUD's boss bar)
         return
@@ -211,6 +219,8 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
         sprite = bank.rotated(("warrior", pose, e.hurt_flash > 0, size), e.facing, 72,
                               _paint_warrior(pose, e.hurt_flash > 0, size), 20 * size / 16)
         bank.draw(sprite, x, y)
+    elif isinstance(e, Leech):
+        draw_leech_creature(bank, camera, e)
     elif isinstance(e, Puffer):
         step = min(3, int(e.swelling * 4))
         bob = math.sin(e.phase * 1.7) * 2

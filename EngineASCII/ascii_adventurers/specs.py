@@ -256,7 +256,12 @@ class QuestSpec:
     at the camp's spots and appear once the quest is given). `lines` are
     what the giver says at each stage of the quest: "offer" (the first
     talk), "progress" ("{left}" = targets left), "done" (the boss is
-    awake), "cleared" (it's beaten)."""
+    awake), "cleared" (it's beaten).
+
+    Pools (M22): a biome can have several quests; the run's seed picks one
+    per biome (world/landmarks.pick_quests). Quests may share camp and lair
+    builders: `camp_name` / `lair_name` label them on the map and `skin`
+    (world/landmarks.SKINS) swaps their tiles for this quest's look."""
 
     title: str
     biome: str
@@ -270,6 +275,9 @@ class QuestSpec:
     goal: str                       # quest log: "{n}" done of "{count}"
     lines: tuple[tuple[str, tuple[str, ...]], ...]
     kind: str = "hunt"
+    camp_name: str = ""
+    lair_name: str = ""
+    skin: str = ""
 
     def say(self, stage: str) -> tuple[str, ...]:
         return dict(self.lines).get(stage, ())

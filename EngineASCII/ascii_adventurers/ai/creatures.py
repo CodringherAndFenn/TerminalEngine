@@ -374,3 +374,58 @@ class DustDevil(Creature):
             ctx.projectiles.append(Projectile(self.x, self.y, a, shell, owner=self,
                                               damage=shell.damage * self.damage_mult))
         ctx.events.append(shell.sound)
+
+
+class Leech(Creature):
+    """Bloated leech and leechling (M22, the leech doctor's quest): a
+    worm that crawls at you, rears up (wind-up) and bites what's in front.
+    A bloated one, popped, bursts into LEECH_BROOD leechlings (they come
+    out through AIContext.spawned)."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.windup = 0.0
+        self.cooldown = 0.0
+        self.wriggle = self.rng.uniform(0, math.tau)
+        self.burst_done = False
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        self.cooldown = max(0.0, self.cooldown - dt)
+        self.wriggle += dt * 6.0
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            if self.windup <= 0:
+                self._bite(ctx)
+            return
+        if t is None or not self.alert:
+            self.walk(ctx, *self.wander_goal(dt), dt, self.espec.speed * 0.4)
+            return
+        goal = (t.x, t.y) if self.sees_target else self.last_known
+        if goal is None:
+            return
+        reach = self.espec.attack_radius + (t.hit_radius if self.sees_target else 0)
+        if self.sees_target and self.dist_to(t) <= reach and self.cooldown <= 0:
+            self.facing = self.angle_to(t.x, t.y)
+            self.windup = self.espec.windup
+            return
+        self.walk(ctx, *goal, dt, self.espec.speed)
+
+    def _bite(self, ctx: AIContext) -> None:
+        cx = self.x + math.cos(self.facing) * 0.6
+        cy = self.y + math.sin(self.facing) * 0.6
+        combat.blast(cx, cy, self.espec.attack_radius * 0.7, self.espec.damage * self.damage_mult,
+                     self, ctx.actors, effects=ctx.effects)
+        ctx.events.append(combat.HIT)
+        self.cooldown = self.espec.cooldown
+
+    def on_death(self, ctx: AIContext) -> None:
+        ctx.effects.append(Effect("explosion", self.x, self.y))
+        if getattr(self, "kind_key", None) != "bloated_leech" or self.burst_done:
+            return
+        self.burst_done = True
+        for k in range(config.LEECH_BROOD):
+            a = self.rng.uniform(0, math.tau)
+            ctx.spawned.append(("leechling", self.x + math.cos(a) * 0.8,
+                                self.y + math.sin(a) * 0.8))

@@ -84,14 +84,30 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--smoke", type=float, default=0.0, metavar="SECONDS",
                         help="test: start a run straight away, play SECONDS without input, "
                              "quit and report (checks a build really works); saves nothing")
+    parser.add_argument("--boss", metavar="KEY", default=None,
+                        help="test: make every run use the quest of this boss in its biome "
+                             "(e.g. froggy, leech_swarm) instead of the seed's pick")
     parser.add_argument("--dev", action="store_true",
                         help="developer mode: the guild purse is full (nothing bought is "
                              "saved) and L levels you up in a run; records aren't saved")
     return parser.parse_args(argv)
 
 
+def force_boss(boss: str | None) -> None:
+    """--boss: the quest leading to that boss replaces its biome's pick."""
+    if not boss:
+        return
+    from ascii_adventurers import config
+    quest = next((k for k, q in config.QUESTS.items() if q.boss == boss), None)
+    if quest is None:
+        sys.exit(f"--boss: no quest leads to {boss!r} "
+                 f"(try: {', '.join(sorted({q.boss for q in config.QUESTS.values()}))})")
+    config.QUEST_OVERRIDE[config.QUESTS[quest].biome] = quest
+
+
 def main() -> None:
     args = parse_args(sys.argv[1:])
+    force_boss(args.boss)
     if args.smoke > 0:
         sys.exit(smoke(args))
     # The game's own settings and records (ascii_adventurers/save/). The

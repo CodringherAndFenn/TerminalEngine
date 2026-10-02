@@ -177,8 +177,7 @@ Suggested angles only (to keep playstyles different — change freely):
 | M19 (built) | Multiple projectiles for every hero (section 8.1; as built: `CARDS.md` 6.11 and 15) |
 | M20 (built) | Wizard's arcane missiles; the shock bolt became his spell Chain Lightning; wizard cards and trainer redone (`CARDS.md` section 16) |
 | M21 (built) | **Haunted forest** replaces the bushy forest (section 7) |
-| **M22** | **Boss pools**: 3 bosses per biome, the seed picks one per run, each with its own quest; the boss's real kind can be hidden behind one name (Mycelium); per-boss bestiary pages and achievements. Froggy is the swamp's first; proven with the second swamp boss |
-| M22.1 | Swamp: **leech swarm** |
+| M22 (built) | Boss pools (the seed picks one quest per biome per run; `run.py --boss KEY` forces one) + the swamp's **Leech Swarm** (section 12). Hidden names (Mycelium) need nothing extra: a boss shows its spec's name, so the three Mycelium variants simply share it |
 | M22.2 | Swamp: **mosquito** |
 | M23.1-3 | Desert: **beetle**, **spitting camel**, **nomad sand wizard** |
 | M24.1-3 | Ruins: **radioactive monster**, **ice wizard**, **vampire girl** |
@@ -251,3 +250,23 @@ Three bosses per ring biome. Each run meets one of them, picked by the seed (sec
 | Haunted forest (M21) | a **corrupted pixie**, a **mad murderer squirrel**, a **mimic tree** | the mimic hides among ordinary trees |
 | Mushroom | **Mycelium**, always: one of three real mushrooms (**amanita muscaria** + two others), but the name, quest and HUD always say just "Mycelium", so you only find out which one in the fight | the other two (user, 2026-10-02): **shaggy ink cap** (melts into ink pools) and **giant puffball** (spore bursts) |
 | Plains (tier II) | not decided | |
+
+## 12. The Leech Swarm (swamp, built in M22, 2026-10-02)
+
+**Pools.** `config.QUESTS` is keyed by quest name, each with its biome. Per run the seed picks one quest per biome (`world/landmarks.pick_quests`), and only that quest's camp, lair and targets are built. Quests can share camp and lair layouts: `camp_name`/`lair_name` label them and `skin` swaps their tiles (`landmarks.SKINS`). `run.py --boss leech_swarm` (or `froggy`) forces a boss for testing, and `config.QUEST_OVERRIDE` does the same in code.
+
+**Quest: "Bad Blood"** (the leech doctor). **A stand-in:** the user will give the real quest later. Pop 5 **bloated leeches** (120 HP; they crawl at you and bite) scattered over the swamp. Each one bursts into 3 **leechlings** (18 HP, fast). The doctor's camp and **The Blood Mire** are the frog hunter's camp and Froggy's pond in blood (blood pools, clots).
+
+**Boss: The Leech Swarm.** 40 leeches with one health bar (8,500 at level 1, scaled like every boss). Each leech is a real enemy body holding an equal share. The swarm's health is the sum, so it thins out as it's hurt, and area attacks are strong against it by design. Its leeches aren't kills (no XP or loot each); the swarm is, when its last leech dies.
+
+**Signature: latching.** A leech that touches a hero who isn't rolling latches on, at most 8 per hero. It rides along, draining 2.5 HP/s (in 0.5 s ticks) and healing itself by twice what it drains. A dodge roll throws every leech off that hero ("SHAKEN OFF!"): they're flung 2.5 tiles and lie stunned for 1 s. Nothing latches mid-roll.
+
+| Phase | HP | Moves |
+|-------|----|-------|
+| 1 | 100–60% | the flock drifts after its target between moves; **surge** (a red line, 0.8 s, then the free leeches dash along it); **split** (3 groups circle the target, then close in) |
+| 2 | 60–25% | adds **spit** (the swarm bunches and pulses, then 3 rings of 16 blood drops) and **nest** (into the nearest pool, can't be hit, ripples on the pool nearest you, bursts out of it with a ring of drops) |
+| 3 | 25–0% | **frenzy** (everything 1.4× faster) and **whirlpool** (a ring of leeches round you, tightening from 11 to 2 tiles over 3 s, with a 50° gap: get out through it, or roll through the ring) |
+
+**Measured (headless, seed 31, a level-1 wizard bot with perfect aim and two cards, invulnerable, rolling whenever latched):** with 6,500 HP the fight took 1:24 and used every move. It thinned from 40 leeches steadily (36 at 60% health, 15 at 14%). Health was raised to 8,500 for about 2 minutes. **Tune in real play**, like Froggy. Numbers: `LEECH*`, `LATCH_*` in `config.py`.
+
+**How it's built:** `ai/bosses.LeechSwarm` is the "core", a point at the leeches' middle that can't be hit; it runs the moves and steers the leeches. `LeechPart` is each leech (an Actor; it never sleeps, and its damage counts toward the swarm). The swarm's own drops pass through its leeches (`combat._may_hurt`). Leeches swim over everything inside the arena (no walls for them). The quest adds the leeches to the enemies when the fight starts. Drawing is in `render/leeches.py`.

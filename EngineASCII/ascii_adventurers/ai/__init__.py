@@ -15,8 +15,8 @@ from __future__ import annotations
 import random
 
 from .. import config
-from .bosses import Froggy
-from .creatures import Boar, Burrower, DustDevil, Puffer, Warrior
+from .bosses import Froggy, LeechSwarm
+from .creatures import Boar, Burrower, DustDevil, Leech, Puffer, Warrior
 from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 
 KINDS = {
@@ -36,6 +36,9 @@ KINDS = {
     # M17
     "psyfrog": PsyFrog,
     "froggy": Froggy,
+    # M22
+    "leech": Leech,
+    "leech_swarm": LeechSwarm,
 }
 
 

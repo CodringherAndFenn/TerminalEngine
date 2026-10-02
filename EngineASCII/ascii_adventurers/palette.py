@@ -278,6 +278,13 @@ MARK = (255, 70, 60)
 EVADE = (190, 230, 255)
 SHOT_NOTE = ((255, 225, 120), ((235, 170, 90), (150, 110, 70)))   # Sheet Music's notes
 SHOT_DART = ((245, 210, 255), ((200, 120, 255), (120, 70, 190)))  # arcane missiles
+# The leech swarm and its mire (M22).
+BLOOD_FG = (150, 30, 40)
+BLOOD_BG = (60, 8, 14)
+CLOT_FG = (120, 30, 36)
+LEECH = ((70, 32, 36), (120, 50, 52), (190, 70, 70))   # body, belly, gorged (latched)
+LEECH_TELL = ((230, 60, 60), (120, 30, 30))           # surge line / whirlpool / nest ripples
+SHOT_BLOOD = ((230, 60, 70), ((160, 30, 40), (90, 20, 26)))
 # The dodge roll (M18): dust kicked up behind it (fresh, settling), Blink's
 # flash, and a trail patch's two shades per status (Scorched Trail, Prism Dash).
 ROLL_DUST = ((200, 190, 165), (130, 122, 105))
@@ -355,7 +362,9 @@ MAP_TILE.update({
     "standing stones": (165, 170, 150), "thorn gate": (190, 120, 60), "pond": (40, 95, 90),
     "plank wall": (150, 110, 70), "drying rack": (150, 110, 70),
 })
-MAP_TILE_BIOME.update({"lily pads": "swamp", "deck": "swamp", "hunter's post": "swamp"})
+MAP_TILE_BIOME.update({"lily pads": "swamp", "deck": "swamp", "hunter's post": "swamp",
+                       "clots": "swamp"})
+MAP_TILE["blood pool"] = (110, 24, 30)
 # Map pins (quest givers, lairs): (fill, edge).
 PIN_QUEST = ((255, 220, 90), (60, 40, 0))
 PIN_LAIR = ((255, 90, 70), (60, 10, 0))

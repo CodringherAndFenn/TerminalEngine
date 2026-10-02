@@ -285,6 +285,8 @@ def _may_hurt(source: Actor | None, target: Actor) -> bool:
     each other (co-op). Nothing hurts its own source."""
     if target is source:
         return False
+    if source is not None and getattr(target, "part_of", None) is source:
+        return False                                  # a swarm's own shots pass its bodies
     return not (source is not None and source.faction == "player" and target.faction == "player")
 
 

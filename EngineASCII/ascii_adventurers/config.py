@@ -368,6 +368,21 @@ ENEMIES = {
         name="Froggy McFrogface", kind="froggy", max_hp=6000, sight=400,
         biomes=(), size_px=96, xp=400,
     ),
+    # M22: the leech doctor's quest and the swarm. A bloated leech crawls at
+    # you and bites; popped, it bursts into LEECH_BROOD leechlings.
+    "bloated_leech": EnemySpec(
+        name="bloated leech", kind="leech", max_hp=120, sight=18, biomes=(), speed=3.0,
+        damage=8, attack_radius=1.1, windup=0.35, cooldown=1.2, size_px=22, xp=25,
+    ),
+    "leechling": EnemySpec(
+        name="leechling", kind="leech", max_hp=18, sight=16, biomes=(), speed=6.5,
+        damage=4, attack_radius=0.8, windup=0.2, cooldown=0.9, size_px=10, xp=2,
+    ),
+    # The swarm's health is the sum of its leeches' (max_hp is the whole).
+    "leech_swarm": EnemySpec(
+        name="The Leech Swarm", kind="leech_swarm", max_hp=8500, sight=400,
+        biomes=(), size_px=16, xp=400,
+    ),
 }
 
 # M12 enemy behaviour.
@@ -1285,6 +1300,9 @@ BESTIARY = {
     # M17: filled in by beating the swamp's boss (or bought).
     "psy_frog": (1500, "They hide out across the swamp. Keeps away, spits weaving globs."),
     "froggy": (5000, "Dives between pools, lashes its tongue, belly-flops. Hit it while it's dazed."),
+    # M22
+    "bloated_leech": (1500, "Crawls at you and bites. Popped, it bursts into leechlings."),
+    "leech_swarm": (5000, "Forty leeches, one hunger. If they latch on, roll to shake them off."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -1293,6 +1311,7 @@ ACHIEVEMENTS = {
     "crit_75": "reach 75% crit chance",
     "level_30": "reach level 30",
     "froggy": "defeat Froggy McFrogface",
+    "leech_swarm": "defeat the Leech Swarm",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -1568,11 +1587,13 @@ RUINS_RUBBLE_CHANCE = 0.12
 # its lair. The 5 ring bosses ("guardians") unlock the plains boss, whose
 # Adventurer's Glory can end the run (later milestones).
 
+# Pools (M22): quests are keyed by name; each biome can have several and
+# the run's seed picks one of them (world/landmarks.pick_quests).
 QUESTS = {
-    "swamp": QuestSpec(
+    "bad_trip": QuestSpec(
         title="Bad Trip", biome="swamp", giver="frog hunter", giver_sprite="frog_hunter",
         camp="frog_camp", lair="pond_lair", target="psy_frog", count=5, boss="froggy",
-        goal="Psychedelic frogs {n}/{count}",
+        goal="Psychedelic frogs {n}/{count}", camp_name="FROG HUNTER", lair_name="FROGGY'S POND",
         lines=(
             ("offer", ("Oi! Adventurer! Over here!",
                        "The frogs in my bog went all funny colours.",
@@ -1591,7 +1612,33 @@ QUESTS = {
                          "The bog will sleep easy tonight. Thank you!")),
         ),
     ),
+    # M22. A stand-in quest (the user will give the real one); the camp and
+    # the lair reuse the frog hunter's and the pond's layouts, in blood.
+    "leech_doctor": QuestSpec(
+        title="Bad Blood", biome="swamp", giver="leech doctor", giver_sprite="leech_doctor",
+        camp="frog_camp", lair="pond_lair", target="bloated_leech", count=5, boss="leech_swarm",
+        goal="Bloated leeches {n}/{count}", camp_name="LEECH DOCTOR", lair_name="THE BLOOD MIRE",
+        skin="blood",
+        lines=(
+            ("offer", ("Ah, a visitor. Do mind the jars.",
+                       "My prize leeches got out. Fat, they are.",
+                       "Gorged on something they shouldn't have.",
+                       "Pop five of them before they breed.",
+                       "Mind the little ones that come out.")),
+            ("progress", ("{left} more bloated ones out there.",
+                          "They're all over the swamp by now.")),
+            ("done", ("Five! But listen... that squelching.",
+                      "The mire. The whole brood is waking.",
+                      "If they latch on, roll! Shake them off!")),
+            ("fight", ("The swarm's up at the mire! Go!",)),
+            ("cleared", ("The swarm, gone? Remarkable.",
+                         "I'll start a new collection. Smaller ones.")),
+        ),
+    ),
 }
+# Developer / test override: biome -> quest key to use instead of the seed's
+# pick (run.py --boss sets it). Empty in normal play.
+QUEST_OVERRIDE: dict = {}
 # The main quest: beat this many ring-biome bosses ("guardians"), then the
 # plains boss, for Adventurer's Glory.
 GUARDIANS = 5
@@ -1666,6 +1713,43 @@ BOSSES = {
         ),
         loot=2500, achievement="froggy", pages=("froggy", "psy_frog"),
     ),
+    # M22 (ai/bosses.LeechSwarm, design/BOSSES.md section 12).
+    "leech_swarm": BossSpec(
+        name="The Leech Swarm",
+        phases=(
+            BossPhase(1.0, (("surge", 3), ("split", 2)), rest=1.0),
+            BossPhase(0.6, (("surge", 2), ("split", 2), ("spit", 3), ("nest", 2)), rest=0.85),
+            BossPhase(0.25, (("surge", 2), ("spit", 2), ("nest", 1), ("whirlpool", 3)), rest=0.6),
+        ),
+        loot=2500, achievement="leech_swarm", pages=("leech_swarm", "bloated_leech"),
+    ),
+}
+
+# The Leech Swarm (ai/bosses.LeechSwarm). LEECHES bodies share the health
+# (each holds its share; area hits are strong against it, by design), and
+# drift as a flock toward the target between moves. A leech that touches a
+# hero (who isn't rolling) latches on: it rides along, draining LATCH_DPS
+# (x enemy damage scaling) and healing itself by LATCH_HEAL x what it drains,
+# until a dodge roll throws every leech off that hero (stunned for
+# LATCH_SHAKE[1] s, flung LATCH_SHAKE[0] tiles). At most LATCH_MAX per hero.
+LEECHES = 40
+LEECH_RADIUS = 0.45             # tiles: a leech's body (hits, latching)
+LEECH_FLOCK = (5.5, 1.2, 3.0)   # drift speed tiles/s, spacing, spread round the centre
+LATCH_DPS = 2.5
+LATCH_HEAL = 2.0
+LATCH_MAX = 8
+LATCH_TICK = 0.5                # drain is dealt this often (one number, not a stream)
+LATCH_SHAKE = (2.5, 1.0)
+LEECH_SURGE = (0.8, 22.0, 0.6, 34.0)     # tell s, dash speed, dash s, line length
+LEECH_SPLIT = (3, 10.0, 2.0, 1.0)        # groups, circle radius, circling s, closing s
+LEECH_SPIT = (0.5, 3, 16, 0.35)          # tell s, rings, drops per ring, s between rings
+LEECH_NEST = (0.8, 1.2, 18)              # swim to the pool s, ripples (tell) s, drops on surfacing
+LEECH_WHIRL = (11.0, 2.0, 3.0, 50.0)     # ring radius, radius it closes to, seconds, gap degrees
+LEECH_FRENZY = 1.4              # last phase: everything this much faster
+LEECH_BROOD = 3                 # leechlings out of a popped bloated leech
+LEECH_SHOTS = {
+    "blood": ShellSpec(speed=8.0, damage=8, max_range=24.0, damages_terrain=False,
+                       look="blood", sound="fizzle"),
 }
 
 # Froggy McFrogface's moves (ai/bosses.py). Damages are per hit at level 1

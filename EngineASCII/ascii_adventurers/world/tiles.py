@@ -271,6 +271,15 @@ POND = TileType(
 LILY_PADS = TileType(
     "lily pads", ("o ", " o", "  ", "o."), palette.LILY_FG, palette.MUD_BG,
 )
+# The leech doctor's quest (M22): her bog and the Blood Mire are the frog
+# hunter's and the pond's layouts in blood (world/landmarks.SKINS).
+BLOOD_POOL = TileType(
+    "blood pool", ("░ ", " ░", "  ", "▒░"), palette.BLOOD_FG, palette.BLOOD_BG,
+    solid=True,
+)
+CLOTS = TileType(
+    "clots", ("o ", " o", "  ", "o."), palette.CLOT_FG, palette.MUD_BG,
+)
 # The frog hunter's hut on its deck.
 PLANK_WALL = TileType(
     "plank wall", ("||", "|:", ":|"), palette.PLANK_FG, palette.PLANK_BG,

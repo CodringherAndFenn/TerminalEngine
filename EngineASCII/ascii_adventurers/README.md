@@ -4,7 +4,7 @@ A top-down ASCII adventure roguelike on one huge island, built on the
 narrative engine (`narrative_engine/`). Everything for the game lives in
 this folder.
 
-**Status:** Milestones 1-21 and "Adventurers" are done:
+**Status:** Milestones 1-22 and "Adventurers" are done:
 - keyboard walking, mouse aiming, a smooth scrolling camera;
 - shooting, spells and destructible terrain;
 - a seeded, chunk-streamed world with six biomes;
@@ -167,9 +167,18 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   block; you walk under their branches. Stumps and fallen logs are the
   cover, over dead leaves, faint fog and floating wisp lights.
 
-Next up (agreed order, `design/BOSSES.md` section 8): M22 boss pools
-(three bosses per ring biome) and then every boss one at a time, M27 the
-plains boss and the victory.
+- boss pools and the Leech Swarm (M22): each biome's quest is now picked
+  per run from its pool. The swamp has two: the frog hunter's (Froggy) and
+  the leech doctor's (a stand-in quest: pop 5 bloated leeches). The **Leech
+  Swarm** is 40 leeches with one health bar. They thin out as you hurt
+  them, latch on and drain you if they reach you, and a **dodge roll
+  shakes them all off**. It surges, splits and circles, spits blood, nests
+  in the pools and, at the end, rings you in a tightening whirlpool
+  (`design/BOSSES.md` section 12).
+
+Next up (agreed order, `design/BOSSES.md` section 8): M22.2 the swamp's
+mosquito, then the desert, ruins, haunted forest and mushroom bosses one at
+a time, M27 the plains boss and the victory.
 
 ## Setup (once)
 
@@ -188,7 +197,8 @@ ascii_adventurers/.venv/bin/python ascii_adventurers/run.py
 
 This works from any working directory. Debug: `run.py --ghosts N` (N up
 to 3) adds bot players that wander off on their own and fight what they
-meet; F10 in game switches the view between players, and other players
+meet; `run.py --boss leech_swarm` (or `froggy`) makes the swamp use that
+boss's quest, whatever the seed; F10 in game switches the view between players, and other players
 show as coloured dots on the minimap and big map.
 Developer mode: `run.py --dev` fills the guild purse (999,999 loot) and
 in a run L levels you up on the spot (one card pick per press); F6 jumps

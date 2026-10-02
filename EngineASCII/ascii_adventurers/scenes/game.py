@@ -55,6 +55,7 @@ once, and the game-over box shows them while the world keeps running.
 from __future__ import annotations
 
 import math
+import random
 import time
 from contextlib import contextmanager
 
@@ -745,6 +746,11 @@ class GameScene(Scene):
                 break
             self.enemies = [e for e in self.enemies if e.alive]
             for e in dying:
+                if getattr(e, "part_of", None) is not None:
+                    # One leech of a swarm boss: the swarm itself is the
+                    # kill (XP, loot, the quest) once its last leech dies.
+                    self.effects.append(Effect("impact", e.x, e.y))
+                    continue
                 on_death = getattr(e, "on_death", None)
                 if on_death is not None:
                     on_death(ctx)
@@ -760,6 +766,7 @@ class GameScene(Scene):
                     drop(self.gems, e.x, e.y, e.espec.xp)
                     self._loot(killer, e)
                     self.rules.on_kill(killer, e)
+            self._wake_spawned(ctx)
             ctx.actors = self._actors()
         events += ctx.events
         ctx.events.clear()
@@ -776,6 +783,24 @@ class GameScene(Scene):
             self.game_over_for = 0.0
             self._end_run()
         return events
+
+    def _wake_spawned(self, ctx: AIContext) -> None:
+        """Enemies that dying ones brought into the world (leechlings out of
+        a bloated leech, M22): awake at once, with dice from the step."""
+        if not ctx.spawned:
+            return
+        sp = self.spawner
+        for i, (key, x, y) in enumerate(ctx.spawned):
+            rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0xB200,
+                                            self.steps, i))
+            if sp is not None:
+                e = sp.wake(key, x, y, None, rng)
+            else:
+                from ..ai import make_enemy
+                e = make_enemy(key, x, y, rng)
+            e.alert = True
+            self.enemies.append(e)
+        ctx.spawned.clear()
 
     def _loot(self, p: Player, enemy, times: int = 1) -> None:
         """A kill's loot goes straight into the run's purse; a shard flies

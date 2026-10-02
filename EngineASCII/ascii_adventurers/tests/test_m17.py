@@ -26,6 +26,15 @@ SEEDS = (1, 2, 31, 999)
 _worlds: dict = {}
 
 
+def setUpModule():
+    # M22: the swamp's quest is picked per run; these tests are Froggy's.
+    config.QUEST_OVERRIDE["swamp"] = "bad_trip"
+
+
+def tearDownModule():
+    config.QUEST_OVERRIDE.pop("swamp", None)
+
+
 def world(seed=31) -> ChunkedWorld:
     """One island per seed for the whole module (landmarks take ~70 ms)."""
     if seed not in _worlds:
@@ -111,7 +120,7 @@ class LandmarkTest(unittest.TestCase):
             camp = w.layout.landmark("frog_camp")
             lair = w.layout.landmark("pond_lair")
             spots = camp.spots
-            self.assertEqual(len(spots), config.QUESTS["swamp"].count + config.QUEST_SPOT_EXTRA,
+            self.assertEqual(len(spots), config.QUESTS["bad_trip"].count + config.QUEST_SPOT_EXTRA,
                              seed)
             for x, y in spots:
                 self.assertEqual(w.layout.biome_at(x, y).name, "swamp", seed)
@@ -326,7 +335,7 @@ class QuestFlowTest(unittest.TestCase):
         s.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e, unicode="e", mod=0))
         step(s)
         self.assertEqual(st.stage, "hunt")
-        self.assertEqual(st.npc.line, config.QUESTS["swamp"].say("offer")[0])
+        self.assertEqual(st.npc.line, config.QUESTS["bad_trip"].say("offer")[0])
         bid = biomes.BY_NAME["swamp"].id
         self.assertEqual(len(s.spawner.fixed), len(st.camp.spots))
         # No frog pins from the camp; next to one, its pin shows. It
@@ -405,7 +414,7 @@ class QuestFlowTest(unittest.TestCase):
         q = s.quests
         st = q.states["swamp"]
         q.talk(st.npc, s.me)
-        need = config.QUESTS["swamp"].count
+        need = config.QUESTS["bad_trip"].count
         bid = biomes.BY_NAME["swamp"].id
         for i in reversed(range(len(st.camp.spots))):    # the extras first
             if st.stage != "hunt":

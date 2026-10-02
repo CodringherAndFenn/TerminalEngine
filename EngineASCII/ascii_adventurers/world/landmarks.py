@@ -3,7 +3,10 @@ world/landmarks.py -- fixed structures stamped into the island (M17).
 
 A landmark is a rectangle of hand-placed tiles laid over whatever the biome
 generated there: a quest giver's camp, a boss's lair. Each ring biome's
-quest (config.QUESTS) names a camp and a lair builder; the run's landmarks
+quest for the run (pick_quests: one of the biome's pool in config.QUESTS)
+names a camp and a lair builder, its names on the map and a tile skin
+(SKINS: the leech doctor's quest reuses the frog hunter's and the pond's
+layouts in blood); the run's landmarks
 are placed once per seed (IslandLayout.landmarks, built on first use) and
 every chunk that overlaps one has its tiles replaced by the generator
 (world/generator.py), so they stream, persist and show on the maps like
@@ -172,13 +175,46 @@ def _find_site(layout, biome: str, radii, hw: float, hh: float, rng: random.Rand
     return None
 
 
+def pick_quests(seed: int) -> dict[str, str]:
+    """biome -> the key of this run's quest there (M22: each biome's pool of
+    quests in config.QUESTS; the seed picks one, config.QUEST_OVERRIDE may
+    force one)."""
+    pools: dict[str, list[str]] = {}
+    for key, q in config.QUESTS.items():
+        pools.setdefault(q.biome, []).append(key)
+    out = {}
+    for biome, keys in pools.items():
+        forced = config.QUEST_OVERRIDE.get(biome)
+        if forced in keys:
+            out[biome] = forced
+        else:
+            out[biome] = keys[hash_coords(seed, 0x9001, biomes.BY_NAME[biome].id) % len(keys)]
+    return out
+
+
+# Tile swaps that give a shared camp / lair layout a quest's own look.
+SKINS = {
+    "blood": {tiles.BOG: tiles.BLOOD_POOL, tiles.POND: tiles.BLOOD_POOL,
+              tiles.LILY_PADS: tiles.CLOTS},
+}
+
+
+def _skin(mark: Landmark | None, skin: str) -> None:
+    swap = SKINS.get(skin)
+    if mark is None or not swap:
+        return
+    mark.rows = [[swap.get(t, t) for t in row] for row in mark.rows]
+
+
 def build_landmarks(layout) -> list[Landmark]:
-    """Every quest's camp and lair for this island (config.QUESTS), plus a
-    small clearing at each of the quest's target spots (camp.spots)."""
+    """The camp and lair of this run's quest in each biome (pick_quests),
+    plus a small clearing at each of the quest's target spots (camp.spots)."""
     out = []
-    for q in config.QUESTS.values():
+    for q in (config.QUESTS[k] for k in pick_quests(layout.seed).values()):
         rng = random.Random(hash_coords(layout.seed, 0x1A4D, biomes.BY_NAME[q.biome].id))
         camp, lair = (BUILDERS[key](layout, q, rng) for key in (q.camp, q.lair))
+        for mark in (camp, lair):
+            _skin(mark, q.skin)
         out += [m for m in (camp, lair) if m is not None]
         if camp is not None:
             camp.spots = _scatter(layout, q, camp, lair, rng)
@@ -329,7 +365,7 @@ def _frog_camp(layout, quest, rng: random.Random) -> Landmark | None:
     for rx, ry in ((dx0 + 1, dy0 + 1), (dx0 + hut_w - 2, dy0 + hut_h - 2)):
         rows[ry - y0][rx - x0] = tiles.DRYING_RACK
 
-    return Landmark("frog_camp", "camp", biome, "FROG HUNTER", x0, y0, rows,
+    return Landmark("frog_camp", "camp", biome, quest.camp_name or "CAMP", x0, y0, rows,
                     cx=npc_tx + 0.5, cy=npc_ty + 0.5, npc=(npc_tx + 0.5, npc_ty + 0.5))
 
 
@@ -435,7 +471,7 @@ def _pond_lair(layout, quest, rng: random.Random) -> Landmark | None:
                 rows[j][i] = tiles.REEDS
 
     spots = [(cx + px, cy + py) for px, py, _, _ in pools]
-    return Landmark("pond_lair", "lair", biome, "FROGGY'S POND", x0, y0, rows,
+    return Landmark("pond_lair", "lair", biome, quest.lair_name or "LAIR", x0, y0, rows,
                     cx=cx, cy=cy, spots=spots, gate=gate, radii=(float(a), float(b)))
 
 
