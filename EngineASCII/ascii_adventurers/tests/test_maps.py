@@ -135,7 +135,7 @@ class BigMapTest(DisplayCase):
     def test_labels_sit_in_their_biomes(self):
         lay = self.w.layout
         for name, x, y in self.m._labels:
-            self.assertEqual(lay.biome_at(x, y).name.upper(), name)
+            self.assertEqual(lay.biome_at(x, y).title.upper(), name)
 
 
 class MinimapTest(DisplayCase):

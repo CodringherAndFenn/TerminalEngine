@@ -80,6 +80,7 @@ from ..render.ascii_fx import draw_effects, draw_projectiles
 from ..render.bosses import draw_banner, draw_froggy, draw_npc, draw_pointer
 from ..render.characters import draw_body
 from ..render.enemies_sprite import draw_enemy
+from ..render.haunt import draw_wisps
 from ..render.slash import draw_slashes
 from ..render.spell_fx import draw_gems, draw_spells, draw_statuses, draw_summons
 from ..render.sprites import SpriteBank
@@ -289,7 +290,7 @@ class GameScene(Scene):
         they're not on the HUD)."""
         h = self.viewed.hero
         biome_at = getattr(self.world, "biome_at", None)
-        biome = biome_at(math.floor(h.x), math.floor(h.y)).name.upper() if biome_at else "TEST MAP"
+        biome = biome_at(math.floor(h.x), math.floor(h.y)).title.upper() if biome_at else "TEST MAP"
         dist = math.hypot(h.x - self.spawn[0], h.y - self.spawn[1])
         seed = getattr(self.world, "seed", None)
         return f"{biome}   {dist:.0f} tiles out" + (f"   seed {seed}" if seed is not None else "")
@@ -859,6 +860,7 @@ class GameScene(Scene):
         ground = [e for e in self.effects if e.kind in _GROUND_EFFECTS]
         air = [e for e in self.effects if e.kind not in _GROUND_EFFECTS]
         draw_effects(text, cam, self.world, ground)
+        draw_wisps(text, cam, self.world, self.steps)
         draw_gems(text, cam, self.gems, self.steps)
         margin = 3
         x0, y0 = cam.canvas_to_world(0, 0)

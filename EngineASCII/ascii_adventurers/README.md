@@ -4,13 +4,13 @@ A top-down ASCII adventure roguelike on one huge island, built on the
 narrative engine (`narrative_engine/`). Everything for the game lives in
 this folder.
 
-**Status:** Milestones 1-20 and "Adventurers" are done:
+**Status:** Milestones 1-21 and "Adventurers" are done:
 - keyboard walking, mouse aiming, a smooth scrolling camera;
 - shooting, spells and destructible terrain;
 - a seeded, chunk-streamed world with six biomes;
 - enemies and combat, with 100 hp;
 - the island (M5): open plains in the middle, the other five biomes
-  (forest, desert, ruins, swamp, mushroom) as equal slices of a ring around
+  (haunted forest, desert, ruins, swamp, mushroom) as equal slices of a ring around
   them, then the coast and endless ocean. The ring is dealt and rotated
   differently every run;
 - maps (M6): a minimap in the top-right corner and a big map on M. Explored
@@ -162,9 +162,14 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   trainer's lightning upgrades became missile ones, and anything you'd
   bought in them is refunded (`design/CARDS.md` section 16).
 
-Next up (agreed order, `design/BOSSES.md` section 8): M21 the new forest
-biome, M22 boss pools (three bosses per ring biome) and then every
-boss one at a time, M27 the plains boss and the victory.
+- the haunted forest (M21) replaces the old forest, whose pine thickets
+  walled you in. Big gnarled trees stand apart, and only their trunks
+  block; you walk under their branches. Stumps and fallen logs are the
+  cover, over dead leaves, faint fog and floating wisp lights.
+
+Next up (agreed order, `design/BOSSES.md` section 8): M22 boss pools
+(three bosses per ring biome) and then every boss one at a time, M27 the
+plains boss and the victory.
 
 ## Setup (once)
 

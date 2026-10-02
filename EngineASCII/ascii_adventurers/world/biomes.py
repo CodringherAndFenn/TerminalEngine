@@ -16,10 +16,17 @@ class Biome:
     id: int
     name: str
     ground: TileType   # the default floor, used for cleared spawn area etc.
+    label: str = ""    # shown to players (pause menu, stats); "" = name
+
+    @property
+    def title(self) -> str:
+        return self.label or self.name
 
 
 PLAINS = Biome(0, "plains", tiles.PLAINS)
-FOREST = Biome(1, "forest", tiles.FOREST_FLOOR)
+# The forest became the haunted forest in M21; inside it's still "forest"
+# (enemy tables, saved records), players see the label.
+FOREST = Biome(1, "forest", tiles.DEAD_LEAVES, "haunted forest")
 DESERT = Biome(2, "desert", tiles.SAND)
 RUINS = Biome(3, "ruins", tiles.CONCRETE)
 SWAMP = Biome(4, "swamp", tiles.MUD)

@@ -130,6 +130,60 @@ PINE = TileType(
     becomes=PINE_DEBRIS,
 )
 
+# Haunted forest (M21; replaced the pine thickets, which walled you in):
+# dead leaves underfoot, drifting fog, and big gnarled trees standing well
+# apart -- only a tree's trunk blocks; its crown of twisted branches and its
+# roots are drawn on walkable tiles round it (world/generator._haunt). Old
+# stumps and fallen logs are the cover (and can be broken); the trees
+# themselves are ancient and can't.
+DEAD_LEAVES = TileType(
+    "dead leaves", (". ", " ,", "  ", "` ", "  ", ", "), palette.HAUNT_LEAF, palette.HAUNT_BG,
+)
+FOG = TileType(
+    # Just a look: walkable, under everything (it never hides a bullet).
+    "fog", ("░ ", " ░", "  ", "░ ", ". ", " ░"), palette.HAUNT_FOG, palette.HAUNT_BG,
+)
+BARK = TileType(
+    "bark", ("_,", ",_", "._"), palette.HAUNT_BARK, palette.HAUNT_BG,
+)
+GNARLED_TRUNK = TileType(
+    "gnarled tree", ("▐▌",), palette.HAUNT_TRUNK, palette.HAUNT_BG,
+    solid=True, blocks_shots=True,
+)
+STUMP = TileType(
+    "stump", ("▄_", "_▄"), palette.HAUNT_STUMP, palette.HAUNT_BG,
+    solid=True, blocks_shots=True, hp=config.STUMP_HP, becomes=BARK,
+)
+LOG_LEFT = TileType(
+    "log", ("(=",), palette.HAUNT_LOG, palette.HAUNT_BG,
+    solid=True, blocks_shots=True, hp=config.LOG_HP, becomes=BARK,
+)
+LOG_MID = TileType(
+    "log", ("==",), palette.HAUNT_LOG, palette.HAUNT_BG,
+    solid=True, blocks_shots=True, hp=config.LOG_HP, becomes=BARK,
+)
+LOG_RIGHT = TileType(
+    "log", ("=)",), palette.HAUNT_LOG, palette.HAUNT_BG,
+    solid=True, blocks_shots=True, hp=config.LOG_HP, becomes=BARK,
+)
+
+
+def _crown(glyph: str, fg) -> TileType:
+    return TileType("branches", (glyph,), fg, palette.HAUNT_BG)
+
+
+# A tree's walkable crown and roots, by offset from the trunk (dx, dy):
+# twigs on top, branches spreading to the sides, roots below.
+CROWN = {
+    (-1, -2): _crown(" ,", palette.HAUNT_TWIG), (0, -2): _crown(r"\/", palette.HAUNT_TWIG),
+    (1, -2): _crown(". ", palette.HAUNT_TWIG),
+    (-1, -1): _crown(r"\_", palette.HAUNT_BRANCH), (0, -1): _crown(r"\/", palette.HAUNT_BRANCH),
+    (1, -1): _crown("_/", palette.HAUNT_BRANCH),
+    (-1, 0): _crown("-\\", palette.HAUNT_BRANCH), (1, 0): _crown("/-", palette.HAUNT_BRANCH),
+    (-1, 1): _crown(" _", palette.HAUNT_ROOT), (0, 1): _crown("┘└", palette.HAUNT_ROOT),
+    (1, 1): _crown("_ ", palette.HAUNT_ROOT),
+}
+
 # Desert: sand, dunes, cacti and mesa rock.
 SAND = TileType(
     "sand", ("  ", ". ", " .", "  ", "  "), palette.SAND_FG, palette.SAND_BG,

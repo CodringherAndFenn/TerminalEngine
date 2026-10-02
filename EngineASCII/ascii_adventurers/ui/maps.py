@@ -311,7 +311,7 @@ class BigMap:
                 x, y = r * math.cos(a), r * math.sin(a)
                 if lay.biome_at(x, y) is b:
                     break
-            out.append((b.name.upper(), x, y))
+            out.append((b.title.upper(), x, y))
         return out
 
     # --- Control -------------------------------------------------------------------

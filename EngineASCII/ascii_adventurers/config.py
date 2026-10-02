@@ -1534,8 +1534,19 @@ PLAINS_TREE_CHANCE = 0.004
 PLAINS_ROCK_CHANCE = 0.002
 PLAINS_TALL_GRASS = 0.62     # detail field above this -> tall grass
 PLAINS_FLOWER_CHANCE = 0.01
-FOREST_PINE_MIN = 0.42       # detail field above this -> pine clusters...
-FOREST_PINE_DENSITY = 0.7    # ...filled this densely
+# Haunted forest (M21, world/generator._haunt). The ground is cut into
+# HAUNT_CELL x HAUNT_CELL cells on the global grid; each cell rolls one
+# thing: a gnarled tree (its trunk 1-3 tiles in from the cell's left edge and
+# 2-3 from its top, so trunks stand at least 3 tiles apart and their crowns
+# never overlap), else a fallen log, else a wisp light, else nothing.
+HAUNT_CELL = 5
+HAUNT_TREE_CHANCE = 0.55
+HAUNT_LOG_CHANCE = 0.06
+HAUNT_WISP_CHANCE = 0.05
+HAUNT_STUMP_CHANCE = 0.012   # per tile: a lone stump
+HAUNT_FOG_MIN = 0.64         # detail field above this -> fog patches
+STUMP_HP = 30
+LOG_HP = 60
 DESERT_DUNE_BAND = (0.55, 0.62)
 DESERT_CACTUS_CHANCE = 0.012
 DESERT_MESA_MIN = 0.8

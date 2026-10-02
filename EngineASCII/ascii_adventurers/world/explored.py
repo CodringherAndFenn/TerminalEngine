@@ -26,7 +26,7 @@ from .tiles import TileType
 # Every tile type, in a fixed order: a tile's map class is its index here.
 MAP_TILES: tuple[TileType, ...] = tuple(
     v for v in vars(tiles).values() if isinstance(v, TileType)
-)
+) + tuple(tiles.CROWN.values())       # (a haunted tree's crown pieces, M21)
 _CLASS = {t: i for i, t in enumerate(MAP_TILES)}
 UNSEEN = 255
 

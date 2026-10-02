@@ -22,6 +22,7 @@ StopIteration.value). Chunks entirely out at sea skip all of it.
 
 from __future__ import annotations
 
+import math
 import random
 from typing import Generator
 
@@ -38,13 +39,17 @@ from .tiles import TileType
 class Chunk:
     """One generated chunk: flat row-major arrays of CHUNK_SIZE^2 tiles."""
 
-    __slots__ = ("cx", "cy", "tiles", "glyphs", "biomes")
+    __slots__ = ("cx", "cy", "tiles", "glyphs", "biomes", "lights")
 
-    def __init__(self, cx: int, cy: int, tiles_: list, glyphs: list, biome_ids: bytearray):
+    def __init__(self, cx: int, cy: int, tiles_: list, glyphs: list, biome_ids: bytearray,
+                 lights: tuple = ()):
         self.cx, self.cy = cx, cy
         self.tiles: list[TileType] = tiles_
         self.glyphs: list[str] = glyphs
         self.biomes = biome_ids
+        # Haunted forest wisp lights in this chunk, as world points (drawn
+        # floating by render/haunt.py; they never touch the game).
+        self.lights: tuple = lights
 
 
 # Tile types the generator can place, by index (chunks are built as arrays
@@ -57,6 +62,9 @@ _TILES = (
     tiles.MUD, tiles.REEDS, tiles.BOG, tiles.MANGROVE,
     tiles.MYCELIUM, tiles.SPORES, tiles.GIANT_SHROOM,
     tiles.WATER,
+    tiles.DEAD_LEAVES, tiles.FOG, tiles.GNARLED_TRUNK, tiles.STUMP,
+    tiles.LOG_LEFT, tiles.LOG_MID, tiles.LOG_RIGHT,
+    *tiles.CROWN.values(),
 )
 _IDX = {t: i for i, t in enumerate(_TILES)}
 _T = _IDX.__getitem__
@@ -64,6 +72,7 @@ _T = _IDX.__getitem__
 # Noise salts.
 SALT_LAKE = 53
 _SALT_DETAIL = 67
+_SALT_HAUNT = 71
 
 # --- Per-biome feature placement -------------------------------------------------
 # Each takes the chunk's `detail` field and two independent dice arrays
@@ -83,8 +92,13 @@ def _plains(detail, r1, r2):
 
 
 def _forest(detail, r1, r2):
-    pine = (detail > config.FOREST_PINE_MIN) & (r1 < config.FOREST_PINE_DENSITY)
-    return np.where(pine, _T(tiles.PINE), _T(tiles.FOREST_FLOOR))
+    """The haunted forest's ground: dead leaves, fog patches, lone stumps.
+    Its trees, logs and lights are stamped afterwards (_haunt), since they
+    span several tiles."""
+    return np.select(
+        [r1 < config.HAUNT_STUMP_CHANCE, detail > config.HAUNT_FOG_MIN],
+        [_T(tiles.STUMP), _T(tiles.FOG)],
+        _T(tiles.DEAD_LEAVES))
 
 
 def _desert(detail, r1, r2):
@@ -161,6 +175,10 @@ def build_chunk(layout: IslandLayout, cx: int, cy: int) -> Generator[None, None,
         mask = biome_ids == bid
         ids[mask] = _FEATURES[int(bid)](detail, r1, r2)[mask]
     ids[lakes] = _T(tiles.WATER)
+    lights: tuple = ()
+    if (biome_ids == biomes.FOREST.id).any():
+        lights = _haunt(layout, x0, y0, ids, biome_ids)
+        yield
     # The start is swept clean.
     sx, sy = layout.spawn
     clear = np.hypot(xs - (sx + 0.5), ys - (sy + 0.5)) < config.SPAWN_CLEAR_RADIUS
@@ -173,10 +191,82 @@ def build_chunk(layout: IslandLayout, cx: int, cy: int) -> Generator[None, None,
     buildings = ruins_tiles > n * n * 0.3
     return _finish(cx, cy, ids, biome_ids, rng,
                    random.Random(hash_coords(seed, 0xB1D, cx, cy)) if buildings else None,
-                   layout)
+                   layout, lights)
 
 
-def _finish(cx, cy, ids, biome_ids, rng, building_rng, layout=None) -> Chunk:
+# Tiles a tree's crown or a log may be drawn over (the open forest floor).
+_OPEN = np.array([_T(tiles.DEAD_LEAVES), _T(tiles.FOG)])
+
+
+def _haunt(layout: IslandLayout, x0: int, y0: int, ids, biome_ids) -> tuple:
+    """Stamp the haunted forest's trees and logs into chunk `ids` and
+    return its wisp lights.
+
+    Everything comes from the global HAUNT_CELL grid (config): each cell's
+    dice are hash_coords(seed, salt, cell x, cell y), so a tree whose crown
+    crosses a chunk edge is worked out the same way by both chunks, and
+    trees come out seamless. A trunk stands only where the world there is
+    forest and not lake (asked of the layout, as the trunk may lie in the
+    next chunk); crown, roots and logs are drawn only over open forest
+    floor inside this chunk."""
+    n = config.CHUNK_SIZE
+    cell = config.HAUNT_CELL
+    seed = layout.seed
+    tree_p, log_p, wisp_p = (config.HAUNT_TREE_CHANCE, config.HAUNT_LOG_CHANCE,
+                             config.HAUNT_WISP_CHANCE)
+    forest = biomes.FOREST.id
+    trunks, logs, lights = [], [], []
+    # Cells whose tree could reach into this chunk (a crown reaches 2 tiles).
+    for gy in range((y0 - 2) // cell, (y0 + n + 2) // cell + 1):
+        for gx in range((x0 - 2) // cell, (x0 + n + 2) // cell + 1):
+            h = hash_coords(seed, _SALT_HAUNT, gx, gy)
+            u = (h & 0xFFFF) / 65536.0
+            if u < tree_p:
+                trunks.append((gx * cell + 1 + (h >> 16) % 3, gy * cell + 2 + (h >> 20) % 2))
+            elif u < tree_p + log_p:
+                length = 2 + (h >> 24) % 2
+                logs.append((gx * cell + 1, gy * cell + 1 + (h >> 16) % 3, length))
+            elif u < tree_p + log_p + wisp_p:
+                wx, wy = gx * cell + 2.5, gy * cell + 2.5
+                if x0 <= wx < x0 + n and y0 <= wy < y0 + n \
+                        and biome_ids[math.floor(wy) - y0, math.floor(wx) - x0] == forest:
+                    lights.append((wx, wy))
+    if trunks:
+        # Where each trunk is forest and not lake: one vectorised layout query.
+        px = np.array([t[0] + 0.5 for t in trunks])
+        py = np.array([t[1] + 0.5 for t in trunks])
+        ragged, smooth = layout.biome_ids_both(px, py)
+        ok = (ragged == forest) & ~layout.lake_mask(px, py, smooth)
+        for (tx, ty), good in zip(trunks, ok.tolist()):
+            if not good:
+                continue
+            _put(ids, biome_ids, x0, y0, tx, ty, tiles.GNARLED_TRUNK, open_only=False)
+            for (dx, dy), piece in tiles.CROWN.items():
+                _put(ids, biome_ids, x0, y0, tx + dx, ty + dy, piece)
+    for lx, ly, length in logs:
+        parts = [tiles.LOG_LEFT] + [tiles.LOG_MID] * (length - 2) + [tiles.LOG_RIGHT]
+        # Only whole logs: every tile of it inside this chunk and open.
+        spots = [(lx + i, ly) for i in range(length)]
+        if all(x0 <= x < x0 + n and y0 <= y < y0 + n and biome_ids[y - y0, x - x0] == forest
+               and ids[y - y0, x - x0] in _OPEN for x, y in spots):
+            for (x, y), part in zip(spots, parts):
+                ids[y - y0, x - x0] = _T(part)
+    return tuple(lights)
+
+
+def _put(ids, biome_ids, x0, y0, tx, ty, tile, open_only=True) -> None:
+    """Place `tile` at world tile (tx, ty) if it's in this chunk and forest
+    (and, unless open_only is False, open floor)."""
+    n = config.CHUNK_SIZE
+    x, y = tx - x0, ty - y0
+    if not (0 <= x < n and 0 <= y < n) or biome_ids[y, x] != biomes.FOREST.id:
+        return
+    if open_only and ids[y, x] not in _OPEN:
+        return
+    ids[y, x] = _T(tile)
+
+
+def _finish(cx, cy, ids, biome_ids, rng, building_rng, layout=None, lights=()) -> Chunk:
     """Turn the index arrays into the Chunk's lists: optional ruined
     buildings (per-tile Python, only in ruins chunks), the landmarks over
     it (world/landmarks.py: quest camps, boss lairs), then one glyph
@@ -191,7 +281,7 @@ def _finish(cx, cy, ids, biome_ids, rng, building_rng, layout=None) -> Chunk:
             mark.stamp(grid, cx, cy, n)
     picks = rng.random(n * n).tolist()
     glyphs = [t.glyphs[int(p * len(t.glyphs))] for t, p in zip(grid, picks)]
-    return Chunk(cx, cy, grid, glyphs, flat_biomes)
+    return Chunk(cx, cy, grid, glyphs, flat_biomes, lights)
 
 
 def _place_buildings(grid, biome_ids, rng: random.Random, n: int) -> None:

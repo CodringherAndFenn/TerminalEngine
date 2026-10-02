@@ -43,6 +43,18 @@ FOREST_BG = (10, 20, 11)
 FOREST_FLOOR = (46, 92, 46)
 PINE_FG = (34, 150, 70)
 PINE_BG = (8, 30, 14)
+# Haunted forest (M21): cold, desaturated violets and greys.
+HAUNT_BG = (14, 12, 20)
+HAUNT_LEAF = (78, 66, 84)
+HAUNT_FOG = (36, 38, 54)
+HAUNT_BARK = (96, 78, 66)
+HAUNT_TRUNK = (88, 70, 66)
+HAUNT_STUMP = (110, 86, 66)
+HAUNT_LOG = (118, 92, 70)
+HAUNT_TWIG = (84, 78, 96)
+HAUNT_BRANCH = (110, 100, 112)
+HAUNT_ROOT = (92, 76, 70)
+HAUNT_WISP = ((170, 255, 215), (110, 200, 170), (200, 170, 255))   # floating lights
 # Desert
 SAND_BG = (38, 32, 18)
 SAND_FG = (150, 128, 80)
@@ -150,7 +162,7 @@ HUD_RULE = colors.GREEN_DIM
 # Biome colors: plain ground on the map, and (dimmed) the unexplored outline.
 MAP_BIOME = {
     "plains": (95, 140, 60),
-    "forest": (40, 100, 48),
+    "forest": (72, 62, 96),          # the haunted forest (M21)
     "desert": (190, 160, 90),
     "ruins": (110, 110, 106),
     "swamp": (86, 98, 50),
@@ -168,12 +180,14 @@ MAP_TILE = {
     "rock": (120, 105, 90), "mesa rock": (150, 95, 60),
     "wall": (175, 175, 165), "void": (0, 0, 0),
     "rubble": (135, 125, 110), "splinters": (110, 90, 60),
+    "gnarled tree": (50, 40, 46), "branches": (88, 80, 100), "stump": (110, 86, 66),
+    "log": (118, 92, 70), "fog": (84, 84, 110),
     "tall grass": (110, 155, 70), "flowers": (120, 150, 70), "dunes": (205, 178, 110),
     "reeds": (105, 120, 55), "spores": (150, 95, 165),
 }
 MAP_TILE_BIOME = {   # ground-like tiles -> the biome whose color they take
     "ground": "plains", "grass": "plains", "plains": "plains",
-    "forest floor": "forest", "sand": "desert", "cactus pulp": "desert",
+    "forest floor": "forest", "dead leaves": "forest", "bark": "forest", "sand": "desert", "cactus pulp": "desert",
     "concrete": "ruins", "mud": "swamp", "roots": "swamp",
     "mycelium": "mushroom", "mush": "mushroom",
 }

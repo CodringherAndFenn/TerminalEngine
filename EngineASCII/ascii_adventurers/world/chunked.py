@@ -87,6 +87,18 @@ class ChunkedWorld:
     def hp_at(self, tx: int, ty: int) -> int | None:
         return self._hp.get((tx, ty))
 
+    def lights_in(self, x0: float, y0: float, x1: float, y1: float) -> list[tuple[float, float]]:
+        """The haunted forest's wisp lights inside a world rectangle, from the
+        chunks already loaded (never builds one: it's only for drawing)."""
+        out = []
+        n = config.CHUNK_SIZE
+        for cy in range(math.floor(y0) // n, math.floor(y1) // n + 1):
+            for cx in range(math.floor(x0) // n, math.floor(x1) // n + 1):
+                c = self._chunks.get((cx, cy))
+                if c is not None and c.lights:
+                    out += [(x, y) for x, y in c.lights if x0 <= x <= x1 and y0 <= y <= y1]
+        return out
+
     def spawn_point(self) -> tuple[float, float]:
         # Near the island's centre, never trapped by a lake (see
         # IslandLayout.spawn); the generator keeps SPAWN_CLEAR_RADIUS around

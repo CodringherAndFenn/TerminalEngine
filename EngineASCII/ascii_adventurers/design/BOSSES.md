@@ -153,7 +153,8 @@ Drop: loot burst, card offer, achievement + bestiary entries, and swamp marked "
 
 ## 7. Biome changes
 
-- **Forest → leprechaun biome (working name, decided).** The forest is too bushy: it plays like a jungle you can't move through, and it doesn't feel different enough from the plains. It's replaced by a green biome that **reuses the forest/plains assets** but is **open to move through**:
+- **Built in M21 (2026-10-02): the haunted forest** (the user's choice over the leprechaun idea below). Big gnarled trees stand at least 3 tiles apart; only the 1-tile trunk blocks (and it can't be broken), while the crown of twisted branches and the roots round it are walkable. Old stumps (sparse) and fallen logs (2-3 tiles) are the cover, and both can be broken. The ground is dead leaves with faint fog patches, and wisp lights float and flicker over it (drawing only). Players see "haunted forest"; inside it's still `forest`, so enemy tables and saved records keep working. Blocking tiles went from ~46% of the forest (pine thickets) to ~3% (plus lakes, unchanged). The enemies stay as they were (the boar included); haunted enemies come with the forest bosses. Numbers are `HAUNT_*` in `config.py`; trees are placed on a global 5-tile grid so they're seamless across chunk edges (`world/generator._haunt`).
+- *(Superseded)* **Forest → leprechaun biome (working name, decided).** The forest is too bushy: it plays like a jungle you can't move through, and it doesn't feel different enough from the plains. It's replaced by a green biome that **reuses the forest/plains assets** but is **open to move through**:
   - mostly walkable clover/meadow ground, with tree *clumps* and hedges instead of a solid canopy — clear lanes everywhere;
   - something that tells it apart from the plains at a glance (e.g. rolling hills, rings of mushrooms/stones, pots of gold, a rainbow tint); theme is not fixed, we pick it when we build it;
   - the **thornback boar carries over** (its charges suit open ground); fallen warriors stay plains-only or carry over too, to decide when we build it.
@@ -175,7 +176,7 @@ Suggested angles only (to keep playstyles different — change freely):
 | M18 (built) | Dodge roll + 11 roll cards, evasion rename, Lingering gate, spell levels, archetype lean |
 | M19 (built) | Multiple projectiles for every hero (section 8.1; as built: `CARDS.md` 6.11 and 15) |
 | M20 (built) | Wizard's arcane missiles; the shock bolt became his spell Chain Lightning; wizard cards and trainer redone (`CARDS.md` section 16) |
-| **M21** | **New forest biome** (replaces the bushy forest; open, green, reuses assets, boar carries over; theme picked when built) |
+| M21 (built) | **Haunted forest** replaces the bushy forest (section 7) |
 | **M22** | **Boss pools**: 3 bosses per biome, the seed picks one per run, each with its own quest; the boss's real kind can be hidden behind one name (Mycelium); per-boss bestiary pages and achievements. Froggy is the swamp's first; proven with the second swamp boss |
 | M22.1 | Swamp: **leech swarm** |
 | M22.2 | Swamp: **mosquito** |
@@ -247,6 +248,6 @@ Three bosses per ring biome. Each run meets one of them, picked by the seed (sec
 | Swamp | **Froggy McFrogface** (built), a **leech swarm**, a **mosquito** | the swarm is many bodies with one shared health bar (a new boss shape); the mosquito is fast, flies, drains blood |
 | Desert | a **beetle**, a **spitting camel**, a **nomad sand wizard** | |
 | Ruins | a **radioactive monster**, an **ice wizard**, a **vampire girl** | Adventure Time nods (the glowing lich-like monster, the ice king, the vampire queen). Use our own names and looks so the built game doesn't copy the show (the user will rename them) |
-| Forest (new, M21) | a **corrupted pixie**, a **mad murderer squirrel**, a **mimic tree** | the mimic hides among ordinary trees |
+| Haunted forest (M21) | a **corrupted pixie**, a **mad murderer squirrel**, a **mimic tree** | the mimic hides among ordinary trees |
 | Mushroom | **Mycelium**, always: one of three real mushrooms (**amanita muscaria** + two others), but the name, quest and HUD always say just "Mycelium", so you only find out which one in the fight | the other two (user, 2026-10-02): **shaggy ink cap** (melts into ink pools) and **giant puffball** (spore bursts) |
 | Plains (tier II) | not decided | |

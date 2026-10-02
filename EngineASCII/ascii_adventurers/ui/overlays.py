@@ -20,9 +20,13 @@ from ..app import app_of
 from ..meta.records import Records
 from ..meta.run_stats import RunStats, format_time
 from ..render.glyphs import loot_glyph
+from ..world import biomes as biomes_mod
 from .frame import center, draw_box
 
 _ENTER = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE)
+
+# What players call each biome (the haunted forest is "forest" inside).
+_BIOME_TITLES = {b.name: b.title for b in biomes_mod.BY_ID}
 
 
 class _Box:
@@ -116,7 +120,7 @@ class GameOverPanel(_Box):
         s, rec = self.stats, self.records
         island = f"island {s.seed}" if s.seed is not None else "test map"
         center(text, top + 2, f"{s.hero.upper()} on {island}", colors.AMBER, left, width)
-        biomes = ", ".join(s.biomes) if s.biomes else "-"
+        biomes = ", ".join(_BIOME_TITLES.get(b, b) for b in s.biomes) if s.biomes else "-"
         self._row(text, top + 4, left, "Time survived", format_time(s.time), "longest_time")
         self._row(text, top + 5, left, "Enemies defeated", str(s.total_kills), "most_kills")
         self._row(text, top + 6, left, "Furthest from start", f"{s.furthest:.0f} tiles", "furthest")
