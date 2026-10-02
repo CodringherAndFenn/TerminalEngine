@@ -36,6 +36,14 @@ class Projectile:
         self.mult = 1.0               # per-shot damage multiplier (Overload)
         self.extra_chain = 0          # per-shot extra lightning jumps (Overload)
         self.sure_crit = False        # its hit always crits (Riposte)
+        # Homing (M20, spec.seek_turn): the world point it looks for a
+        # target around, the target once picked (False: looked, found none),
+        # its turn rate (the spec's, x cards), and how often an Orbiting
+        # Darts miss has swung round to try again.
+        self.seek_point: tuple[float, float] | None = None
+        self.seek = None
+        self.seek_turn = spec.seek_turn
+        self.orbits = 0
         # Cards (M16): how far it may fly (Deadeye doubles it), its hit radius
         # bonus (Bright Colors), the colors of its shot (Prism), wall bounces
         # (Ricochet), whether it split off another shot (can't split again),

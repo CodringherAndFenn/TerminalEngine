@@ -97,6 +97,8 @@ SHOT_LOOKS = {
     "psy": ("@", (".", "."), "psy"),          # colors: palette.PSY_SHOTS by p.tint
     # M19
     "note": (NOTE, ("'", "."), palette.SHOT_NOTE),   # Sheet Music (a painted glyph)
+    # M20
+    "dart": ("*", ("+", "."), palette.SHOT_DART),    # the wizard's arcane missiles
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).

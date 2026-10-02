@@ -37,6 +37,13 @@ class ShellSpec:
                             # each once per leg
     wobble: float = 0.0     # weaves side to side by up to this angle (radians)...
     wobble_tiles: float = 4.0       # ...once every this many tiles flown (psychedelic frogs)
+    # Homing (M20, the wizard's arcane missiles): after flying `seek_after`
+    # tiles straight, the shot picks the enemy nearest the shooter's aim
+    # point (within `seek_radius` of it) and turns toward it at up to
+    # `seek_turn` rad/s. 0 = never turns.
+    seek_turn: float = 0.0
+    seek_after: float = 0.0
+    seek_radius: float = 0.0
 
 
 @dataclass(frozen=True)

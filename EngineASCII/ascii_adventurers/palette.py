@@ -263,6 +263,7 @@ FROZEN = ((200, 235, 255), (120, 180, 240))
 MARK = (255, 70, 60)
 EVADE = (190, 230, 255)
 SHOT_NOTE = ((255, 225, 120), ((235, 170, 90), (150, 110, 70)))   # Sheet Music's notes
+SHOT_DART = ((245, 210, 255), ((200, 120, 255), (120, 70, 190)))  # arcane missiles
 # The dodge roll (M18): dust kicked up behind it (fresh, settling), Blink's
 # flash, and a trail patch's two shades per status (Scorched Trail, Prism Dash).
 ROLL_DUST = ((200, 190, 165), (130, 122, 105))

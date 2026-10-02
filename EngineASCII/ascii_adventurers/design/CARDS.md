@@ -1,6 +1,6 @@
 # AsciiAdventurers — Card Catalog
 
-Status: **rev 2, approved and BUILT in M16 (2026-10-01): all 101 cards. M18 (2026-10-02) added the dodge roll and 11 roll cards (section 6.10, 112 in all), gated Lingering, replaced three spell levels and added the archetype lean (section 14). M19 (2026-10-02) added multiple projectiles for every hero: 5 pattern cards, 4 hero cards (6.11, 121 in all) and the fan rule (section 15).** Rev 1's first 48 cards were built in M14. Rev 2 applies the "no repeating upgrades" rule (section 0, enforced by a test); every change is listed in section 12, and section 13 notes the choices made while building.
+Status: **rev 2, approved and BUILT in M16 (2026-10-01): all 101 cards. M18 (2026-10-02) added the dodge roll and 11 roll cards (section 6.10, 112 in all), gated Lingering, replaced three spell levels and added the archetype lean (section 14). M19 (2026-10-02) added multiple projectiles for every hero: 5 pattern cards, 4 hero cards (6.11, 121 in all) and the fan rule (section 15). M20 (2026-10-02) gave the wizard arcane missiles and redid his cards (6.2 and section 16, 127 in all).** Rev 1's first 48 cards were built in M14. Rev 2 applies the "no repeating upgrades" rule (section 0, enforced by a test); every change is listed in section 12, and section 13 notes the choices made while building.
 
 Based on `../../survivorlike_upgrade_design_guide.md` (section numbers below refer to it).
 
@@ -165,11 +165,17 @@ A spell card is an **enabler**. Its first pick grants the spell; picking it agai
 
 | # | Hero | Card | Text | Rarity | Role / archetype | Avail. |
 |---|---|---|---|---|---|---|
-| W1 | wizard | Storm Caller | lightning jumps to +1 enemy | rare | P shock | start |
-| W2 | wizard | Conductor | jumps reach 30% farther and fade less | common | P shock | start |
-| W3 | wizard | Supercell | bolts shock; jumps prefer shocked enemies and deal +25% to them | uncommon | E shock | start |
-| W4 | wizard | Overload | every 5th bolt: ×3 damage, +3 jumps | rare | P crit/shock | L:2000 |
-| W5 | wizard | Ball Lightning | bolts stop at the first enemy and crackle there for 2 s, hitting everything around | legendary | C shock/area | L:6000 |
+| W1 | wizard | Storm Caller | lightning jumps to +1 enemy (M20: needs Chain Lightning) | rare | P shock | start |
+| W2 | wizard | Conductor | jumps reach 30% farther and fade less (needs Chain Lightning) | common | P shock | start |
+| W3 | wizard | Supercell | bolts shock; jumps prefer shocked enemies and deal +25% to them (needs Chain Lightning) | uncommon | E shock | start |
+| W4 | wizard | Overload | every 5th cast: ×3 damage (M20: no more extra jumps) | rare | P missiles | L:2000 |
+| W5 | wizard | Ball Lightning | Chain Lightning's bolts crackle where they hit for 2 s (M20: epic, no longer his capstone) | epic | P shock/area | L:6000 |
+| W7 | wizard | Chain Lightning 🆕 | **his spell** (uses a slot, levels I-V): every 1.5 s a bolt (20) at the nearest enemy, jumping to 2 more; II +30% damage, III 25% faster, IV +1 jump, V +40% damage and 20% faster | uncommon | E shock | start |
+| W8 | wizard | Seeker 🆕 | darts turn twice as fast and find a new target when theirs dies | common | P missiles | start |
+| W9 | wizard | Resonance 🆕 | each earlier dart on the same enemy within 1 s: +15% (up to +60%) | uncommon | P missiles | start |
+| W10 | wizard | Mana Burst 🆕 | darts burst on hit: 50% of the dart to everything else within 1 tile | rare | P missiles/area | start |
+| W11 | wizard | Arcane Storm 🆕 | a dart that kills fires a new one at the next enemy within 8 tiles, 3 per cast | legendary | C missiles | L:6000 |
+| W12 | wizard | Orbiting Darts 🆕 | a dart that reaches the end of its flight without a hit swings round toward the enemy nearest you (12 tiles) and tries again, once | rare | P missiles/volley | start |
 | D1 | dwarf | Ricochet | axes bounce off walls and fly on (up to 2 bounces) instead of turning back | rare | P volley | start |
 | D2 | dwarf | Heavy Axe | ×1.35 damage, attacks 10% slower | rare | P sniper | start |
 | D3 | dwarf | Homeward Fury | axes deal +50% on the way back | common | P | start |
@@ -463,3 +469,11 @@ Unchanged on purpose: W1 Storm Caller (+1 jump) and W2 Conductor are the only ca
 - **Split Arrow** is a spell (huntress-only card, own spell slot, HUD "SPLIT"), as the user asked: "a power that levels like a spell".
 - `config.ARCHETYPES["volley"]` now includes M01-M05, B7, H7, P7 and D7.
 - The synergy test now compares the same pool with and without the frost tag. A real frost source (Frost Nova) also opens Potency, Affliction and Lingering, and those crowd Frostbite out more than the ×1.5 weight lifts it.
+
+## 16. M20 changes (2026-10-02): the wizard's arcane missiles
+
+- **Weapon:** arcane missiles (`config.WEAPONS["arcane_missiles"]`): every 0.45 s, 3 darts (9 damage each, arcane) fan out over 50°. After 2 tiles each one picks the enemy nearest the reticle (within 6 tiles of it) and turns toward it at up to 7 rad/s. With nobody near the reticle the darts fly straight. A target that dies is lost and the dart flies on, unless you have Seeker. Pattern cards, Multishot, Echo and Twin Lanes all work on darts, and darts sent away from the aim (Rear Guard, Cross Fire) look round the point as far out along their own way.
+- **The shock bolt** became **Chain Lightning**, the wizard's own spell (W7, user's choice). Storm Caller, Conductor, Supercell and Ball Lightning are only offered once he has it, and they work on its bolts. A lightning wizard is still a build; it just goes through a spell slot now. Ball Lightning is now an epic upgrade, and Arcane Storm is his capstone.
+- **Overload** keeps "every 5th cast ×3 damage" but no longer adds jumps.
+- **Trainer (Guild Hall):** Forked Bolt, Long Arc and Grounding became Extra Dart (+1 dart, 2 levels), Swift Darts (+6% dart speed) and Tracking (+10% turn rate). Capacitor stays. Levels bought in the old three are refunded at their price, once, the first time the game loads the save (`config.RETIRED_UPGRADES`).
+- **Archetypes:** a new "missiles" archetype (W4, W8-W12, Multishot, Arcane Mastery); Chain Lightning joined "shock".

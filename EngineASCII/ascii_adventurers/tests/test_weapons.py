@@ -28,6 +28,13 @@ def open_map(w=60, h=30, walls=()):
     return TestMap(["".join(r) for r in rows])
 
 
+def shock(h):
+    """Hand a hero the shock bolt (the wizard's weapon until M20, now
+    Chain Lightning's bolt): for the tests of how lightning jumps."""
+    h.weapon.spec = config.WEAPONS["shock_bolt"]
+    return h
+
+
 def hero(name, x=10.5, y=10.5, aim=0.0):
     if name == "swordsman":     # no hero carries the sword since the dwarf came
         spec = replace(config.HEROES["dwarf"], weapon="sword")
@@ -48,7 +55,8 @@ def fly(projectiles, world, actors, effects, seconds=2.0):
 class WeaponDataTest(unittest.TestCase):
     def test_each_hero_has_the_planned_weapon(self):
         kinds = {h: config.WEAPONS[s.weapon] for h, s in config.HEROES.items()}
-        self.assertEqual(kinds["wizard"].shell.chain, 2)
+        self.assertEqual(kinds["wizard"].pellets, 3)                 # arcane missiles (M20)
+        self.assertGreater(kinds["wizard"].shell.seek_turn, 0)
         self.assertGreater(kinds["huntress"].shell.pierce, 0)
         self.assertEqual(kinds["princess"].pellets, 5)
         self.assertTrue(kinds["dwarf"].shell.returns)
@@ -98,7 +106,7 @@ class LongbowTest(unittest.TestCase):
 
 class ChainLightningTest(unittest.TestCase):
     def test_jumps_to_two_more_with_falling_damage(self):
-        world, h, shots, effects = open_map(), hero("wizard"), [], []
+        world, h, shots, effects = open_map(), shock(hero("wizard")), [], []
         first = Dummy(18.5, 10.5)
         second = Dummy(18.5, 13.5)               # 3 tiles from the first
         third = Dummy(21.5, 14.5)                # ~3.2 from the second

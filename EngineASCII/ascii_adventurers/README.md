@@ -4,7 +4,7 @@ A top-down ASCII adventure roguelike on one huge island, built on the
 narrative engine (`narrative_engine/`). Everything for the game lives in
 this folder.
 
-**Status:** Milestones 1-19 and "Adventurers" are done:
+**Status:** Milestones 1-20 and "Adventurers" are done:
 - keyboard walking, mouse aiming, a smooth scrolling camera;
 - shooting, spells and destructible terrain;
 - a seeded, chunk-streamed world with six biomes;
@@ -34,8 +34,8 @@ this folder.
   game at any frame rate. Gamepads work everywhere (twin-stick in play).
   Solo play looks the same as before; co-op itself comes later;
 - hero weapons (M10), each hero their own:
-  - wizard, shock bolt: lightning that jumps to 2 more enemies nearby
-    (each jump weaker);
+  - wizard, arcane missiles (since M20; it was the shock bolt): 3 darts
+    fan out, then curve onto the enemy nearest your reticle;
   - huntress, longbow: fast, long-range arrows that pierce 2 enemies;
   - princess, rainbow: a fan of 5 colored shots, deadly up close;
   - dwarf, throwing axes: spin out through every enemy in the way and come
@@ -155,9 +155,15 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   Double Rainbow (princess) and Twin Axes (dwarf). See `design/CARDS.md`
   sections 6.11 and 15.
 
-Next up (agreed order, `design/BOSSES.md` section 8): M20 the wizard's
-arcane missiles, M21 the new
-forest biome, M22 boss pools (three bosses per ring biome) and then every
+- the wizard's arcane missiles (M20): 3 darts that fan out, then home on
+  the enemy nearest your reticle. His old shock bolt is now his spell,
+  Chain Lightning, and the lightning cards upgrade it. New cards: Seeker,
+  Resonance, Mana Burst, Orbiting Darts and the capstone Arcane Storm. The
+  trainer's lightning upgrades became missile ones, and anything you'd
+  bought in them is refunded (`design/CARDS.md` section 16).
+
+Next up (agreed order, `design/BOSSES.md` section 8): M21 the new forest
+biome, M22 boss pools (three bosses per ring biome) and then every
 boss one at a time, M27 the plains boss and the victory.
 
 ## Setup (once)

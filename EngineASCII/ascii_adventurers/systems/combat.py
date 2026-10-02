@@ -38,7 +38,7 @@ from .. import config
 from ..entities.actor import Actor
 from ..entities.effects import Effect
 from ..entities.projectile import Projectile
-from ..entities.character import Character
+from ..entities.character import Character, wrap_angle
 from ..specs import CharacterSpec
 from ..world.tiles import Damage
 from .collision import move_hull, screen_angle
@@ -250,6 +250,17 @@ def volley(shooter: Character, world, projectiles: list[Projectile], effects: li
         gap, lane_mult = config.TWIN_LANES
         lanes = (-gap / 2, gap / 2)
     group: dict = {}                  # Prism: which colors of this shot hit whom
+    seek_point = None
+    if shell.seek_turn > 0:
+        # Homing shots look round the aim point when they go off roughly
+        # toward it; shots sent elsewhere (Rear Guard...) look round the
+        # point as far out along their own way.
+        aim = getattr(shooter, "aim_point", None)
+        if aim is not None and abs(wrap_angle(angle - shooter.aim_angle)) <= math.radians(60):
+            seek_point = aim
+        else:
+            reach = math.hypot(aim[0] - mx, aim[1] - my) if aim is not None else shell.max_range / 2
+            seek_point = (mx + math.cos(angle) * reach, my + math.sin(angle) * reach)
     for i in range(n):
         a = angle + (spread * (i / (n - 1) - 0.5) if n > 1 else 0.0)
         for side in lanes:
@@ -264,6 +275,7 @@ def volley(shooter: Character, world, projectiles: list[Projectile], effects: li
             p.size = size
             p.group = group
             p.hold = hold
+            p.seek_point = seek_point
             projectiles.append(p)
     return [shell.sound]
 
@@ -512,6 +524,8 @@ def update_projectiles(
             continue
         if p.spec.wobble:
             _weave(p)
+        if p.seek_turn > 0:
+            _home(p, actors, dt)
         step = p.spec.speed * dt
         remaining = p.max_range - p.travelled
         last_leg = step >= remaining
@@ -562,11 +576,74 @@ def update_projectiles(
             if p.spec.returns:
                 _turn_back(p)
                 continue
+            if _orbit_again(p, actors):
+                continue
             effects.append(Effect("fizzle", p.x, p.y))
             events.append(FIZZLE)
             p.alive = False
     projectiles[:] = [p for p in projectiles if p.alive] + spawned
     return events
+
+
+def _nearest_foe(x: float, y: float, radius: float, actors, owner, skip=None):
+    """The hittable actor `owner` may hurt nearest (x, y), within `radius`
+    (plus its body), or None."""
+    best, best_d = None, math.inf
+    for a in actors:
+        if a is skip or not a.hittable or not _may_hurt(owner, a):
+            continue
+        d = math.hypot(a.x - x, a.y - y)
+        if d <= radius + a.hit_radius and d < best_d:
+            best, best_d = a, d
+    return best
+
+
+def _home(p: Projectile, actors, dt: float) -> None:
+    """A homing shot (the wizard's darts): straight for its first
+    seek_after tiles, then it picks the enemy nearest its seek point (the
+    aim point; or itself, once it's lost one with Seeker) and turns toward
+    it at up to seek_turn rad/s. A target that dies or vanishes is lost:
+    the dart flies on straight, unless Seeker lets it look again."""
+    t = p.seek
+    if t is None and p.travelled < p.spec.seek_after:
+        return
+    if t is not None and t is not False and not t.hittable:
+        stats = _stats_of(p)
+        if stats is not None and stats.has("seeker"):
+            p.seek, p.seek_point, t = None, None, None
+        else:
+            p.seek = t = False
+    if t is None:
+        cx, cy = p.seek_point if p.seek_point is not None else (p.x, p.y)
+        t = p.seek = _nearest_foe(cx, cy, p.spec.seek_radius, actors, p.owner) or False
+    if t is False:
+        return
+    want = math.atan2(t.y - p.y, t.x - p.x)
+    turn = wrap_angle(want - p.angle)
+    most = p.seek_turn * dt
+    p.angle += max(-most, min(most, turn))
+    p.dir_x, p.dir_y = math.cos(p.angle), math.sin(p.angle)
+
+
+def _orbit_again(p: Projectile, actors) -> bool:
+    """Orbiting Darts (a card): a dart that reaches the end of its flight
+    without hitting anything swings round toward the enemy nearest its
+    owner (within ORBIT_REACH) and gets its range again -- enough to reach
+    that enemy at least -- once."""
+    stats = _stats_of(p)
+    if p.seek_turn <= 0 or p.orbits or p.hit or stats is None \
+            or not stats.has("orbiting_darts") or p.owner is None:
+        return False
+    t = _nearest_foe(p.owner.x, p.owner.y, config.ORBIT_REACH, actors, p.owner)
+    if t is None:
+        return False
+    p.orbits += 1
+    p.seek = t
+    p.travelled = 0.0
+    # Enough to turn round (half a circle at its turn rate) and reach it.
+    turning = math.pi * p.spec.speed / p.seek_turn
+    p.max_range = max(p.max_range, math.hypot(t.x - p.x, t.y - p.y) + turning + 2.0)
+    return True
 
 
 def _weave(p: Projectile) -> None:
@@ -655,9 +732,14 @@ def _hit_actor(p: Projectile, victim: Actor, hx: float, hy: float, world,
             seen = p.group.get(id(victim), 0)
             extra += stats.prism * seen
             p.group[id(victim)] = seen + 1
+    dart = p.spec.seek_turn > 0 and stats is not None and not p.summon
+    if dart and stats.has("resonance"):
+        extra += _resonance(victim, owner)
     full = not p.summon or (stats is not None and stats.has("pack_leader"))
     strike(victim, p.damage, owner, p.angle, effects, p.tags, extra=extra, mult=p.mult,
            on_hit=full, can_crit=full, sure_crit=p.sure_crit)
+    if dart:
+        _dart_hit(p, victim, hx, hy, owner, stats, actors, effects, spawned)
     effects.append(Effect("impact", hx, hy, p.angle))
     if p.inflicts is not None and victim.alive:
         inflict(victim, p.inflicts[0], owner, p.inflicts[1])
@@ -706,6 +788,52 @@ def _capstones(p: Projectile, victim: Actor, hx: float, hy: float, owner: Actor,
         zones.append(Zone("crackle", hx, hy, config.BALL_LIGHTNING_RADIUS,
                           config.BALL_LIGHTNING_TIME, config.BALL_LIGHTNING_EVERY,
                           p.damage * config.BALL_LIGHTNING_DAMAGE, owner, p.tags))
+
+
+def _resonance(victim: Actor, owner) -> float:
+    """Resonance (a card): each earlier dart of this hero on the same enemy
+    within the last RESONANCE[0] s adds to this one (bucket A), up to
+    RESONANCE[2] darts' worth."""
+    window, per, most = config.RESONANCE
+    now = getattr(owner, "time", 0.0)
+    marks = getattr(victim, "resonance", None)
+    if marks is None:
+        marks = victim.resonance = {}
+    last, count = marks.get(id(owner), (-math.inf, -1))
+    count = min(most, count + 1) if now - last <= window else 0
+    marks[id(owner)] = (now, count)
+    return per * count
+
+
+def _dart_hit(p: Projectile, victim: Actor, hx: float, hy: float, owner, stats, actors,
+              effects: list[Effect], spawned: list | None) -> None:
+    """The wizard's dart cards, once a dart has hit: Mana Burst (a burst
+    round the hit, everyone but the victim) and Arcane Storm (a kill sends
+    a new dart at the next enemy, ARCANE_STORM[0] per cast)."""
+    if stats.has("mana_burst"):
+        radius, share = config.MANA_BURST
+        effects.append(Effect("rune_burst", hx, hy, size=radius))
+        for a in actors:
+            if a is victim or not a.hittable or not _may_hurt(owner, a):
+                continue
+            if math.hypot(a.x - hx, a.y - hy) <= radius + a.hit_radius:
+                strike(a, p.damage * share, owner, math.atan2(a.y - hy, a.x - hx), effects,
+                       p.tags, mult=p.mult, on_hit=False)
+    if stats.has("arcane_storm") and not victim.alive and spawned is not None \
+            and p.group is not None:
+        most, reach = config.ARCANE_STORM
+        if p.group.get("storm", 0) >= most:
+            return
+        t = _nearest_foe(hx, hy, reach, actors, owner, skip=victim)
+        if t is None:
+            return
+        p.group["storm"] = p.group.get("storm", 0) + 1
+        c = _child(p, hx, hy, math.atan2(t.y - hy, t.x - hx), 1.0)
+        c.group = p.group
+        c.seek = t
+        c.max_range = p.spec.max_range
+        c.travelled = 0.0
+        spawned.append(c)
 
 
 def _split_arrow(p: Projectile, victim: Actor, hx: float, hy: float, stats,

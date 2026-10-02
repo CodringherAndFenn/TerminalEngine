@@ -80,7 +80,6 @@ class RunRules:
         flags = st.flags
         if "overload" in flags and n % config.OVERLOAD_EVERY == 0:
             kw["mult"] *= config.OVERLOAD_MULT
-            kw["extra_chain"] += config.OVERLOAD_CHAIN
         if "volley" in flags and n % config.VOLLEY_EVERY == 0:
             kw["extra_pellets"] += max(0, config.VOLLEY_ARROWS - hero.weapon.spec.pellets)
             kw["spread_add"] += config.VOLLEY_SPREAD

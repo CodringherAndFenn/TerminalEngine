@@ -58,14 +58,14 @@ class CardDataTest(unittest.TestCase):
         """design/CARDS.md rev 2: 101 cards."""
         codes = [c.code for c in config.CARDS.values()]
         # + 11 dodge roll cards (M18), + 5 patterns and 4 hero cards (M19)
-        self.assertEqual(len(codes), 121)
-        self.assertEqual(len(set(codes)), 121)
+        self.assertEqual(len(codes), 127)               # + 6 wizard cards (M20)
+        self.assertEqual(len(set(codes)), 127)
         for prefix, n in (("G", 21), ("T", 14), ("S", 12), ("C", 8), ("X", 6), ("R", 6),
                           ("E", 3), ("K", 6), ("V", 6), ("M", 5)):
             self.assertEqual(sum(c.startswith(prefix) for c in codes), n, prefix)
         for hero in config.HEROES:
             own = [k for k, c in config.CARDS.items() if c.heroes == (hero,)]
-            self.assertEqual(len(own), 6 if hero == "wizard" else 7, hero)   # wizard: M20
+            self.assertEqual(len(own), 12 if hero == "wizard" else 7, hero)   # + lightning
             capstone = [k for k in own if config.CARDS[k].rarity == "legendary"]
             self.assertEqual(len(capstone), 1, hero)
 
@@ -111,7 +111,11 @@ class EligibilityTest(unittest.TestCase):
         self.assertIn("multishot", dwarf)             # rev 2: everyone who shoots
         self.assertNotIn("multishot", bard)
         wizard = cards.eligible("wizard", weapon_of("wizard"), Counter())
-        self.assertIn("storm_caller", wizard)
+        self.assertNotIn("storm_caller", wizard)      # M20: needs Chain Lightning
+        self.assertIn("chain_lightning", wizard)
+        self.assertIn("seeker", wizard)
+        lit = cards.eligible("wizard", weapon_of("wizard"), Counter({"chain_lightning": 1}))
+        self.assertIn("storm_caller", lit)
         self.assertIn("piercing", wizard)
         self.assertNotIn("prism", wizard)
 
@@ -186,6 +190,7 @@ class OfferTest(unittest.TestCase):
         opens status payoffs that crowd the offers, M18/M19.)"""
         from dataclasses import replace
         plain = weapon_of("wizard")
+        plain = replace(plain, tags=plain.tags + ("lightning",))   # (Elementalist in both)
         frosty = replace(plain, tags=plain.tags + ("frost",))
         self.assertEqual(cards.eligible("wizard", plain, Counter()),
                          cards.eligible("wizard", frosty, Counter()))
@@ -224,7 +229,7 @@ class StatsTest(unittest.TestCase):
         lo = cards.build_loadout("wizard", [("storm_caller", "rare"), ("multishot", "rare"),
                                             ("long_reach", "rare"), ("quick_hands", "legendary")])
         self.assertEqual(lo.weapon.shell.chain, base.shell.chain + 1)
-        self.assertEqual(lo.weapon.pellets, 2)
+        self.assertEqual(lo.weapon.pellets, base.pellets + 1)
         self.assertGreater(lo.weapon.spread_deg, 0)
         self.assertAlmostEqual(lo.weapon.shell.max_range, base.shell.max_range * 1.2)
         self.assertAlmostEqual(lo.weapon.fire_interval, base.fire_interval / 1.3)

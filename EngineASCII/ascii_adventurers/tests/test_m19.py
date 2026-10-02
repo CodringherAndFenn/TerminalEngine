@@ -49,7 +49,7 @@ class _GameCase(unittest.TestCase):
 
 class FanTest(unittest.TestCase):
     def test_extra_projectiles_fan_out(self):
-        h = carded("wizard", ("multishot", "rare"))
+        h = carded("huntress", ("multishot", "rare"))
         shots = []
         combat.fire(h, open_map(), shots, [])
         a = angles(shots)

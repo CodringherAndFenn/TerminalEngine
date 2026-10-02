@@ -120,7 +120,7 @@ class FiringTest(unittest.TestCase):
         hero.aim_at(*target, 1 / 60)
         projectiles, effects = [], []
         combat.fire(hero, world, projectiles, effects)
-        p = projectiles[0]
+        p = projectiles[len(projectiles) // 2]     # (the middle of a fan is on the aim)
         # Distance from the target to the shell's line of flight.
         vx, vy = target[0] - p.x, target[1] - p.y
         off_line = abs(vx * p.dir_y - vy * p.dir_x)

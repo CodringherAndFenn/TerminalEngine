@@ -283,7 +283,10 @@ def build_loadout(hero_key: str, taken, meta=()) -> Loadout:
             pierce=shell.pierce + (0 if shell.returns else round(stats.pierce)),
             chain=shell.chain + round(stats.chain),
             chain_range=shell.chain_range * (1 + stats.chain_range),
-            chain_falloff=min(0.95, shell.chain_falloff + stats.chain_falloff))
+            chain_falloff=min(0.95, shell.chain_falloff + stats.chain_falloff),
+            # Homing darts turn faster with Tracking, twice as fast with Seeker.
+            seek_turn=shell.seek_turn * (1 + stats.seek_turn)
+            * (config.SEEKER if stats.has("seeker") else 1.0))
         weapon = replace(weapon, shell=shell, fire_interval=interval,
                          pellets=weapon.pellets + round(stats.pellets), spread_deg=spread)
     else:

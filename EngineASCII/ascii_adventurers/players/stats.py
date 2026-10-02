@@ -45,6 +45,7 @@ class HeroStats:
     pierce: float = 0.0
     range: float = 0.0               # fraction: shot range, pulse reach
     shot_speed: float = 0.0          # fraction
+    seek_turn: float = 0.0           # fraction: homing shots turn faster (Tracking)
     area: float = 0.0                # fraction: pulses, auras, novas, explosions
     duration: float = 0.0            # fraction: statuses, spells
     chain: float = 0.0               # extra lightning jumps

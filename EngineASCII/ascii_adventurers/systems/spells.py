@@ -30,6 +30,10 @@ on its own, every simulation step, around the hero:
          chills every enemy there `chill` times every `chill_every` s.
   wand   (Fire Wand) every `interval` s a burning bolt flies at the
          nearest enemy in sight within `reach` (Multishot: more bolts, fanned).
+  chain  (Chain Lightning, the wizard's) every `interval` s a bolt flies
+         at the nearest enemy in sight within `reach` and jumps on (the
+         shock bolt's 2 jumps + `jumps` + Storm Caller; Conductor's reach
+         and fade, Supercell, Ball Lightning all work on it).
   turret (Bone Turret) every `interval` s a turret is placed (at most
          `count` standing), shooting the nearest enemy in sight within
          `reach` every `fire` s for `life` s; its bolts pass through
@@ -51,6 +55,7 @@ from the hero's seeded dice); drawing only reads it (render/spell_fx.py).
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 
 from .. import config
 from ..entities.effects import Effect
@@ -393,6 +398,23 @@ def _wand(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -
     return ["spark"]
 
 
+def _chain(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -> list[str]:
+    p = s.params
+    if not _due(hero, s, dt):
+        return []
+    target = _nearest(hero, actors, p["reach"], world)
+    if target is None:
+        return []
+    st = hero.stats
+    shell = config.SPELL_SHELLS["chain"]
+    if st is not None:
+        shell = replace(shell, chain=shell.chain + int(p["jumps"]) + round(st.chain),
+                        chain_range=shell.chain_range * (1 + st.chain_range),
+                        chain_falloff=min(0.95, shell.chain_falloff + st.chain_falloff))
+    _shoot(hero, hero.x, hero.y, target, shell, p["damage"], s.spec.tags, effects, projectiles)
+    return ["spark"]
+
+
 def _turret(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -> list[str]:
     p = s.params
     for t in s.things:
@@ -422,4 +444,5 @@ def _turret(hero, s: SpellState, world, actors, effects, dt, projectiles, zones)
 
 
 _KINDS = {"orbit": _orbit, "aura": _aura, "nova": _nova, "wolf": _wolf, "rune": _rune,
-          "flask": _flask, "cloud": _cloud, "totem": _totem, "wand": _wand, "turret": _turret}
+          "flask": _flask, "cloud": _cloud, "totem": _totem, "wand": _wand, "turret": _turret,
+          "chain": _chain}

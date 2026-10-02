@@ -108,6 +108,8 @@ def main() -> None:
     manager = SceneManager(display, settings, audio)
     manager.app = App(audio, settings, Records.load(), ghosts=max(0, min(3, args.ghosts)),
                       guild=Guild.load(), dev=args.dev)
+    if getattr(manager.app.guild, "migrated", False):
+        manager.app.save_guild()          # retired upgrades refunded: keep it that way
     manager.run(TitleScene())
 
 

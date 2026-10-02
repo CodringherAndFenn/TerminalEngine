@@ -168,7 +168,8 @@ class CapstoneTest(unittest.TestCase):
         self.assertGreater(shots[0].dir_y, 0.9)                     # off toward the enemy
 
     def test_ball_lightning_leaves_a_crackle(self):
-        h = carded("wizard", ("ball_lightning", "legendary"))
+        from ascii_adventurers.tests.test_weapons import shock
+        h = shock(carded("wizard", ("ball_lightning", "epic")))
         d, near = Dummy(13, 10.5, hp=5000), Dummy(13, 11.5, hp=5000)
         zones, shots = [], []
         combat.fire(h, open_map(), shots, [])
@@ -254,12 +255,12 @@ class TradeOffAndTriggerTest(unittest.TestCase):
         self.assertAlmostEqual(h.take_damage(80, None, None), h.max_hp * 0.10)
 
     def test_spray_and_pray_splits_once(self):
-        h = carded("wizard", ("spray_and_pray", "rare"))
+        h = carded("huntress", ("spray_and_pray", "rare"))   # (one arrow; M20 wizard has 3)
         shots = []
         combat.fire(h, open_map(w=80), shots, [])
         fly(shots, [h], open_map(w=80), steps=25)
         self.assertEqual(len(shots), 2)
-        self.assertTrue(all(p.child and abs(p.damage - 20 * config.SPLIT_DAMAGE) < 1e-9
+        self.assertTrue(all(p.child and abs(p.damage - 16 * config.SPLIT_DAMAGE) < 1e-9
                             for p in shots))
 
     def test_kill_triggers(self):
@@ -431,9 +432,9 @@ class SpellRev2Test(unittest.TestCase):
 
 class GateTest(unittest.TestCase):
     def test_capstones_wait_for_level_15(self):
-        w = config.WEAPONS["shock_bolt"]
-        self.assertNotIn("ball_lightning", cards.eligible("wizard", w, Counter(), level=14))
-        self.assertIn("ball_lightning", cards.eligible("wizard", w, Counter(), level=15))
+        w = config.WEAPONS["arcane_missiles"]
+        self.assertNotIn("arcane_storm", cards.eligible("wizard", w, Counter(), level=14))
+        self.assertIn("arcane_storm", cards.eligible("wizard", w, Counter(), level=15))
 
     def test_card_and_stat_gates(self):
         w = config.WEAPONS["lute"]

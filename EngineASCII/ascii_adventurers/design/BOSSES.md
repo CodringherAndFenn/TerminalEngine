@@ -174,7 +174,7 @@ Suggested angles only (to keep playstyles different — change freely):
 | M17.1 (built) | Froggy's phase-1 bubble stream |
 | M18 (built) | Dodge roll + 11 roll cards, evasion rename, Lingering gate, spell levels, archetype lean |
 | M19 (built) | Multiple projectiles for every hero (section 8.1; as built: `CARDS.md` 6.11 and 15) |
-| **M20** | Wizard's new weapon: **arcane missiles** (3 darts fan out, then home); the shock bolt becomes a card/spell; wizard cards redone |
+| M20 (built) | Wizard's arcane missiles; the shock bolt became his spell Chain Lightning; wizard cards and trainer redone (`CARDS.md` section 16) |
 | **M21** | **New forest biome** (replaces the bushy forest; open, green, reuses assets, boar carries over; theme picked when built) |
 | **M22** | **Boss pools**: 3 bosses per biome, the seed picks one per run, each with its own quest; the boss's real kind can be hidden behind one name (Mycelium); per-boss bestiary pages and achievements. Froggy is the swamp's first; proven with the second swamp boss |
 | M22.1 | Swamp: **leech swarm** |

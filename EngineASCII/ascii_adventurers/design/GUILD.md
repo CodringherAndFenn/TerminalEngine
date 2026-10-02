@@ -55,10 +55,12 @@ Rev 1 gave every hero the same Mastery (+damage) and Toughness (+HP), which repe
 
 | Hero | Upgrade | Per level | Levels | Base / growth |
 |---|---|---|---|---|
-| **wizard** | Forked Bolt | lightning jumps to +1 enemy | 2 | 1,200 / 2.0 |
-| | Long Arc | jumps reach +8% farther | 5 | 150 / 1.3 |
-| | Grounding | jumps fade 3% less | 5 | 150 / 1.3 |
-| | Capacitor | the first bolt after 2 s without casting deals +50% | 3 | 400 / 1.6 |
+| **wizard** | Extra Dart (M20; was Forked Bolt) | +1 dart per cast | 2 | 1,200 / 2.0 |
+| | Swift Darts (M20; was Long Arc) | darts fly +6% faster | 5 | 150 / 1.3 |
+| | Tracking (M20; was Grounding) | darts turn 10% faster | 5 | 150 / 1.3 |
+| | Capacitor | the first cast after 2 s without casting deals +50% | 3 | 400 / 1.6 |
+
+M20: levels bought in Forked Bolt, Long Arc or Grounding are refunded once, at what they cost.
 | **dwarf** | Axe Juggler | +1 axe per throw | 2 | 1,200 / 2.0 |
 | | Strong Arm | axes fly +6% farther | 5 | 150 / 1.3 |
 | | Quick Catch | axes fly back 10% faster and are caught from farther | 5 | 150 / 1.3 |

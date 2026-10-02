@@ -70,6 +70,8 @@ class Guild:
                 setattr(g, name, v)
         g.guild = _levels(data.get("guild"), config.GUILD_UPGRADES)
         heroes = data.get("heroes") if isinstance(data.get("heroes"), dict) else {}
+        # (A pre-rev-2 save gets everything refunded below instead.)
+        g.migrated = data.get("version") == VERSION and g.refund_retired(heroes) > 0
         g.heroes = {h: lv for h in config.HERO_UPGRADES
                     if (lv := _levels(heroes.get(h), config.HERO_UPGRADES[h]))}
         cards = data.get("cards") if isinstance(data.get("cards"), list) else []
@@ -86,6 +88,23 @@ class Guild:
         if data and data.get("version") != VERSION:
             g.refund_rev1(data)
         return g
+
+    def refund_retired(self, heroes: dict) -> int:
+        """Give back what a save spent on hero upgrades that no longer exist
+        (config.RETIRED_UPGRADES: the wizard's lightning ladders, M20). They
+        aren't loaded, so once the guild is saved again they're gone and
+        this can't pay twice (run.py saves straight away when it paid)."""
+        refund = 0
+        for hero, retired in config.RETIRED_UPGRADES.items():
+            levels = heroes.get(hero)
+            if not isinstance(levels, dict):
+                continue
+            for key, (base, growth, top) in retired.items():
+                lv = levels.get(key)
+                if isinstance(lv, int) and not isinstance(lv, bool) and lv > 0:
+                    refund += sum(round(base * growth ** n) for n in range(min(lv, top)))
+        self.loot += refund
+        return refund
 
     def refund_rev1(self, data: dict) -> int:
         """Give back what a pre-rev-2 save spent on upgrades (they changed),

@@ -198,7 +198,8 @@ class HeroCardTest(unittest.TestCase):
         return effects
 
     def test_supercell_shocks_and_jumps_prefer_shocked(self):
-        h = carded("wizard", ("supercell", "uncommon"))
+        from ascii_adventurers.tests.test_weapons import shock
+        h = shock(carded("wizard", ("supercell", "uncommon")))
         world = open_map()
         first, near, far = Dummy(14, 10.5), Dummy(14, 12.0), Dummy(14, 13.5)
         inflict(far, "shock", None)
@@ -248,7 +249,7 @@ class HeroCardTest(unittest.TestCase):
         boosted = [g for g in got if g["mult"] > 1]
         self.assertEqual(len(boosted), 2)
         self.assertEqual((boosted[0]["mult"], boosted[0]["extra_chain"]),
-                         (config.OVERLOAD_MULT, config.OVERLOAD_CHAIN))
+                         (config.OVERLOAD_MULT, 0))              # no jumps since M20
         pygame.mouse.set_visible(True)
 
     def test_dissonance_pushes_and_chills(self):

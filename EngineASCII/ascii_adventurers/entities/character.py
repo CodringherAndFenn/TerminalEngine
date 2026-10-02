@@ -73,6 +73,7 @@ class Character(Actor):
         self.x, self.y = x, y
         self.vx = self.vy = 0.0          # tiles/s (enemies lead their shots with this)
         self.aim_angle = 0.0
+        self.aim_point: tuple[float, float] | None = None   # the world point aimed at
         self.heading = 0.0               # direction of the last movement
         self.walked = 0.0                # tiles walked in total (walk animation)
         self.last_blocked = False
@@ -254,6 +255,7 @@ class Character(Actor):
     def aim_at(self, wx: float, wy: float, dt: float) -> None:
         """Point the weapon at world point (wx, wy): the true angle, so shots
         travel exactly through it."""
+        self.aim_point = (wx, wy)
         if wx == self.x and wy == self.y:
             return
         self.aim_angle_toward(math.atan2(wy - self.y, wx - self.x), dt)

@@ -114,10 +114,21 @@ CAMERA_MAX_LAG_TILES = 3.0
 
 WEAPONS = {
     # --- Hero weapons (one per hero; cards will upgrade them) -------------------
-    # Rough damage per second against one target, for comparison: shock bolt
-    # ~57 (+ jumps), longbow ~50 (+ pierce), rainbow up to ~80 point blank
+    # Rough damage per second against one target, for comparison: arcane
+    # missiles ~60 (all 3 darts on one enemy), longbow ~50 (+ pierce), rainbow up to ~80 point blank
     # (all 5 colors), throwing axes ~40 per leg (every enemy in the path, out
     # and back), lute ~13 (every enemy around, automatically). Balance comes later.
+    # The wizard's since M20: 3 darts fan out, then each curves onto the
+    # enemy nearest the reticle (see ShellSpec seek_*), so near misses land.
+    "arcane_missiles": WeaponSpec(
+        name="arcane missiles", fire_interval=0.45, pellets=3, spread_deg=50.0,
+        shell=ShellSpec(speed=24.0, damage=9, max_range=22.0, look="dart", sound="bolt",
+                        seek_turn=7.0, seek_after=2.0, seek_radius=6.0),
+        blurb="3 arcane darts that fan out, then home on what you aim at",
+        tags=("projectile", "arcane"),
+    ),
+    # The wizard's weapon until M20; now Chain Lightning's bolt (SPELL_SHELLS)
+    # and kept for tests and tools.
     "shock_bolt": WeaponSpec(
         name="shock bolt", fire_interval=0.35,
         shell=ShellSpec(speed=34.0, damage=20, max_range=30.0, look="spark", sound="spark",
@@ -216,7 +227,7 @@ WEAPONS = {
 # The playable heroes: same body, each with their own weapon.
 _HERO = dict(max_speed=8.5, accel=40.0, brake=50.0, size_px=26, max_hp=100)
 HEROES = {
-    "wizard": CharacterSpec(name="wizard", sprite="wizard", weapon="shock_bolt", **_HERO),
+    "wizard": CharacterSpec(name="wizard", sprite="wizard", weapon="arcane_missiles", **_HERO),
     # The dwarf: a little slower, a little tougher.
     "dwarf": CharacterSpec(name="dwarf", sprite="dwarf", weapon="throwing_axe",
                            **dict(_HERO, max_speed=7.8, max_hp=120)),
@@ -470,8 +481,13 @@ DROP_THE_BEAT = 1.5          # Drop the Beat: x damage of the free beat at the e
 POINT_BLANK_RANGE = 4.0      # tiles (Point Blank)
 SUPERCELL_BONUS = 0.25       # chain jumps vs shocked enemies (Supercell)
 OVERLOAD_EVERY = 5           # every Nth attack is overloaded...
-OVERLOAD_MULT = 3.0          # ...for this much damage...
-OVERLOAD_CHAIN = 3           # ...and this many extra jumps
+OVERLOAD_MULT = 3.0          # ...for this much damage (M20: no more extra jumps)
+# Arcane missile cards (M20).
+SEEKER = 2.0                 # Seeker: darts turn this much faster (and retarget)
+RESONANCE = (1.0, 0.15, 4)   # Resonance: window s, +damage per dart in it, most darts counted
+MANA_BURST = (1.0, 0.5)      # Mana Burst: radius, x the dart's damage to all others in it
+ARCANE_STORM = (3, 8.0)      # Arcane Storm: new darts per cast at most, how far they look
+ORBIT_REACH = 12.0           # Orbiting Darts: a missed dart looks this far round you
 MARK_INTERVAL = 4.0          # Hunter's Mark picks a new target this often
 MARK_MULT = 2.0
 DISSONANCE_PUSH = 1.2        # tiles a beat pushes enemies back (Dissonance)
@@ -665,6 +681,17 @@ SPELLS = {
                 ("+10 thorn damage", (("flat", "add", 10.0),)),
                 ("+25% reflected", (("share", "add", 0.25),))),
         text="attackers take 5 + 30% of the damage back"),
+    # M20: the wizard's old shock bolt, now his spell (his card only). The
+    # lightning cards (Storm Caller, Conductor, Supercell, Ball Lightning)
+    # are offered once he has it and work on its bolts.
+    "chain_lightning": SpellSpec(
+        "Chain Lightning", "CHAIN", "chain", ("lightning", "projectile"),
+        base=dict(interval=1.5, damage=20.0, reach=14.0, jumps=0),
+        levels=(("+30% bolt damage", (("damage", "mul", 1.3),)),
+                ("casts 25% faster", (("interval", "mul", 0.75),)),
+                ("+1 jump", (("jumps", "add", 1),)),
+                ("+40% damage, 20% faster", (("damage", "mul", 1.4), ("interval", "mul", 0.8)))),
+        text="every 1.5 s a bolt at the nearest enemy, jumping to 2 more"),
     # M19: the huntress's own power (her card only; it takes a spell slot).
     # Passive: her arrows split on hitting (systems/combat._split_arrow).
     "split_arrow": SpellSpec(
@@ -679,6 +706,9 @@ SPELLS = {
 
 # Shots that spells fire (damage comes from the spell's level).
 SPELL_SHELLS = {
+    # Chain Lightning's bolt (M20): the shock bolt's (damage from the spell).
+    "chain": ShellSpec(speed=34.0, damage=0, max_range=16.0, damages_terrain=False,
+                       look="spark", sound="spark", chain=2, chain_range=5.0, chain_falloff=0.7),
     # Sheet Music's notes (M19; damage comes from SHEET_MUSIC_DAMAGE).
     "note": ShellSpec(speed=20.0, damage=0, max_range=11.0, damages_terrain=False,
                       look="note", sound="pulse"),
@@ -763,24 +793,46 @@ CARDS = {
     "affliction": CardSpec("Affliction", "+{X}% chance for each of your statuses",
                            (("status_chance", "add", "X"),), tiers=(5, 8, 12, 16, 20),
                            max_stacks=_T, needs=("status",), code="G21"),
-    # --- 6.2 Wizard ---
+    # --- 6.2 Wizard (redone in M20 for the arcane missiles) ---
+    # The lightning cards now upgrade Chain Lightning (his spell, W7) and are
+    # only offered with it.
     "storm_caller": CardSpec("Storm Caller", "lightning jumps to +1 enemy", (("chain", "add", 1),),
-                             rarity="rare", heroes=("wizard",), tags=("lightning",), code="W1"),
+                             rarity="rare", heroes=("wizard",), needs=("chain_lightning",),
+                             tags=("lightning",), code="W1"),
     "conductor": CardSpec("Conductor", "jumps reach 30% farther and fade less",
                           (("chain_range", "add", 0.3), ("chain_falloff", "add", 0.08)),
-                          heroes=("wizard",), tags=("lightning",), code="W2"),
+                          heroes=("wizard",), needs=("chain_lightning",), tags=("lightning",),
+                          code="W2"),
     "supercell": CardSpec("Supercell",
                           "bolts shock; jumps go for shocked enemies, +25% damage to them",
                           (("supercell", "flag", 1), ("shock", "source", 1)),
                           rarity="uncommon", max_stacks=1, heroes=("wizard",),
-                          tags=("lightning",), code="W3"),
-    "overload": CardSpec("Overload", "every 5th bolt: x3 damage and +3 jumps",
+                          needs=("chain_lightning",), tags=("lightning",), code="W3"),
+    "overload": CardSpec("Overload", "every 5th cast: x3 damage",
                          (("overload", "flag", 1),), rarity="rare", max_stacks=1,
-                         heroes=("wizard",), tags=("lightning",), unlock="L:2000", code="W4"),
+                         heroes=("wizard",), tags=("arcane",), unlock="L:2000", code="W4"),
+    # (Was the wizard's capstone; with lightning a spell it's an epic upgrade.)
     "ball_lightning": CardSpec("Ball Lightning",
                                "bolts crackle where they hit for 2 s, hurting all around",
-                               (("ball_lightning", "flag", 1),), heroes=("wizard",),
-                               tags=("lightning", "area"), code="W5", **_CAP),
+                               (("ball_lightning", "flag", 1),), rarity="epic", max_stacks=1,
+                               heroes=("wizard",), needs=("chain_lightning",),
+                               tags=("lightning", "area"), unlock="L:6000", code="W5"),
+    "chain_lightning": replace(_spell_card("chain_lightning", "W7"), heroes=("wizard",)),
+    "seeker": CardSpec("Seeker", "darts turn twice as fast and find a new target",
+                       (("seeker", "flag", 1),), max_stacks=1, heroes=("wizard",),
+                       tags=("arcane",), code="W8"),
+    "resonance": CardSpec("Resonance", "darts on one enemy within 1 s: +15% each, up to +60%",
+                          (("resonance", "flag", 1),), rarity="uncommon", max_stacks=1,
+                          heroes=("wizard",), tags=("arcane",), code="W9"),
+    "mana_burst": CardSpec("Mana Burst", "darts burst on hit: 50% to all within 1 tile",
+                           (("mana_burst", "flag", 1),), rarity="rare", max_stacks=1,
+                           heroes=("wizard",), tags=("arcane", "area"), code="W10"),
+    "arcane_storm": CardSpec("Arcane Storm", "a dart that kills fires a new one (3 per cast)",
+                             (("arcane_storm", "flag", 1),), heroes=("wizard",),
+                             tags=("arcane",), code="W11", **_CAP),
+    "orbiting_darts": CardSpec("Orbiting Darts", "darts that miss swing round you and try again",
+                               (("orbiting_darts", "flag", 1),), rarity="rare", max_stacks=1,
+                               heroes=("wizard",), tags=("arcane", "projectile"), code="W12"),
     # --- Dwarf ---
     "ricochet": CardSpec("Ricochet", "axes bounce off walls and fly on (2 bounces)",
                          (("ricochet", "flag", 1),), rarity="rare", max_stacks=1,
@@ -1039,7 +1091,7 @@ CARDS = {
     "twin_lanes": CardSpec("Twin Lanes", "every shot flies as two side by side (65% each)",
                            (("twin_lanes", "flag", 1),), rarity="rare", max_stacks=1,
                            needs=("shots",), tags=("projectile",), code="M05"),
-    # Hero projectile cards (the wizard's come with his new weapon, M20).
+    # Hero projectile cards (the wizard's is Orbiting Darts, W12, with his cards).
     "sheet_music": CardSpec("Sheet Music", "each beat flings 3 notes at the nearest enemies",
                             (("sheet_music", "flag", 1),), rarity="uncommon", max_stacks=1,
                             heroes=("bard",), tags=("projectile", "arcane"), code="B7"),
@@ -1067,12 +1119,13 @@ ARCHETYPES = {
     "burn": ("T01", "S02", "S10", "P3", "T02", "G18", "T10", "T13", "K02", "V06"),
     "poison": ("T03", "S06", "P3", "T04", "G18", "T10", "T14", "K02"),
     "frost": ("T05", "S03", "B4", "P3", "T06", "G09", "T13"),
-    "shock": ("W3", "T07", "S07", "W1", "W2", "W4", "W5", "T14", "W6"),
+    "shock": ("W3", "T07", "S07", "W1", "W2", "W5", "W7", "T14", "W6"),
+    "missiles": ("W4", "W8", "W9", "W10", "W11", "W12", "G20", "T11"),
     "bleed": ("D4", "T08", "T09", "G18", "D5", "K02"),
     "volley": ("G20", "D1", "H1", "P1", "X03", "R06", "C06", "G02", "P5", "D5", "H6",
                "M01", "M02", "M03", "M04", "M05", "B7", "H7", "P7", "D7"),
     "sniper": ("D2", "H2", "C07", "H3", "G07", "G17", "H5"),
-    "area": ("R01", "S05", "R02", "G08", "B3", "X06", "B5", "W5", "B1", "B6"),
+    "area": ("R01", "S05", "R02", "G08", "B3", "X06", "B5", "W5", "B1", "B6", "W10"),
     "summoner": ("S04", "S11", "S08", "G19", "G09", "K04"),
     "tank": ("G10", "G03", "S12", "X02", "C03", "R03", "S09", "K05", "K03", "D6"),
     "speed": ("G04", "G11", "C04", "C05", "C01", "K06", "V04"),
@@ -1133,17 +1186,23 @@ SECOND_CHANCE_HP = 0.30
 
 # The trainer: each hero's own tree, only about their weapon or trick.
 _BIG = dict(max_level=2, base_cost=1200, growth=2.0)     # the "+1 of my weapon's thing"
+# Hero upgrades that were removed: (base cost, growth, max level) per key, so
+# a save's levels in them are refunded once (meta/guild.Guild.load).
+RETIRED_UPGRADES = {"wizard": {"forked_bolt": (1200, 2.0, 2), "long_arc": (150, 1.3, 5),
+                               "grounding": (150, 1.3, 5)}}
 _LADDER = dict(max_level=5, base_cost=150, growth=1.3)
 _TRICK = dict(max_level=3, base_cost=400, growth=1.6)
 HERO_UPGRADES = {
     "wizard": {
-        "forked_bolt": UpgradeSpec("Forked Bolt", "lightning jumps to +1 enemy",
-                                   (("chain", "add", 1),), **_BIG),
-        "long_arc": UpgradeSpec("Long Arc", "jumps reach 8% farther",
-                                (("chain_range", "add", 0.08),), **_LADDER),
-        "grounding": UpgradeSpec("Grounding", "jumps fade 3% less",
-                                 (("chain_falloff", "add", 0.03),), **_LADDER),
-        "capacitor": UpgradeSpec("Capacitor", "first bolt after 2 s idle: +50% damage",
+        # M20: the lightning ladders (Forked Bolt, Long Arc, Grounding) became
+        # missile ones; levels bought in them are refunded (RETIRED_UPGRADES).
+        "extra_dart": UpgradeSpec("Extra Dart", "+1 dart per cast",
+                                  (("pellets", "add", 1),), **_BIG),
+        "swift_darts": UpgradeSpec("Swift Darts", "darts fly 6% faster",
+                                   (("shot_speed", "add", 0.06),), **_LADDER),
+        "tracking": UpgradeSpec("Tracking", "darts turn 10% faster",
+                                (("seek_turn", "add", 0.10),), **_LADDER),
+        "capacitor": UpgradeSpec("Capacitor", "first cast after 2 s idle: +50% damage",
                                  (("capacitor", "add", 0.5),), **_TRICK),
     },
     "dwarf": {
