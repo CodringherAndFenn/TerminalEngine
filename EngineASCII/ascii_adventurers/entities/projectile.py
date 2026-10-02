@@ -35,6 +35,7 @@ class Projectile:
         self.tags: tuple[str, ...] = ()   # the weapon's damage tags (bucket T)
         self.mult = 1.0               # per-shot damage multiplier (Overload)
         self.extra_chain = 0          # per-shot extra lightning jumps (Overload)
+        self.sure_crit = False        # its hit always crits (Riposte)
         # Cards (M16): how far it may fly (Deadeye doubles it), its hit radius
         # bonus (Bright Colors), the colors of its shot (Prism), wall bounces
         # (Ricochet), whether it split off another shot (can't split again),

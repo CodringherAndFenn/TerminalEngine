@@ -47,6 +47,7 @@ _BUTTON_KEYS = {
 BUTTON_KEYS = {getattr(pygame, name): key for name, key in _BUTTON_KEYS.items()
                if hasattr(pygame, name)}
 BUTTON_A = getattr(pygame, "CONTROLLER_BUTTON_A", -1)
+BUTTON_B = getattr(pygame, "CONTROLLER_BUTTON_B", -1)
 BUTTON_START = getattr(pygame, "CONTROLLER_BUTTON_START", -1)
 BUTTON_BACK = getattr(pygame, "CONTROLLER_BUTTON_BACK", -1)
 BUTTON_LB = getattr(pygame, "CONTROLLER_BUTTON_LEFTSHOULDER", -1)

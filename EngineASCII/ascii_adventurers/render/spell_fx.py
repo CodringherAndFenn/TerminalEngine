@@ -71,7 +71,7 @@ def draw_spells(text, camera: Camera, players, steps: int) -> None:
 def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
     """What spells leave in the world (wolves, runes, flasks, the storm
     cloud, totems, turrets) and the zones on the ground (poison pools,
-    Ball Lightning's crackle)."""
+    Ball Lightning's crackle, roll trails)."""
     from ..systems.spells import cloud_position
     batch = _Batch(text)
     tw, th = config.TILE_PX_W, config.TILE_PX_H
@@ -84,6 +84,16 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 rr = z.radius * (0.35 + 0.65 * ((k * 7) % 5) / 4)
                 batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
                             "o" if k % 3 == 0 else ".", palette.POOL[k % 2])
+        elif z.kind == "trail":
+            # A roll's trail patch (M18): flickering, fading as it runs out.
+            cols = palette.TRAIL.get(z.inflicts, palette.TRAIL["burn"])
+            fresh = z.age < z.life * 0.6
+            glyphs = ("^", "*", "'") if z.inflicts == "burn" else ("*", "+", ".")
+            for k in range(3):
+                a = k * math.tau / 3 + (k * 1.7 + steps * 0.15)
+                rr = z.radius * 0.45
+                batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
+                            glyphs[(k + steps // 6) % 3], cols[0 if fresh and k != 2 else 1])
         else:
             for k in range(6):
                 a = k * math.tau / 6 + steps * 0.3

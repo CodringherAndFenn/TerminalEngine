@@ -108,13 +108,13 @@ class DefenseTest(unittest.TestCase):
         h.stats.armor = -40
         self.assertAlmostEqual(h.take_damage(20, None, None), 30)
 
-    def test_dodge(self):
+    def test_evasion(self):
         h = carded("bard", *[("nimble", "legendary")] * 10)
         h.hp = 1e9
         h.rng.seed(3)
-        dodged = sum(h.take_damage(1, None, None) == 0 for _ in range(500))
-        self.assertAlmostEqual(dodged / 500, config.MAX_DODGE, delta=0.07)
-        self.assertEqual(h.dodged, dodged)
+        evaded = sum(h.take_damage(1, None, None) == 0 for _ in range(500))
+        self.assertAlmostEqual(evaded / 500, config.MAX_EVASION, delta=0.07)
+        self.assertEqual(h.evaded, evaded)
 
 
 class StatusTest(unittest.TestCase):

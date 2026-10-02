@@ -19,7 +19,8 @@ The swamp's two:
   * the frog hunter's camp: a big bog (an oval of pools, reeds and lily
     pads, ringed by a walkable mud edge) with the hunter's hut on a deck
     at the edge facing the plains. He stands at his door. The quest's
-    psychedelic frogs live at `spots` in the bog.
+    psychedelic frogs live at `spots`, scattered over the whole swamp
+    (_scatter), each in a little mud clearing of its own.
   * Froggy's pond: an oval arena of LAIR_RADII (about 3 x 3 screens) ringed
     by standing stones, with a gate in the ring facing the plains and a
     mud causeway leading up to it. Inside: mud, pools (the boss dives
@@ -49,8 +50,8 @@ _SALT_REEDS = 409
 
 @dataclass
 class Landmark:
-    key: str                     # its builder ("frog_camp", "pond_lair")
-    kind: str                    # "camp" | "lair"
+    key: str                     # its builder ("frog_camp", "pond_lair", "quest_spot")
+    kind: str                    # "camp" | "lair" | "spot" (a quest target's clearing)
     biome: str
     name: str                    # shown on the big map
     x0: int                      # the stamp's top-left tile
@@ -119,6 +120,17 @@ def _slice_angle(layout, biome: str) -> float | None:
     return layout.rotation + (i + 0.5) * math.tau / len(names)
 
 
+def _fits_many(layout, biome_id: int, centres, hw: float, hh: float) -> np.ndarray:
+    """_fits for many centres at once (one numpy call): a bool per centre."""
+    nx, ny = max(3, int(hw / 8) + 2), max(3, int(hh / 8) + 2)
+    gx = np.linspace(-hw, hw, nx)[None, None, :]
+    gy = np.linspace(-hh, hh, ny)[None, :, None]
+    c = np.asarray(centres, dtype=np.float64).reshape(-1, 2)
+    xs = c[:, 0][:, None, None] + gx
+    ys = c[:, 1][:, None, None] + gy
+    return (layout.biome_ids(xs, ys, jitter=False) == biome_id).all(axis=(1, 2))
+
+
 def _fits(layout, biome_id: int, cx: float, cy: float, hw: float, hh: float) -> bool:
     """The whole rectangle (centre, half-sizes in tiles) lies in the biome
     (sampled on a grid ~8 tiles apart, smooth borders)."""
@@ -161,15 +173,69 @@ def _find_site(layout, biome: str, radii, hw: float, hh: float, rng: random.Rand
 
 
 def build_landmarks(layout) -> list[Landmark]:
-    """Every quest's camp and lair for this island (config.QUESTS)."""
+    """Every quest's camp and lair for this island (config.QUESTS), plus a
+    small clearing at each of the quest's target spots (camp.spots)."""
     out = []
     for q in config.QUESTS.values():
         rng = random.Random(hash_coords(layout.seed, 0x1A4D, biomes.BY_NAME[q.biome].id))
-        for key in (q.camp, q.lair):
-            mark = BUILDERS[key](layout, q, rng)
-            if mark is not None:
-                out.append(mark)
+        camp, lair = (BUILDERS[key](layout, q, rng) for key in (q.camp, q.lair))
+        out += [m for m in (camp, lair) if m is not None]
+        if camp is not None:
+            camp.spots = _scatter(layout, q, camp, lair, rng)
+            out += [_clearing(q.biome, x, y) for x, y in camp.spots]
     return out
+
+
+def _scatter(layout, quest, camp, lair, rng: random.Random) -> list[tuple[float, float]]:
+    """Where a quest's targets live: quest.count + QUEST_SPOT_EXTRA spots
+    spread over the whole of its biome, so finding enough means travelling
+    it (any `count` of them finish the hunt).
+
+    QUEST_SPOT_CANDIDATES random points in the biome's slice of the ring
+    (uniform by area: r = sqrt of a uniform between the squared radii) are
+    kept if a QUEST_SPOT_EDGE-tile square round them is all that biome and
+    they're QUEST_SPOT_CAMP_GAP tiles from the camp and clear of the lair.
+    Then, in random order, a point is taken if it's at least `sep` tiles
+    from every one already taken; `sep` starts at QUEST_SPOT_SEPARATION and
+    shrinks until there are enough (a small or oddly-shaped biome)."""
+    biome_id = biomes.BY_NAME[quest.biome].id
+    mid = _slice_angle(layout, quest.biome)
+    span = math.tau / len(layout.ring)
+    r0 = layout.plains_radius * (1 + config.PLAINS_EDGE_AMPLITUDE) + config.BORDER_WOBBLE
+    r1 = layout.radius * (1 - config.COAST_AMPLITUDE)
+    cands = []
+    for _ in range(config.QUEST_SPOT_CANDIDATES):
+        a = mid + rng.uniform(-0.5, 0.5) * span
+        r = math.sqrt(rng.uniform(r0 * r0, r1 * r1))
+        cands.append((math.floor(math.cos(a) * r) + 0.5, math.floor(math.sin(a) * r) + 0.5))
+    e = config.QUEST_SPOT_EDGE
+    ok = _fits_many(layout, biome_id, cands, e, e)
+    cands = [c for c, good in zip(cands, ok) if good
+             and math.hypot(c[0] - camp.cx, c[1] - camp.cy) >= config.QUEST_SPOT_CAMP_GAP
+             and not camp.contains(*c, e)
+             and (lair is None or not lair.contains(*c, e))]
+    sep = config.QUEST_SPOT_SEPARATION
+    while True:
+        spots = []
+        for c in cands:
+            if all(math.hypot(c[0] - x, c[1] - y) >= sep for x, y in spots):
+                spots.append(c)
+                if len(spots) == quest.count + config.QUEST_SPOT_EXTRA:
+                    return spots
+        if sep < 1:
+            return spots                        # (no room at all: fewer targets)
+        sep *= 0.8
+
+
+def _clearing(biome: str, x: float, y: float) -> Landmark:
+    """A small round patch of open ground at a quest target's spot, so it
+    never wakes up stuck in a mangrove or a wall. Only the circle is laid
+    (None round it), so it blends into the generated terrain."""
+    r = config.QUEST_SPOT_CLEARING
+    tx, ty = math.floor(x), math.floor(y)
+    rows = [[tiles.MUD if (i - r) ** 2 + (j - r) ** 2 <= r * r + r else None
+             for i in range(2 * r + 1)] for j in range(2 * r + 1)]
+    return Landmark("quest_spot", "spot", biome, "", tx - r, ty - r, rows, cx=x, cy=y)
 
 
 # --- The frog hunter's camp -------------------------------------------------------------
@@ -263,32 +329,8 @@ def _frog_camp(layout, quest, rng: random.Random) -> Landmark | None:
     for rx, ry in ((dx0 + 1, dy0 + 1), (dx0 + hut_w - 2, dy0 + hut_h - 2)):
         rows[ry - y0][rx - x0] = tiles.DRYING_RACK
 
-    # Where the frogs live: open bog tiles spread over the bog (one per
-    # sector of the oval, so they're not all in one corner).
-    n = quest.count
-    spots = []
-    for s in range(n):
-        for _ in range(60):
-            a = (s + rng.uniform(0.15, 0.85)) * math.tau / n
-            f = rng.uniform(0.2, 0.7)
-            fx, fy = bx + math.cos(a) * bw * f, by + math.sin(a) * bh * f
-            ti, tj = math.floor(fx) - x0, math.floor(fy) - y0
-            ok = all(rows[tj + dj][ti + di] in (tiles.MUD, tiles.REEDS, tiles.LILY_PADS)
-                     for dj in (-1, 0, 1) for di in (-1, 0, 1))
-            if ok:
-                spots.append((math.floor(fx) + 0.5, math.floor(fy) + 0.5))
-                break
-        else:                                   # no dry spot: clear one
-            fx, fy = bx + math.cos(s * math.tau / n) * bw * 0.4, by + math.sin(s * math.tau / n) * bh * 0.4
-            ti, tj = math.floor(fx) - x0, math.floor(fy) - y0
-            for dj in (-1, 0, 1):
-                for di in (-1, 0, 1):
-                    rows[tj + dj][ti + di] = tiles.MUD
-            spots.append((math.floor(fx) + 0.5, math.floor(fy) + 0.5))
-
     return Landmark("frog_camp", "camp", biome, "FROG HUNTER", x0, y0, rows,
-                    cx=npc_tx + 0.5, cy=npc_ty + 0.5, npc=(npc_tx + 0.5, npc_ty + 0.5),
-                    spots=spots)
+                    cx=npc_tx + 0.5, cy=npc_ty + 0.5, npc=(npc_tx + 0.5, npc_ty + 0.5))
 
 
 # --- Froggy's pond ---------------------------------------------------------------------

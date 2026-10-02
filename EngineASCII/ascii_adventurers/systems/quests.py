@@ -7,7 +7,9 @@ placed on this island gets a QuestState, going through these stages:
   "offered"  the giver waits at their camp (pinned on the maps from the
              start); talking to them (E / gamepad A within TALK_RADIUS)
              starts the quest;
-  "hunt"     the quest's targets are out at the camp's spots (they wake,
+  "hunt"     the quest's targets are out at the camp's spots, scattered
+             over the biome -- a few more of them than the quest needs --
+             and pinned on the maps once you're near one (they wake,
              sleep and stay dead like any enemy, systems/spawner.place);
              every one that dies counts, whoever killed it;
   "awake"    all found: the boss waits in its lair (now pinned too);
@@ -165,12 +167,26 @@ class Quests:
             out.append((s.biome.upper(), text, s.stage == "cleared"))
         return out
 
-    def pins(self) -> list[tuple[float, float, str, str]]:
-        """Map pins: (x, y, kind, label); kind "quest" | "lair" | "done"."""
+    def pins(self, near: tuple[float, float] | None = None) -> list[tuple[float, float, str, str]]:
+        """Map pins: (x, y, kind, label); kind "quest" | "lair" | "target" |
+        "done". A hunt's targets (still alive) are pinned only within
+        QUEST_TARGET_PIN_RADIUS tiles of `near` (the viewing player; None:
+        all of them): you roam the biome until you're close, then the pin
+        leads you in."""
         out = []
+        sp = self.scene.spawner
         for s in self.states.values():
             giver_done = s.stage == "cleared"
             out.append((s.npc.x, s.npc.y, "done" if giver_done else "quest", s.spec.giver.upper()))
+            if s.stage == "hunt":
+                bid = biomes.BY_NAME[s.biome].id
+                label = config.ENEMIES[s.spec.target].name.split()[-1].upper()
+                for i, (x, y) in enumerate(s.camp.spots):
+                    if near is not None and math.hypot(x - near[0], y - near[1]) \
+                            > config.QUEST_TARGET_PIN_RADIUS:
+                        continue
+                    if sp is None or (QUEST_SID, bid, i, 0) not in sp.dead:
+                        out.append((x, y, "target", label))
             if s.stage in ("awake", "fight", "cleared"):
                 out.append((s.lair.cx, s.lair.cy, "done" if giver_done else "lair", s.lair.name))
         return out
@@ -226,7 +242,7 @@ class Quests:
         sp = self.scene.spawner
         bid = biomes.BY_NAME[s.biome].id
         if sp is not None:
-            for i, (x, y) in enumerate(s.camp.spots[:s.spec.count]):
+            for i, (x, y) in enumerate(s.camp.spots):
                 sp.place((QUEST_SID, bid, i, 0), s.spec.target, x, y)
 
     def is_target(self, s: QuestState, enemy) -> bool:
@@ -358,7 +374,7 @@ class Quests:
                 sp = self.scene.spawner
                 if sp is not None:
                     bid = biomes.BY_NAME[s.biome].id
-                    for i in range(s.spec.count):
+                    for i in range(len(s.camp.spots)):
                         sid = (QUEST_SID, bid, i, 0)
                         sp.dead.add(sid)
                         e = sp.awake.pop(sid, None)

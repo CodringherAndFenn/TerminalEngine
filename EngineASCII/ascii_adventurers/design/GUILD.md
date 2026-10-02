@@ -68,7 +68,7 @@ Rev 1 gave every hero the same Mastery (+damage) and Toughness (+HP), which repe
 | | Fletcher | arrows fly 8% faster | 5 | 150 / 1.3 |
 | | Quiver | every 8th arrow is free: two fly at once (−1 per level after the first) | 3 | 400 / 1.6 |
 | **princess** | Coronation | +1 color in the fan | 2 | 1,200 / 2.0 |
-| | Royal Grace | +3% dodge | 5 | 150 / 1.3 |
+| | Royal Grace | +3% evasion | 5 | 150 / 1.3 |
 | | Bright Colors | colors are 10% bigger (easier to hit with) | 5 | 150 / 1.3 |
 | | Royal Decree | start every run with one rare card of your choice from three | 3 (2nd: epic, 3rd: legendary) | 400 / 1.6 |
 | **bard** | Resonance | +5% area | 5 | 150 / 1.3 |
@@ -81,7 +81,7 @@ Rev 1 gave every hero the same Mastery (+damage) and Toughness (+HP), which repe
 > **Question:** each hero's first upgrade is a "+1 of my weapon's thing" (jump, axe, pierce, color). They're different effects, but the same pattern. Keep, or swap some for other tricks?
 ANSWER: keep them
 
-Uniqueness check: crit only in Eagle Eye; dodge only in Royal Grace; area only in Resonance; regen only in Lullaby. None of those are in the guildmaster's list, and no hero repeats another's trick.
+Uniqueness check: crit only in Eagle Eye; evasion only in Royal Grace; area only in Resonance; regen only in Lullaby. None of those are in the guildmaster's list, and no hero repeats another's trick.
 
 ## 4. The archivist: a library that grows
 

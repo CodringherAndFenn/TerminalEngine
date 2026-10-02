@@ -28,7 +28,8 @@ fight replays exactly from the same inputs.
 Froggy McFrogface (swamp): a giant frog in a pond. Signature: the pools --
 it dives into one and comes up out of another (ripples show which), and
 it belly-flops across the arena, sitting dazed after each landing (the
-melee window). Phase 1: tadpole fans, tongue lash, belly flop. Phase 2
+melee window). Phase 1: tadpole fans, bubble streams, tongue lash, belly
+flop. Phase 2
 adds bubble spirals, dives and a croak that calls bog toads. Phase 3
 ("psychedelic"): rainbow rain and closing rings, faster.
 """
@@ -277,6 +278,26 @@ class Froggy(Boss):
             yield gap
         self.mouth_open = False
 
+    def m_stream(self):
+        """P3 (one at a time): a stream of bubbles, each aimed at where the
+        target is now -- keep moving and they trail behind you, stand still
+        and they all land."""
+        n, gap = config.FROGGY_STREAM
+        self.tell = ("mouth",)
+        self.mouth_open = True
+        yield config.FROGGY_TELL
+        for _ in range(n):
+            t = self.target_now()
+            if t is None:
+                break
+            if self.room_for_shots():
+                mx, my = self.mouth
+                patterns.shoot(self, mx, my, math.atan2(t.y - my, t.x - mx),
+                               self.shots["stream"], self.ctx.projectiles, self._tint())
+                self.ctx.events.append("fizzle")
+            yield gap
+        self.mouth_open = False
+
     def m_tongue(self):
         """P7-like: an aim line, then the tongue lashes out along it, hurting
         and pulling in whoever it catches."""
@@ -292,7 +313,7 @@ class Froggy(Boss):
         self.tongue = (a, reach, 1.0)
         x1, y1 = self.x + math.cos(a) * reach, self.y + math.sin(a) * reach
         for h in self.ctx.players:
-            if not h.alive:
+            if not h.hittable:                  # (rolling through it dodges the pull too)
                 continue
             d = patterns.point_segment_distance(h.x, h.y, self.x, self.y, x1, y1)
             if d <= width + h.hit_radius:

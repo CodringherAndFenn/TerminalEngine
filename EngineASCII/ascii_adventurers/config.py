@@ -428,7 +428,7 @@ SKIP_HEAL = 0.15
 BASE_CRIT_CHANCE = 0.05
 BASE_CRIT_DAMAGE = 1.5
 ARMOR_K = 40.0               # damage taken x (1 - a / (a + ARMOR_K)): 40 armor halves it
-MAX_DODGE = 0.60
+MAX_EVASION = 0.60          # passive chance to shrug off a hit (Nimble)
 MAX_LIFESTEAL = 0.15
 MAX_MOVE_BONUS = 0.80
 MAX_AREA_BONUS = 2.0         # area x3 at most
@@ -437,6 +437,33 @@ MIN_ATTACK_INTERVAL = 0.08   # fastest attack cadence any stack of cards can rea
 STEADY_SPEED = 0.3           # tiles/s: below this the hero counts as standing still
 SHIELD_RECHARGE_DELAY = 4.0  # seconds without being hit before a shield refills...
 SHIELD_RECHARGE_RATE = 0.5   # ...at this fraction of its size per second
+
+# --- Dodge roll (systems/roll.py, M18) ------------------------------------------------
+# Shift / gamepad B or LB: a quick roll in the direction you walk (toward
+# your aim when standing still). The hero is untouchable for the whole roll
+# (shots, blasts and bodies pass through) but still stops at walls. A roll
+# uses a charge; a spent charge comes back after ROLL_COOLDOWN s (one at a
+# time, starting as soon as the roll does).
+ROLL_DISTANCE = 4.0          # tiles
+ROLL_TIME = 0.25             # seconds (also how long the i-frames last)
+ROLL_COOLDOWN = 5.0          # seconds per charge
+ROLL_CHARGES = 1
+MAX_ROLL_COOLDOWN = 0.60     # Quick Recovery: charges at most 60% faster
+ROLL_DUST_EVERY = 2          # simulation steps between dust puffs behind a roll
+# Roll cards.
+RIPOSTE_WINDOW = 1.5         # Riposte: the first attack this long after a roll start always crits
+SLIPSTREAM = (0.30, 2.0)     # Slipstream: +move speed, for this many s after a roll
+CLOSE_CALL = 0.1             # Close Call: s of cooldown back per enemy shot rolled through
+TRAIL_SPACING = 0.8          # Scorched Trail / Prism Dash: tiles between trail patches...
+TRAIL_RADIUS = 0.9           # ...each this big...
+TRAIL_LIFE = 2.5             # ...lasting this long...
+TRAIL_EVERY = 0.5            # ...applying its status this often
+PRISM_DASH_STATUSES = ("burn", "chill", "poison", "shock")   # one at random per patch
+BLINK = (5.0, 2.5, 20.0)     # Blink: teleport distance, shock nova radius, nova damage
+BLINK_STEP = 0.25            # tiles: the teleport is checked against walls this finely
+BACKFLIP = (5, 40.0, 0.6)    # Backflip: arrows, fan degrees, x damage each
+SHOULDER_CHARGE = (25.0, 0.6, 2.5)   # Shoulder Charge: damage, reach past the body, push tiles
+DROP_THE_BEAT = 1.5          # Drop the Beat: x damage of the free beat at the end of a roll
 
 # Hero cards (catalog 6.2) and the rules they bring.
 POINT_BLANK_RANGE = 4.0      # tiles (Point Blank)
@@ -562,9 +589,10 @@ SPELLS = {
     "poison_flask": SpellSpec(
         "Poison Flask", "FLASK", "flask", ("poison", "area"),
         base=dict(interval=3.0, radius=1.5, life=3.0, stacks=1, reach=10.0, flight=0.6,
-                  inflicts="poison"),
+                  inflicts="poison", count=1),
+        # (M18: level 3 was "pools last 2 s longer", (("life", "add", 2.0),).)
         levels=(("+25% pool size", (("radius", "mul", 1.25),)),
-                ("pools last 2 s longer", (("life", "add", 2.0),)),
+                ("throws 2 flasks at once", (("count", "add", 1),)),
                 ("thrown 25% faster", (("interval", "mul", 0.75),)),
                 ("2 poison stacks per tick", (("stacks", "add", 1),))),
         text="lobs a flask at an enemy: a pool of poison for 3 s"),
@@ -578,9 +606,10 @@ SPELLS = {
         rarity="rare", text="a cloud follows you, striking and shocking an enemy every 1.5 s"),
     "healing_totem": SpellSpec(
         "Healing Totem", "TOTEM", "totem", ("summon",),
-        base=dict(interval=12.0, heal=3.0, radius=3.0, life=6.0),
+        base=dict(interval=12.0, heal=3.0, radius=3.0, life=6.0, chill=0, chill_every=1.0),
+        # (M18: level 3 was "lasts 3 s longer", (("life", "add", 3.0),).)
         levels=(("+30% healing", (("heal", "mul", 1.3),)),
-                ("lasts 3 s longer", (("life", "add", 3.0),)),
+                ("also chills enemies near it", (("chill", "add", 1),)),
                 ("planted 25% sooner", (("interval", "mul", 0.75),)),
                 ("+40% healing, +30% size", (("heal", "mul", 1.4), ("radius", "mul", 1.3)))),
         rarity="rare", text="plants a totem every 12 s: 3 HP/s around it for 6 s"),
@@ -602,9 +631,10 @@ SPELLS = {
         text="fires a burning bolt at the nearest enemy every 1.2 s"),
     "bone_turret": SpellSpec(
         "Bone Turret", "TURRET", "turret", ("summon", "projectile"),
-        base=dict(count=1, interval=10.0, life=8.0, fire=0.5, damage=8.0, reach=10.0),
+        base=dict(count=1, interval=10.0, life=8.0, fire=0.5, damage=8.0, reach=10.0, pierce=0),
+        # (M18: level 3 was "turrets last 4 s longer", (("life", "add", 4.0),).)
         levels=(("+30% bolt damage", (("damage", "mul", 1.3),)),
-                ("turrets last 4 s longer", (("life", "add", 4.0),)),
+                ("bolts pierce +1 enemy", (("pierce", "add", 1),)),
                 ("shoots 25% faster", (("fire", "mul", 0.75),)),
                 ("2 turrets at a time", (("count", "add", 1),))),
         rarity="rare", text="places a turret every 10 s that shoots for 8 s"),
@@ -664,11 +694,15 @@ CARDS = {
                        tiers=(15, 25, 35, 50, 70), max_stacks=_T, code="G07"),
     "broad_strokes": CardSpec("Broad Strokes", "+{X}% area", (("area", "add", "X"),),
                               tiers=(8, 12, 17, 23, 30), max_stacks=_T, code="G08"),
+    # Lingering is only offered once something lasts (M18): a status, or a
+    # spell whose things last (DURATION_SPELLS). Its old place in everyone's
+    # pool went to the dodge roll cards (6.10).
     "lingering": CardSpec("Lingering", "+{X}% duration", (("duration", "add", "X"),),
-                          tiers=(10, 15, 22, 30, 40), max_stacks=_T, code="G09"),
+                          tiers=(10, 15, 22, 30, 40), max_stacks=_T, needs=("duration",),
+                          code="G09"),
     "thick_hide": CardSpec("Thick Hide", "+{X} armor", (("armor", "add", "X"),),
                            tiers=(3, 5, 8, 12, 16), x_scale=1, max_stacks=_T, code="G10"),
-    "nimble": CardSpec("Nimble", "+{X}% dodge", (("dodge", "add", "X"),),
+    "nimble": CardSpec("Nimble", "+{X}% evasion", (("evasion", "add", "X"),),
                        tiers=(3, 5, 7, 9, 12), max_stacks=_T, code="G11"),
     "second_wind": CardSpec("Second Wind", "regain {X} HP per second", (("regen", "add", "X"),),
                             tiers=(0.4, 0.7, 1, 1.5, 2), x_scale=1, max_stacks=_T, code="G12"),
@@ -911,11 +945,78 @@ CARDS = {
     "pack_leader": CardSpec("Pack Leader", "summons use your crits and statuses; +1 of each",
                             (("pack_leader", "flag", 1),), needs=("summon",), tags=("summon",),
                             code="K04", **_CAP),
-    "juggernaut": CardSpec("Juggernaut", "+2% damage per armor; you can't dodge",
+    "juggernaut": CardSpec("Juggernaut", "+2% damage per armor; you can't evade",
                            (("juggernaut", "flag", 1),), needs=("stat:armor",), code="K05",
                            **_CAP),
     "phoenix": CardSpec("Phoenix", "once per run: rise again at 50% HP in a burst of fire",
                         (("phoenix", "add", 1),), code="K06", **dict(_CAP, unlock="A:level_30")),
+    # --- 6.10 Dodge roll (M18; the roll itself: systems/roll.py) ---
+    "quick_recovery": CardSpec("Quick Recovery", "rolls recharge {X}% faster",
+                               (("roll_cooldown", "add", "X"),), tiers=(8, 12, 16, 20, 25),
+                               max_stacks=_T, tags=("roll",), code="V01"),
+    "extra_roll": CardSpec("Extra Roll", "+1 roll charge", (("roll_charges", "add", 1),),
+                           rarity="rare", max_stacks=1, tags=("roll",), code="V02"),
+    "riposte": CardSpec("Riposte", "your first attack after a roll always crits",
+                        (("riposte", "flag", 1),), rarity="uncommon", max_stacks=1,
+                        tags=("roll",), code="V03"),
+    "slipstream": CardSpec("Slipstream", "+30% move speed for 2 s after a roll",
+                           (("slipstream", "flag", 1),), rarity="uncommon", max_stacks=1,
+                           tags=("roll",), code="V04"),
+    "close_call": CardSpec("Close Call", "each shot you roll through: 0.1 s off the cooldown",
+                           (("close_call", "flag", 1),), rarity="uncommon", max_stacks=1,
+                           tags=("roll",), code="V05"),
+    "scorched_trail": CardSpec("Scorched Trail", "rolls leave a trail of fire that burns",
+                               (("scorched_trail", "flag", 1), ("burn", "source", 1)),
+                               rarity="uncommon", max_stacks=1, tags=("roll", "fire"),
+                               code="V06"),
+    # One per hero: each hero's roll gets a trick of its own.
+    "blink": CardSpec("Blink", "your roll is a teleport ending in a shocking nova",
+                      (("blink", "flag", 1), ("shock", "source", 1)), rarity="uncommon",
+                      max_stacks=1, heroes=("wizard",), tags=("roll", "lightning"), code="W6"),
+    "shoulder_charge": CardSpec("Shoulder Charge", "rolling into enemies hits and knocks them back",
+                                (("shoulder_charge", "flag", 1),), rarity="uncommon",
+                                max_stacks=1, heroes=("dwarf",), tags=("roll", "physical"),
+                                code="D6"),
+    "backflip": CardSpec("Backflip", "rolling looses 5 arrows at your aim",
+                         (("backflip", "flag", 1),), rarity="uncommon", max_stacks=1,
+                         heroes=("huntress",), tags=("roll", "projectile"), code="H6"),
+    "prism_dash": CardSpec("Prism Dash", "rolls leave a rainbow: each patch a random status",
+                           (("prism_dash", "flag", 1),
+                            *((s, "source", 1) for s in PRISM_DASH_STATUSES)),
+                           rarity="uncommon", max_stacks=1, heroes=("princess",),
+                           tags=("roll",), code="P6"),
+    "drop_the_beat": CardSpec("Drop the Beat", "a free x1.5 beat as each roll ends",
+                              (("drop_the_beat", "flag", 1),), rarity="uncommon", max_stacks=1,
+                              heroes=("bard",), tags=("roll", "area"), code="B6"),
+}
+
+# Spells whose things last a while, so Lingering (+duration) does something
+# for them (statuses count too, see players/cards._gate_met).
+DURATION_SPELLS = ("poison_flask", "healing_totem", "bone_turret")
+
+# Archetypes (design/CARDS.md section 7), by catalog code: once a build holds
+# ARCHETYPE_MIN cards (copies count, spell levels too) of one archetype, its
+# leading archetype gets ARCHETYPE_SLOTS of every offer's slots (when it has
+# an eligible card). Ties go to the archetype listed first.
+ARCHETYPE_MIN = 2
+ARCHETYPE_SLOTS = 1
+ARCHETYPES = {
+    "crit": ("G06", "G07", "H4", "W4", "C05", "H3", "K01", "H5", "V03"),
+    "burn": ("T01", "S02", "S10", "P3", "T02", "G18", "T10", "T13", "K02", "V06"),
+    "poison": ("T03", "S06", "P3", "T04", "G18", "T10", "T14", "K02"),
+    "frost": ("T05", "S03", "B4", "P3", "T06", "G09", "T13"),
+    "shock": ("W3", "T07", "S07", "W1", "W2", "W4", "W5", "T14", "W6"),
+    "bleed": ("D4", "T08", "T09", "G18", "D5", "K02"),
+    "volley": ("G20", "D1", "H1", "P1", "X03", "R06", "C06", "G02", "P5", "D5", "H6"),
+    "sniper": ("D2", "H2", "C07", "H3", "G07", "G17", "H5"),
+    "area": ("R01", "S05", "R02", "G08", "B3", "X06", "B5", "W5", "B1", "B6"),
+    "summoner": ("S04", "S11", "S08", "G19", "G09", "K04"),
+    "tank": ("G10", "G03", "S12", "X02", "C03", "R03", "S09", "K05", "K03", "D6"),
+    "speed": ("G04", "G11", "C04", "C05", "C01", "K06", "V04"),
+    "sustain": ("G12", "G13", "R04", "S08", "B2", "R05", "K03"),
+    "greed": ("G15", "E01", "X05", "X06", "E03", "G14", "E02"),
+    "glass": ("X01", "C01", "C02", "S09", "K06"),
+    "roll": ("V01", "V02", "V03", "V04", "V05", "V06", "W6", "D6", "H6", "P6", "B6", "G11"),
 }
 
 # --- Loot and the Guild Hall (meta/guild.py, scenes/guild_hall.py) ----------------
@@ -1005,7 +1106,7 @@ HERO_UPGRADES = {
     "princess": {
         "coronation": UpgradeSpec("Coronation", "+1 color in the fan",
                                   (("pellets", "add", 1), ("spread", "add", 6)), **_BIG),
-        "royal_grace": UpgradeSpec("Royal Grace", "+3% dodge", (("dodge", "add", 0.03),),
+        "royal_grace": UpgradeSpec("Royal Grace", "+3% evasion", (("evasion", "add", 0.03),),
                                    **_LADDER),
         "bright_colors": UpgradeSpec("Bright Colors", "colors are 10% bigger",
                                      (("shot_size", "add", 0.1),), **_LADDER),
@@ -1060,7 +1161,7 @@ BESTIARY = {
     "spitter": (800, "Rooted; fires a ring of spores that turns each volley."),
     "boar": (1000, "Scrapes the ground, then charges in a line. Dodge: it stuns itself on walls."),
     # M17: filled in by beating the swamp's boss (or bought).
-    "psy_frog": (1500, "Five live in the frog hunter's bog. Keeps away, spits weaving globs."),
+    "psy_frog": (1500, "They hide out across the swamp. Keeps away, spits weaving globs."),
     "froggy": (5000, "Dives between pools, lashes its tongue, belly-flops. Hit it while it's dazed."),
 }
 
@@ -1341,12 +1442,15 @@ QUESTS = {
         goal="Psychedelic frogs {n}/{count}",
         lines=(
             ("offer", ("Oi! Adventurer! Over here!",
-                       "Five frogs in my bog went all funny colours.",
+                       "The frogs in my bog went all funny colours.",
                        "Glowing, hopping, spitting rainbows at me.",
-                       "Squash all five for me, will you?")),
+                       "Now they've hopped off all over the swamp!",
+                       "Squash five of 'em for me, will you?",
+                       "Get close and you'll spot the glow.")),
             ("progress", ("{left} more of them glowing frogs.",
-                          "They're out in the bog, behind my hut.")),
-            ("done", ("That's all five! But... hear that croak?",
+                          "They hopped off all over the swamp.",
+                          "Get close and you'll spot the glow.")),
+            ("done", ("That's five! But... hear that croak?",
                       "Something BIG woke up at the old pond.",
                       "I've marked it on your map. Go careful!")),
             ("fight", ("Froggy's awake! The old pond, quick!",)),
@@ -1371,6 +1475,23 @@ SPEECH_LINE_TIME = 2.6
 CAMP_BOG_RADII = (34, 15)
 CAMP_BORDER_GAP = 30
 CAMP_POOL_MIN = 0.58
+
+# A quest's targets (the psychedelic frogs) are scattered over the whole
+# biome (world/landmarks._scatter), not left at the camp: QUEST_SPOT_EXTRA
+# more than the quest needs (any `count` of them will do), at least
+# QUEST_SPOT_SEPARATION tiles apart (less if the biome is too small) and
+# QUEST_SPOT_CAMP_GAP from the giver, at least QUEST_SPOT_EDGE tiles inside
+# the biome, each in a mud clearing of radius QUEST_SPOT_CLEARING tiles.
+# Picked from QUEST_SPOT_CANDIDATES random points. (One screen: ~86 x 30.)
+QUEST_SPOT_EXTRA = 3
+QUEST_SPOT_SEPARATION = 350
+QUEST_SPOT_CAMP_GAP = 200
+QUEST_SPOT_EDGE = 16
+QUEST_SPOT_CLEARING = 4
+QUEST_SPOT_CANDIDATES = 400
+# A living target shows on the maps only within this many tiles of you
+# (the minimap then points the way in).
+QUEST_TARGET_PIN_RADIUS = 160
 
 # A boss lair: an oval arena LAIR_RADII tiles (half-width, half-height) --
 # one screen shows ~86 x 30 tiles, so 125 x 50 is about 3 x 3 screens (room
@@ -1404,7 +1525,7 @@ BOSSES = {
     "froggy": BossSpec(
         name="Froggy McFrogface",
         phases=(
-            BossPhase(1.0, (("fan", 3), ("tongue", 2), ("flop", 3)), rest=1.1),
+            BossPhase(1.0, (("fan", 3), ("stream", 3), ("tongue", 2), ("flop", 3)), rest=1.1),
             BossPhase(0.6, (("fan", 2), ("tongue", 2), ("flop", 2), ("spiral", 3), ("dive", 2),
                             ("summon", 1)), rest=0.9),
             BossPhase(0.25, (("tongue", 1), ("flop", 2), ("spiral", 2), ("dive", 2),
@@ -1419,6 +1540,7 @@ BOSSES = {
 FROGGY_HIT_RADIUS = 2.3         # tiles (its body is ~5 x 3 tiles)
 FROGGY_TELL = 0.55              # wind-up before the tadpoles / spirals / croak
 FROGGY_FAN = (7, 60.0, 3, 0.35)         # tadpoles per volley, fan degrees, volleys, gap s
+FROGGY_STREAM = (5, 0.22)               # bubbles in a stream, s between them
 FROGGY_TONGUE = (0.8, 16.0, 0.9, 14, 5.0)  # aim time, reach, width, damage, pull (tiles)
 FROGGY_FLOP = (1.0, 34.0, 4.0, 15, 16, 1.5)  # flight s, max leap, blast radius, damage,
                                             # ripples on landing, dazed s (the melee window)
@@ -1434,6 +1556,8 @@ FROGGY_SHOTS = {
     "tadpole": ShellSpec(speed=12.0, damage=9, max_range=34.0, damages_terrain=False,
                          look="tadpole", sound="orb"),
     "bubble": ShellSpec(speed=7.0, damage=8, max_range=30.0, damages_terrain=False,
+                        look="bubble", sound="fizzle"),
+    "stream": ShellSpec(speed=13.0, damage=8, max_range=34.0, damages_terrain=False,
                         look="bubble", sound="fizzle"),
     "ripple": ShellSpec(speed=8.0, damage=10, max_range=22.0, damages_terrain=False,
                         look="ripple", sound="fizzle"),

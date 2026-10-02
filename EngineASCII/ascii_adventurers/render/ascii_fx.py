@@ -228,6 +228,17 @@ def _frame(e: Effect) -> list:
                 for k, (dx, dy, _, _) in enumerate(_ring(12, r, "", c0, f * 0.2, 0.8))]
     if e.kind == "burrow":
         return [(0, 0, "." if p < 0.5 else ",", palette.BURROW_DUST[0 if p < 0.5 else 1])]
+    if e.kind == "roll_dust":
+        col = palette.ROLL_DUST[0 if p < 0.5 else 1]
+        return ([(-5, 0, "o", col), (5, 2, ".", col), (0, -3, ",", col)] if p < 0.5
+                else [(-7, 2, ".", col), (7, 0, ".", col)])
+    if e.kind == "blink":
+        r = max(0.6, e.size) * (0.3 + 0.7 * p)
+        col = palette.BLINK[min(1, int(p * 2))]
+        n = 10 if e.size <= 1.0 else 18
+        return [(math.cos(k * math.tau / n) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / n) * r * config.TILE_PX_H,
+                 "*" if k % 2 else "+", col) for k in range(n)]
     return []
 
 
@@ -273,8 +284,8 @@ def draw_effects(text: TextRenderer, camera: Camera, world, effects: list[Effect
             batch.put_c(x, y - 60 - 24 * e.progress, e.label,
                         palette.TOAST if e.progress < 0.75 else palette.TOAST_DIM)
             continue
-        if e.kind == "dodge":
-            batch.put_c(x, y - 20 - 20 * e.progress, "dodge", palette.DODGE)
+        if e.kind == "evade":
+            batch.put_c(x, y - 20 - 20 * e.progress, "evade", palette.EVADE)
             continue
         for dx, dy, glyph, color in _frame(e):
             batch.put_c(x + dx, y + dy, glyph, color)

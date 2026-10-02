@@ -4,7 +4,7 @@ A top-down ASCII adventure roguelike on one huge island, built on the
 narrative engine (`narrative_engine/`). Everything for the game lives in
 this folder.
 
-**Status:** Milestones 1-17 and "Adventurers" are done:
+**Status:** Milestones 1-18 and "Adventurers" are done:
 - keyboard walking, mouse aiming, a smooth scrolling camera;
 - shooting, spells and destructible terrain;
 - a seeded, chunk-streamed world with six biomes;
@@ -80,7 +80,7 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
 - cards 2.0 (M14), the first 48 cards of the catalog:
   - a stat layer: damage %, attack speed, crit chance (5% to start) and
     crit damage, area, duration, status damage and chance, spell
-    cooldown, armor, dodge, regen, lifesteal, move speed, pickup radius,
+    cooldown, armor, evasion (was "dodge"), regen, lifesteal, move speed, pickup radius,
     XP, luck. "+X% damage" cards add up; "xN damage" cards multiply;
   - five rarities (common, uncommon, rare, epic, legendary). Generic
     cards are tiered: the same card rolls a rarity and its number grows
@@ -133,7 +133,22 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   rare-or-better card offer, an achievement and two bestiary pages. The
   quest log sits under the HUD's top-left panel.
 
-Next up: the other four ring quests and bosses (M18), one at a time.
+- the dodge roll (M18): every hero rolls on **Shift** (gamepad **B** or
+  **LB**), about 4 tiles in a quarter second, toward where you walk (or
+  your aim when standing still). Nothing can hit you mid-roll, but walls
+  still stop you. One charge comes back every 5 s (the HUD's ROLL bar).
+  Eleven roll cards: Quick Recovery, Extra Roll, Riposte, Slipstream,
+  Close Call, Scorched Trail, and one per hero (wizard Blink, dwarf
+  Shoulder Charge, huntress Backflip, princess Prism Dash, bard Drop the
+  Beat). The old passive "dodge" stat is now **evasion**. Lingering only
+  comes up once something of yours lasts. Three "lasts longer" spell
+  levels became real ones (2 flasks, a chilling totem, piercing turret
+  bolts). Once your build has 2 cards of one archetype, one card of
+  every offer is from it (`design/CARDS.md` sections 6.10 and 14).
+
+Next up (agreed order): M19 multi-projectile overhaul, M20 the wizard's
+arcane missiles, then the other four ring quests and bosses, one at a
+time.
 
 ## Setup (once)
 
@@ -181,6 +196,7 @@ east out of the starting compound's gate to reach its shooting range.
 | Input          | Action                                                   |
 |----------------|----------------------------------------------------------|
 | WASD / Arrows  | walk (8 directions, same speed every way)                |
+| Shift          | dodge roll: untouchable for the roll, 5 s per charge (gamepad: B or LB) |
 | Left click     | attack (hold to keep attacking; the bard plays by himself) |
 | Mouse          | aim (true angle; the amber ring is the exact aim point, brackets mark the tile under it); you face the mouse |
 | E              | talk to a quest giver standing next to you (gamepad: A)  |
@@ -193,7 +209,8 @@ east out of the starting compound's gate to reach its shooting range.
 **Gamepad** (any pad SDL knows, e.g. Xbox, PlayStation, Switch Pro, Steam
 Deck): left stick walks, right stick aims (the reticle sits a few tiles out
 that way and stays when you let go), right trigger or right shoulder
-fires, Start pauses, Back opens the map (left stick pans, shoulders zoom).
+fires, B or the left shoulder rolls, Start pauses, Back opens the map
+(left stick pans, shoulders zoom).
 In menus the d-pad or left stick moves, A selects, B goes back. The game
 switches between mouse and stick aiming by whichever you touched last.
 

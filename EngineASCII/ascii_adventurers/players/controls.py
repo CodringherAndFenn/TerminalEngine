@@ -23,9 +23,10 @@ Sources:
 After a menu closes, `block_fire()` ignores a held trigger until it's let
 go, so the click that closed the menu doesn't fire.
 
-Card picks and "talk" (E / gamepad A) arrive as events; the scene queues
-them on the player's controls, and they ride along with the next step's
-input (queue_pick / queue_interact).
+Card picks, "talk" (E / gamepad A) and the dodge roll (Shift / gamepad B
+or LB) arrive as events; the scene queues them on the player's controls,
+and they ride along with the next step's input (queue_pick /
+queue_interact / queue_roll).
 """
 
 from __future__ import annotations
@@ -52,6 +53,7 @@ class PlayerInput:
     # "skip" or ("banish", index).
     pick: int | str | tuple | None = None
     interact: bool = False       # talk to whoever is near (E / gamepad A), this step
+    roll: bool = False           # dodge roll (Shift / gamepad B or LB), this step
 
 
 class Controls:
@@ -62,6 +64,7 @@ class Controls:
         self._fire_blocked = False
         self._pick: int | None = None
         self._interact = False
+        self._roll = False
 
     def queue_pick(self, action) -> None:
         """A card choice made in the picker (see PlayerInput.pick); handed
@@ -79,6 +82,14 @@ class Controls:
 
     def take_interact(self) -> bool:
         pressed, self._interact = self._interact, False
+        return pressed
+
+    def queue_roll(self) -> None:
+        """The roll key was pressed; handed over with the next step's input."""
+        self._roll = True
+
+    def take_roll(self) -> bool:
+        pressed, self._roll = self._roll, False
         return pressed
 
     def block_fire(self) -> None:

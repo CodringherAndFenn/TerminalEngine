@@ -11,11 +11,14 @@ Clock. The world advances in fixed steps of 1/SIM_HZ s (see config), as
 many per frame as real time calls for (at most MAX_STEPS_PER_FRAME):
 
   step:  every player's controls are read (walk / aim point / trigger /
-         card choice) -> heroes walk (box collision) -> effects age ->
+         card choice / roll) -> heroes roll or walk (box collision; roll
+         cards act along the way, systems/roll.py) -> effects age ->
          heroes aim and fire (enemies nearby hear it), their spells work ->
          awake enemies near any player think and act (chilled ones slower,
          frozen ones not at all) -> shots move and hit (terrain, heroes,
-         enemies; friendly fire on) -> statuses tick -> deaths (chain
+         enemies; friendly fire on; rolling heroes can't be hit, Close
+         Call counts the shots they rolled through) -> statuses tick ->
+         deaths (chain
          reactions; a player's kill drops an XP gem and is worth loot at
          once) -> gems fly to the
          heroes who pull them in (XP, level-ups) -> enemies wake near
@@ -42,8 +45,8 @@ by the Quests object inside the step; the HUD shows the quest log, a boss's
 health bar, and an arrow toward the boss when it's off screen.
 
 M opens the big map (ui/maps.py), ESC the pause menu (ui/overlays.py); both
-pause the game. Gamepads: Start pauses, Back opens the map, the sticks walk
-and aim, the right trigger fires. The run's stats (meta/run_stats.py) are
+pause the game. Shift dodge-rolls. Gamepads: Start pauses, Back opens the
+map, the sticks walk and aim, the right trigger fires, B or LB rolls. The run's stats (meta/run_stats.py) are
 kept per player; when every human player has fallen, or the run is
 abandoned or quit, the local player's are folded into the saved records
 once, and the game-over box shows them while the world keeps running.
@@ -63,7 +66,7 @@ from .. import config, palette
 from ..ai.brain import AIContext
 from ..app import app_of
 from ..engine_ext.camera import Camera
-from ..engine_ext.gamepads import BUTTON_A, BUTTON_LB, BUTTON_RB, EV_BUTTON
+from ..engine_ext.gamepads import BUTTON_A, BUTTON_B, BUTTON_LB, BUTTON_RB, EV_BUTTON
 from ..engine_ext.input import Mouse, move_axes
 from ..entities.character import Character
 from ..entities.effects import Effect, update_effects
@@ -81,7 +84,7 @@ from ..render.slash import draw_slashes
 from ..render.spell_fx import draw_gems, draw_spells, draw_statuses, draw_summons
 from ..render.sprites import SpriteBank
 from ..render.terrain import TerrainRenderer
-from ..systems import combat
+from ..systems import combat, roll
 from ..systems.quests import Quests, free_spot
 from ..systems.spawner import Spawner
 from ..systems.run_rules import RunRules, pact_totals
@@ -101,7 +104,7 @@ from ..world.rng import hash_coords
 from .common import app_events
 
 # Effects drawn under the characters (they belong to the ground).
-_GROUND_EFFECTS = ("tile_flash", "fizzle", "burrow")
+_GROUND_EFFECTS = ("tile_flash", "fizzle", "burrow", "roll_dust")
 # The game-over box appears this long after the last hero falls (the death
 # is seen first, and a click that was firing can't hit its buttons).
 _GAME_OVER_DELAY = 1.0
@@ -169,7 +172,7 @@ class GameScene(Scene):
         camera = Camera(d.cols, d.rows - config.HUD_ROWS, d.cell_w, d.cell_h)
         camera.center_on(sx, sy)
         seed = getattr(self.world, "seed", None)
-        hero.rng.seed(hash_coords(seed or 0, 0x5EED, index))   # crits, dodges: replayable
+        hero.rng.seed(hash_coords(seed or 0, 0x5EED, index))   # crits, evasions: replayable
         guild = self.app.guild
         meta = [] if ghost else guild.meta_steps(hero_key)
         if not ghost and self.pacts["hero_hp"]:                    # Pact of Glass
@@ -366,6 +369,9 @@ class GameScene(Scene):
         if not in_menu and event.type == EV_BUTTON and event.button == BUTTON_A:
             self.me.controls.queue_interact()     # talk (in play, A isn't a menu key)
             return
+        if not in_menu and event.type == EV_BUTTON and event.button in (BUTTON_B, BUTTON_LB):
+            self.me.controls.queue_roll()
+            return
         for ev in app_events(self.manager, event, menu=in_menu):
             self._handle(ev)
 
@@ -410,6 +416,8 @@ class GameScene(Scene):
                 self.view_index = (self.view_index + 1) % len(self.players)
             elif event.key == pygame.K_e:
                 self.me.controls.queue_interact()
+            elif event.key in (pygame.K_LSHIFT, pygame.K_RSHIFT):
+                self.me.controls.queue_roll()
             elif event.key == pygame.K_l and self.app.dev and self.me.alive:
                 self._dev_level_up()
             elif event.key in (pygame.K_F6, pygame.K_F7, pygame.K_F8) and self.app.dev:
@@ -496,6 +504,7 @@ class GameScene(Scene):
             if inp.pick is None:
                 inp.pick = p.controls.take_pick()
             inp.interact = inp.interact or p.controls.take_interact()
+            inp.roll = inp.roll or p.controls.take_roll()
             if p.ghost and p.progress.offer:
                 inp.pick = 0                  # bots take the first card
             if p.hero.stats is not None and p.hero.stats.has("hunters_mark"):
@@ -505,7 +514,10 @@ class GameScene(Scene):
             self.rules.tick(p, dt)
             if p.regen > 0 and not self.pacts["famine"]:
                 p.hero.heal(p.regen * dt)
+            roll.step(self, p, inp, dt)
+            rolling, x0, y0 = p.hero.rolling, p.hero.x, p.hero.y
             p.hero.move(inp.move_x, inp.move_y, dt, self.world)
+            roll.after_move(self, p, rolling, x0, y0)
             biome_at = getattr(self.world, "biome_at", None)
             biome = biome_at(math.floor(p.hero.x), math.floor(p.hero.y)).name if biome_at else None
             p.stats.tick(dt, p.hero.x, p.hero.y, p.hero.walked, biome)
@@ -556,6 +568,7 @@ class GameScene(Scene):
 
         sounds += combat.update_projectiles(self.projectiles, self.world, self.effects, dt,
                                             self._actors(), self.zones)
+        roll.close_calls(self.players, self.projectiles, dt)
         update_zones(self.zones, self._actors(), self.effects, dt)
         update_statuses(self.enemies, dt, self.effects)
         self.rules.resolve_combos()
@@ -564,9 +577,9 @@ class GameScene(Scene):
         for p, xp in update_gems(self.gems, self.players, dt):
             self._gain_xp(p, xp)
         for p in self.players:
-            if p.hero.dodged:
-                self.effects.append(Effect("dodge", p.hero.x, p.hero.y - p.hero.hit_radius))
-                p.hero.dodged = 0
+            if p.hero.evaded:
+                self.effects.append(Effect("evade", p.hero.x, p.hero.y - p.hero.hit_radius))
+                p.hero.evaded = 0
 
         for p in self.players:
             if not p.alive:
@@ -869,7 +882,7 @@ class GameScene(Scene):
         draw_projectiles(text, cam, self.projectiles)
         draw_effects(text, cam, self.world, air)
         others = [(p.hero.x, p.hero.y, p.color) for p in self.players if p is not me and p.alive]
-        pins = self.quests.pins()
+        pins = self.quests.pins((me.hero.x, me.hero.y))
         fight = self.quests.fight
         if fight is not None and fight.boss is not None and fight.boss.alive and not self.map_open:
             b = fight.boss
@@ -895,9 +908,11 @@ class GameScene(Scene):
                 xp_frac=me.progress.frac, kills=me.stats.total_kills, time=me.stats.time,
                 fps=self.fps if self.app.settings.show_fps else None,
                 spells=tuple((s.spec.short, s.level) for s in me.spells.values()),
-                loot=int(me.stats.loot), shield=me.hero.shield, boss=boss))
+                loot=int(me.stats.loot), shield=me.hero.shield, boss=boss,
+                roll=(me.hero.roll_charges, me.hero.stats.max_rolls if me.hero.stats else 1,
+                      roll.recharge_frac(me.hero))))
             if self.quests.states:
-                draw_quest_log(text, self.quests.log(), 5 if me.spells else 4)
+                draw_quest_log(text, self.quests.log(), 6 if me.spells else 5)
             if self.quests.banner is not None and self.overlay is None:
                 draw_banner(text, self.quests.banner)
             if talk_to is not None and self.overlay is None:

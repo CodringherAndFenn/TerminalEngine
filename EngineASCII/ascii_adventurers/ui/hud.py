@@ -5,8 +5,9 @@ No bar across the screen: the world fills it. What's always there sits in
 the corners, each on a small dark panel so it reads over any terrain:
 
   top-left     HP bar, level + XP bar, kills, loot found and the run's
-               clock, and
-               the hero's spells with their levels (once they have any)
+               clock, the dodge roll's recharge (and charges, with Extra
+               Roll), and the hero's spells with their levels (once they
+               have any)
   top-right    the minimap (ui/maps.py)
   top-centre   a boss's name and health, during a boss fight
   bottom-right FPS, when enabled in Settings
@@ -33,6 +34,7 @@ from ..meta.run_stats import format_time
 
 BAR = 24                 # HP / XP bar cells
 PANEL_W = BAR + 9        # "HP " + bar + " 100" + margins
+ROLL_BAR = BAR - 2       # "ROLL " + bar + " RDY"
 
 # Health bar color by fraction left.
 _HP_COLORS = ((0.6, palette.HUD_HP_GOOD), (0.3, palette.HUD_HP_WARN), (0.0, palette.HUD_HP_LOW))
@@ -51,6 +53,7 @@ class HudInfo:
     spells: tuple = ()           # (HUD label, level) of each spell the hero has
     loot: int = 0                # found this run
     shield: float = 0.0          # Ward Charm / Aegis: shown in blue after the HP
+    roll: tuple | None = None    # (charges ready, most charges, 0..1 toward the next)
 
 
 # The last top-left panel drawn: key -> image.
@@ -90,10 +93,16 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
         if info.shield > 0 and info.max_hp else 0
     xp_cells = round(max(0.0, min(1.0, info.xp_frac)) * BAR)
     clock = format_time(info.time)
-    rows = 4 if info.spells else 3
+    roll_row = 3 if info.roll is not None else None
+    roll_key = None
+    if info.roll is not None:
+        ready, most, frac = info.roll
+        roll_key = (ready, most, round(frac * ROLL_BAR) if ready < most else ROLL_BAR)
+    rows = 3 + (info.roll is not None) + bool(info.spells)
     area = pygame.Rect(0, 0, PANEL_W * d.cell_w, rows * d.cell_h)
     key = (id(text), d.cell_w, d.cell_h, hp_cells, hp_color, math.ceil(info.hp),
-           info.level, xp_cells, info.kills, clock, info.spells, info.loot, shield_cells)
+           info.level, xp_cells, info.kills, clock, info.spells, info.loot, shield_cells,
+           roll_key)
     if key == _cache["key"]:
         d.canvas.blit(_cache["image"], area)
         return
@@ -114,10 +123,27 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
     text.put(len(kills) + 3, 2, loot_glyph(text) + f" {info.loot}", palette.LOOT_TEXT,
              palette.HUD_PANEL)
     text.put(PANEL_W - 1 - len(clock), 2, clock, palette.HUD_VALUE, palette.HUD_PANEL)
+    if roll_key is not None:
+        _roll_meter(text, roll_row, *roll_key)
     if info.spells:
         line = "  ".join(f"{name} {level}" for name, level in info.spells)
-        text.put(1, 3, line[:PANEL_W - 2], palette.HUD_SPELL, palette.HUD_PANEL)
+        text.put(1, rows - 1, line[:PANEL_W - 2], palette.HUD_SPELL, palette.HUD_PANEL)
     _cache["key"], _cache["image"] = key, d.canvas.subsurface(area).copy()
+
+
+def _roll_meter(text: TextRenderer, row: int, ready: int, most: int, cells: int) -> None:
+    """ROLL, a thin bar filling toward the next charge (full and bright
+    when every charge is ready), then the charges as pips when there's
+    more than one."""
+    text.put(1, row, "ROLL", palette.HUD_LABEL, palette.HUD_PANEL)
+    col = palette.HUD_ROLL_READY if ready >= most else palette.HUD_ROLL
+    text.put(6, row, "▄" * cells, col, palette.HUD_PANEL)
+    text.put(6 + cells, row, "▄" * (ROLL_BAR - cells), palette.HUD_ROLL_EMPTY, palette.HUD_PANEL)
+    if most > 1:
+        pips = " ".join("█" * ready + "░" * (most - ready))
+        text.put(PANEL_W - 1 - len(pips), row, pips, palette.HUD_ROLL_READY, palette.HUD_PANEL)
+    elif ready >= most:
+        text.put(PANEL_W - 4, row, "RDY", palette.HUD_ROLL_READY, palette.HUD_PANEL)
 
 
 def draw_boss_bar(text: TextRenderer, name: str, frac: float) -> None:

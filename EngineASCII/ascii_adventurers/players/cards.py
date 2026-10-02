@@ -12,6 +12,12 @@ offer on the table, CARD_OFFER_SIZE different cards are drawn. Each slot:
      rarity it has a value for, a fixed card only at its own -- weighted
      x CARD_SYNERGY_WEIGHT if it shares a tag with the build. No card at
      that rarity: the nearest rarity below that has one (then above).
+Archetype lean (M18): once the build holds config.ARCHETYPE_MIN cards of
+one archetype (config.ARCHETYPES, the catalog's section 7), its leading
+archetype's cards get ARCHETYPE_SLOTS slots of each offer of their own --
+drawn first, the same way but only among that archetype's eligible cards,
+then shuffled in among the others -- so a build that has started down a
+path keeps seeing cards for it.
 Only cards the hero may take are drawn (eligible): unlocked (meta/guild),
 their hero / weapon kind, not maxed out or banished, their gate met (a status payoff needs a
 status source, a spell level-up needs the spell, a new spell needs a free
@@ -111,6 +117,8 @@ _BASE = HeroStats()
 def _gate_met(need: str, stats: HeroStats, tags: set[str], taken: Counter) -> bool:
     if need == "status":
         return bool(stats.sources)
+    if need == "duration":                    # Lingering: something that lasts
+        return bool(stats.sources) or any(k in stats.spells for k in config.DURATION_SPELLS)
     if need == "spell":
         return bool(stats.spells)
     if need == "element":
@@ -158,6 +166,22 @@ def eligible(hero_key: str, weapon: WeaponSpec, taken: Counter, stats: HeroStats
     return out
 
 
+_BY_CODE = {c.code: k for k, c in config.CARDS.items()}
+ARCHETYPE_CARDS = {name: frozenset(_BY_CODE[code] for code in codes)
+                   for name, codes in config.ARCHETYPES.items()}
+
+
+def leading_archetype(taken: Counter) -> str | None:
+    """The archetype the build leans to: the one it holds the most cards of
+    (copies and spell levels count), if that's at least ARCHETYPE_MIN."""
+    best, most = None, config.ARCHETYPE_MIN - 1
+    for name, keys in ARCHETYPE_CARDS.items():
+        n = sum(taken[k] for k in keys)
+        if n > most:
+            best, most = name, n
+    return best
+
+
 def rarity_weights(luck: float) -> list[float]:
     """CARD_RARITY_WEIGHT with luck applied: each rarity step above common
     multiplies the weight by (1 + LUCK_STEP * luck) once more."""
@@ -185,23 +209,40 @@ def draw_offer(hero_key: str, weapon: WeaponSpec, taken: Counter, seed: int,
                 if any(config.RARITIES.index(r) >= floor for r in rarities_of(config.CARDS[k]))]
     if size is None:
         size = config.CARD_OFFER_SIZE + round(stats.offer_size)
-    offer: list[tuple[str, str]] = []
-    while pool and len(offer) < size:
+
+    def draw(among: list[str]) -> tuple[str, str] | None:
         rolled = rng.choices(range(n_rar), weights)[0]
         # The rolled rarity, then lower ones, then higher ones.
         order = list(range(rolled, floor - 1, -1)) + list(range(rolled + 1, n_rar))
         for i in order:
             rarity = config.RARITIES[i]
-            cands = [k for k in pool if rarity in rarities_of(config.CARDS[k])]
+            cands = [k for k in among if rarity in rarities_of(config.CARDS[k])]
             if cands:
                 break
         else:
-            break
+            return None
         w = [config.CARD_SYNERGY_WEIGHT if tags & set(config.CARDS[k].tags) else 1.0
              for k in cands]
-        pick = rng.choices(cands, w)[0]
-        offer.append((pick, rarity))
-        pool.remove(pick)
+        return rng.choices(cands, w)[0], rarity
+
+    offer: list[tuple[str, str]] = []
+    lean = leading_archetype(taken)
+    if lean is not None:
+        for _ in range(min(config.ARCHETYPE_SLOTS, size)):
+            got = draw([k for k in pool if k in ARCHETYPE_CARDS[lean]])
+            if got is None:
+                break
+            offer.append(got)
+            pool.remove(got[0])
+    leaned = len(offer)
+    while pool and len(offer) < size:
+        got = draw(pool)
+        if got is None:
+            break
+        offer.append(got)
+        pool.remove(got[0])
+    if leaned:
+        rng.shuffle(offer)         # the archetype's card isn't always first
     return offer
 
 

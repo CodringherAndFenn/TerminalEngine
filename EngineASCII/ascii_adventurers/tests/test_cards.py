@@ -57,14 +57,14 @@ class CardDataTest(unittest.TestCase):
     def test_the_whole_catalog(self):
         """design/CARDS.md rev 2: 101 cards."""
         codes = [c.code for c in config.CARDS.values()]
-        self.assertEqual(len(codes), 101)
-        self.assertEqual(len(set(codes)), 101)
+        self.assertEqual(len(codes), 112)                   # + 11 dodge roll cards (M18)
+        self.assertEqual(len(set(codes)), 112)
         for prefix, n in (("G", 21), ("T", 14), ("S", 12), ("C", 8), ("X", 6), ("R", 6),
-                          ("E", 3), ("K", 6)):
+                          ("E", 3), ("K", 6), ("V", 6)):
             self.assertEqual(sum(c.startswith(prefix) for c in codes), n, prefix)
         for hero in config.HEROES:
             own = [k for k, c in config.CARDS.items() if c.heroes == (hero,)]
-            self.assertEqual(len(own), 5, hero)
+            self.assertEqual(len(own), 6, hero)
             capstone = [k for k in own if config.CARDS[k].rarity == "legendary"]
             self.assertEqual(len(capstone), 1, hero)
 
@@ -73,9 +73,9 @@ class CardDataTest(unittest.TestCase):
         or conditional numbers) belongs to one card."""
         seen = {}
         plain = {"damage", "attack_speed", "max_hp", "move", "range", "crit_chance",
-                 "crit_damage", "area", "duration", "armor", "dodge", "regen", "lifesteal",
+                 "crit_damage", "area", "duration", "armor", "evasion", "regen", "lifesteal",
                  "pickup", "xp", "luck", "pierce", "pellets", "status_power", "status_chance",
-                 "spell_cooldown", "loot", "shot_speed"}
+                 "spell_cooldown", "loot", "shot_speed", "roll_cooldown", "roll_charges"}
         for key, c in config.CARDS.items():
             for stat, op, val in c.mods:
                 if op == "add" and stat in plain and (val == "X" or val > 0):
@@ -232,7 +232,7 @@ class StatsTest(unittest.TestCase):
     def test_caps(self):
         st = stats_with(*[("nimble", "legendary")] * 10, *[("vampiric", "legendary")] * 10,
                         *[("swift_boots", "legendary")] * 10)
-        self.assertEqual(st.dodge, config.MAX_DODGE)
+        self.assertEqual(st.evasion, config.MAX_EVASION)
         self.assertEqual(st.lifesteal, config.MAX_LIFESTEAL)
         self.assertEqual(st.move, config.MAX_MOVE_BONUS)
 

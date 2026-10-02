@@ -5,6 +5,8 @@ systems/zones.py -- patches of ground that hurt enemies for a while.
            everything within `radius` every `every` s for `damage`.
   pool     Poison Flask: everything standing in it gets `stacks` of the
            zone's status every `every` s.
+  trail    a dodge roll's trail (Scorched Trail, Prism Dash; systems/roll.py):
+           works like a pool, a small one.
 
 A zone belongs to the hero who made it (damage and statuses are theirs,
 kill credit too) and is gone after `life` s. Part of the simulation step.

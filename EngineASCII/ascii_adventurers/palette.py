@@ -213,6 +213,10 @@ HUD_XP_EMPTY = (70, 58, 30)
 HUD_BOSS = (230, 70, 60)
 HUD_BOSS_EMPTY = (70, 30, 28)
 HUD_BOSS_NAME = (255, 150, 130)
+# The dodge roll's meter (M18): charging, all charges ready, empty.
+HUD_ROLL = (110, 170, 200)
+HUD_ROLL_READY = (170, 235, 255)
+HUD_ROLL_EMPTY = (30, 48, 58)
 LEVEL_UP = (255, 220, 110)          # "LEVEL UP!" over the hero
 
 # --- Cards (milestone 11) --------------------------------------------------------------
@@ -257,7 +261,13 @@ STATUS_PIP = {"burn": (255, 130, 40), "poison": (140, 230, 70), "bleed": (230, 4
               "chill": (140, 200, 255), "shock": (255, 240, 90)}
 FROZEN = ((200, 235, 255), (120, 180, 240))
 MARK = (255, 70, 60)
-DODGE = (190, 230, 255)
+EVADE = (190, 230, 255)
+# The dodge roll (M18): dust kicked up behind it (fresh, settling), Blink's
+# flash, and a trail patch's two shades per status (Scorched Trail, Prism Dash).
+ROLL_DUST = ((200, 190, 165), (130, 122, 105))
+BLINK = ((255, 250, 170), (170, 140, 255))
+TRAIL = {"burn": ((255, 150, 50), (200, 70, 30)), "chill": ((170, 220, 255), (100, 160, 230)),
+         "poison": ((150, 230, 80), (90, 160, 50)), "shock": ((255, 240, 100), (200, 170, 60))}
 # XP gems: small, medium, big (bright, dark).
 GEM = (((110, 190, 255), (60, 110, 200)), ((120, 240, 140), (60, 160, 80)),
        ((255, 110, 110), (190, 50, 60)))
@@ -333,6 +343,7 @@ MAP_TILE_BIOME.update({"lily pads": "swamp", "deck": "swamp", "hunter's post": "
 # Map pins (quest givers, lairs): (fill, edge).
 PIN_QUEST = ((255, 220, 90), (60, 40, 0))
 PIN_LAIR = ((255, 90, 70), (60, 10, 0))
+PIN_TARGET = ((225, 120, 255), (45, 10, 60))
 PIN_DONE = ((150, 150, 150), (40, 40, 40))
 # Quest log (ui/quest_log.py).
 QUEST_TITLE = (255, 220, 140)

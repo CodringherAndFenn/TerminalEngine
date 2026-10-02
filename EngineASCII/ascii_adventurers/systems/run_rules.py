@@ -8,7 +8,7 @@ hero's seeded dice, time from the hero's run clock).
 
   attack_mods   before an attack: cards that act on every Nth attack
                 (Overload, Volley, Quiver, Grand Finale, Syncopation, Echo)
-                or on timing (Capacitor, Opening Act);
+                or on timing (Capacitor, Opening Act, Riposte);
   tick          every step, per living player: run clock, shield refill,
                 Bloodlust / Frenzy timers, Retaliation, Echo's late attack;
   on_kill       a player's kill: Bloodlust, Frenzy, Soul Harvest, Bounty,
@@ -92,6 +92,9 @@ class RunRules:
             kw["mult"] *= 1 + st.capacitor
         if st.opening_act and hero.time < st.opening_act:
             kw["mult"] *= 2.0
+        if hero.riposte > 0:                       # Riposte: just rolled
+            kw["sure_crit"] = True
+            hero.riposte = 0.0
         if "echo" in flags and not echo and n % config.ECHO_EVERY == 0:
             p.echo_timer = config.ECHO_DELAY
         hero.idle = 0.0

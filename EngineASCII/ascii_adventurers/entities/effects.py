@@ -35,12 +35,15 @@ DURATIONS = {
     "levelup": 1.2,         # "LEVEL UP!" rising over a hero
     # Milestone 14
     "nova": 0.4,            # Frost Nova's ring
-    "dodge": 0.6,           # "dodge" over a hero who dodged a hit
+    "evade": 0.6,           # "evade" over a hero whose evasion made a hit miss
     # Milestone 15
     "loot": 0.55,           # a rune shard flying from a kill to the hero
     # Milestone 16
     "toast": 2.2,           # a line of text rising over a hero (achievements, revives)
     "rune_burst": 0.4,      # a Rune Trap going off
+    # Milestone 18: the dodge roll
+    "roll_dust": 0.35,      # dust kicked up behind a rolling hero
+    "blink": 0.3,           # Blink's flash, where the wizard left and arrived (size: radius)
 }
 
 

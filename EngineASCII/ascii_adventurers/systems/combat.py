@@ -62,20 +62,20 @@ def shot_origin(shooter: Character) -> tuple[float, float]:
 def attack(
     shooter: Character, world, projectiles: list[Projectile], effects: list[Effect],
     actors: list[Actor] = (), mult: float = 1.0, extra_chain: int = 0, extra_pellets: int = 0,
-    spread_add: float = 0.0, reach_mult: float = 1.0,
+    spread_add: float = 0.0, reach_mult: float = 1.0, sure_crit: bool = False,
 ) -> list[str]:
     """Use the shooter's weapon, whatever its kind (see specs.WeaponSpec).
     The keywords are one attack's changes (cards that work every Nth
-    attack, see scenes/game.py _attack_mods): x damage, + lightning jumps,
-    + projectiles over + degrees of fan, x pulse reach. Returns sound
-    events."""
+    attack, see systems/run_rules.attack_mods): x damage, + lightning
+    jumps, + projectiles over + degrees of fan, x pulse reach, and
+    whether its hits always crit (Riposte). Returns sound events."""
     kind = shooter.weapon.spec.kind
     if kind == "melee":
-        return swing(shooter, world, actors, effects, mult)
+        return swing(shooter, world, actors, effects, mult, sure_crit)
     if kind == "pulse":
-        return pulse(shooter, world, actors, effects, mult, reach_mult)
+        return pulse(shooter, world, actors, effects, mult, reach_mult, sure_crit)
     return fire(shooter, world, projectiles, effects, mult=mult, extra_chain=extra_chain,
-                extra_pellets=extra_pellets, spread_add=spread_add)
+                extra_pellets=extra_pellets, spread_add=spread_add, sure_crit=sure_crit)
 
 
 # --- Hero damage ---------------------------------------------------------------------
@@ -83,12 +83,13 @@ def attack(
 
 def strike(victim: Actor, base: float, source: Actor | None, angle: float | None,
            effects: list[Effect], tags=(), extra: float = 0.0, mult: float = 1.0,
-           on_hit: bool = True, can_crit: bool = True) -> float:
+           on_hit: bool = True, can_crit: bool = True, sure_crit: bool = False) -> float:
     """One hit of `base` damage on `victim`. From a hero (an actor with
     `stats`) it goes through the damage buckets and may crit and apply the
     hero's on-hit statuses; from anyone else it's plain damage. `extra`
     adds to bucket A (conditionals), `mult` is a per-hit "xN". Summons'
-    hits pass on_hit / can_crit False (unless Pack Leader). Returns the
+    hits pass on_hit / can_crit False (unless Pack Leader); `sure_crit`
+    makes a hit that may crit always crit (Riposte). Returns the
     damage dealt; whether it crit is left in source.last_crit."""
     stats = getattr(source, "stats", None)
     if stats is None:
@@ -102,7 +103,7 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
     st = victim.status
     if stats.has("shatter") and st is not None and st.frozen > 0:
         m *= config.SHATTER[0]
-    crit = can_crit and source.rng.random() < crit_chance(stats, source)
+    crit = can_crit and (sure_crit or source.rng.random() < crit_chance(stats, source))
     source.last_crit = crit
     amount = base * (1 + a) * (1 + stats.tag_bonus(tags)) * m
     if crit:
@@ -187,7 +188,7 @@ def fire(
     shooter: Character, world, projectiles: list[Projectile], effects: list[Effect],
     angle: float | None = None, damage: float | None = None,
     target: tuple[float, float] | None = None, mult: float = 1.0, extra_chain: int = 0,
-    extra_pellets: int = 0, spread_add: float = 0.0,
+    extra_pellets: int = 0, spread_add: float = 0.0, sure_crit: bool = False,
 ) -> list[str]:
     """Fire the shooter's weapon along its aim (or `angle`, for aim error).
     A weapon with several pellets fans them evenly over its spread, the
@@ -227,6 +228,7 @@ def fire(
         p.tags = spec.tags
         p.mult = mult
         p.extra_chain = extra_chain
+        p.sure_crit = sure_crit
         p.size = size
         p.group = group
         projectiles.append(p)
@@ -250,7 +252,7 @@ def _aim_offset(shooter: Character, x: float, y: float) -> float:
 
 
 def swing(shooter: Character, world, actors: list[Actor], effects: list[Effect],
-          mult: float = 1.0) -> list[str]:
+          mult: float = 1.0, sure_crit: bool = False) -> list[str]:
     """A melee sweep: everything whose body is within `reach` tiles and
     inside the arc in front of the aim is hit, and destructible terrain
     close in front is chopped."""
@@ -267,7 +269,8 @@ def swing(shooter: Character, world, actors: list[Actor], effects: list[Effect],
             continue
         if d > a.hit_radius and _aim_offset(shooter, a.x, a.y) > half:
             continue
-        strike(a, spec.damage, shooter, shooter.aim_angle, effects, spec.tags, mult=mult)
+        strike(a, spec.damage, shooter, shooter.aim_angle, effects, spec.tags, mult=mult,
+               sure_crit=sure_crit)
         effects.append(Effect("impact", a.x, a.y, shooter.aim_angle))
         events.append(HIT)
     # Chop what's right in front (trees, walls): tiles whose centre is in
@@ -288,7 +291,7 @@ def swing(shooter: Character, world, actors: list[Actor], effects: list[Effect],
 
 
 def pulse(shooter: Character, world, actors: list[Actor], effects: list[Effect],
-          mult: float = 1.0, reach_mult: float = 1.0) -> list[str]:
+          mult: float = 1.0, reach_mult: float = 1.0, sure_crit: bool = False) -> list[str]:
     """A burst all around: everything within `reach` tiles that isn't
     behind a wall is hit, and destructible terrain in reach is worn down at
     PULSE_TERRAIN_FACTOR of the damage. Cards: Dissonance (each one hit is
@@ -311,7 +314,8 @@ def pulse(shooter: Character, world, actors: list[Actor], effects: list[Effect],
         if first_hit(world.tile_at, shooter.x, shooter.y, a.x, a.y) is not None:
             continue
         angle = math.atan2(a.y - shooter.y, a.x - shooter.x)
-        strike(a, spec.damage, shooter, angle, effects, spec.tags, extra=extra, mult=mult)
+        strike(a, spec.damage, shooter, angle, effects, spec.tags, extra=extra, mult=mult,
+               sure_crit=sure_crit)
         hits += 1
         if dissonance and a.alive:
             inflict(a, "chill", shooter)
@@ -620,7 +624,7 @@ def _hit_actor(p: Projectile, victim: Actor, hx: float, hy: float, world,
             p.group[id(victim)] = seen + 1
     full = not p.summon or (stats is not None and stats.has("pack_leader"))
     strike(victim, p.damage, owner, p.angle, effects, p.tags, extra=extra, mult=p.mult,
-           on_hit=full, can_crit=full)
+           on_hit=full, can_crit=full, sure_crit=p.sure_crit)
     effects.append(Effect("impact", hx, hy, p.angle))
     if p.inflicts is not None and victim.alive:
         inflict(victim, p.inflicts[0], owner, p.inflicts[1])

@@ -19,18 +19,21 @@ on its own, every simulation step, around the hero:
   rune   (Rune Trap) every `interval` s a rune is left where the hero
          stands (at most `max`, each lasting `life` s); the first enemy to
          come within `trigger` sets it off: `damage` to all within `radius`.
-  flask  (Poison Flask) every `interval` s a flask is lobbed at the
-         nearest enemy within `reach`; `flight` s later it smashes into a
-         poison pool (systems/zones.py) for `life` s.
+  flask  (Poison Flask) every `interval` s `count` flasks are lobbed at
+         the nearest enemies within `reach` (extra ones land beside the
+         target when there are fewer enemies); `flight` s later each
+         smashes into a poison pool (systems/zones.py) for `life` s.
   cloud  (Storm Cloud) hangs over the hero; every `interval` s strikes
          `strikes` random enemies within `reach`: `damage` and shock.
   totem  (Healing Totem) planted every `interval` s; for `life` s it heals
-         every hero within `radius` by `heal` HP/s.
+         every hero within `radius` by `heal` HP/s, and (with `chill`)
+         chills every enemy there `chill` times every `chill_every` s.
   wand   (Fire Wand) every `interval` s a burning bolt flies at the
          nearest enemy in sight within `reach`.
   turret (Bone Turret) every `interval` s a turret is placed (at most
          `count` standing), shooting the nearest enemy in sight within
-         `reach` every `fire` s for `life` s.
+         `reach` every `fire` s for `life` s; its bolts pass through
+         `pierce` enemies.
   ward / thorns (Ward Charm, Thorn Mail) are passive: their numbers become
          the hero's shield / thorns stats (players/stats.py).
 
@@ -289,9 +292,19 @@ def _flask(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) 
     for f in s.things:
         f["t"] += dt
     if _due(hero, s, dt):
-        target = _nearest(hero, actors, p["reach"])
-        if target is not None:
-            s.things.append({"x0": hero.x, "y0": hero.y, "x1": target.x, "y1": target.y,
+        near = sorted((a for a in _near(hero, actors, p["reach"])
+                       if math.hypot(a.x - hero.x, a.y - hero.y) <= p["reach"]),
+                      key=lambda a: math.hypot(a.x - hero.x, a.y - hero.y))
+        for i in range(int(p["count"]) if near else 0):
+            if i < len(near):
+                tx, ty = near[i].x, near[i].y
+            else:
+                # More flasks than enemies: the rest land round the nearest,
+                # a pool's width away.
+                a = i * math.tau / int(p["count"])
+                off = p["radius"] * _area(hero)
+                tx, ty = near[0].x + math.cos(a) * off, near[0].y + math.sin(a) * off
+            s.things.append({"x0": hero.x, "y0": hero.y, "x1": tx, "y1": ty,
                              "t": 0.0, "flight": p["flight"]})
     for f in s.things:
         if f["t"] >= f["flight"]:
@@ -330,24 +343,34 @@ def _totem(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) 
     for t in s.things:
         t["age"] += dt
     if _due(hero, s, dt):
-        s.things.append({"x": hero.x, "y": hero.y, "age": 0.0})
+        s.things.append({"x": hero.x, "y": hero.y, "age": 0.0, "chill": 0.0})
     life = p["life"] * (hero.stats.duration_scale if hero.stats else 1.0)
     s.things = [t for t in s.things if t["age"] < life]
     radius = p["radius"] * _area(hero)
     for t in s.things:
+        chill = False
+        if p["chill"]:
+            t["chill"] -= dt
+            if t["chill"] <= 1e-9:
+                t["chill"] += p["chill_every"]
+                chill = True
         for a in actors:
-            if a.faction == "player" and a.alive \
-                    and math.hypot(a.x - t["x"], a.y - t["y"]) <= radius:
-                a.heal(p["heal"] * dt)
+            d = math.hypot(a.x - t["x"], a.y - t["y"])
+            if a.faction == "player":
+                if a.alive and d <= radius:
+                    a.heal(p["heal"] * dt)
+            elif chill and d <= radius + a.hit_radius and a.hittable and _may_hurt(hero, a):
+                inflict(a, "chill", hero, int(p["chill"]))
 
 
 def _shoot(hero, x: float, y: float, target, shell, damage: float, tags, effects,
-           projectiles, summon: bool = False, inflicts=None) -> None:
+           projectiles, summon: bool = False, inflicts=None, pierce: int = 0) -> None:
     angle = math.atan2(target.y - y, target.x - x)
     shot = Projectile(x, y, angle, shell, owner=hero, damage=damage)
     shot.tags = tags
     shot.summon = summon
     shot.inflicts = inflicts
+    shot.pierce_left += pierce
     projectiles.append(shot)
     effects.append(Effect("muzzle", x, y, angle))
 
@@ -387,7 +410,7 @@ def _turret(hero, s: SpellState, world, actors, effects, dt, projectiles, zones)
             continue
         t["fire"] = p["fire"]
         _shoot(hero, t["x"], t["y"], best, config.SPELL_SHELLS["turret"], p["damage"],
-               s.spec.tags, effects, projectiles, summon=True)
+               s.spec.tags, effects, projectiles, summon=True, pierce=int(p["pierce"]))
         events.append("bolt")
     return events
 

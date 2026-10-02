@@ -65,7 +65,9 @@ class HeroStats:
     # Defense
     max_hp: float = 0.0              # added to the body's
     armor: float = 0.0
-    dodge: float = 0.0
+    evasion: float = 0.0             # chance a hit misses outright (not the dodge roll)
+    roll_cooldown: float = 0.0       # fraction faster the dodge roll recharges (Quick Recovery)
+    roll_charges: float = 0.0        # extra roll charges (Extra Roll)
     regen: float = 0.0               # HP per second
     lifesteal: float = 0.0
     move: float = 0.0                # fraction
@@ -118,6 +120,15 @@ class HeroStats:
         return 1 - self.spell_cooldown
 
     @property
+    def roll_recharge(self) -> float:
+        """Seconds for a spent roll charge to come back."""
+        return config.ROLL_COOLDOWN * (1 - self.roll_cooldown)
+
+    @property
+    def max_rolls(self) -> int:
+        return config.ROLL_CHARGES + round(self.roll_charges)
+
+    @property
     def pickup_radius(self) -> float:
         return config.PICKUP_RADIUS * (1 + self.pickup)
 
@@ -137,12 +148,13 @@ class HeroStats:
             self.crit_damage += 2 * (self.crit_chance - 1.0)    # Overflow
         self.crit_chance = max(0.0, min(1.0, self.crit_chance))
         if self.has("juggernaut"):
-            self.dodge = 0.0
-        self.dodge = max(0.0, min(config.MAX_DODGE, self.dodge))
+            self.evasion = 0.0
+        self.evasion = max(0.0, min(config.MAX_EVASION, self.evasion))
         self.lifesteal = max(0.0, min(config.MAX_LIFESTEAL, self.lifesteal))
         self.move = max(-0.9, min(config.MAX_MOVE_BONUS, self.move))
         self.area = max(-0.9, min(config.MAX_AREA_BONUS, self.area))
         self.spell_cooldown = max(0.0, min(config.MAX_SPELL_COOLDOWN, self.spell_cooldown))
+        self.roll_cooldown = max(0.0, min(config.MAX_ROLL_COOLDOWN, self.roll_cooldown))
         self.status_chance = max(0.0, min(1.0, self.status_chance))
 
 
@@ -184,6 +196,8 @@ def apply_mods(stats: HeroStats, steps: list[tuple[str, str, float]]) -> HeroSta
         inflicts = params.get("inflicts")
         if inflicts:
             stats.sources.add(inflicts)
+        if params.get("chill"):                         # Healing Totem's chill level
+            stats.sources.add("chill")
         if key == "ward_charm":
             stats.shield += params["shield"]
         elif key == "thorn_mail":

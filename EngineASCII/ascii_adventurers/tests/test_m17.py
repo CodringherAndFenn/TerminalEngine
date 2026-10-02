@@ -105,6 +105,23 @@ class LandmarkTest(unittest.TestCase):
         for x, y in w.layout.landmark("frog_camp").spots:
             self.assertFalse(w.tile_at(math.floor(x), math.floor(y)).solid)
 
+    def test_frogs_are_scattered_over_the_swamp(self):
+        for seed in SEEDS:
+            w = world(seed)
+            camp = w.layout.landmark("frog_camp")
+            lair = w.layout.landmark("pond_lair")
+            spots = camp.spots
+            self.assertEqual(len(spots), config.QUESTS["swamp"].count + config.QUEST_SPOT_EXTRA,
+                             seed)
+            for x, y in spots:
+                self.assertEqual(w.layout.biome_at(x, y).name, "swamp", seed)
+                self.assertGreaterEqual(math.hypot(x - camp.cx, y - camp.cy),
+                                        config.QUEST_SPOT_CAMP_GAP, seed)
+                self.assertFalse(lair.contains(x, y), seed)
+            gaps = [math.hypot(a[0] - b[0], a[1] - b[1])
+                    for i, a in enumerate(spots) for b in spots[i + 1:]]
+            self.assertGreater(min(gaps), 150, seed)       # several screens apart
+
     def test_set_tile_survives_the_chunk_unloading(self):
         w = ChunkedWorld(31)
         gx, gy = w.layout.landmark("pond_lair").gate[0]
@@ -311,8 +328,12 @@ class QuestFlowTest(unittest.TestCase):
         self.assertEqual(st.stage, "hunt")
         self.assertEqual(st.npc.line, config.QUESTS["swamp"].say("offer")[0])
         bid = biomes.BY_NAME["swamp"].id
-        self.assertEqual(len(s.spawner.fixed), config.QUESTS["swamp"].count)
-        # The frogs appear (even on screen), and each one that dies counts.
+        self.assertEqual(len(s.spawner.fixed), len(st.camp.spots))
+        # No frog pins from the camp; next to one, its pin shows. It
+        # appears, and each one that dies counts.
+        self.assertNotIn("target", [k for _, _, k, _ in q.pins((s.hero.x, s.hero.y))])
+        teleport(s, *st.camp.spots[0])
+        self.assertIn("target", [k for _, _, k, _ in q.pins((s.hero.x, s.hero.y))])
         step(s)
         frogs = [e for e in s.enemies if getattr(e, "kind_key", "") == "psy_frog"]
         self.assertTrue(frogs)
@@ -322,7 +343,7 @@ class QuestFlowTest(unittest.TestCase):
         step(s)
         self.assertEqual(st.found, 1)
         self.assertEqual(s.spawner.fixed.keys(),
-                         {(QUEST_SID, bid, i, 0) for i in range(config.QUESTS["swamp"].count)})
+                         {(QUEST_SID, bid, i, 0) for i in range(len(st.camp.spots))})
         # The rest (dev shortcut, as F7), then the boss waits.
         self.assertTrue(q.dev_finish_hunt())
         self.assertEqual(st.stage, "awake")
@@ -364,11 +385,36 @@ class QuestFlowTest(unittest.TestCase):
         q.talk(st.npc, s.me)
         step(s, 2)
         frogs = [e for e in s.enemies if getattr(e, "kind_key", "") == "psy_frog"]
+        self.assertFalse(frogs)                          # none at the camp
+        teleport(s, *st.camp.spots[2])
+        step(s, 2)
+        frogs = [e for e in s.enemies if getattr(e, "kind_key", "") == "psy_frog"]
         self.assertTrue(frogs)
         frogs[0].hp = 0.0
         frogs[0].last_hit_by = None                      # infighting: nobody's kill
         step(s)
         self.assertEqual(st.found, 1)
+        # Its pin goes; the others stay (pins() with no viewer: all of them).
+        self.assertEqual([k for _, _, k, _ in q.pins()].count("target"),
+                         len(st.camp.spots) - 1)
+        x, y = st.camp.spots[2]
+        self.assertNotIn((x, y), [(px, py) for px, py, _, _ in q.pins((s.hero.x, s.hero.y))])
+
+    def test_spare_frogs_count_too(self):
+        m, s = game()
+        q = s.quests
+        st = q.states["swamp"]
+        q.talk(st.npc, s.me)
+        need = config.QUESTS["swamp"].count
+        bid = biomes.BY_NAME["swamp"].id
+        for i in reversed(range(len(st.camp.spots))):    # the extras first
+            if st.stage != "hunt":
+                break
+            frog = Dummy(*st.camp.spots[i])
+            frog.spawn_id = (QUEST_SID, bid, i, 0)
+            q.on_death(frog, None)
+        self.assertEqual(st.stage, "awake")
+        self.assertEqual(st.found, need)
 
     def test_talking_again_tells_you_how_many_are_left(self):
         m, s = game()

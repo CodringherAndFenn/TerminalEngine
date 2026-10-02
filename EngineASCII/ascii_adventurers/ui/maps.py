@@ -127,12 +127,13 @@ def draw_mate(bank: SpriteBank, color: tuple, x: float, y: float) -> None:
     bank.draw(bank.static(f"map_mate{color}", _paint_mate(color), 7), x, y)
 
 
-_PIN_COLORS = {"quest": palette.PIN_QUEST, "lair": palette.PIN_LAIR, "done": palette.PIN_DONE}
+_PIN_COLORS = {"quest": palette.PIN_QUEST, "lair": palette.PIN_LAIR,
+               "target": palette.PIN_TARGET, "done": palette.PIN_DONE}
 
 
 def _paint_pin(kind: str):
     """A map pin (M17): a diamond, gold for a quest giver, red for a boss's
-    lair, grey once done."""
+    lair, violet for a quest target, grey once done."""
     fill, edge = _PIN_COLORS[kind]
 
     def paint(surf, to_px):

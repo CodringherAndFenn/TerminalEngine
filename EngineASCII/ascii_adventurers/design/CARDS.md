@@ -1,6 +1,6 @@
 # AsciiAdventurers — Card Catalog
 
-Status: **rev 2, approved and BUILT in M16 (2026-10-01): all 101 cards.** Rev 1's first 48 cards were built in M14. Rev 2 applies the "no repeating upgrades" rule (section 0, enforced by a test); every change is listed in section 12, and section 13 notes the choices made while building.
+Status: **rev 2, approved and BUILT in M16 (2026-10-01): all 101 cards. M18 (2026-10-02) added the dodge roll and 11 roll cards (section 6.10, 112 in all), gated Lingering, replaced three spell levels and added the archetype lean (section 14).** Rev 1's first 48 cards were built in M14. Rev 2 applies the "no repeating upgrades" rule (section 0, enforced by a test); every change is listed in section 12, and section 13 notes the choices made while building.
 
 Based on `../../survivorlike_upgrade_design_guide.md` (section numbers below refer to it).
 
@@ -37,7 +37,7 @@ These stats are the "nouns" every card modifies. Base values are per hero unless
 | 🆕 spell cooldown % | +0% | −60% | |
 | max HP | 100 (dwarf 120) | — | |
 | 🆕 armor | 0 | reduction = a / (a + 40), so 40 armor = 50% | can go negative (more damage taken) |
-| 🆕 dodge | 0% | 60% | |
+| 🆕 evasion (was "dodge"; renamed in M18 for the dodge roll) | 0% | 60% | |
 | regen | 0 HP/s | — | |
 | lifesteal | 0% | 15% | |
 | 🆕 shield | 0 | — | absorbs hits; recharges after 4 s without being hit |
@@ -126,6 +126,7 @@ A spell card is an **enabler**. Its first pick grants the spell; picking it agai
   - every "×" multiplier is rare or higher.
 - **No dead offers:** the bard is never offered shot-speed cards, and burn payoffs never come without a fire source.
 - **Smart weighting** (light): cards that share a tag with something you own get ×1.5 weight.
+- **Archetype lean** (M18): once your build holds 2+ cards of one archetype (section 7; copies and spell levels count), 1 slot of every offer comes from that archetype's eligible cards. See section 14.
 - **Determinism:** offers stay seeded by (seed, player, offer number), as they are now.
 
 ## 6. Catalog (100 cards)
@@ -146,9 +147,9 @@ A spell card is an **enabler**. Its first pick grants the spell; picking it agai
 | G06 | Keen Eye | +X% crit chance | 3/5/7/10/14 | crit | start |
 | G07 | Brutal | +X% crit damage | 15/25/35/50/70 | crit, sniper | start |
 | G08 | Broad Strokes | +X% area | 8/12/17/23/30 | area, bard, aura | start |
-| G09 | Lingering | +X% duration | 10/15/22/30/40 | status, spells | start |
+| G09 | Lingering | +X% duration (M18: only once you have a status or Poison Flask / Healing Totem / Bone Turret) | 10/15/22/30/40 | status, spells | start |
 | G10 | Thick Hide | +X armor | 3/5/8/12/16 | tank | start |
-| G11 | Nimble | +X% dodge | 3/5/7/9/12 | speed, glass | start |
+| G11 | Nimble | +X% evasion | 3/5/7/9/12 | speed, glass | start |
 | G12 | Second Wind | +X HP/s | 0.4/0.7/1/1.5/2 | sustain, tank | start |
 | G13 | Vampiric | heal X% of damage dealt (uncommon+) | —/1/2/3/4 | sustain | start |
 | G14 | Magnet | +X% pickup radius | 20/30/45/60/80 | greed | start |
@@ -279,10 +280,30 @@ Level-ups for an owned spell are offered as "Ember Aura II" and so on, at the sp
 | K02 | Pandemic | on death, an enemy's statuses spread to 2 nearby enemies | all statuses | L:6000 |
 | K03 | Aegis | healing past full HP becomes shield (up to 50% max HP) | sustain, tank | L:6000 |
 | K04 | Pack Leader | summons use your crit and statuses; +1 wolf and +1 turret | summoner | L:6000 |
-| K05 | Juggernaut | +2% damage per armor; you can't dodge | tank | L:6000 |
+| K05 | Juggernaut | +2% damage per armor; you can't evade | tank | L:6000 |
 | K06 | Phoenix | once per run: on death, revive at 50% HP and explode | glass, all | A: reach level 30 |
 
-**Totals:** 21 + 25 + 14 + 12 + 8 + 6 + 6 + 3 + 6 = **101**. Of these, **66 are in the pool from the start** and **35 are unlockable** (32 with loot, 3 by achievement).
+**Totals:** 21 + 25 + 14 + 12 + 8 + 6 + 6 + 3 + 6 = **101**. Of these, **66 are in the pool from the start** and **35 are unlockable** (32 with loot, 3 by achievement). M18 adds the 11 cards of section 6.10, all in the pool from the start: **112**.
+
+### 6.10 Dodge roll (11, M18) — the roll itself is every hero's (Shift / pad B or LB)
+
+The roll: ~4 tiles in 0.25 s toward where you walk (your aim if standing still), untouchable the whole time (shots, blasts and bodies pass through), stopped by walls, 1 charge back every 5 s. Shown on the HUD as ROLL.
+
+| # | Card | Text | Rarity | Archetype |
+|---|---|---|---|---|
+| V01 | Quick Recovery ★ | rolls recharge X% faster (cap 60%) | 8/12/16/20/25 | roll |
+| V02 | Extra Roll | +1 roll charge (they come back one at a time) | rare | roll |
+| V03 | Riposte | the first attack within 1.5 s of a roll's start always crits | uncommon | roll, crit |
+| V04 | Slipstream | +30% move speed for 2 s after a roll | uncommon | roll, speed |
+| V05 | Close Call | each enemy shot you roll through takes 0.1 s off the cooldown | uncommon | roll |
+| V06 | Scorched Trail | rolls leave burning patches (one every 0.8 tiles, 2.5 s) | uncommon | roll, burn |
+| W6 | Blink (wizard) | the roll is a teleport (5 tiles, never through walls) ending in a shock nova (20, 2.5 tiles) | uncommon | roll, shock |
+| D6 | Shoulder Charge (dwarf) | enemies the roll runs into take 25 and are shoved 2.5 tiles along it | uncommon | roll, tank |
+| H6 | Backflip (huntress) | starting a roll looses 5 arrows (×0.6) in a 40° fan at your aim | uncommon | roll, volley |
+| P6 | Prism Dash (princess) | a trail like Scorched Trail, each patch a random burn / chill / poison / shock | uncommon | roll, statuses |
+| B6 | Drop the Beat (bard) | a free ×1.5 beat as each roll ends | uncommon | roll, area |
+
+Dropped from the M18 proposal (your call): Long Roll, Afterimage.
 
 ## 7. Archetype coverage (guide 7.2)
 
@@ -305,6 +326,9 @@ Each row should have an enabler, 2-4 payoffs, a capstone and overlap with at lea
 | Sustain | G12, G13, R04, S08 | B2, R05 | K03 | tank |
 | Greed | G15, E01, X05, X06 | E03, G14 | E02 | everything |
 | Glass cannon | X01, C01 | C02, S09 | K06 | crit, speed |
+| Roll (M18) | V01, V02, G11 | V03-V06, the hero rolls (W6 D6 H6 P6 B6) | — | speed, crit, burn |
+
+M18 also added V03 Riposte to Crit, V06 Scorched Trail to Burn, W6 to Shock, H6 to Volley, B6 to Area, D6 to Tank and V04 to Speed. `config.ARCHETYPES` holds this table as code lists.
 
 **Per-hero leanings:**
 - **wizard:** shock, crit, area (W5).
@@ -402,3 +426,13 @@ Unchanged on purpose: W1 Storm Caller (+1 jump) and W2 Conductor are the only ca
 - **Heavy Plate** caps a hit after armor, before the shield. **Thorn Mail** reflects flat + share of what got past the shield.
 - **Capstones** (and K cards) need level 15 and their gate: Overflow a crit card, Pandemic a status, Aegis some healing, Pack Leader a summon, Juggernaut armor.
 - **Achievements:** chain_reaction (15 kills within 1 s), crit_75 (75% crit chance in a build), level_30. They unlock Chain Reaction, Overflow and Phoenix.
+
+## 14. M18 changes (2026-10-02)
+
+- **"dodge" is now "evasion"** (the passive chance a hit misses): Nimble gives +X% evasion, Royal Grace +3% evasion, Juggernaut "you can't evade". The roll works with Juggernaut.
+- **Lingering** is only offered once something lasts: any status source, or Poison Flask, Healing Totem or Bone Turret (`config.DURATION_SPELLS`). Its place in everyone's pool went to the roll cards.
+- **Spell level-ups that were only "lasts longer"** (each was level III) are replaced. The old entries are kept as comments in `config.SPELLS`, and the `life` numbers still scale with duration:
+  - Poison Flask III: pools last 2 s longer → **throws 2 flasks at once** (at the 2 nearest enemies, or beside the only one);
+  - Healing Totem III: lasts 3 s longer → **also chills enemies near it** (1 stack a second; it counts as a chill source);
+  - Bone Turret III: turrets last 4 s longer → **bolts pierce +1 enemy**.
+- **Archetype lean:** the build's leading archetype is the one with the most cards taken (copies and spell levels count), once it reaches `ARCHETYPE_MIN` = 2. That archetype then gets `ARCHETYPE_SLOTS` = 1 slot of every offer. That slot is drawn first, the usual way (rarity roll, synergy weight) but only among that archetype's eligible cards, and then shuffled in among the others. Ties go to the archetype listed first in `config.ARCHETYPES`. A build without a lean draws exactly as before. Example: two Spirit Wolf picks mean every offer has a summoner card (Bone Turret, Healing Totem, Quickened, Lingering, Pack Leader, or a wolf level).

@@ -187,7 +187,7 @@ class CapstoneTest(unittest.TestCase):
         self.assertEqual(st.crit_chance, 1.0)
         self.assertAlmostEqual(st.crit_damage, config.BASE_CRIT_DAMAGE + 2 * (0.05 + 9 * 0.14 - 1))
         st = cards.hero_stats([("nimble", "legendary"), ("juggernaut", "legendary")])
-        self.assertEqual(st.dodge, 0.0)
+        self.assertEqual(st.evasion, 0.0)
 
     def test_aegis_overheal_becomes_shield(self):
         h = carded("bard", ("aegis", "legendary"))
