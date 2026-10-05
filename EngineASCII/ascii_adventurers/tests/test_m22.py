@@ -21,30 +21,22 @@ from ascii_adventurers.tests.test_m14 import carded
 from ascii_adventurers.tests.test_weapons import open_map
 from ascii_adventurers.world import tiles
 from ascii_adventurers.world.chunked import ChunkedWorld
-from ascii_adventurers.world.landmarks import pick_quests
+from ascii_adventurers.world.landmarks import quest_marks
 
 DT = 1 / 60
 
 
 class PoolTest(unittest.TestCase):
     def tearDown(self):
-        config.QUEST_OVERRIDE.pop("swamp", None)
+        config.QUEST_FOCUS = None
 
-    def test_the_seed_picks_one_quest_per_biome(self):
-        seen = {pick_quests(seed)["swamp"] for seed in range(40)}
-        self.assertEqual(seen, {"bad_trip", "leech_doctor", "smoke_keeper"})   # (M22.2)
-        self.assertEqual(pick_quests(7), pick_quests(7))
-
-    def test_override(self):
-        config.QUEST_OVERRIDE["swamp"] = "leech_doctor"
-        self.assertTrue(all(pick_quests(s)["swamp"] == "leech_doctor" for s in range(10)))
-
-    def test_only_the_picked_quest_is_built_in_its_skin(self):
-        config.QUEST_OVERRIDE["swamp"] = "leech_doctor"
+    def test_every_quest_is_built_in_its_skin(self):
+        # M22.5: all of the swamp's quests, every run (the seed no longer picks one).
         w = ChunkedWorld(31)
         names = {m.name for m in w.layout.landmarks if m.kind != "spot"}
-        self.assertEqual(names, {"LEECH DOCTOR", "THE BLOOD MIRE"})
-        lair = w.layout.landmark("pond_lair")
+        self.assertTrue({"LEECH DOCTOR", "THE BLOOD MIRE", "SMOKE KEEPER",
+                         "THE STAGNANT COURT"} <= names)
+        _, lair = quest_marks(w.layout, "leech_doctor")
         flat = [t for row in lair.rows for t in row if t is not None]
         self.assertIn(tiles.BLOOD_POOL, flat)
         self.assertNotIn(tiles.POND, flat)
@@ -53,7 +45,7 @@ class PoolTest(unittest.TestCase):
     def test_run_py_boss_flag(self):
         from ascii_adventurers.run import force_boss
         force_boss("leech_swarm")
-        self.assertEqual(config.QUEST_OVERRIDE["swamp"], "leech_doctor")
+        self.assertEqual(config.QUEST_FOCUS, "leech_doctor")
         with self.assertRaises(SystemExit):
             force_boss("nobody")
 
@@ -140,17 +132,17 @@ class SwarmTest(unittest.TestCase):
 
 class QuestTest(unittest.TestCase):
     def setUp(self):
-        config.QUEST_OVERRIDE["swamp"] = "leech_doctor"
+        config.QUEST_FOCUS = "leech_doctor"            # (the dev keys' quest)
 
     def tearDown(self):
-        config.QUEST_OVERRIDE.pop("swamp", None)
+        config.QUEST_FOCUS = None
         pygame.mouse.set_visible(True)
 
     def test_the_whole_fight(self):
         from ascii_adventurers.tests.test_m16 import game
         from ascii_adventurers.systems.quests import free_spot
         m, s = game("wizard", seed=31)
-        st = s.quests.states["swamp"]
+        st = s.quests.states["leech_doctor"]
         self.assertEqual(st.spec.boss, "leech_swarm")
         s.quests.dev_finish_hunt()
         lair = st.lair

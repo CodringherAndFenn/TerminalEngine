@@ -2,9 +2,9 @@
 world/landmarks.py -- fixed structures stamped into the island (M17).
 
 A landmark is a rectangle of hand-placed tiles laid over whatever the biome
-generated there: a quest giver's camp, a boss's lair. Each ring biome's
-quest for the run (pick_quests: one of the biome's pool in config.QUESTS)
-names a camp and a lair builder, its names on the map and a tile skin
+generated there: a quest giver's camp, a boss's lair. Every quest in
+config.QUESTS is in every run (M22.5: all of a biome's bosses exist at
+once). Each names a camp and a lair builder, its names on the map and a tile skin
 (SKINS: the leech doctor's quest reuses the frog hunter's and the pond's
 layouts in blood, the smoke keeper's gone stagnant); the run's landmarks
 are placed once per seed (IslandLayout.landmarks, built on first use) and
@@ -12,13 +12,17 @@ every chunk that overlaps one has its tiles replaced by the generator
 (world/generator.py), so they stream, persist and show on the maps like
 any other terrain.
 
-Placement is a pure function of the seed: the builder walks along the
-middle of the biome's slice (angles nudged either way, since slice borders
-bend) until its whole footprint, plus a margin, lies inside that biome.
-  * camps sit just past the plains border, so they're early, easy finds;
-  * lairs sit half way out across the ring.
+Placement is a pure function of the seed (M22.5): each lair, then each
+camp, goes at a random spot anywhere in its biome's slice of the ring where
+its whole footprint (plus a margin) lies inside that biome and it keeps
+QUEST_SITE_GAP tiles from every landmark placed before it (_random_site).
+So boss arenas and quest givers move from run to run. Then each quest's
+target spots are scattered over the biome (_scatter), clear of all of them.
 
-The swamp's two:
+Two layouts so far, each in a style per biome (CAMP_STYLES, LAIR_STYLES);
+the swamp's (the desert's, M23.1, are the same shapes in sand: a nomad
+tent by an oasis, and the Dung Pit -- sandstone walls, taller pillars,
+sand pits for pools):
   * the frog hunter's camp: a big bog (an oval of pools, reeds and lily
     pads, ringed by a walkable mud edge) with the hunter's hut on a deck
     at the edge facing the plains. He stands at his door. The quest's
@@ -66,6 +70,8 @@ class Landmark:
     spots: list = field(default_factory=list)  # camps: quest targets; lairs: pool centres
     gate: list = field(default_factory=list)   # lairs: the gap's tiles (sealed in a fight)
     radii: tuple[float, float] = (0.0, 0.0)    # lairs: the arena oval (inside the stones)
+    quest: str = ""              # the config.QUESTS key it was built for
+    floor: TileType | None = None  # lairs: the arena's ground (the gate reopens to it)
 
     @property
     def w(self) -> int:
@@ -134,62 +140,47 @@ def _fits_many(layout, biome_id: int, centres, hw: float, hh: float) -> np.ndarr
     return (layout.biome_ids(xs, ys, jitter=False) == biome_id).all(axis=(1, 2))
 
 
-def _fits(layout, biome_id: int, cx: float, cy: float, hw: float, hh: float) -> bool:
-    """The whole rectangle (centre, half-sizes in tiles) lies in the biome
-    (sampled on a grid ~8 tiles apart, smooth borders)."""
-    nx, ny = max(3, int(hw / 8) + 2), max(3, int(hh / 8) + 2)
-    xs = cx + np.linspace(-hw, hw, nx)[None, :]
-    ys = cy + np.linspace(-hh, hh, ny)[:, None]
-    return bool((layout.biome_ids(xs, ys, jitter=False) == biome_id).all())
+def _ring_radii(layout) -> tuple[float, float]:
+    """The ring's inner and outer radius, safely clear of the plains'
+    wobbly edge and the coast."""
+    r0 = layout.plains_radius * (1 + config.PLAINS_EDGE_AMPLITUDE) + config.BORDER_WOBBLE
+    r1 = layout.radius * (1 - config.COAST_AMPLITUDE)
+    return r0, r1
 
 
-def _find_site(layout, biome: str, radii, hw: float, hh: float, rng: random.Random,
-               ) -> tuple[float, float] | None:
-    """A centre for a hw x hh (half-size) footprint in `biome`: the first
-    radius in `radii` (tiles from the island centre) at the slice's middle
-    angle, or nudged either way, where it fits. Candidates are tested in
-    batches with one numpy call each (one at a time took most of a second
-    for a camp)."""
+def _random_site(layout, biome: str, hw: float, hh: float, rng: random.Random,
+                 avoid: list) -> tuple[int, int] | None:
+    """A random centre for a hw x hh (half-size) footprint anywhere in
+    `biome`'s slice of the ring: the footprint lies inside the biome, and
+    its rectangle keeps QUEST_SITE_GAP tiles from every landmark in `avoid`.
+    QUEST_SITE_TRIES random points (uniform by area: r = sqrt of a uniform
+    between the squared radii), tested in batches with one numpy call each;
+    the first that fits wins. None: nowhere fits."""
     mid = _slice_angle(layout, biome)
     if mid is None:
         return None
     biome_id = biomes.BY_NAME[biome].id
     span = math.tau / len(layout.ring)
-    nudges = [0.0]
-    for k in range(1, 9):
-        nudges += [k * span * 0.05, -k * span * 0.05]
-    jitter = rng.uniform(-0.08, 0.08) * span
-    cands = [(math.cos(mid + jitter + d) * r, math.sin(mid + jitter + d) * r)
-             for r in radii for d in nudges]
-    nx, ny = max(3, int(hw / 8) + 2), max(3, int(hh / 8) + 2)    # ~8 tiles apart
-    gx = np.linspace(-hw, hw, nx)[None, None, :]
-    gy = np.linspace(-hh, hh, ny)[None, :, None]
-    for i in range(0, len(cands), 96):
-        batch = np.array(cands[i:i + 96])
-        xs = batch[:, 0][:, None, None] + gx
-        ys = batch[:, 1][:, None, None] + gy
-        ok = (layout.biome_ids(xs, ys, jitter=False) == biome_id).all(axis=(1, 2))
+    r0, r1 = _ring_radii(layout)
+    gap = config.QUEST_SITE_GAP
+
+    def clear(x: float, y: float) -> bool:
+        return all(abs(x - (m.x0 + m.w / 2)) >= hw + m.w / 2 + gap
+                   or abs(y - (m.y0 + m.h / 2)) >= hh + m.h / 2 + gap for m in avoid)
+
+    cands = []
+    for _ in range(config.QUEST_SITE_TRIES):
+        a = mid + rng.uniform(-0.5, 0.5) * span
+        r = math.sqrt(rng.uniform(r0 * r0, r1 * r1))
+        x, y = round(math.cos(a) * r), round(math.sin(a) * r)
+        if clear(x, y):
+            cands.append((x, y))
+    for i in range(0, len(cands), 64):
+        batch = cands[i:i + 64]
+        ok = _fits_many(layout, biome_id, batch, hw, hh)
         if ok.any():
-            x, y = batch[int(np.argmax(ok))]
-            return round(x), round(y)
+            return batch[int(np.argmax(ok))]
     return None
-
-
-def pick_quests(seed: int) -> dict[str, str]:
-    """biome -> the key of this run's quest there (M22: each biome's pool of
-    quests in config.QUESTS; the seed picks one, config.QUEST_OVERRIDE may
-    force one)."""
-    pools: dict[str, list[str]] = {}
-    for key, q in config.QUESTS.items():
-        pools.setdefault(q.biome, []).append(key)
-    out = {}
-    for biome, keys in pools.items():
-        forced = config.QUEST_OVERRIDE.get(biome)
-        if forced in keys:
-            out[biome] = forced
-        else:
-            out[biome] = keys[hash_coords(seed, 0x9001, biomes.BY_NAME[biome].id) % len(keys)]
-    return out
 
 
 # Tile swaps that give a shared camp / lair layout a quest's own look.
@@ -209,22 +200,45 @@ def _skin(mark: Landmark | None, skin: str) -> None:
 
 
 def build_landmarks(layout) -> list[Landmark]:
-    """The camp and lair of this run's quest in each biome (pick_quests),
-    plus a small clearing at each of the quest's target spots (camp.spots)."""
-    out = []
-    for q in (config.QUESTS[k] for k in pick_quests(layout.seed).values()):
-        rng = random.Random(hash_coords(layout.seed, 0x1A4D, biomes.BY_NAME[q.biome].id))
-        camp, lair = (BUILDERS[key](layout, q, rng) for key in (q.camp, q.lair))
-        for mark in (camp, lair):
-            _skin(mark, q.skin)
-        out += [m for m in (camp, lair) if m is not None]
-        if camp is not None:
-            camp.spots = _scatter(layout, q, camp, lair, rng)
-            out += [_clearing(q.biome, x, y, brazier=q.kind == "light") for x, y in camp.spots]
+    """Every quest's camp and lair (M22.5: all of them, every run), plus a
+    small clearing at each of its target spots (camp.spots). The big lairs
+    are placed first (they're the hardest to fit), then the camps, then the
+    spots; nothing overlaps."""
+    out: list[Landmark] = []
+    quests = list(config.QUESTS.items())
+    rngs = {key: random.Random(hash_coords(layout.seed, 0x1A4D, i + 1))
+            for i, (key, _) in enumerate(quests)}
+    marks: dict[str, dict[str, Landmark | None]] = {}
+    for which in ("lair", "camp"):
+        for key, q in quests:
+            mark = BUILDERS[getattr(q, which)](layout, q, rngs[key], out)
+            if mark is not None:
+                mark.quest = key
+                _skin(mark, q.skin)
+                out.append(mark)
+            marks.setdefault(key, {})[which] = mark
+    spots: list[tuple[float, float]] = []
+    for key, q in quests:
+        camp, lair = marks[key]["camp"], marks[key]["lair"]
+        if camp is None:
+            continue
+        camp.spots = _scatter(layout, q, camp, out, spots, rngs[key])
+        spots += camp.spots
+        for x, y in camp.spots:
+            spot = _clearing(q.biome, x, y, brazier=q.kind == "light")
+            spot.quest = key
+            out.append(spot)
     return out
 
 
-def _scatter(layout, quest, camp, lair, rng: random.Random) -> list[tuple[float, float]]:
+def quest_marks(layout, quest: str) -> tuple[Landmark | None, Landmark | None]:
+    """(camp, lair) built for config.QUESTS[quest]."""
+    camp = next((m for m in layout.landmarks if m.quest == quest and m.kind == "camp"), None)
+    lair = next((m for m in layout.landmarks if m.quest == quest and m.kind == "lair"), None)
+    return camp, lair
+
+
+def _scatter(layout, quest, camp, marks, others, rng: random.Random) -> list[tuple[float, float]]:
     """Where a quest's targets live: quest.count + QUEST_SPOT_EXTRA spots
     spread over the whole of its biome, so finding enough means travelling
     it (any `count` of them finish the hunt).
@@ -232,15 +246,16 @@ def _scatter(layout, quest, camp, lair, rng: random.Random) -> list[tuple[float,
     QUEST_SPOT_CANDIDATES random points in the biome's slice of the ring
     (uniform by area: r = sqrt of a uniform between the squared radii) are
     kept if a QUEST_SPOT_EDGE-tile square round them is all that biome and
-    they're QUEST_SPOT_CAMP_GAP tiles from the camp and clear of the lair.
+    they're QUEST_SPOT_CAMP_GAP tiles from the camp, clear of every camp
+    and lair in `marks`, and QUEST_SPOT_OTHERS tiles from the other quests'
+    spots (`others`).
     Then, in random order, a point is taken if it's at least `sep` tiles
     from every one already taken; `sep` starts at QUEST_SPOT_SEPARATION and
     shrinks until there are enough (a small or oddly-shaped biome)."""
     biome_id = biomes.BY_NAME[quest.biome].id
     mid = _slice_angle(layout, quest.biome)
     span = math.tau / len(layout.ring)
-    r0 = layout.plains_radius * (1 + config.PLAINS_EDGE_AMPLITUDE) + config.BORDER_WOBBLE
-    r1 = layout.radius * (1 - config.COAST_AMPLITUDE)
+    r0, r1 = _ring_radii(layout)
     cands = []
     for _ in range(config.QUEST_SPOT_CANDIDATES):
         a = mid + rng.uniform(-0.5, 0.5) * span
@@ -250,8 +265,9 @@ def _scatter(layout, quest, camp, lair, rng: random.Random) -> list[tuple[float,
     ok = _fits_many(layout, biome_id, cands, e, e)
     cands = [c for c, good in zip(cands, ok) if good
              and math.hypot(c[0] - camp.cx, c[1] - camp.cy) >= config.QUEST_SPOT_CAMP_GAP
-             and not camp.contains(*c, e)
-             and (lair is None or not lair.contains(*c, e))]
+             and not any(m.contains(*c, e) for m in marks if m.kind != "spot")
+             and all(math.hypot(c[0] - x, c[1] - y) >= config.QUEST_SPOT_OTHERS
+                     for x, y in others)]
     sep = config.QUEST_SPOT_SEPARATION
     while True:
         spots = []
@@ -265,6 +281,10 @@ def _scatter(layout, quest, camp, lair, rng: random.Random) -> list[tuple[float,
         sep *= 0.8
 
 
+# The ground of a quest spot's clearing, per biome.
+CLEARING = {"swamp": tiles.MUD, "desert": tiles.SAND}
+
+
 def _clearing(biome: str, x: float, y: float, brazier: bool = False) -> Landmark:
     """A small round patch of open ground at a quest target's spot, so it
     never wakes up stuck in a mangrove or a wall. Only the circle is laid
@@ -272,36 +292,46 @@ def _clearing(biome: str, x: float, y: float, brazier: bool = False) -> Landmark
     quest's (M22.2) has a cold brazier in the middle."""
     r = config.QUEST_SPOT_CLEARING
     tx, ty = math.floor(x), math.floor(y)
-    rows = [[tiles.MUD if (i - r) ** 2 + (j - r) ** 2 <= r * r + r else None
+    ground = CLEARING.get(biome, tiles.MUD)
+    rows = [[ground if (i - r) ** 2 + (j - r) ** 2 <= r * r + r else None
              for i in range(2 * r + 1)] for j in range(2 * r + 1)]
     if brazier:
         rows[r][r] = tiles.BRAZIER
     return Landmark("quest_spot", "spot", biome, "", tx - r, ty - r, rows, cx=x, cy=y)
 
 
-# --- The frog hunter's camp -------------------------------------------------------------
+# --- Camps: the frog hunter's bog, the scarab collector's oasis -------------------------
+
+# A camp is an oval of water and plants with the giver's hut (or tent) on
+# the side facing the island's centre. Its style says which tiles: "ground"
+# (the walkable edge and floor), "pool" where the noise field is high or
+# within `core` of the middle (an oasis is one round pond), "pool_edge"
+# round it, "plants" where another noise is high, and the hut's "floor",
+# "wall", "post" (under the giver) and "rack" (two props).
+CAMP_STYLES = {
+    "frog_camp": dict(radii=config.CAMP_BOG_RADII, ground=tiles.MUD, pool=tiles.BOG,
+                      pool_edge=tiles.LILY_PADS, plants=tiles.REEDS, plant_min=0.62, core=0.0,
+                      floor=tiles.DECK, wall=tiles.PLANK_WALL, post=tiles.HUNTER_POST,
+                      rack=tiles.DRYING_RACK),
+    "oasis_camp": dict(radii=config.CAMP_OASIS_RADII, ground=tiles.SAND, pool=tiles.OASIS,
+                       pool_edge=tiles.SAND, plants=tiles.PALM, plant_min=0.7, core=0.35,
+                       floor=tiles.RUG, wall=tiles.TENT, post=tiles.NOMAD_POST,
+                       rack=tiles.STALL),
+}
 
 
-def _frog_camp(layout, quest, rng: random.Random) -> Landmark | None:
+def _camp(layout, quest, rng: random.Random, avoid: list, key: str) -> Landmark | None:
+    st = CAMP_STYLES[key]
     biome = quest.biome
-    bw, bh = config.CAMP_BOG_RADII
+    bw, bh = st["radii"]
     hut_w, hut_h = 20, 11                       # the deck the hut stands on
     reach_x = bw + hut_w + 4                    # the camp's half-size, whichever
     reach_y = bh + hut_h + 4                    # side of the bog the hut is on
     half = max(reach_x, reach_y)
-    start = layout.plains_radius * (1 - config.PLAINS_EDGE_AMPLITUDE) - config.BORDER_WOBBLE
-    radii = [start + k * 8 for k in range(int(layout.plains_radius * 1.2 / 8))]
-    # The first radius past the plains where the camp (and a margin) fits,
-    # then CAMP_BORDER_GAP tiles further in.
-    site = _find_site(layout, biome, radii, half + 6, half + 6, rng)
+    site = _random_site(layout, biome, half + 6, half + 6, rng, avoid)
     if site is None:
         return None
-    x, y = site
-    r = math.hypot(x, y)
-    k = (r + config.CAMP_BORDER_GAP) / max(r, 1.0)
-    bx, by = round(x * k), round(y * k)
-    if not _fits(layout, biomes.BY_NAME[biome].id, bx, by, half + 2, half + 2):
-        bx, by = x, y
+    bx, by = site
 
     # The hut goes on the side of the bog facing the island's centre.
     tx, ty = -bx, -by
@@ -337,22 +367,22 @@ def _frog_camp(layout, quest, rng: random.Random) -> Landmark | None:
             if e >= 1.0:
                 continue
             if e > 0.8:
-                rows[j][i] = tiles.MUD
-            elif pool[j, i] > config.CAMP_POOL_MIN:
-                rows[j][i] = tiles.BOG
+                rows[j][i] = st["ground"]
+            elif e < st["core"] or pool[j, i] > config.CAMP_POOL_MIN:
+                rows[j][i] = st["pool"]
             elif pool[j, i] > config.CAMP_POOL_MIN - 0.04:
-                rows[j][i] = tiles.LILY_PADS
-            elif reed[j, i] > 0.62:
-                rows[j][i] = tiles.REEDS
+                rows[j][i] = st["pool_edge"]
+            elif reed[j, i] > st["plant_min"]:
+                rows[j][i] = st["plants"]
             else:
-                rows[j][i] = tiles.MUD
+                rows[j][i] = st["ground"]
 
     # The hut: a deck, a plank hut with a doorway toward the plains, two
     # drying racks, and the hunter at his door.
     dx0, dy0 = hx - hut_w // 2, hy - hut_h // 2
     for j in range(hut_h):
         for i in range(hut_w):
-            rows[dy0 - y0 + j][dx0 - x0 + i] = tiles.DECK
+            rows[dy0 - y0 + j][dx0 - x0 + i] = st["floor"]
     wx0, wy0, ww, wh = dx0 + 5, dy0 + 2, 10, 6            # the hut's walls
     door = {"w": [(wx0, wy0 + 2), (wx0, wy0 + 3)], "e": [(wx0 + ww - 1, wy0 + 2),
                                                           (wx0 + ww - 1, wy0 + 3)],
@@ -362,29 +392,42 @@ def _frog_camp(layout, quest, rng: random.Random) -> Landmark | None:
         for i in range(ww):
             if i in (0, ww - 1) or j in (0, wh - 1):
                 if (wx0 + i, wy0 + j) not in door:
-                    rows[wy0 + j - y0][wx0 + i - x0] = tiles.PLANK_WALL
+                    rows[wy0 + j - y0][wx0 + i - x0] = st["wall"]
     out_x = {"w": -2, "e": 2, "n": 0, "s": 0}[side]
     out_y = {"w": 0, "e": 0, "n": -2, "s": 2}[side]
     npc_tx, npc_ty = door[0][0] + out_x, door[0][1] + out_y
-    rows[npc_ty - y0][npc_tx - x0] = tiles.HUNTER_POST
+    rows[npc_ty - y0][npc_tx - x0] = st["post"]
     for rx, ry in ((dx0 + 1, dy0 + 1), (dx0 + hut_w - 2, dy0 + hut_h - 2)):
-        rows[ry - y0][rx - x0] = tiles.DRYING_RACK
+        rows[ry - y0][rx - x0] = st["rack"]
 
-    return Landmark("frog_camp", "camp", biome, quest.camp_name or "CAMP", x0, y0, rows,
+    return Landmark(key, "camp", biome, quest.camp_name or "CAMP", x0, y0, rows,
                     cx=npc_tx + 0.5, cy=npc_ty + 0.5, npc=(npc_tx + 0.5, npc_ty + 0.5))
 
 
-# --- Froggy's pond ---------------------------------------------------------------------
+# --- Lairs: Froggy's pond, the Dung Pit -------------------------------------------------
+
+# A lair is an oval arena ringed by a "wall", its "floor" inside, with
+# "pools" (`spots`: the middle one is where the boss sleeps) edged by
+# "pool_edge" at random, `pillars` blocks of "pillar" (pillar_h tiles tall)
+# for cover, and "decor" scattered over the floor (looks only).
+LAIR_STYLES = {
+    "pond_lair": dict(floor=tiles.MUD, wall=tiles.LAIR_STONE, pool=tiles.POND,
+                      pool_edge=tiles.LILY_PADS, pillar=tiles.LAIR_STONE,
+                      pillars=config.LAIR_PILLARS, pillar_h=2, decor=tiles.REEDS),
+    "sand_lair": dict(floor=tiles.SAND, wall=tiles.SANDSTONE, pool=tiles.SAND_PIT,
+                      pool_edge=tiles.DUNE, pillar=tiles.SANDSTONE,
+                      pillars=config.SAND_LAIR_PILLARS, pillar_h=3, decor=tiles.DUNE),
+}
 
 
-def _pond_lair(layout, quest, rng: random.Random) -> Landmark | None:
+def _lair(layout, quest, rng: random.Random, avoid: list, key: str) -> Landmark | None:
+    st = LAIR_STYLES[key]
+    floor = st["floor"]
     biome = quest.biome
     a, b = config.LAIR_RADII
     t = config.LAIR_WALL
     margin = config.LAIR_MARGIN
-    mid_r = (layout.plains_radius + layout.radius) / 2
-    radii = [mid_r * f for f in (1.0, 0.92, 1.08, 0.85, 1.15, 0.78, 1.22)]
-    site = _find_site(layout, biome, radii, a + t + margin, b + t + margin, rng)
+    site = _random_site(layout, biome, a + t + margin, b + t + margin, rng, avoid)
     if site is None:
         return None
     cx, cy = site
@@ -398,9 +441,9 @@ def _pond_lair(layout, quest, rng: random.Random) -> Landmark | None:
     for j in range(H):
         for i in range(W):
             if inner[j, i] < 1.0:
-                rows[j][i] = tiles.MUD
+                rows[j][i] = floor
             elif outer[j, i] < 1.0:
-                rows[j][i] = tiles.LAIR_STONE
+                rows[j][i] = st["wall"]
 
     # The gate: the stones' gap facing the island's centre, and a mud
     # causeway out through the margin.
@@ -422,9 +465,9 @@ def _pond_lair(layout, quest, rng: random.Random) -> Landmark | None:
             along = px * tx_ + py * ty_
             out = px * nx_ + py * ny_
             if abs(along) <= half_gap and -1.0 <= out <= t + margin:
-                if rows[j][i] is tiles.LAIR_STONE:
+                if rows[j][i] is st["wall"]:
                     gate.append((i + x0, j + y0))
-                rows[j][i] = tiles.MUD
+                rows[j][i] = floor
 
     # Pools: one in the middle (the boss sleeps there), the others spread
     # in two staggered rows across the oval.
@@ -437,19 +480,19 @@ def _pond_lair(layout, quest, rng: random.Random) -> Landmark | None:
         for j in range(math.floor(py - ry - 2), math.ceil(py + ry + 2) + 1):
             for i in range(math.floor(px - rx - 2), math.ceil(px + rx + 2) + 1):
                 ii, jj = cx + i - x0, cy + j - y0
-                if not (0 <= jj < H and 0 <= ii < W) or rows[jj][ii] is not tiles.MUD:
+                if not (0 <= jj < H and 0 <= ii < W) or rows[jj][ii] is not floor:
                     continue
                 e = ((i + 0.5 - px) / rx) ** 2 + ((j + 0.5 - py) / ry) ** 2
                 if e < 1.0:
-                    rows[jj][ii] = tiles.POND
+                    rows[jj][ii] = st["pool"]
                 elif e < 1.6 and rng.random() < 0.55:
-                    rows[jj][ii] = tiles.LILY_PADS
+                    rows[jj][ii] = st["pool_edge"]
 
     # Pillars: 2 x 1 tile blocks of standing stone, spread over the floor
     # (rejection sampling: clear of pools, the gate path, and each other).
     pillars: list[tuple[float, float]] = []
     tries = 0
-    while len(pillars) < config.LAIR_PILLARS and tries < 4000:
+    while len(pillars) < st["pillars"] and tries < 4000:
         tries += 1
         u, v = rng.uniform(-0.88, 0.88), rng.uniform(-0.85, 0.85)
         if u * u + v * v > 0.8:
@@ -464,20 +507,25 @@ def _pond_lair(layout, quest, rng: random.Random) -> Landmark | None:
             continue
         pillars.append((px, py))
         for di in (0, 1, 2, 3):
-            for dj in (0, 1):
+            for dj in range(st["pillar_h"]):
                 ii, jj = cx + math.floor(px) + di - x0, cy + math.floor(py) + dj - y0
-                if rows[jj][ii] is tiles.MUD:
-                    rows[jj][ii] = tiles.LAIR_STONE
+                if rows[jj][ii] is floor:
+                    rows[jj][ii] = st["pillar"]
 
-    # Reeds scattered over the open mud (looks only: they don't block).
+    # Decor scattered over the open floor (reeds, dunes: looks only, they
+    # don't block).
     for j in range(H):
         for i in range(W):
-            if rows[j][i] is tiles.MUD and inner[j, i] < 0.97 and rng.random() < 0.035:
-                rows[j][i] = tiles.REEDS
+            if rows[j][i] is floor and inner[j, i] < 0.97 and rng.random() < 0.035:
+                rows[j][i] = st["decor"]
 
     spots = [(cx + px, cy + py) for px, py, _, _ in pools]
-    return Landmark("pond_lair", "lair", biome, quest.lair_name or "LAIR", x0, y0, rows,
-                    cx=cx, cy=cy, spots=spots, gate=gate, radii=(float(a), float(b)))
+    return Landmark(key, "lair", biome, quest.lair_name or "LAIR", x0, y0, rows,
+                    cx=cx, cy=cy, spots=spots, gate=gate, radii=(float(a), float(b)),
+                    floor=floor)
 
 
-BUILDERS = {"frog_camp": _frog_camp, "pond_lair": _pond_lair}
+BUILDERS = {key: (lambda layout, q, rng, avoid, key=key: _camp(layout, q, rng, avoid, key))
+            for key in CAMP_STYLES}
+BUILDERS.update({key: (lambda layout, q, rng, avoid, key=key: _lair(layout, q, rng, avoid, key))
+                 for key in LAIR_STYLES})

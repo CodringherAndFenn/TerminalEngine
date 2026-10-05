@@ -1,13 +1,16 @@
 # AsciiAdventurers — Quests, Bosses and Landmarks
 
-Status: **rev 1 — the framework and the swamp are BUILT in M17 (2026-10-01).** Rev 1 applies the user's answers to the rev 0 questions (section 9). What M17 built, and where it differs from the draft below, is in section 10. The user decides every boss; this doc holds the shared rules, the vocabulary to build bosses from (like the card archetypes in CARDS.md), and the first quest + boss to prove the framework. Open questions are in section 9. **2026-10-02:** the user set the boss roster (section 11, three per ring biome) and the roadmap was redone (section 8).
+Status: **rev 1 — the framework and the swamp are BUILT in M17 (2026-10-01).** Rev 1 applies the user's answers to the rev 0 questions (section 9). What M17 built, and where it differs from the draft below, is in section 10. The user decides every boss; this doc holds the shared rules, the vocabulary to build bosses from (like the card archetypes in CARDS.md), and the first quest + boss to prove the framework. Open questions are in section 9. **2026-10-02:** the user set the boss roster (section 11, three per ring biome) and the roadmap was redone (section 8). **2026-10-05:** every boss now exists in every run, in an arena at a random spot in its biome, and any boss can be started without its NPC (section 1, M22.5 in section 8). This replaces "one boss per biome per run".
 
 ---
 
 ## 1. Run structure (what quests are for)
 
-1. Each run draws **one quest per ring biome** from that biome's quest list. Finishing it **summons that biome's boss**. Since 2026-10-02 each ring biome has **three bosses** (section 11), and the run's seed picks one of them, together with the quest that leads to it.
-2. Beating all 5 ring bosses unlocks the **plains boss**.
+1. **Every boss exists in every run (user, 2026-10-05).** Each ring biome has three bosses (section 11), and **all three** are in it every run, each in its own arena (lair). The seed places each arena **at a random spot in its biome**, so boss locations change from run to run. (Until 2026-10-05 the seed picked one boss per biome per run; that's retired.)
+   - **Quests are hidden (user, 2026-10-05).** Nothing is pinned or listed until a boss wakes: not the givers' camps (they're anywhere in the biome too), not the arenas, not the quests.
+   - **NPCs still give the quests, as hints.** Talking to a giver tells you what to do (speech lines) and *takes* the quest: it gets a small counter on the HUD (`SWAMP Frogs 2/5`; the HUD can be hidden from the settings later), and its targets get a pin once you're near one. The arena is still only pinned when the boss wakes.
+   - **Freedom: the NPC is optional.** Players who find the quest targets themselves and complete the quest (kill the frogs, light the braziers...) trigger the boss without ever talking to its giver. The boss wakes at its arena as usual. Walking into an arena whose boss isn't awake yet does nothing special; the quest is the key, and the NPC is just the guide to it.
+2. Beating **one boss in each of the 5 ring biomes** unlocks the **plains boss** (user, 2026-10-05). The other bosses are optional: extra loot, card offers and their own achievements. The Glory quest line counts biomes, e.g. `Defeat a guardian in each land (2/5)`, and a biome counts once whichever of its bosses falls.
 3. The plains boss drops **Adventurer's Glory** — the main quest, "Gain Adventurer's Glory". Holding it, the player **may end the run** (a victory) or keep going.
 4. Later: the plains boss also grants water movement → 4 cardinal ocean regions → cardinal bosses → kill order picks the final boss (unchanged from the vision).
 
@@ -39,15 +42,16 @@ Strength is budgeted with the numbers in section 5.4, not by feel, so tiers stay
 ### 3.2 Quest rules
 
 - **No ambush targets** (standing rule): quest enemies must be visible and shootable from range, like every other enemy.
-- **Quests come from NPCs.** The biome quest starts when you talk to its quest giver; until then the boss can't be summoned.
-- **Quest givers are pinned on the map from the run start** (minimap edge arrow + big map icon), so players never wander looking for them. Their quest area sits next to them.
-- Quest targets are **findable**: they live in the landmark's area, and the HUD shows progress (`Frogs 2/5`). A future Archivist "Charts" shelf could reveal more (e.g. the targets themselves).
+- **Quests are hidden, and the NPC is optional (user, 2026-10-05; built in M22.5).** Every quest's targets are out from the start of the run and every kill or brazier counts, quest taken or not, silently. Finishing a quest wakes its boss: "SOMETHING STIRS..." and the arena is pinned. Talking to the giver takes the quest: their lines explain it, the HUD shows its counter, and its targets are pinned once you're within QUEST_TARGET_PIN_RADIUS of one.
+- **Nothing is pinned from the start** (M22.5): givers' camps and arenas sit at random spots in their biome and are found by exploring (the minimap shows them once seen). An arena gets its pin when its boss wakes.
+- Quest targets are **findable**: they're scattered over the biome, each in a clearing. A future Archivist "Charts" shelf could reveal more (e.g. the targets themselves).
 - Progress is **per run** and shared by all players in co-op.
 - When a quest completes, the boss is summoned **at its lair** (a landmark), not on top of the player — the player chooses when to walk in.
 
 ### 3.3 Quest log
 
-- A small HUD line per active quest, plus a quest page on the big map (M key).
+- The HUD shows the main quest (GLORY) and a small counter for each quest taken from a giver, until its boss falls (M22.5). Quests nobody took never show. The big map shows the same list.
+- Later: a **journal** in the Guild hall lists the quests you've completed (user, 2026-10-05; its own milestone, after M22.5).
 - Main quest "Gain Adventurer's Glory" is always listed: `Defeat the 5 guardians (1/5)` → `Defeat the plains boss` → `Glory obtained — end the run at any time`.
 
 ## 4. Landmarks (fixed structures in the biomes)
@@ -97,7 +101,7 @@ Same idea as the card archetypes: a fixed list of building blocks, so each boss 
 
 ### 5.3 Rules every boss follows
 
-1. **Everything is telegraphed** (wind-up glyph, aim line, landing circle, sound) at least ~0.5 s ahead. Damage you couldn't see coming is a bug.
+1. **Everything is telegraphed** (wind-up glyph, aim line, landing circle, sound) at least ~0.5 s ahead in the first phase. Later phases shorten tells (5.6), never under 0.3 s. Damage you couldn't see coming is a bug.
 2. **Readable in ASCII**: boss shots use their own glyphs and colours that never match enemy or player shots. Screen effects (like "psychedelic") never hide the player or the bullets.
 3. **One signature mechanic** per boss that no other boss uses as its centrepiece.
 4. **2–3 phases** at HP thresholds; each phase adds or swaps one pattern instead of only speeding up.
@@ -122,6 +126,34 @@ Same idea as the card archetypes: a fixed list of building blocks, so each boss 
 | Phases | 2–3 | 3–4 |
 
 Boss HP is set from the time-to-kill target using the measured DPS of an average build at the level you usually reach the boss (dev-mode tool to measure it). All five ring bosses use the same budget row.
+
+### 5.6 Shared difficulty rules (2026-10-05)
+
+The user found the swamp bosses too easy. These rules apply to every boss (`ai/bosses.Boss`; numbers in `config.BOSS_*`):
+
+- **Predictive aim** (`Boss.lead` / `Boss.aim`). Some shots and lunges aim where the target will be if it keeps moving: ahead by the shot's flight time, or by the move's wind-up, × `BOSS_LEAD` (0.85), at most `BOSS_LEAD_MAX` tiles. Each move mixes these with shots aimed straight at you, so neither circle-strafing nor standing still dodges everything; changing direction does. Moves that lead:
+  - fans: volleys 2+ (Froggy's tadpoles, Proboscia's needles);
+  - Froggy's stream: every other bubble;
+  - Froggy's tongue and flop landing;
+  - the leech surge line;
+  - Proboscia's bite dive.
+- **Combos** (`BOSS_COMBO`, per phase: chance, most extra moves). From phase 2, after a move the boss may start the next one `BOSS_COMBO_GAP` s later instead of resting. The first move's shots are still flying, and the next move's tell still shows. The phase's rest comes after the combo (rule 5 still holds). Phase 2: 45%, at most 1 extra move; phase 3: 65%, at most 2.
+- **Faster pace by phase**: tells × `BOSS_TELL_SCALE` (1 / 0.85 / 0.7), never under `BOSS_MIN_TELL` (0.3 s); rests × `BOSS_REST_SCALE` (1 / 0.85 / 0.7).
+- **Global knobs**: `BOSS_HP_MULT` (1.0) and `BOSS_DMG_MULT` (1.2) multiply every boss's health and damage, on top of the level and co-op scaling.
+
+Also on 2026-10-05:
+- Lady Proboscia is bigger: sprite ×2.2 (was 1.3), hit radius 3.0 (was 1.9), bite width 1.8, hovering 13 tiles away.
+- The Leech Swarm has 120 leeches (was 40). They crawl over each other: no separation, just a small wander round each goal.
+
+**Measured** (headless wizard bot that never dies, circle-strafing, seeds 31/7/12, old → new). The bot is weaker than the one in sections 12–13, so compare the two columns, not the earlier numbers:
+
+| Boss | Fight time | Damage taken per min |
+|---|---|---|
+| Froggy | 1:52 / 2:00 / 2:19 → 1:55 / 2:15 / 2:09 | 233 / 230 / 318 → 411 / 236 / 332 |
+| Leech Swarm | 3:04 / 2:48 / 3:03 → 3:20 / 3:18 / 3:19 | 231 / 234 / 305 → 410 / 413 / 421 |
+| Lady Proboscia | 4:02 / 3:25 / 3:03 → 2:56 / 5:23 / 3:31 | 130 / 168 / 176 → 435 / 383 / 342 |
+
+Proboscia's fights get longer when her bites land, because every bite heals her (`PROBOSCIA_DRINK`). HP numbers are unchanged.
 
 ### 5.5 Framework pieces (code)
 
@@ -179,11 +211,15 @@ Suggested angles only (to keep playstyles different — change freely):
 | M21 (built) | **Haunted forest** replaces the bushy forest (section 7) |
 | M22 (built) | Boss pools (the seed picks one quest per biome per run; `run.py --boss KEY` forces one) + the swamp's **Leech Swarm** (section 12). Hidden names (Mycelium) need nothing extra: a boss shows its spec's name, so the three Mycelium variants simply share it |
 | M22.2 (built) | Swamp: **Lady Proboscia**, the mosquito, and the smoke keeper's "light" quest (section 13) |
-| M23.1-3 | Desert: **beetle**, **spitting camel**, **nomad sand wizard** |
+| M22.5 (built) | **Every boss in every run** (section 14). All three swamp quests exist at once, their camps and arenas at random spots in the swamp; the quests are hidden, finishable without their giver; several fights at once; one guardian per biome counts |
+| M22.6 (built) | **Guild hall journal**: the archivist's fifth shelf lists every quest whose boss you've beaten (story, boss, wins, fastest fight, heroes), `???` for the rest (`GUILD.md` 4.4b) |
+| M23.1 (built) | Desert: **Khepri the Dung Emperor**, the beetle, and the scarab collector's golden scarab hunt; the desert's camp (oasis tent) and arena (the Dung Pit) (section 15) |
+| M23.2-3 | Desert: **spitting camel**, **nomad sand wizard** |
 | M24.1-3 | Ruins: **radioactive monster**, **ice wizard**, **vampire girl** |
 | M25.1-3 | Forest: **corrupted pixie**, **mad murderer squirrel**, **mimic tree** |
 | M26.1-3 | Mushroom: **Mycelium** (three variants: amanita muscaria + two more) |
 | M27 | Plains boss (not designed yet) + Adventurer's Glory + "end run" victory (+ water movement) |
+| M28 | **Art handoff spec** (user, 2026-10-05; much later, after the content is in). A document with the exact pixel-art specs, so the user can draw their own models for chosen things (arenas, bosses, enemies, heroes, NPCs, tiles) and drop them in. It covers: the grid and tile size (a tile is 20×24 px, 2 text cells of 10×24); canvas sizes per thing (body sizes like Froggy's ~5×3 tiles, a leech's 14 px); top-down vs. the 3/4 view; which things rotate (baked by angle, drawn facing +x) and which use frames (walk, wind-up, hurt flash, dazed/engorged states); frame counts; the palette and the reserved colors (telegraph red, hit flash); transparency; file format and folder layout (PNG under `assets/`); and how arenas are made (the tile map text format like `guild_hall.txt`, or a picture). Plus a loader that uses a provided PNG when there is one and the procedural painter otherwise, so art can arrive one piece at a time |
 | later | NPC side quests, cardinal regions + tier III bosses, kill order + finals, co-op, balance |
 
 Each boss is still drafted first and reviewed before it's built, one at a time: signature, 2-3 supporting patterns, a phase table like section 6.
@@ -240,24 +276,24 @@ Still open (decide while building M17): Froggy's exact numbers, the psychedelic 
 
 ## 11. Boss roster (user, 2026-10-02)
 
-Three bosses per ring biome. Each run meets one of them, picked by the seed (section 1; confirmed by the user). All three in a biome are tier I: about equal strength, different playstyles.
+Three bosses per ring biome. Since 2026-10-05 all three are in every run, each in its own arena at a random spot in the biome (section 1). Until then, each run met one of them, picked by the seed. All three in a biome are tier I: about equal strength, different playstyles.
 
 | Biome | Bosses | Notes |
 |-------|--------|-------|
 | Swamp | **Froggy McFrogface** (built), a **leech swarm** (built), a **mosquito** (built: Lady Proboscia) | the swarm is many bodies with one shared health bar (a new boss shape); the mosquito is fast, flies, drains blood |
-| Desert | a **beetle**, a **spitting camel**, a **nomad sand wizard** | |
+| Desert | a **beetle** (built: Khepri the Dung Emperor), a **spitting camel**, a **nomad sand wizard** | |
 | Ruins | a **radioactive monster**, an **ice wizard**, a **vampire girl** | Adventure Time nods (the glowing lich-like monster, the ice king, the vampire queen). Use our own names and looks so the built game doesn't copy the show (the user will rename them) |
 | Haunted forest (M21) | a **corrupted pixie**, a **mad murderer squirrel**, a **mimic tree** | the mimic hides among ordinary trees |
-| Mushroom | **Mycelium**, always: one of three real mushrooms (**amanita muscaria** + two others), but the name, quest and HUD always say just "Mycelium", so you only find out which one in the fight | the other two (user, 2026-10-02): **shaggy ink cap** (melts into ink pools) and **giant puffball** (spore bursts) |
+| Mushroom | **Mycelium**, always: one of three real mushrooms (**amanita muscaria** + two others), but the name, quest and HUD always say just "Mycelium", so you only find out which one in the fight. With all three in every run (M22.5), there are three "Mycelium" arenas, and you don't know which mushroom is in which | the other two (user, 2026-10-02): **shaggy ink cap** (melts into ink pools) and **giant puffball** (spore bursts) |
 | Plains (tier II) | not decided | |
 
 ## 12. The Leech Swarm (swamp, built in M22, 2026-10-02)
 
-**Pools.** `config.QUESTS` is keyed by quest name, each with its biome. Per run the seed picks one quest per biome (`world/landmarks.pick_quests`), and only that quest's camp, lair and targets are built. Quests can share camp and lair layouts: `camp_name`/`lair_name` label them and `skin` swaps their tiles (`landmarks.SKINS`). `run.py --boss leech_swarm` (or `froggy`) forces a boss for testing, and `config.QUEST_OVERRIDE` does the same in code.
+**Pools.** `config.QUESTS` is keyed by quest name, each with its biome. Per run the seed picks one quest per biome (`world/landmarks.pick_quests`), and only that quest's camp, lair and targets are built. Quests can share camp and lair layouts: `camp_name`/`lair_name` label them and `skin` swaps their tiles (`landmarks.SKINS`). `run.py --boss leech_swarm` (or `froggy`) forces a boss for testing, and `config.QUEST_OVERRIDE` does the same in code. **Superseded in M22.5 (section 14):** every quest gets its camp, lair and targets, and `--boss` / `config.QUEST_FOCUS` only picks which quest the dev keys act on.
 
 **Quest: "Bad Blood"** (the leech doctor). **A stand-in:** the user will give the real quest later. Pop 5 **bloated leeches** (120 HP; they crawl at you and bite) scattered over the swamp. Each one bursts into 3 **leechlings** (18 HP, fast). The doctor's camp and **The Blood Mire** are the frog hunter's camp and Froggy's pond in blood (blood pools, clots).
 
-**Boss: The Leech Swarm.** 40 leeches with one health bar (8,500 at level 1, scaled like every boss). Each leech is a real enemy body holding an equal share. The swarm's health is the sum, so it thins out as it's hurt, and area attacks are strong against it by design. Its leeches aren't kills (no XP or loot each); the swarm is, when its last leech dies.
+**Boss: The Leech Swarm.** 120 leeches (40 before 2026-10-05, see 5.6) with one health bar (8,500 at level 1, scaled like every boss). Each leech is a real enemy body holding an equal share. The swarm's health is the sum, so it thins out as it's hurt, and area attacks are strong against it by design. Its leeches aren't kills (no XP or loot each); the swarm is, when its last leech dies.
 
 **Signature: latching.** A leech that touches a hero who isn't rolling latches on, at most 8 per hero. It rides along, draining 2.5 HP/s (in 0.5 s ticks) and healing itself by twice what it drains. A dodge roll throws every leech off that hero ("SHAKEN OFF!"): they're flung 2.5 tiles and lie stunned for 1 s. Nothing latches mid-roll.
 
@@ -294,3 +330,84 @@ She never sips with a full belly and never calls with 8 mosquitoes already out.
 **Measured (headless, seeds 31/7/12, a level-1 wizard bot without cards: perfect aim, circle-strafing, shooting mosquitoes within 6 tiles first, healed every step so her bites land):** fights took 1:58–2:36, with 1–3 pops and 0–2 digests each, and the bot took ~95–190 damage a minute. The first try (7,000 HP, 6 mosquitoes per call, at most 12, a 6% digest) stalled on one seed: the bot's missiles hit a wall of mosquitoes while she kept digesting. Hence the smaller calls, the smaller digest heal, and an easier pop (3.5%). **Tune in real play**, like the other two.
 
 **How it's built:** `ai/bosses.Proboscia` (her `take_damage` counts damage toward the pop and toward shooing her off a sip; a pop aborts the current move), `ai/creatures.Mosquito`, `systems/quests.py` (`_tend_braziers`, `_swarm`, and the shared `_found`), `systems/patterns.ring_in(gap_deg=, gap_at=)`, `render/mosquito.py` (her, her tells and clouds, the mosquitoes, the braziers' smoke and heat bar), tiles `STAGNANT`/`SCUM`/`BRAZIER`/`BRAZIER_LIT`, NPC art `smoke_keeper`. `run.py --boss proboscia` forces her.
+
+## 14. Every boss in every run (built in M22.5, 2026-10-05)
+
+**What the user asked for:**
+- All bosses exist in their biomes every run, with arenas at random places.
+- NPCs still give the quests, but players can also trigger a boss by doing its quest without talking to anyone.
+
+The user's answers on the details:
+- camps anywhere in the biome, unpinned;
+- quests hidden until the boss wakes;
+- arenas pinned only when their boss wakes;
+- a HUD counter only for quests taken from a giver;
+- GLORY stays on the HUD;
+- the journal comes later (built in M22.6, `GUILD.md` 4.4b).
+
+**Placement** (`world/landmarks.build_landmarks`, `_random_site`):
+- Every quest in `config.QUESTS` gets a camp and a lair. Lairs are placed first (they're the biggest), then camps.
+- Each goes at a random point anywhere in its biome's slice of the ring: up to `QUEST_SITE_TRIES` points, uniform by area. It must fit inside the biome and keep `QUEST_SITE_GAP` tiles from every landmark already placed.
+- Then each quest's target spots are scattered over the biome, clear of every camp and lair, and `QUEST_SPOT_OTHERS` tiles from other quests' spots.
+- Each quest has its own dice (seed + its index), so the layout is the same for a seed.
+- Landmarks record their `quest`, and `landmarks.quest_marks(layout, key)` finds a quest's camp and lair. About 165 ms at the start of a run for the swamp's three.
+
+**Quests** (`systems/quests.py`):
+- `states` is keyed by quest. Every quest starts in "hunt", with its targets placed when the run starts.
+- `taken` is set when someone talks to the giver. It turns on the log counter, the progress toasts and the nearby target pins.
+- The last target wakes the boss for everyone, taken or not.
+- Quest enemy spawn ids carry the quest's id (`quest_id`: its place in `config.QUESTS`), not the biome's.
+- `fights` lists every fight in progress. `fight_for(hero)` picks the one for the boss bar and pointer: the arena you're in, else the nearest. Every fighting arena stays loaded.
+- `guardians` counts biomes with a beaten boss. A second boss in the same biome still pays its loot, card offer and achievement, and its banner says it's a bonus kill.
+
+**Dev:** F6/F7/F8 act on `config.QUEST_FOCUS` (`run.py --boss KEY`), else the first quest not beaten yet.
+
+**Fixed along the way:** place names in sentences used `str.title()` ("Froggy'S Pond"); now `quests.place_name`.
+
+## 15. Khepri the Dung Emperor (desert, built in M23.1, 2026-10-05)
+
+**The user's picks:**
+- Signature: the dung ball.
+- Supporting moves: all four (charge + sand spray, burrow eruption, dust storm, scarab swarm).
+- Quest: the golden scarab hunt.
+- Landmarks: new desert layouts.
+
+**Quest: "Golden Touch"** (the scarab collector).
+- Five **golden scarabs** (45 HP, harmless) are scattered over the desert, each in a sandy clearing.
+- A scarab runs from you once you're within 11 tiles, jinking side to side. It's a bit slower than a hero, so you can chase it down.
+- If it's still being chased after 4.5 s, it digs in. For 0.9 s it can still be hit (the last chance), then it's gone and comes back up at its home spot 10 s later.
+- If the hero stops chasing and falls out of range, it calms down and potters home.
+
+**Landmarks:** the swamp's camp and lair builders now take a style (`world/landmarks.CAMP_STYLES`, `LAIR_STYLES`). The desert's:
+- `oasis_camp`: a round oasis pond (solid), a few palms, and the collector's tent on a rug with two stalls.
+- `sand_lair`, **the Dung Pit**:
+  - sandstone walls and 36 sandstone pillars, 3 tiles tall (taller than the swamp's 2, so they're clear targets for the ball);
+  - sand pits for pools (Khepri sleeps in the middle one), with dunes for decor.
+- Quest spots' clearings are the biome's ground (`landmarks.CLEARING`).
+- A lair remembers its `floor`, so the gate reopens to sand.
+
+**Boss: Khepri the Dung Emperor** (8,000 HP like the others; HP numbers wait for the balance milestone).
+- Hit radius 2.6. The sprite is a top-down beetle about 115 px long (`render/beetle.py`).
+- **Signature, the dung ball:** it sits in front of him.
+  - The **roll**: an orange lane as wide as the ball (the tell), aimed where you're going, then he pushes the ball along it at 15 tiles/s.
+  - The ball grows as it rolls, from 1.3 to 3.2 tiles across. It hits for 12–24 by size and knocks you 4 tiles aside.
+  - Anything solid (a pillar, the arena wall, the sealed gate) **shatters** it: a ring of 10–22 clods, "SPLAT!", and he's stunned for 3 s (the melee window). Then he rolls up a new small ball (0.9 s).
+  - So: **stand behind a pillar.**
+- **Charge:** he leaves the ball, shows a ">" line, and charges for 14 damage. When he stops, he kicks a 7-pellet sand fan at you. If he hits a pillar on the way, he's dazed for 0.8 s instead. He walks back to his ball before the next roll, or makes a new one if it's more than 3 s away.
+- **Burrow:** he digs in (can't be hit). A "^" ripple chases you for 1.6 s, then a blinking ring shows where he'll come up. He erupts there: a 3.5-tile blast for 15 damage and a ring of 16 sand shots.
+- **Dust storm** (phase 2+): wings out (the tell), then rows of dust blow across where you stood for 3.5 s, with a drifting hole to weave through.
+- **Scarab swarm** (phase 2+): a clicking call brings 4 scarabs (30 HP, they nip for 5), at most 8 alive.
+- **Phase 3:** rolls 1.25× faster, two in a row (the second tell is shorter).
+
+| Phase | Health | Moves |
+|---|---|---|
+| 1 | 100–60% | roll ×4, charge ×2, burrow ×2 |
+| 2 | 60–25% | roll ×3, charge ×2, burrow ×2, storm ×2, swarm ×1 |
+| 3 | 25–0% | roll ×4, charge ×1, burrow ×2, storm ×2, swarm ×1 |
+
+**Measured** (headless wizard bot that never dies and doesn't try to bait pillars; seeds 31/7/12): 2:40 / 4:53 / 3:53, taking 298 / 296 / 226 damage per minute. That's about the swamp bosses' range with the same bot.
+- With 44 pillars, seed 31 took 6:58: the pillars ate the bot's shots. 36 is about as many as the arena layout fits anyway.
+- Real players who bait shatters get 3-second melee windows, so they should be faster.
+
+**Readability:** VT323 draws `~` like an "N", so the oasis is a block-shade dither, the dust shots are `%` and the burrow ripple is `^`.
+

@@ -5,7 +5,8 @@ framed list of rows, opened by talking to one of the guild's people.
   "guild"    the guildmaster: upgrades every hero shares;
   "hero"     the trainer: one hero's own upgrades (Left / Right: which hero);
   "archive"  the archivist's shelves (Left / Right: which shelf): cards,
-             spells, pacts, bestiary;
+             spells, pacts, bestiary, and the journal (M22.6: every quest
+             whose boss you've beaten, "???" for the rest; nothing to buy);
   "gate"     the dungeon gate: switch owned pacts on or off, then enter.
 
 Up / Down (or the mouse) choose a row, Enter or a click acts on it (buy,
@@ -40,12 +41,13 @@ BLURBS = {"guild": "Upgrades for every adventurer of the guild.",
           "hero": "Training for one hero.",
           "archive": "Knowledge, bought with loot.",
           "gate": "Pacts make the dungeon far deadlier, for a little more loot."}
-SHELVES = ("cards", "spells", "pacts", "bestiary")
+SHELVES = ("cards", "spells", "pacts", "bestiary", "journal")
 SHELF_BLURBS = {"cards": "Cards bought here can be offered on level-ups.",
                 "spells": "Spells bought here can be offered on level-ups.",
                 "pacts": "Buy a pact here; switch it on at the dungeon gate.",
                 "bestiary": f"A page is yours after {config.BESTIARY_KILLS} kills, or bought: "
-                            f"+{round(config.BESTIARY_BONUS * 100)}% damage to that enemy."}
+                            f"+{round(config.BESTIARY_BONUS * 100)}% damage to that enemy.",
+                "journal": "Every quest whose guardian you have beaten."}
 _UP = (pygame.K_UP, pygame.K_w)
 _DOWN = (pygame.K_DOWN, pygame.K_s)
 _LEFT = (pygame.K_LEFT, pygame.K_a)
@@ -152,6 +154,25 @@ class GuildPanel:
                            "KNOWN", describe))
         return out
 
+    def _journal_rows(self) -> list[Row]:
+        out = []
+        for key, q in config.QUESTS.items():
+            e = self.guild.journal.get(key)
+            if e is None:
+                out.append(Row(key, "???", q.biome.upper(), "???", None, "",
+                               f"Not completed yet. Somewhere in the {q.biome}, someone needs "
+                               f"help."))
+                continue
+            boss = config.BOSSES[q.boss].name
+            best = e["best"]
+            fastest = f"   fastest {int(best // 60)}:{int(best % 60):02d}" if best else ""
+            heroes = ", ".join(h.upper() for h in e["heroes"])
+            story = " ".join(q.say("offer"))
+            out.append(Row(key, q.title, q.biome.upper(), f"{boss}{fastest}", None,
+                           f"x{e['wins']}",
+                           f"The {q.giver}: \"{story}\" Beaten by: {heroes}."))
+        return out
+
     def _gate_rows(self) -> list[Row]:
         total = pact_totals(self.guild.active_pacts)["loot"]
         rows = [Row("enter", "Enter the dungeon", "", f"loot +{round(total * 100)}%"
@@ -188,6 +209,8 @@ class GuildPanel:
             ok = g.buy_upgrade(key, self._hero_arg())
         else:
             shelf = SHELVES[self.shelf]
+            if shelf == "journal":
+                return False                   # (only to read)
             ok = (g.buy_pact(key) if shelf == "pacts" else g.buy_page(key) if shelf == "bestiary"
                   else g.buy_card(key))
         self.on_buy(ok)
@@ -200,14 +223,24 @@ class GuildPanel:
         """First row of the list, from the box top (below any tabs)."""
         return 5 if self.mode in ("hero", "archive") else 3
 
+    @property
+    def journal(self) -> bool:
+        return self.mode == "archive" and SHELVES[self.shelf] == "journal"
+
+    @property
+    def desc_lines(self) -> int:
+        """Lines for the highlighted row's description (a journal entry's
+        story needs more)."""
+        return 4 if self.journal else 2
+
     def visible_rows(self) -> int:
         d = self.manager.display
-        return max(3, min(len(self.rows()), d.rows - 4 - self.list_top - 7))
+        return max(3, min(len(self.rows()), d.rows - 4 - self.list_top - 5 - self.desc_lines))
 
     def geometry(self) -> tuple[int, int, int, int]:
         d = self.manager.display
         width = min(WIDTH, d.cols - 2)
-        height = self.list_top + self.visible_rows() + 7
+        height = self.list_top + self.visible_rows() + 5 + self.desc_lines
         return (d.cols - width) // 2, max(0, (d.rows - height) // 2), width, height
 
     def _scroll(self) -> None:
@@ -288,14 +321,17 @@ class GuildPanel:
         if self.top + vis < len(rows):
             text.put(left + width - 1, top + self.list_top + vis - 1, "v", palette.HUB_LABEL)
         if rows:
-            for j, line in enumerate(textwrap.wrap(rows[self.index].describe, width - 4)[:2]):
-                center(text, top + height - 5 + j, line, palette.CARD_TEXT, left, width)
+            n = self.desc_lines
+            for j, line in enumerate(textwrap.wrap(rows[self.index].describe, width - 4)[:n]):
+                center(text, top + height - 3 - n + j, line, palette.CARD_TEXT, left, width)
         elif self.mode == "gate":
             center(text, top + height - 5, "no pacts yet", colors.GREY, left, width)
         hint = "Up/Down choose   Enter or click: " + ("go / switch" if self.mode == "gate"
                                                      else "buy") + "   Esc: leave"
         if self.mode == "hero":
             hint = "Left/Right: hero   " + hint
+        elif self.journal:
+            hint = "Left/Right: shelf   Up/Down choose   Esc: leave"
         elif self.mode == "archive":
             hint = "Left/Right: shelf   " + hint
         center(text, top + height - 2, hint, colors.GREY, left, width)

@@ -253,7 +253,7 @@ class QuestSpec:
     biome's boss at its lair.
 
     kind "hunt": kill `count` of the quest-only enemy `target` (they live
-    at the camp's spots and appear once the quest is given). `lines` are
+    at the camp's spots, out from the start of the run: M22.5). `lines` are
     what the giver says at each stage of the quest: "offer" (the first
     talk), "progress" ("{left}" = targets left), "done" (the boss is
     awake), "cleared" (it's beaten).
@@ -262,8 +262,7 @@ class QuestSpec:
     braziers (`target` unused); stand by `count` of them until each
     catches (config.BRAZIER_*), while mosquitoes come for you.
 
-    Pools (M22): a biome can have several quests; the run's seed picks one
-    per biome (world/landmarks.pick_quests). Quests may share camp and lair
+    A biome can have several quests, all in every run (M22.5). Quests may share camp and lair
     builders: `camp_name` / `lair_name` label them on the map and `skin`
     (world/landmarks.SKINS) swaps their tiles for this quest's look."""
 

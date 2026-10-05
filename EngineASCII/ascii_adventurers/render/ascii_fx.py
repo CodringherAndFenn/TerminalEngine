@@ -104,6 +104,10 @@ SHOT_LOOKS = {
     # M22.2: Lady Proboscia's needles and the buzz rings' sound pulses.
     "needle": ("+", ("-", "."), palette.SHOT_NEEDLE),
     "buzz": ("z", (".", "."), palette.SHOT_BUZZ),
+    # M23.1: Khepri's kicked sand, his dust storm, and his ball's clods.
+    "sand": (":", (".", "."), palette.SHOT_SAND),
+    "dust": ("%", (".", "."), palette.SHOT_DUST),
+    "clod": ("o", (".", "."), palette.SHOT_CLOD),
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).

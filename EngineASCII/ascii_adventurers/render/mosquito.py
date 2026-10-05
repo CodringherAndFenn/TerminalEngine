@@ -33,9 +33,10 @@ from ..engine_ext.camera import Camera
 from .ascii_fx import _Batch, _ring
 from .sprites import SpriteBank
 
-LADY_SCALE = 1.3             # her body: ~100 px nose to tail
+LADY_SCALE = 2.2             # her body: ~170 px nose to tail (1.3 before 2026-10-05)
 BROOD_SCALE = 0.32
-LIFT_PX = 26                 # how high she flies over her shadow
+_K = LADY_SCALE / 1.3        # her shadow, tell rings and bars were laid out for 1.3
+LIFT_PX = round(26 * _K)     # how high she flies over her shadow
 _C = palette.MOSQUITO
 
 
@@ -113,7 +114,7 @@ def _paint_shadow(rx: float, ry: float):
 
 def _sprite(bank: SpriteBank, key: str, facing: float, scale: float, belly: int, glow: bool,
             hurt: bool, flap: int, low: bool):
-    reach = 40 * scale + 4
+    reach = 48 * scale + 4        # (a full belly reaches ~45 units back)
     return bank.rotated((key, belly, glow, hurt, flap, low), facing, 32,
                         _paint_mosquito(scale, belly, glow, hurt, flap, low), reach)
 
@@ -163,7 +164,8 @@ def draw_proboscia(text, bank: SpriteBank, camera: Camera, boss) -> None:
     low = boss.grounded
     lift = 4 if low else LIFT_PX + math.sin(boss.time * 3.0) * 3
     if not low:
-        bank.draw(bank.static("lady_shadow", _paint_shadow(34, 11), 38), x, y + 8)
+        bank.draw(bank.static("lady_shadow", _paint_shadow(34 * _K, 11 * _K), round(38 * _K)),
+                  x, y + 8 * _K)
     glow = boss.engorged > 0 and blink == 1
     flap = int(boss.wings) % 2
     bank.draw(_sprite(bank, "lady", boss.facing, LADY_SCALE, boss.belly, glow,
@@ -172,16 +174,16 @@ def draw_proboscia(text, bank: SpriteBank, camera: Camera, boss) -> None:
     batch = _Batch(text)
     if tell is not None and tell[0] == "needle":
         col = palette.MOSQUITO_TELL[blink]
-        r = 16 + 30 * (1 - (boss.time * 2.0) % 1.0)
+        r = (16 + 30 * (1 - (boss.time * 2.0) % 1.0)) * _K
         for dx, dy, glyph, c in _ring(10, r, ".", col, boss.time * 2):
             batch.put_c(x + dx, y - lift + dy * 0.8, glyph, c)
         nx, ny = camera.world_to_px(*boss.nose)
         batch.put_c(nx, ny - lift, "*", palette.MOSQUITO["nose_hot"])
     elif tell is not None and tell[0] == "buzz":
-        for dx, dy, glyph, c in _ring(6, 40, "z", palette.SHOT_BUZZ[0], boss.time * 5):
+        for dx, dy, glyph, c in _ring(6, 40 * _K, "z", palette.SHOT_BUZZ[0], boss.time * 5):
             batch.put_c(x + dx, y - lift + dy * 0.6, glyph, c)
     elif tell is not None and tell[0] == "call":
-        r = 24 + (boss.time * 70) % 30
+        r = (24 + (boss.time * 70) % 30) * _K
         for dx, dy, glyph, c in _ring(14, r, "o", palette.MOSQUITO_TELL[blink], boss.time):
             batch.put_c(x + dx, y - lift + dy * 0.8, glyph, c)
     if boss.engorged > 0:
@@ -190,7 +192,7 @@ def draw_proboscia(text, bank: SpriteBank, camera: Camera, boss) -> None:
         filled = round(boss.pop_frac * width)
         cw = text.display.cell_w
         bx = x - (width + 2) * cw / 2
-        by = y + 26
+        by = y + 26 * _K
         batch.put_px(bx, by, "[", palette.POP_BAR[0], palette.HUD_PANEL)
         batch.put_px(bx + cw, by, "█" * filled, palette.POP_BAR[0], palette.HUD_PANEL)
         if width - filled:
@@ -200,7 +202,8 @@ def draw_proboscia(text, bank: SpriteBank, camera: Camera, boss) -> None:
     if boss.dazed > 0:
         for k in range(3):
             a = boss.time * 4 + k * math.tau / 3
-            batch.put_c(x + math.cos(a) * 22, y - lift - 30 + math.sin(a) * 5, "*", palette.TOAST)
+            batch.put_c(x + math.cos(a) * 22 * _K, y - lift - 30 * _K + math.sin(a) * 5,
+                        "*", palette.TOAST)
     batch.flush()
 
 
@@ -214,7 +217,7 @@ def draw_braziers(text, camera: Camera, quests, time: float) -> None:
     x1, y1 = camera.canvas_to_world(camera.view_w, camera.view_h)
     cw = text.display.cell_w
     for s in quests.states.values():
-        if s.spec.kind != "light" or s.stage == "offered":
+        if s.spec.kind != "light":
             continue
         for i, (bx, by) in enumerate(s.camp.spots):
             if not (x0 - 4 <= bx <= x1 + 4 and y0 - 8 <= by <= y1 + 4):

@@ -170,7 +170,7 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
 - boss pools and the Leech Swarm (M22): each biome's quest is now picked
   per run from its pool. The swamp has two: the frog hunter's (Froggy) and
   the leech doctor's (a stand-in quest: pop 5 bloated leeches). The **Leech
-  Swarm** is 40 leeches with one health bar. They thin out as you hurt
+  Swarm** is 120 leeches with one health bar. They thin out as you hurt
   them, latch on and drain you if they reach you, and a **dodge roll
   shakes them all off**. It surges, splits and circles, spits blood, nests
   in the pools and, at the end, rings you in a tightening whirlpool
@@ -187,9 +187,37 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   mosquitoes, and at the end chains three dives that leave fever clouds
   (`design/BOSSES.md` section 13).
 
-Next up (agreed order, `design/BOSSES.md` section 8): the desert, ruins,
-haunted forest and mushroom bosses one at a time, M27 the plains boss and
-the victory.
+- harder bosses (2026-10-05): bosses lead their aim (some shots go where
+  you're heading, so change direction), chain moves into combos from the
+  second phase, and telegraph and rest less as the fight goes on. Lady
+  Proboscia is much bigger and the Leech Swarm has 120 leeches crawling
+  over each other (`design/BOSSES.md` section 5.6).
+
+- every boss in every run (M22.5): all three swamp bosses are out there
+  each run, their givers' camps and arenas at random spots in the swamp.
+  The quests are hidden: nothing is pinned until a boss wakes, and doing a
+  quest's job without ever meeting its giver wakes the boss too. A giver
+  explains their quest and puts a counter for it on the HUD. One beaten
+  boss per biome counts toward Glory; the others are bonus loot and
+  achievements (`design/BOSSES.md` section 14).
+
+- the journal (M22.6): the archivist's fifth shelf. Every quest whose boss
+  you've beaten, with the giver's story, the boss, how many times, your
+  fastest fight and the heroes who did it; `???` for the rest
+  (`design/GUILD.md` 4.4b).
+
+- Khepri the Dung Emperor (M23.1), the desert's first boss. Somewhere in
+  the desert a scarab collector camps by an oasis; his golden scarabs run
+  from you and dig in if you're too slow. Catch five and Khepri wakes in
+  the Dung Pit, a sunken sandstone arena. He rolls a dung ball at you that
+  grows as it goes: get a pillar between you and him and it shatters,
+  stunning him. He also charges, burrows up under you, blows dust storms
+  and calls scarabs (`design/BOSSES.md` section 15).
+
+Next up (agreed order, `design/BOSSES.md` section 8): the desert's
+spitting camel and sand wizard, then the ruins, haunted forest and
+mushroom bosses one at a time, M27 the plains boss and the victory, and M28 an art spec so
+custom pixel art can replace the drawn sprites.
 
 ## Setup (once)
 
@@ -208,13 +236,14 @@ ascii_adventurers/.venv/bin/python ascii_adventurers/run.py
 
 This works from any working directory. Debug: `run.py --ghosts N` (N up
 to 3) adds bot players that wander off on their own and fight what they
-meet; `run.py --boss leech_swarm` (or `froggy`) makes the swamp use that
-boss's quest, whatever the seed; F10 in game switches the view between players, and other players
+meet; `run.py --dev --boss leech_swarm` (or `froggy`, `proboscia`, `khepri`) points
+the dev keys below at that boss's quest; F10 in game switches the view between players, and other players
 show as coloured dots on the minimap and big map.
 Developer mode: `run.py --dev` fills the guild purse (999,999 loot) and
 in a run L levels you up on the spot (one card pick per press); F6 jumps
-next to the swamp's quest giver, F7 finishes his hunt (the boss wakes),
-F8 jumps outside the boss's lair (walk in to start the fight). After a
+next to the dev quest's giver (the `--boss` one, else the first quest not
+beaten), F7 finishes that quest (its boss wakes), F8 jumps outside its
+boss's lair (walk in to start the fight). After a
 boss falls, dev mode prints how long the fight took to the console. Nothing
 bought and no records are saved in dev mode, so your real save stays as
 it was.
@@ -323,6 +352,11 @@ Every number is in **`config.py`**:
   each spawns in and how often;
 - enemy density per biome (`BIOME_ENEMY_DENSITY`; difficulty is per biome),
   hearing radius, reaction time, aim error, and the infighting threshold.
+- bosses: every boss's health and damage (`BOSS_HP_MULT`,
+  `BOSS_DMG_MULT`), aim lead, combos, and per-phase tell/rest speed-up
+  (`BOSS_LEAD*`, `BOSS_COMBO*`, `BOSS_TELL_SCALE`, `BOSS_REST_SCALE`);
+  each boss's own moves are under its name (`FROGGY_*`, `LEECH*`,
+  `PROBOSCIA_*`).
 
 Colors are in `palette.py`.
 

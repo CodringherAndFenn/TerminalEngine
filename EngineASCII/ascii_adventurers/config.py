@@ -392,7 +392,23 @@ ENEMIES = {
     ),
     "proboscia": EnemySpec(
         name="Lady Proboscia", kind="proboscia", max_hp=8000, sight=400,
-        biomes=(), size_px=80, xp=400,
+        biomes=(), size_px=130, xp=400,
+    ),
+    # M23.1: the scarab collector's quest and Khepri. A golden scarab is
+    # harmless: it runs from you, and if you don't catch it in time it digs
+    # in and comes up again at its home spot later (GOLDEN_SCARAB_*). Scarabs
+    # are Khepri's adds: they scuttle at you and nip.
+    "golden_scarab": EnemySpec(
+        name="golden scarab", kind="golden_scarab", max_hp=45, sight=14, biomes=(), speed=7.0,
+        size_px=14, xp=25,
+    ),
+    "scarab": EnemySpec(
+        name="scarab", kind="scarab", max_hp=30, sight=20, biomes=(), speed=6.0,
+        damage=5, attack_radius=0.9, windup=0.3, cooldown=1.0, size_px=14, xp=3,
+    ),
+    "khepri": EnemySpec(
+        name="Khepri the Dung Emperor", kind="khepri", max_hp=8000, sight=400,
+        biomes=(), size_px=110, xp=400,
     ),
 }
 
@@ -1313,10 +1329,14 @@ BESTIARY = {
     "froggy": (5000, "Dives between pools, lashes its tongue, belly-flops. Hit it while it's dazed."),
     # M22
     "bloated_leech": (1500, "Crawls at you and bites. Popped, it bursts into leechlings."),
-    "leech_swarm": (5000, "Forty leeches, one hunger. If they latch on, roll to shake them off."),
+    "leech_swarm": (5000, "A hundred and twenty leeches, one hunger. If they latch on, roll to shake them off."),
     # M22.2
     "mosquito": (800, "Buzzes in, hovers a moment, stings, darts off. Flies over everything."),
     "proboscia": (5000, "Dives to bite and drinks. Fat with blood she slows: hit hard and POP her."),
+    # M23.1
+    "golden_scarab": (1500, "Runs from you, and digs in if you're too slow. Worth its weight in gold."),
+    "scarab": (800, "Scuttles out of the sand at Khepri's call and nips."),
+    "khepri": (5000, "Rolls a dung ball that grows. Bait it into a pillar: it shatters, he's stunned."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -1327,6 +1347,7 @@ ACHIEVEMENTS = {
     "froggy": "defeat Froggy McFrogface",
     "leech_swarm": "defeat the Leech Swarm",
     "proboscia": "defeat Lady Proboscia",
+    "khepri": "defeat Khepri the Dung Emperor",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -1596,14 +1617,14 @@ RUINS_RUBBLE_CHANCE = 0.12
 
 # --- Quests, landmarks and bosses (M17, design/BOSSES.md) ---------------------------
 #
-# Each ring biome draws a quest (one per biome for now). Its giver waits at
-# a camp just past the plains border, pinned on the maps from the start;
-# talking to them starts the quest, finishing it wakes the biome's boss at
-# its lair. The 5 ring bosses ("guardians") unlock the plains boss, whose
-# Adventurer's Glory can end the run (later milestones).
-
-# Pools (M22): quests are keyed by name; each biome can have several and
-# the run's seed picks one of them (world/landmarks.pick_quests).
+# Every quest is in every run (M22.5): each biome has several, keyed by
+# name, each with its own giver, camp and lair at random spots in the biome
+# (unpinned: you find them). The quests are hidden: their targets are out
+# from the start and any player can finish one without its giver. Talking
+# to the giver gives hints and a counter on the HUD. Finishing a quest wakes
+# its boss at its lair (pinned from then on). A boss beaten in each of the
+# 5 ring biomes ("guardians") unlocks the plains boss, whose Adventurer's
+# Glory can end the run (later milestones).
 QUESTS = {
     "bad_trip": QuestSpec(
         title="Bad Trip", biome="swamp", giver="frog hunter", giver_sprite="frog_hunter",
@@ -1676,12 +1697,39 @@ QUESTS = {
                          "I'll sleep without a net tonight.")),
         ),
     ),
+    # M23.1: the desert. Golden scarabs flee and dig in (ai/creatures.
+    # GoldenScarab); the camp is a nomad tent by an oasis and the lair a
+    # sunken sandstone arena (world/landmarks.py), both shared by the
+    # desert's bosses.
+    "scarab_collector": QuestSpec(
+        title="Golden Touch", biome="desert", giver="scarab collector",
+        giver_sprite="scarab_collector", camp="oasis_camp", lair="sand_lair",
+        target="golden_scarab", count=5, boss="khepri", goal="Golden scarabs {n}/{count}",
+        camp_name="SCARAB COLLECTOR", lair_name="THE DUNG PIT",
+        lines=(
+            ("offer", ("Psst. You. Ever seen a GOLDEN scarab?",
+                       "Worth a fortune. And skittish as sin.",
+                       "They run when they see you coming.",
+                       "Too slow, and they dig in and they're gone.",
+                       "Bring down five. I'll make it worth it.")),
+            ("progress", ("{left} more golden ones out there.",
+                          "Corner them before they dig in!")),
+            ("done", ("Five! But... the sand's shaking.",
+                      "The gold is HIS. The Dung Emperor's.",
+                      "Lure his ball into the pillars. Trust me.")),
+            ("fight", ("Khepri's up at the Dung Pit! Go!",)),
+            ("cleared", ("Khepri, beaten? The Emperor himself!",
+                         "I'm rich! Well. You're rich. Mostly me.")),
+        ),
+    ),
 }
-# Developer / test override: biome -> quest key to use instead of the seed's
-# pick (run.py --boss sets it). Empty in normal play.
-QUEST_OVERRIDE: dict = {}
-# The main quest: beat this many ring-biome bosses ("guardians"), then the
-# plains boss, for Adventurer's Glory.
+# Developer / test: the quest key the dev keys (F6 to its giver, F7 finish
+# it, F8 to its lair) act on; run.py --boss sets it. None: the first quest
+# not beaten yet.
+QUEST_FOCUS: str | None = None
+# The main quest: beat a boss ("guardian") in this many ring biomes -- one
+# per biome counts; the other bosses are optional, for their loot and
+# achievements (M22.5) -- then the plains boss, for Adventurer's Glory.
 GUARDIANS = 5
 
 # Quest givers: how close you must stand to talk (E / gamepad A), and how
@@ -1690,12 +1738,16 @@ TALK_RADIUS = 3.0
 SPEECH_LINE_TIME = 2.6
 
 # The frog hunter's camp (world/landmarks.py): a bog oval of these radii
-# (tiles) with his hut on the side facing the plains, CAMP_BORDER_GAP tiles
-# past the plains border. Pools where the bog's noise field is above
-# CAMP_POOL_MIN (higher: fewer, smaller pools).
+# (tiles) with his hut on the side facing the plains. Pools where the bog's
+# noise field is above CAMP_POOL_MIN (higher: fewer, smaller pools).
 CAMP_BOG_RADII = (34, 15)
-CAMP_BORDER_GAP = 30
+CAMP_OASIS_RADII = (24, 11)     # the scarab collector's oasis (M23.1)
 CAMP_POOL_MIN = 0.58
+# Every quest's camp and lair go at random spots anywhere in their biome
+# (M22.5, world/landmarks._random_site), from QUEST_SITE_TRIES random
+# points, at least QUEST_SITE_GAP tiles from every other camp and lair.
+QUEST_SITE_TRIES = 600
+QUEST_SITE_GAP = 60
 
 # A quest's targets (the psychedelic frogs) are scattered over the whole
 # biome (world/landmarks._scatter), not left at the camp: QUEST_SPOT_EXTRA
@@ -1710,6 +1762,8 @@ QUEST_SPOT_CAMP_GAP = 200
 QUEST_SPOT_EDGE = 16
 QUEST_SPOT_CLEARING = 4
 QUEST_SPOT_CANDIDATES = 400
+# ...and at least this far from another quest's spots.
+QUEST_SPOT_OTHERS = 60
 # A living target shows on the maps only within this many tiles of you
 # (the minimap then points the way in).
 QUEST_TARGET_PIN_RADIUS = 160
@@ -1737,6 +1791,7 @@ LAIR_GATE_WIDTH = 7
 LAIR_MARGIN = 12
 LAIR_POOLS = 9
 LAIR_PILLARS = 30
+SAND_LAIR_PILLARS = 36          # the Dung Pit's: taller (Khepri's ball breaks on them)
 # The gate seals (thorns) once a player is this far inside the stones, and
 # opens again when the boss falls.
 LAIR_SEAL_DEPTH = 6
@@ -1752,6 +1807,27 @@ BOSS_MIN_TIME_SCALE = 0.5
 BOSS_MAX_SHOTS = 150
 # A boss's card reward: one extra card offer of at least this rarity.
 BOSS_CARD_RARITY = "rare"
+# Boss difficulty (2026-10-05, design/BOSSES.md 5.6). Every boss's health
+# and damage x these, on top of the level and co-op scaling.
+BOSS_HP_MULT = 1.0
+BOSS_DMG_MULT = 1.2
+# Predictive aim: the shots and lunges that "lead" aim where the target will
+# be if it keeps moving -- ahead by the shot's flight time (or the move's
+# wind-up) x BOSS_LEAD, at most BOSS_LEAD_MAX tiles. Each move mixes them
+# with shots straight at you, so neither circle-strafing nor standing still
+# dodges everything: changing direction does.
+BOSS_LEAD = 0.85
+BOSS_LEAD_MAX = 10.0
+# Combos, per phase: (chance, most extra moves). After a move the boss may
+# go straight into another BOSS_COMBO_GAP s later -- the first one's shots
+# still flying, the next one's tell still shown -- and rests after the combo.
+BOSS_COMBO = ((0.0, 0), (0.45, 1), (0.65, 2))
+BOSS_COMBO_GAP = 0.15
+# Per phase: tells (wind-ups, aim lines, ripples) x BOSS_TELL_SCALE, never
+# under BOSS_MIN_TELL s; the rest between moves x BOSS_REST_SCALE.
+BOSS_TELL_SCALE = (1.0, 0.85, 0.7)
+BOSS_REST_SCALE = (1.0, 0.85, 0.7)
+BOSS_MIN_TELL = 0.3
 
 BOSSES = {
     "froggy": BossSpec(
@@ -1787,7 +1863,62 @@ BOSSES = {
         ),
         loot=2500, achievement="proboscia", pages=("proboscia", "mosquito"),
     ),
+    # M23.1 (ai/bosses.Khepri, design/BOSSES.md section 15).
+    "khepri": BossSpec(
+        name="Khepri the Dung Emperor",
+        phases=(
+            BossPhase(1.0, (("roll", 4), ("charge", 2), ("burrow", 2)), rest=1.0),
+            BossPhase(0.6, (("roll", 3), ("charge", 2), ("burrow", 2), ("storm", 2),
+                            ("swarm", 1)), rest=0.85),
+            BossPhase(0.25, (("roll", 4), ("charge", 1), ("burrow", 2), ("storm", 2),
+                             ("swarm", 1)), rest=0.6),
+        ),
+        loot=2500, achievement="khepri", pages=("khepri", "golden_scarab"),
+    ),
 }
+
+# Khepri the Dung Emperor (ai/bosses.Khepri): a giant dung beetle with his
+# ball. Damages are per hit at level 1 (x the enemy damage scaling).
+# Signature, the DUNG BALL: it sits in front of him, and his "roll" sends it
+# along a telegraphed line (aimed where you're going), him pushing behind.
+# It grows as it rolls (DUNG_RADIUS[0] -> [1] tiles, DUNG_GROW per tile
+# rolled), hitting harder the bigger it is (DUNG_DAMAGE, from smallest to
+# biggest) and knocking you DUNG_PUSH tiles. If it runs into anything solid
+# -- a sandstone pillar, the arena wall -- it SHATTERS: a ring of clods
+# (DUNG_CLODS, more for a bigger ball) and he sits stunned for DUNG_STUN s
+# (the melee window), then rolls up a new small one (DUNG_GATHER s).
+KHEPRI_HIT_RADIUS = 2.6
+DUNG_RADIUS = (1.3, 3.2)
+DUNG_GROW = 0.045
+DUNG_DAMAGE = (12, 24)
+DUNG_PUSH = 4.0
+DUNG_CLODS = (10, 22)
+DUNG_STUN = 3.0
+DUNG_GATHER = 0.9
+KHEPRI_ROLL = (0.8, 15.0, 42.0)          # aim line (tell) s, rolling speed tiles/s, longest roll
+KHEPRI_WALK = 7.0                        # tiles/s back to his ball
+KHEPRI_CHARGE = (0.7, 24.0, 32.0, 14, 0.8)   # tell s, speed, longest, damage, dazed s if he
+                                             # runs into a pillar
+KHEPRI_SPRAY = (7, 70.0)                 # sand pellets kicked at you when he stops, fan degrees
+KHEPRI_BURROW = (0.5, 1.6, 0.7, 3.5, 15, 16)  # dig in s, ripple chases you s, ripple stops (tell)
+                                              # s, blast radius, blast damage, ring of sand
+KHEPRI_STORM = (0.6, 3.5, 0.3, 3.2, 8.0, 22.0)  # wings (tell) s, seconds, s between rows, column
+                                                # gap, hole width, half-width of the storm
+KHEPRI_SWARM = (0.6, 4, 8)               # click (tell) s, scarabs per call, most alive at once
+KHEPRI_FRENZY = 1.25                     # last phase: rolls this much faster, two in a row
+KHEPRI_SHOTS = {
+    "sand": ShellSpec(speed=13.0, damage=8, max_range=26.0, damages_terrain=False,
+                      look="sand", sound="fizzle"),
+    "dust": ShellSpec(speed=9.0, damage=8, max_range=40.0, damages_terrain=False,
+                      look="dust", sound="fizzle"),
+    "clod": ShellSpec(speed=9.0, damage=10, max_range=24.0, damages_terrain=False,
+                      look="clod", sound="fizzle"),
+}
+# The golden scarab (ai/creatures.GoldenScarab): spooked within
+# GOLDEN_SCARAB[0] tiles, it flees; after GOLDEN_SCARAB[1] s of running it
+# digs in (GOLDEN_SCARAB[2] s, still hittable: the last chance), and comes
+# up again at its home spot GOLDEN_SCARAB[3] s later.
+GOLDEN_SCARAB = (11.0, 4.5, 0.9, 10.0)
 
 # Lady Proboscia (ai/bosses.Proboscia): a giant mosquito. She flies over
 # everything, hovering PROBOSCIA_HOVER[1] tiles from her target between
@@ -1799,9 +1930,9 @@ BOSSES = {
 # time and she POPS: ENGORGE_BONUS x max HP more damage, a ring of
 # ENGORGE_RING blood drops, and she's down for ENGORGE_STUN s (the melee
 # window). Fail and she digests it: heals ENGORGE_DIGEST x max HP.
-PROBOSCIA_HIT_RADIUS = 1.9
-PROBOSCIA_HOVER = (9.0, 11.0, 0.6)      # speed tiles/s, distance from the target, orbit rad/s
-PROBOSCIA_BITE = (0.65, 34.0, 30.0, 1.0, 12, 0.6)  # tell s, dash speed, longest dash, width,
+PROBOSCIA_HIT_RADIUS = 3.0     # (was 1.9 before the 2026-10-05 size-up; render LADY_SCALE)
+PROBOSCIA_HOVER = (9.0, 13.0, 0.6)      # speed tiles/s, distance from the target, orbit rad/s
+PROBOSCIA_BITE = (0.65, 34.0, 30.0, 1.8, 12, 0.6)  # tell s, dash speed, longest dash, width,
                                                    # damage, hovering still after (s)
 PROBOSCIA_DRINK = 3.0
 PROBOSCIA_FAN = (0.5, 5, 40.0, 3, 0.5)  # tell s, needles per volley, fan degrees, volleys, gap s
@@ -1838,9 +1969,9 @@ PROBOSCIA_SHOTS = {
 # (x enemy damage scaling) and healing itself by LATCH_HEAL x what it drains,
 # until a dodge roll throws every leech off that hero (stunned for
 # LATCH_SHAKE[1] s, flung LATCH_SHAKE[0] tiles). At most LATCH_MAX per hero.
-LEECHES = 40
+LEECHES = 120                   # (40 before 2026-10-05; they crawl over each other)
 LEECH_RADIUS = 0.45             # tiles: a leech's body (hits, latching)
-LEECH_FLOCK = (5.5, 1.2, 3.0)   # drift speed tiles/s, spacing, spread round the centre
+LEECH_FLOCK = (5.5, 0.6, 4.5)   # drift speed tiles/s, wander round its goal, spread round the centre
 LATCH_DPS = 2.5
 LATCH_HEAL = 2.0
 LATCH_MAX = 8

@@ -22,7 +22,7 @@ from ascii_adventurers.tests.test_m17 import step, teleport
 from ascii_adventurers.tests.test_weapons import open_map
 from ascii_adventurers.world import tiles
 from ascii_adventurers.world.chunked import ChunkedWorld
-from ascii_adventurers.world.landmarks import pick_quests
+from ascii_adventurers.world.landmarks import quest_marks
 
 DT = 1 / 60
 
@@ -46,22 +46,15 @@ def run(b, ctx, seconds):
 
 class PoolTest(unittest.TestCase):
     def tearDown(self):
-        config.QUEST_OVERRIDE.pop("swamp", None)
-
-    def test_the_seed_can_pick_her(self):
-        seen = {pick_quests(seed)["swamp"] for seed in range(60)}
-        self.assertEqual(seen, {"bad_trip", "leech_doctor", "smoke_keeper"})
+        config.QUEST_FOCUS = None
 
     def test_stagnant_landmarks_and_braziers(self):
-        config.QUEST_OVERRIDE["swamp"] = "smoke_keeper"
         w = ChunkedWorld(31)
-        names = {m.name for m in w.layout.landmarks if m.kind != "spot"}
-        self.assertEqual(names, {"SMOKE KEEPER", "THE STAGNANT COURT"})
-        lair = w.layout.landmark("pond_lair")
+        camp, lair = quest_marks(w.layout, "smoke_keeper")
+        self.assertEqual((camp.name, lair.name), ("SMOKE KEEPER", "THE STAGNANT COURT"))
         flat = [t for row in lair.rows for t in row if t is not None]
         self.assertIn(tiles.STAGNANT, flat)
         self.assertNotIn(tiles.POND, flat)
-        camp = w.layout.landmark("frog_camp")
         self.assertEqual(len(camp.spots),
                          config.QUESTS["smoke_keeper"].count + config.QUEST_SPOT_EXTRA)
         x, y = camp.spots[0]
@@ -71,7 +64,7 @@ class PoolTest(unittest.TestCase):
     def test_run_py_boss_flag(self):
         from ascii_adventurers.run import force_boss
         force_boss("proboscia")
-        self.assertEqual(config.QUEST_OVERRIDE["swamp"], "smoke_keeper")
+        self.assertEqual(config.QUEST_FOCUS, "smoke_keeper")
 
 
 class RingGapTest(unittest.TestCase):
@@ -252,10 +245,10 @@ class MosquitoTest(unittest.TestCase):
 
 class QuestTest(unittest.TestCase):
     def setUp(self):
-        config.QUEST_OVERRIDE["swamp"] = "smoke_keeper"
+        config.QUEST_FOCUS = "smoke_keeper"
 
     def tearDown(self):
-        config.QUEST_OVERRIDE.pop("swamp", None)
+        config.QUEST_FOCUS = None
         pygame.mouse.set_visible(True)
 
     def test_light_the_braziers_then_the_fight(self):
@@ -263,13 +256,13 @@ class QuestTest(unittest.TestCase):
         from ascii_adventurers.systems.quests import free_spot
         m, s = game("wizard", seed=31)
         q = s.quests
-        st = q.states["swamp"]
+        st = q.states["smoke_keeper"]
         self.assertEqual(st.spec.kind, "light")
         teleport(s, st.npc.x, st.npc.y)
         s.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e, unicode="e", mod=0))
         step(s)
-        self.assertEqual(st.stage, "hunt")
-        self.assertEqual(len(s.spawner.fixed), 0)          # nothing to hunt
+        self.assertTrue(st.taken)
+        self.assertFalse(any(k[1] == st.qid for k in s.spawner.fixed))   # nothing to hunt
         h = s.hero
         h.invulnerable = True
         # Stand by a brazier: it heats, the mosquitoes come, it catches.

@@ -489,3 +489,73 @@ class Mosquito(Creature):
         self.cooldown = self.espec.cooldown
         self.dart = 0.45
         self.dart_angle = self.facing + math.pi + self.rng.choice((-1, 1)) * self.rng.uniform(0.6, 1.2)
+
+
+class Scarab(Leech):
+    """Scarab (M23.1, Khepri's call): scuttles out of the sand at you and
+    nips -- a leech's crawl, wind-up and bite on six legs."""
+
+
+class GoldenScarab(Creature):
+    """Golden scarab (M23.1, the scarab collector's quest): harmless and
+    skittish. It potters about its home spot; once a hero comes within
+    GOLDEN_SCARAB[0] tiles it runs away from the nearest one, jinking from
+    side to side. Still being chased GOLDEN_SCARAB[1] s later, it digs in
+    (GOLDEN_SCARAB[2] s: dust flies, and it can still be hit -- the last
+    chance) and is gone; GOLDEN_SCARAB[3] s later it comes up again at its
+    home spot. So you catch one by cornering it or shooting fast."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.home = (self.x, self.y)
+        self.state = "idle"           # idle -> flee -> dig -> gone -> idle
+        self.timer = 0.0
+        self.jink = 0.0
+        self.jink_dir = 1
+        self.phase = self.rng.uniform(0, math.tau)
+
+    @property
+    def hittable(self) -> bool:
+        return self.alive and self.state != "gone"
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        self.phase += dt * 10.0
+        spook, run, dig, hide = config.GOLDEN_SCARAB
+        if self.state == "gone":
+            self.timer -= dt
+            if self.timer <= 0:
+                self.x, self.y = self.home
+                self.state = "idle"
+                ctx.effects.append(Effect("burrow", self.x, self.y))
+            return
+        if self.state == "dig":
+            self.timer -= dt
+            if int(self.timer * 10) % 2 == 0:
+                ctx.effects.append(Effect("burrow", self.x, self.y))
+            if self.timer <= 0:
+                self.state, self.timer = "gone", hide
+                ctx.effects.append(Effect("eruption", self.x, self.y))
+            return
+        near = [h for h in ctx.players if h.alive and math.hypot(h.x - self.x, h.y - self.y) < spook]
+        if not near:
+            if self.state == "flee":
+                self.state = "idle"
+            gx, gy = self.wander_goal(dt)
+            if math.hypot(gx - self.home[0], gy - self.home[1]) > 8:
+                gx, gy = self.home
+            self.walk(ctx, gx, gy, dt, self.espec.speed * 0.25)
+            return
+        if self.state == "idle":
+            self.state, self.timer = "flee", run
+        self.timer -= dt
+        if self.timer <= 0:
+            self.state, self.timer = "dig", dig
+            return
+        h = min(near, key=lambda o: math.hypot(o.x - self.x, o.y - self.y))
+        self.jink -= dt
+        if self.jink <= 0:
+            self.jink = self.rng.uniform(0.3, 0.7)
+            self.jink_dir = -self.jink_dir
+        a = math.atan2(self.y - h.y, self.x - h.x) + self.jink_dir * 0.6
+        self.walk(ctx, self.x + math.cos(a) * 4, self.y + math.sin(a) * 4, dt, self.espec.speed)

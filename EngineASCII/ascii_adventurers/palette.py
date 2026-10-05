@@ -390,6 +390,35 @@ MAP_TILE["blood pool"] = (110, 24, 30)
 MAP_TILE.update({"stagnant water": (70, 82, 44), "cold brazier": (150, 150, 160),   # M22.2
                  "smoking brazier": (255, 160, 70)})
 MAP_TILE_BIOME["scum"] = "swamp"
+# The desert's landmarks (M23.1): the scarab collector's oasis camp and
+# the Dung Pit (a sunken sandstone arena).
+SANDSTONE_FG = (196, 160, 104)
+SANDSTONE_BG = (110, 82, 46)
+SAND_PIT_FG = (120, 96, 56)
+SAND_PIT_BG = (30, 24, 12)
+OASIS_FG = (110, 190, 200)
+OASIS_BG = (24, 70, 84)
+PALM_FG = (90, 170, 70)
+TENT_FG = (220, 200, 160)
+TENT_BG = (130, 60, 40)
+RUG_FG = (180, 70, 60)
+RUG_BG = (90, 34, 30)
+STALL_FG = (240, 200, 70)
+# Khepri the Dung Emperor, his ball and the scarabs (render/beetle.py).
+KHEPRI = {
+    "shell": (52, 44, 40), "shine": (130, 118, 96), "edge": (24, 20, 18),
+    "leg": (40, 34, 30), "horn": (70, 60, 50), "wing": (200, 190, 150, 120),
+    "eye": (230, 170, 60),
+}
+DUNG = ((112, 78, 44), (84, 56, 30), (150, 112, 66), (180, 160, 90))   # base, dark, light, straw
+KHEPRI_TELL = ((255, 120, 60), (160, 70, 30))
+GOLD_SCARAB = {"shell": (240, 196, 60), "shine": (255, 245, 180), "edge": (120, 84, 20),
+               "leg": (90, 64, 20)}
+SCARAB = {"shell": (40, 110, 120), "shine": (120, 210, 200), "edge": (14, 40, 46),
+          "leg": (20, 50, 54)}
+SHOT_SAND = ((240, 210, 140), ((190, 160, 100), (120, 100, 60)))
+SHOT_DUST = ((220, 200, 160), ((160, 140, 110), (100, 90, 70)))
+SHOT_CLOD = ((170, 120, 70), ((120, 84, 50), (80, 56, 34)))
 # Map pins (quest givers, lairs): (fill, edge).
 PIN_QUEST = ((255, 220, 90), (60, 40, 0))
 PIN_LAIR = ((255, 90, 70), (60, 10, 0))
@@ -419,3 +448,6 @@ PSYCHEDELIC = ((255, 85, 85), (255, 165, 60), (255, 235, 90), (115, 230, 115),
 PSY_SHOTS = tuple(
     (c, (tuple(round(v * 0.72) for v in c), tuple(round(v * 0.45) for v in c))) for c in PSYCHEDELIC
 )
+MAP_TILE.update({"sandstone": (196, 160, 104), "oasis": (60, 150, 170), "palm": (70, 140, 60),
+                 "tent": (170, 80, 50), "collector's stall": (240, 200, 70)})   # M23.1
+MAP_TILE_BIOME.update({"sand pit": "desert", "rug": "desert", "collector's post": "desert"})

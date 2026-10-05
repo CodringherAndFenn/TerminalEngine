@@ -20,11 +20,13 @@ import math
 import pygame
 
 from .. import config, palette
-from ..ai.bosses import LeechPart, LeechSwarm, Proboscia
-from ..ai.creatures import Boar, Burrower, DustDevil, Leech, Mosquito, Puffer, Warrior
+from ..ai.bosses import Khepri, LeechPart, LeechSwarm, Proboscia
+from ..ai.creatures import (Boar, Burrower, DustDevil, GoldenScarab, Leech, Mosquito, Puffer,
+                            Scarab, Warrior)
 from ..ai.shooters import PsyFrog, Shooter, Warlock, Wisp
 from ..engine_ext.camera import Camera
 from .ascii_fx import draw_beam, draw_boar_tell, draw_hp_bar, draw_searchlight
+from .beetle import draw_khepri, draw_scarab
 from .bosses import draw_froggy
 from .characters import draw_body, draw_character, walk_frame
 from .leeches import draw_leech_creature, draw_leech_part, draw_swarm
@@ -194,6 +196,9 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
     if isinstance(e, Proboscia):               # M22.2
         draw_proboscia(text, bank, camera, e)
         return
+    if isinstance(e, Khepri):                  # M23.1
+        draw_khepri(text, bank, camera, e)
+        return
     if getattr(e, "boss", False):
         draw_froggy(text, bank, camera, e)     # (its health is the HUD's boss bar)
         return
@@ -223,6 +228,8 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
         sprite = bank.rotated(("warrior", pose, e.hurt_flash > 0, size), e.facing, 72,
                               _paint_warrior(pose, e.hurt_flash > 0, size), 20 * size / 16)
         bank.draw(sprite, x, y)
+    elif isinstance(e, (Scarab, GoldenScarab)):   # (a scarab is a leech underneath)
+        draw_scarab(bank, camera, e)
     elif isinstance(e, Leech):
         draw_leech_creature(bank, camera, e)
     elif isinstance(e, Mosquito):

@@ -1,34 +1,39 @@
 """
 systems/quests.py -- the run's quests (M17, design/BOSSES.md).
 
-Each ring biome's quest for this run (one of its pool in config.QUESTS,
-picked by the seed: world/landmarks.pick_quests) whose camp and lair could
-be placed on this island gets a QuestState, going through these stages:
+Every quest in config.QUESTS whose camp and lair could be placed on this
+island gets a QuestState (M22.5: all of a biome's bosses, every run). The
+quests are HIDDEN: nothing about them shows until their boss wakes, unless
+a player takes one from its giver. Stages:
 
-  "offered"  the giver waits at their camp (pinned on the maps from the
-             start); talking to them (E / gamepad A within TALK_RADIUS)
-             starts the quest;
-  "hunt"     the quest's targets are out at the camp's spots, scattered
-             over the biome -- a few more of them than the quest needs --
-             and pinned on the maps once you're near one (they wake,
-             sleep and stay dead like any enemy, systems/spawner.place);
-             every one that dies counts, whoever killed it;
+  "hunt"     from the start of the run: the quest's targets are out at
+             the camp's spots, scattered over the biome -- a few more of
+             them than the quest needs (they wake, sleep and stay dead like
+             any enemy, systems/spawner.place); every one that dies counts,
+             whoever killed it, quest taken or not;
              (a "light" quest, M22.2: the spots hold braziers instead;
              one catches after a hero stands by it for a while, and
              mosquitoes swarm whoever is lighting it);
-  "awake"    all found: the boss waits in its lair (now pinned too);
+             the giver (unpinned: you find their camp) tells you what to
+             do; talking to them TAKES the quest (`taken`): it gets a
+             counter in the quest log, and its living targets are pinned
+             once you're near one;
+  "awake"    all found: "SOMETHING STIRS...", and the boss waits in its
+             lair, now pinned on the maps;
   "fight"    a player went LAIR_SEAL_DEPTH tiles into the arena: the gate
              fills with thorns (each tile as soon as nobody stands in it),
              the boss rises with its name across the screen, and the
              arena's chunks stay loaded wherever the players are in it;
   "cleared"  the boss fell: the gate opens, and every player gets the
              reward (loot, a rare+ card offer; the achievement and the
-             bestiary pages go to the Guild). One more guardian down for
-             the main quest, "Gain Adventurer's Glory".
+             bestiary pages go to the Guild). The first boss beaten in a
+             biome is one more guardian down for the main quest, "Gain
+             Adventurer's Glory"; the biome's others are optional.
 
+Several fights can be on at once (co-op players in different arenas).
 What the giver says depends on the stage (QuestSpec.lines); their words
 hang over their head a line at a time. The main quest counts guardians
-(cleared quests) toward config.GUARDIANS.
+(biomes with a cleared quest) toward config.GUARDIANS.
 
 All of it runs inside the simulation step, from the players' inputs and
 the game state only (deterministic).
@@ -42,13 +47,24 @@ from dataclasses import dataclass, field
 
 from .. import config
 from ..entities.effects import Effect
-from ..world import biomes, tiles
+from ..world import tiles
 from ..world.rng import hash_coords
 from .collision import hull_hits_solid
 
-# Spawn ids of quest enemies: (QUEST_SID, biome id, i, 0) -- four ints, so
-# they never clash with a chunk roster's (cx, cy, k).
+# Spawn ids of quest enemies: (QUEST_SID, quest id, i, 0) -- four ints, so
+# they never clash with a chunk roster's (cx, cy, k). A quest's id is its
+# place in config.QUESTS, from 1.
 QUEST_SID = 0x51E57
+
+
+def quest_id(key: str) -> int:
+    return list(config.QUESTS).index(key) + 1
+
+
+def place_name(name: str) -> str:
+    """A map name ("FROGGY'S POND") in a sentence: "Froggy's Pond"
+    (str.title would give "Froggy'S")."""
+    return " ".join(w.capitalize() for w in name.split())
 
 
 @dataclass
@@ -60,6 +76,7 @@ class Npc:
     x: float
     y: float
     biome: str
+    quest: str = ""                # the config.QUESTS key they give
     speech: tuple = ()
     speech_t: float = 0.0
 
@@ -83,11 +100,13 @@ class Npc:
 
 @dataclass
 class QuestState:
+    key: str                           # its config.QUESTS key
     spec: object                       # specs.QuestSpec
     camp: object                       # world/landmarks.Landmark
     lair: object
     npc: Npc
-    stage: str = "offered"
+    stage: str = "hunt"
+    taken: bool = False                # a player talked to the giver
     found: int = 0                     # hunt: targets dead so far
     boss: object = None
     pending: list = field(default_factory=list)   # gate tiles still to seal
@@ -100,6 +119,10 @@ class QuestState:
     @property
     def biome(self) -> str:
         return self.spec.biome
+
+    @property
+    def qid(self) -> int:
+        return quest_id(self.key)
 
 
 @dataclass
@@ -117,15 +140,16 @@ class Quests:
         self.scene = scene
         self.world = scene.world
         layout = getattr(self.world, "layout", None)
-        self.states: dict[str, QuestState] = {}
+        self.states: dict[str, QuestState] = {}     # config.QUESTS key -> its state
         if layout is not None:
-            from ..world.landmarks import pick_quests
-            for spec in (config.QUESTS[k] for k in pick_quests(layout.seed).values()):
-                camp, lair = layout.landmark(spec.camp), layout.landmark(spec.lair)
+            from ..world.landmarks import quest_marks
+            for key, spec in config.QUESTS.items():
+                camp, lair = quest_marks(layout, key)
                 if camp is None or lair is None or camp.npc is None:
                     continue
-                npc = Npc(spec.giver, spec.giver_sprite, *camp.npc, spec.biome)
-                self.states[spec.biome] = QuestState(spec, camp, lair, npc)
+                npc = Npc(spec.giver, spec.giver_sprite, *camp.npc, spec.biome, quest=key)
+                s = self.states[key] = QuestState(key, spec, camp, lair, npc)
+                self._place_targets(s)
         self.banner: Banner | None = None
 
     # --- Queries --------------------------------------------------------------------
@@ -136,11 +160,27 @@ class Quests:
 
     @property
     def guardians(self) -> int:
-        return sum(1 for s in self.states.values() if s.stage == "cleared")
+        """Ring biomes with a boss beaten (one per biome counts)."""
+        return len({s.biome for s in self.states.values() if s.stage == "cleared"})
+
+    @property
+    def fights(self) -> list[QuestState]:
+        return [s for s in self.states.values() if s.stage == "fight"]
 
     @property
     def fight(self) -> QuestState | None:
-        return next((s for s in self.states.values() if s.stage == "fight"), None)
+        """A fight in progress (the first; see fight_for)."""
+        return next(iter(self.fights), None)
+
+    def fight_for(self, hero) -> QuestState | None:
+        """The fight this hero is in (inside its arena), else the nearest one
+        going on (for the boss bar and the off-screen pointer)."""
+        fights = self.fights
+        for s in fights:
+            if s.lair.inside(hero.x, hero.y):
+                return s
+        return min(fights, key=lambda s: math.hypot(s.lair.cx - hero.x, s.lair.cy - hero.y),
+                   default=None)
 
     def npc_near(self, hero) -> Npc | None:
         best, best_d = None, config.TALK_RADIUS
@@ -151,43 +191,45 @@ class Quests:
         return best
 
     def stream_views(self) -> list[tuple[float, float, float, float]]:
-        """Extra areas to keep loaded: the arena of a fight in progress (its
-        boss roams all of it, often far from the players' screens)."""
-        s = self.fight
-        if s is None:
-            return []
-        a, b = s.lair.radii
-        return [(s.lair.cx, s.lair.cy, a + config.LAIR_WALL, b + config.LAIR_WALL)]
+        """Extra areas to keep loaded: the arenas of fights in progress (a
+        boss roams all of its arena, often far from the players' screens)."""
+        out = []
+        for s in self.fights:
+            a, b = s.lair.radii
+            out.append((s.lair.cx, s.lair.cy, a + config.LAIR_WALL, b + config.LAIR_WALL))
+        return out
 
     def log(self) -> list[tuple[str, str, bool]]:
-        """The quest log: (label, text, done) lines, main quest first."""
+        """The quest log: (label, text, done) lines -- the main quest, then
+        a counter for each quest taken from its giver until its boss falls.
+        Quests nobody took stay hidden (M22.5)."""
         out = [("GLORY", f"guardians {self.guardians}/{config.GUARDIANS}", False)]
         for s in self.states.values():
+            if not s.taken or s.stage == "cleared":
+                continue
             spec = s.spec
             boss = config.BOSSES[spec.boss].name
             text = {
-                "offered": f"talk to the {spec.giver}",
                 "hunt": spec.goal.format(n=s.found, count=spec.count),
-                "awake": f"go to {s.lair.name.title()}",
+                "awake": f"go to {place_name(s.lair.name)}",
                 "fight": f"defeat {boss}",
-                "cleared": f"{boss} beaten",
             }[s.stage]
-            out.append((s.biome.upper(), text, s.stage == "cleared"))
+            out.append((s.biome.upper(), text, False))
         return out
 
     def pins(self, near: tuple[float, float] | None = None) -> list[tuple[float, float, str, str]]:
-        """Map pins: (x, y, kind, label); kind "quest" | "lair" | "target" |
-        "done". A hunt's targets (still alive) are pinned only within
-        QUEST_TARGET_PIN_RADIUS tiles of `near` (the viewing player; None:
-        all of them): you roam the biome until you're close, then the pin
-        leads you in."""
+        """Map pins: (x, y, kind, label); kind "lair" | "target" | "done".
+        Givers and lairs are found, not pinned (M22.5); a lair is pinned
+        once its boss wakes. A taken quest's targets (still alive) are
+        pinned only within QUEST_TARGET_PIN_RADIUS tiles of `near` (the
+        viewing player; None: all of them): you roam the biome until you're
+        close, then the pin leads you in."""
         out = []
         sp = self.scene.spawner
         for s in self.states.values():
             giver_done = s.stage == "cleared"
-            out.append((s.npc.x, s.npc.y, "done" if giver_done else "quest", s.spec.giver.upper()))
-            if s.stage == "hunt":
-                bid = biomes.BY_NAME[s.biome].id
+            if s.stage == "hunt" and s.taken:
+                qid = s.qid
                 light = s.spec.kind == "light"
                 label = "BRAZIER" if light else config.ENEMIES[s.spec.target].name.split()[-1].upper()
                 for i, (x, y) in enumerate(s.camp.spots):
@@ -197,7 +239,7 @@ class Quests:
                     if light:
                         if i not in s.lit:
                             out.append((x, y, "target", label))
-                    elif sp is None or (QUEST_SID, bid, i, 0) not in sp.dead:
+                    elif sp is None or (QUEST_SID, qid, i, 0) not in sp.dead:
                         out.append((x, y, "target", label))
             if s.stage in ("awake", "fight", "cleared"):
                 out.append((s.lair.cx, s.lair.cy, "done" if giver_done else "lair", s.lair.name))
@@ -234,11 +276,12 @@ class Quests:
                 self.banner = None
 
     def talk(self, npc: Npc, p) -> None:
-        s = self.states[npc.biome]
+        s = self.states[npc.quest]
         spec = s.spec
-        if s.stage == "offered":
+        first = not s.taken
+        s.taken = True
+        if s.stage == "hunt" and first:
             npc.say(spec.say("offer"))
-            self._start_hunt(s)
         elif s.stage == "hunt":
             left = spec.count - s.found
             npc.say(line.format(left=left) for line in spec.say("progress"))
@@ -251,18 +294,17 @@ class Quests:
         if p.local:
             self.scene._sounds.append("ui")
 
-    def _start_hunt(self, s: QuestState) -> None:
-        s.stage = "hunt"
+    def _place_targets(self, s: QuestState) -> None:
+        """A hunt's targets go out at the camp's spots when the run starts."""
         sp = self.scene.spawner
-        bid = biomes.BY_NAME[s.biome].id
         if sp is not None and s.spec.kind == "hunt":
             for i, (x, y) in enumerate(s.camp.spots):
-                sp.place((QUEST_SID, bid, i, 0), s.spec.target, x, y)
+                sp.place((QUEST_SID, s.qid, i, 0), s.spec.target, x, y)
 
     def is_target(self, s: QuestState, enemy) -> bool:
         sid = getattr(enemy, "spawn_id", None)
         return (isinstance(sid, tuple) and len(sid) == 4 and sid[0] == QUEST_SID
-                and sid[1] == biomes.BY_NAME[s.biome].id)
+                and sid[1] == s.qid)
 
     def on_death(self, enemy, killer) -> None:
         """An enemy died (`killer`: the player who killed it, or None)."""
@@ -274,17 +316,19 @@ class Quests:
 
     def _found(self, s: QuestState, at) -> None:
         """One more target done (a hunt's kill, a brazier lit): a toast over
-        `at`, or, the last one, the boss wakes."""
+        `at` if the quest was taken (otherwise it counts silently), or, the
+        last one, the boss wakes whether or not anyone took the quest."""
         s.found += 1
         if s.found >= s.spec.count:
             s.stage = "awake"
             self.banner = Banner("SOMETHING STIRS...",
-                                 f"{s.lair.name.title()} is marked on your map")
-        else:
+                                 f"{place_name(s.lair.name)} is marked on your map")
+            self.scene._sounds.append("chime")
+        elif s.taken:
             self.scene.effects.append(Effect(
                 "toast", at.x, at.y - 1,
                 label=s.spec.goal.format(n=s.found, count=s.spec.count).upper()))
-        self.scene._sounds.append("chime")
+            self.scene._sounds.append("chime")
 
     # --- Light quests (M22.2) -----------------------------------------------------------
 
@@ -325,7 +369,8 @@ class Quests:
         sp = self.scene.spawner
         if sp is None:
             return
-        rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0xB4A2, i, wave))
+        rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0xB4A2, s.qid, i,
+                                        wave))
         lo, hi = config.BRAZIER_SWARM_RANGE
         for _ in range(config.BRAZIER_SWARM_SIZE):
             a = rng.uniform(0, math.tau)
@@ -347,8 +392,7 @@ class Quests:
         s.pending = list(lair.gate)
         sp = self.scene.spawner
         x, y = lair.spots[0] if lair.spots else (lair.cx, lair.cy)
-        rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0xB055,
-                                        biomes.BY_NAME[s.biome].id))
+        rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0xB055, s.qid))
         if sp is not None:
             boss = sp.wake(s.spec.boss, x, y, None, rng)
         else:
@@ -397,16 +441,18 @@ class Quests:
         s.pending = []
         if hasattr(self.world, "set_tile"):
             for tx, ty in s.lair.gate:
-                self.world.set_tile(tx, ty, tiles.MUD)
+                self.world.set_tile(tx, ty, s.lair.floor or tiles.MUD)
 
     def _win(self, s: QuestState, killer) -> None:
+        first = s.biome not in {o.biome for o in self.states.values() if o.stage == "cleared"}
         s.stage = "cleared"
         self._open_gate(s)
         boss = s.boss
         spec = config.BOSSES[s.spec.boss]
         scene = self.scene
         self.banner = Banner(f"{boss.espec.name.upper()} IS DEFEATED",
-                             f"guardians {self.guardians}/{config.GUARDIANS}")
+                             f"guardians {self.guardians}/{config.GUARDIANS}" if first
+                             else f"the {s.biome}'s guardian already fell: a bonus kill")
         scene._sounds.append("chime")
         guild = scene.app.guild
         for p in scene.players:
@@ -424,6 +470,8 @@ class Quests:
             if p.hero.bestiary is not None:
                 p.hero.bestiary.update(spec.pages)
         guild.pages.update(spec.pages)
+        guild.record_quest(s.key, [p.stats.hero for p in scene.players if not p.ghost],
+                           s.fight_time)
         scene.app.save_guild()
         if scene.app.dev:
             print(f"[dev] {boss.espec.name}: beaten in {s.fight_time:.1f} s, "
@@ -431,36 +479,43 @@ class Quests:
 
     # --- Developer mode ---------------------------------------------------------------
 
+    def dev_quest(self) -> QuestState | None:
+        """Dev: the quest the dev keys act on -- config.QUEST_FOCUS (run.py
+        --boss), else the first one not beaten yet."""
+        s = self.states.get(config.QUEST_FOCUS) if config.QUEST_FOCUS else None
+        if s is not None:
+            return s
+        return next((s for s in self.states.values() if s.stage != "cleared"), None)
+
     def dev_finish_hunt(self) -> bool:
-        """Dev: the first quest still hunting (or not started) is done."""
-        for s in self.states.values():
-            if s.stage in ("offered", "hunt"):
-                if s.stage == "offered":
-                    self._start_hunt(s)
-                s.found = s.spec.count
-                s.lit = set(range(len(s.camp.spots)))
-                if s.spec.kind == "light" and hasattr(self.world, "set_tile"):
-                    for x, y in s.camp.spots:
-                        self.world.set_tile(math.floor(x), math.floor(y), tiles.BRAZIER_LIT)
-                s.stage = "awake"
-                sp = self.scene.spawner
-                if sp is not None:
-                    bid = biomes.BY_NAME[s.biome].id
-                    for i in range(len(s.camp.spots)):
-                        sid = (QUEST_SID, bid, i, 0)
-                        sp.dead.add(sid)
-                        e = sp.awake.pop(sid, None)
-                        if e is not None:
-                            e.hp = 0.0
-                            e.last_hit_by = None
-                self.banner = Banner("SOMETHING STIRS...", "(dev) hunt finished")
-                return True
-        return False
+        """Dev: the dev quest's hunt is done (its boss wakes)."""
+        s = self.dev_quest()
+        if s is None or s.stage != "hunt":
+            return False
+        s.taken = True
+        s.found = s.spec.count
+        s.lit = set(range(len(s.camp.spots)))
+        if s.spec.kind == "light" and hasattr(self.world, "set_tile"):
+            for x, y in s.camp.spots:
+                self.world.set_tile(math.floor(x), math.floor(y), tiles.BRAZIER_LIT)
+        s.stage = "awake"
+        sp = self.scene.spawner
+        if sp is not None:
+            for i in range(len(s.camp.spots)):
+                sid = (QUEST_SID, s.qid, i, 0)
+                sp.dead.add(sid)
+                e = sp.awake.pop(sid, None)
+                if e is not None:
+                    e.hp = 0.0
+                    e.last_hit_by = None
+        self.banner = Banner("SOMETHING STIRS...", "(dev) hunt finished")
+        return True
 
     def dev_spot(self, which: str) -> tuple[float, float] | None:
-        """Dev: somewhere to teleport -- next to the first quest's giver, or
+        """Dev: somewhere to teleport -- next to the dev quest's giver, or
         just outside its lair's gate."""
-        for s in self.states.values():
+        s = self.dev_quest()
+        if s is not None:
             if which == "giver":
                 return s.npc.x, s.npc.y         # (free_spot finds room beside them)
             gx = sum(t[0] for t in s.lair.gate) / max(1, len(s.lair.gate))

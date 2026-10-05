@@ -52,6 +52,12 @@ damage before it's digested POPS her (a big hit, a ring of blood, stunned
 on the ground). Phase 1: dive bites, needle fans, sips. Phase 2 adds buzz
 rings (closing, with a gap) and calls for mosquitoes. Phase 3: faster,
 three dives in a row, each leaving fever clouds.
+
+Khepri the Dung Emperor (desert, M23.1): a giant dung beetle and his dung
+ball, which grows as he rolls it at you. Signature: bait the ball into a
+sandstone pillar and it shatters, leaving him stunned. Phase 1: rolls,
+horn charges with a fan of kicked sand, burrow eruptions. Phase 2 adds a
+dust storm and a call for scarabs. Phase 3: faster rolls, two in a row.
 """
 
 from __future__ import annotations
@@ -72,11 +78,12 @@ class Boss(Brain, Actor):
 
     def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
                  spawn_id=None, hit_radius: float = 2.0) -> None:
-        Actor.__init__(self, spec.max_hp, hit_radius)
+        Actor.__init__(self, round(spec.max_hp * config.BOSS_HP_MULT), hit_radius)
         self.x, self.y = x, y
         self.facing = 0.0
         self.half = spec.size_px / 2
         self.init_brain(spec, rng, spawn_id)
+        self.damage_mult *= config.BOSS_DMG_MULT
         self.bspec = config.BOSSES[spec.kind]
         self.lair = None                  # world/landmarks.Landmark (set by the quest)
         self.recruit = None               # callable(enemy key, x, y): call in an add
@@ -94,12 +101,17 @@ class Boss(Brain, Actor):
         self.submerged = False            # under water: can't be hit
         self.dazed = 0.0                  # seconds left sitting stunned
         self.tgt = None                   # this move's target hero
+        self.combo = 0                    # moves chained since the last rest
 
     # --- Being a boss ----------------------------------------------------------------
 
     @property
     def hittable(self) -> bool:
         return self.alive and self.airborne <= 0 and not self.submerged
+
+    def scale_to_level(self, level: int) -> None:
+        super().scale_to_level(level)
+        self.damage_mult *= config.BOSS_DMG_MULT    # (BOSS_HP_MULT is in max_hp already)
 
     def scale_for(self, players: int) -> None:
         """More health for every extra player (after scale_to_level)."""
@@ -145,7 +157,43 @@ class Boss(Brain, Actor):
         self.move = None
         self._gen = None
         self.tell = None
-        self._rest = self.bspec.phases[self.phase].rest
+        # A combo: straight into the next move (its own tell still shows),
+        # the first move's shots still flying. The rest comes after it.
+        chance, most = config.BOSS_COMBO[min(self.phase, len(config.BOSS_COMBO) - 1)]
+        if self.combo < most and self.rng.random() < chance:
+            self.combo += 1
+            self._rest = config.BOSS_COMBO_GAP
+            return
+        self.combo = 0
+        scale = config.BOSS_REST_SCALE[min(self.phase, len(config.BOSS_REST_SCALE) - 1)]
+        self._rest = self.bspec.phases[self.phase].rest * scale
+
+    def tell_s(self, seconds: float) -> float:
+        """A tell's length in this phase: shorter as the fight goes on, but
+        never under BOSS_MIN_TELL (nor longer than it was)."""
+        scale = config.BOSS_TELL_SCALE[min(self.phase, len(config.BOSS_TELL_SCALE) - 1)]
+        return min(seconds, max(config.BOSS_MIN_TELL, seconds * scale))
+
+    def lead(self, t, ox: float, oy: float, speed: float = 0.0,
+             secs: float | None = None) -> tuple[float, float]:
+        """Where to aim at hero `t` from (ox, oy): where it'll be if it keeps
+        moving the way it is. Ahead by the shot's flight time (distance /
+        `speed`) or by `secs`, x BOSS_LEAD, at most BOSS_LEAD_MAX tiles."""
+        if secs is None:
+            secs = math.hypot(t.x - ox, t.y - oy) / speed if speed > 0 else 0.0
+        k = secs * config.BOSS_LEAD
+        dx, dy = getattr(t, "vx", 0.0) * k, getattr(t, "vy", 0.0) * k
+        d = math.hypot(dx, dy)
+        if d > config.BOSS_LEAD_MAX:
+            dx, dy = dx / d * config.BOSS_LEAD_MAX, dy / d * config.BOSS_LEAD_MAX
+        return t.x + dx, t.y + dy
+
+    def aim(self, t, ox: float, oy: float, speed: float = 0.0, secs: float | None = None,
+            lead: bool = True) -> float:
+        """The angle from (ox, oy) at hero `t` -- leading it, or (lead=False)
+        straight at where it is now."""
+        x, y = self.lead(t, ox, oy, speed, secs) if lead else (t.x, t.y)
+        return math.atan2(y - oy, x - ox)
 
     def _check_phase(self, ctx: AIContext) -> None:
         f = self.frac
@@ -285,35 +333,37 @@ class Froggy(Boss):
         n, spread, volleys, gap = config.FROGGY_FAN
         self.tell = ("mouth",)
         self.mouth_open = True
-        yield config.FROGGY_TELL
-        for _ in range(volleys):
+        yield self.tell_s(config.FROGGY_TELL)
+        for k in range(volleys):
             t = self.target_now()
             if t is None:
                 break
             if self.room_for_shots():
                 mx, my = self.mouth
-                patterns.fan(self, mx, my, math.atan2(t.y - my, t.x - mx), n, spread,
-                             self.shots["tadpole"], self.ctx.projectiles, self._tint())
+                shell = self.shots["tadpole"]       # the first volley at you, the rest lead you
+                patterns.fan(self, mx, my, self.aim(t, mx, my, shell.speed, lead=k > 0), n,
+                             spread, shell, self.ctx.projectiles, self._tint())
                 self.ctx.events.append("orb")
             yield gap
         self.mouth_open = False
 
     def m_stream(self):
-        """P3 (one at a time): a stream of bubbles, each aimed at where the
-        target is now -- keep moving and they trail behind you, stand still
-        and they all land."""
+        """P3 (one at a time): a stream of bubbles, every other one aimed at
+        where the target is now, the rest leading it -- run straight and the
+        leading ones meet you, stand still and the others land."""
         n, gap = config.FROGGY_STREAM
         self.tell = ("mouth",)
         self.mouth_open = True
-        yield config.FROGGY_TELL
-        for _ in range(n):
+        yield self.tell_s(config.FROGGY_TELL)
+        for k in range(n):
             t = self.target_now()
             if t is None:
                 break
             if self.room_for_shots():
                 mx, my = self.mouth
-                patterns.shoot(self, mx, my, math.atan2(t.y - my, t.x - mx),
-                               self.shots["stream"], self.ctx.projectiles, self._tint())
+                shell = self.shots["stream"]
+                patterns.shoot(self, mx, my, self.aim(t, mx, my, shell.speed, lead=k % 2 == 1),
+                               shell, self.ctx.projectiles, self._tint())
                 self.ctx.events.append("fizzle")
             yield gap
         self.mouth_open = False
@@ -325,7 +375,8 @@ class Froggy(Boss):
         t = self.target_now()
         if t is None:
             return
-        a = math.atan2(t.y - self.y, t.x - self.x)
+        aim_time = self.tell_s(aim_time)
+        a = self.aim(t, self.x, self.y, secs=aim_time)   # at where you'll be when it lashes
         self.facing = a
         self.tell = ("tongue", a, reach)
         yield aim_time
@@ -355,7 +406,8 @@ class Froggy(Boss):
         t = self.target_now()
         if t is None:
             return
-        dx, dy = t.x - self.x, t.y - self.y
+        tx, ty = self.lead(t, self.x, self.y, secs=flight)   # lands where you'll be
+        dx, dy = tx - self.x, ty - self.y
         d = math.hypot(dx, dy)
         if d > leap:
             dx, dy = dx / d * leap, dy / d * leap
@@ -391,7 +443,7 @@ class Froggy(Boss):
         arms = 3 if self.psychedelic else 2
         self.tell = ("mouth",)
         self.mouth_open = True
-        yield config.FROGGY_TELL
+        yield self.tell_s(config.FROGGY_TELL)
         turn = self.rng.uniform(0, math.tau)
         way = self.rng.choice((-1, 1))
         tt = 0.0
@@ -434,7 +486,7 @@ class Froggy(Boss):
             dest = self.rng.choice(others)
         self.ripples = dest
         self.tell = ("ripples",)
-        yield tell
+        yield self.tell_s(tell)
         self.x, self.y = dest
         self.submerged = False
         self.ripples = None
@@ -455,7 +507,7 @@ class Froggy(Boss):
         k, cap = config.FROGGY_SUMMON
         self.tell = ("mouth",)
         self.mouth_open = True
-        yield config.FROGGY_TELL
+        yield self.tell_s(config.FROGGY_TELL)
         alive = sum(1 for a in self.ctx.actors if getattr(a, "summoner", None) is self and a.alive)
         for i in range(min(k, cap - alive)):
             if self.recruit is None:
@@ -479,7 +531,7 @@ class Froggy(Boss):
         heading = self.rng.choice((0.0, math.pi / 2, math.pi, -math.pi / 2))
         self.tell = ("mouth",)
         self.mouth_open = True
-        yield config.FROGGY_TELL
+        yield self.tell_s(config.FROGGY_TELL)
         tt = 0.0
         phase = self.rng.uniform(0, math.tau)
         t = self.target_now()
@@ -500,7 +552,7 @@ class Froggy(Boss):
         n, radius, hold, rings, between = config.FROGGY_RING
         self.tell = ("mouth",)
         self.mouth_open = True
-        yield config.FROGGY_TELL * 0.6
+        yield self.tell_s(config.FROGGY_TELL * 0.6)
         self.mouth_open = False
         for k in range(rings):
             t = self.target_now()
@@ -668,9 +720,10 @@ class LeechSwarm(Boss):
 
     def _move(self, dt: float) -> None:
         """Steer every free leech toward its goal (or along the surge),
-        keeping a little apart from its neighbours, inside the arena.
-        Leeches swim over everything (no walls for them)."""
-        spacing = config.LEECH_FLOCK[1]
+        inside the arena. Leeches swim over everything (no walls for them)
+        and crawl over each other: no pushing apart, just a little wander
+        round each one's goal (LEECH_FLOCK[1] tiles) so they don't stack."""
+        wander = config.LEECH_FLOCK[1]
         free = self.free()
         speed = self.speed
         for p in self.parts:
@@ -683,6 +736,10 @@ class LeechSwarm(Boss):
                 vx, vy = self.dash[0] * config.LEECH_SURGE[1], self.dash[1] * config.LEECH_SURGE[1]
             elif p.goal is not None:
                 dx, dy = p.goal[0] - p.x, p.goal[1] - p.y
+                if self.mode != "whirl":      # (the whirlpool's ring stays clean)
+                    j = p.index * 2.39996 + self.time * 1.3
+                    dx += math.cos(j) * wander
+                    dy += math.sin(j * 1.7) * wander * 0.7
                 d = math.hypot(dx, dy)
                 top = speed * (4.0 if self.mode == "whirl" else 1.6 if self.mode == "rush" else 1.0)
                 k = min(top, d * 4.0) / d if d > 1e-6 else 0.0
@@ -690,18 +747,6 @@ class LeechSwarm(Boss):
             else:
                 vx = vy = 0.0
             p.vx, p.vy = vx, vy
-        # Separation (a soft push apart, so the swarm reads as many leeches).
-        for i, p in enumerate(free):
-            for q in free[i + 1:]:
-                dx, dy = q.x - p.x, q.y - p.y
-                d2 = dx * dx + dy * dy
-                if 1e-9 < d2 < spacing * spacing:
-                    d = math.sqrt(d2)
-                    push = (spacing - d) / d * 0.5 * 6.0
-                    p.vx -= dx * push
-                    p.vy -= dy * push
-                    q.vx += dx * push
-                    q.vy += dy * push
         for p in free:
             if p.submerged:
                 continue
@@ -787,7 +832,8 @@ class LeechSwarm(Boss):
         t = self.target_now()
         if t is None:
             return
-        a = math.atan2(t.y - self.y, t.x - self.x)
+        tell = self.tell_s(tell)
+        a = self.aim(t, self.x, self.y, secs=tell)    # through where you'll be
         self.dash = (math.cos(a), math.sin(a))
         self.mode = "hold"
         for p in self.free():
@@ -833,7 +879,7 @@ class LeechSwarm(Boss):
         for p in self.free():
             p.goal = (self.x, self.y)
         self.tell = ("swell",)
-        yield tell
+        yield self.tell_s(tell)
         self.tell = None
         turn = self.rng.uniform(0, math.tau)
         for k in range(rings):
@@ -868,7 +914,7 @@ class LeechSwarm(Boss):
             else self.rng.choice(others)
         self.nest_at = dest
         self.tell = ("ripples", dest[0], dest[1])
-        yield tell
+        yield self.tell_s(tell)
         self.tell = None
         self.nest_at = None
         n = max(1, len(diving))
@@ -1084,6 +1130,7 @@ class Proboscia(Boss):
                             ctx.projectiles, self.rng.uniform(0, math.tau))
         self.dazed = config.ENGORGE_STUN
         self.hover = False
+        self.combo = 0
         self._rest = 0.4                  # a breath once she's up again
 
     def _digest(self) -> None:
@@ -1131,7 +1178,8 @@ class Proboscia(Boss):
     @property
     def nose(self) -> tuple[float, float]:
         """The tip of her proboscis (where needles come from)."""
-        return self.x + math.cos(self.facing) * 1.8, self.y + math.sin(self.facing) * 1.2
+        r = self.hit_radius * 0.95
+        return self.x + math.cos(self.facing) * r, self.y + math.sin(self.facing) * r * 0.67
 
     # --- Moves --------------------------------------------------------------------------
 
@@ -1148,13 +1196,17 @@ class Proboscia(Boss):
             if t is None:
                 break
             self.hover = False
-            a = math.atan2(t.y - self.y, t.x - self.x)
+            wait = self.tell_s(tell if k == 0 else config.PROBOSCIA_FRENZY[2])
+            # Aimed at where you'll be when she gets there (the tell, then the dive).
+            reach = math.hypot(t.x - self.x, t.y - self.y)
+            tx, ty = self.lead(t, self.x, self.y, secs=wait + reach / (speed * self.speed_mult))
+            a = math.atan2(ty - self.y, tx - self.x)
             self.facing = a
-            length = min(longest, math.hypot(t.x - self.x, t.y - self.y) + 6.0)
+            length = min(longest, math.hypot(tx - self.x, ty - self.y) + 6.0)
             x0, y0 = self.x, self.y
             x1, y1 = self.clamp_to_lair(x0 + math.cos(a) * length, y0 + math.sin(a) * length, 3.0)
             self.tell = ("bite", x0, y0, x1, y1)
-            yield tell if k == 0 else config.PROBOSCIA_FRENZY[2]
+            yield wait
             self.tell = None
             self.dashing = True
             self.ctx.events.append("swing")
@@ -1192,16 +1244,17 @@ class Proboscia(Boss):
         tell, n, spread, volleys, gap = config.PROBOSCIA_FAN
         self.hover = False
         self.tell = ("needle",)
-        yield tell
+        yield self.tell_s(tell)
         self.tell = None
-        for _ in range(volleys):
+        for k in range(volleys):
             t = self.target_now()
             if t is None:
                 break
             if self.room_for_shots():
                 nx, ny = self.nose
-                patterns.fan(self, nx, ny, math.atan2(t.y - ny, t.x - nx), n, spread,
-                             self.shots["needle"], self.ctx.projectiles)
+                shell = self.shots["needle"]        # the first volley at you, the rest lead you
+                patterns.fan(self, nx, ny, self.aim(t, nx, ny, shell.speed, lead=k > 0), n,
+                             spread, shell, self.ctx.projectiles)
                 self.ctx.events.append("bow")
             self.hover = True
             yield gap
@@ -1214,7 +1267,7 @@ class Proboscia(Boss):
         whine, n, radius, hold, gap, rings, between = config.PROBOSCIA_BUZZ
         self.tell = ("buzz",)
         self.ctx.events.append("hex")
-        yield whine
+        yield self.tell_s(whine)
         gap_at = self.rng.uniform(0, math.tau)
         for k in range(rings):
             t = self.target_now()
@@ -1232,7 +1285,7 @@ class Proboscia(Boss):
         air round her (never more than a dozen at once)."""
         tell, k, cap = config.PROBOSCIA_CALL
         self.tell = ("call",)
-        yield tell
+        yield self.tell_s(tell)
         self.tell = None
         for _ in range(min(k, cap - self._brood())):
             if self.recruit is None:
@@ -1279,3 +1332,353 @@ class Proboscia(Boss):
         self.ctx.effects.append(Effect("toast", self.x, self.y - 3, label="SLURP"))
         self.gulp()
         yield 0.2
+
+
+# --- Khepri the Dung Emperor (M23.1) -----------------------------------------------------
+
+
+class Khepri(Boss):
+    """A giant dung beetle. Signature, the DUNG BALL (`ball`: [x, y, radius],
+    None once it's shattered; `held`: it sits in front of him): his roll
+    sends it along a telegraphed line, him pushing behind; it grows as it
+    rolls and hurts more the bigger it is. If it runs into anything solid
+    -- a sandstone pillar, the arena wall -- it shatters into a ring of
+    clods and he sits stunned (the melee window), then rolls up a new one.
+    So: stand behind a pillar. Phase 1: rolls, charges (a horn charge that
+    ends in a fan of kicked sand; into a pillar, he's dazed a moment) and
+    burrows (a ripple chases you, then he erupts). Phase 2 adds the dust
+    storm (wings out, a curtain of dust from one side) and the scarab call.
+    Phase 3: rolls are faster, two in a row."""
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.KHEPRI_HIT_RADIUS)
+        self.shots = config.KHEPRI_SHOTS
+        self.ball: list | None = [x, y, config.DUNG_RADIUS[0]]
+        self.held = True
+        self.spin = 0.0                   # how far the ball has rolled (drawing)
+        self.rolling = False
+        self.charging = False
+        self.ripple: list | None = None   # burrowed: where the sand moves
+        self.wings = False                # dust storm: wings out
+        self.legs = 0.0                   # walk cycle (drawing)
+        self._hold_ball()
+
+    # --- The ball -----------------------------------------------------------------------
+
+    @property
+    def ball_frac(self) -> float:
+        """How big the ball is, 0 (just rolled up) .. 1 (as big as it gets)."""
+        if self.ball is None:
+            return 0.0
+        r0, r1 = config.DUNG_RADIUS
+        return max(0.0, min(1.0, (self.ball[2] - r0) / (r1 - r0)))
+
+    def _front(self, r: float) -> tuple[float, float]:
+        """Where a ball of radius r sits in front of him."""
+        d = self.hit_radius * 0.8 + r
+        return self.x + math.cos(self.facing) * d, self.y + math.sin(self.facing) * d
+
+    def _hold_ball(self) -> None:
+        if self.ball is not None and self.held:
+            self.ball[0], self.ball[1] = self._front(self.ball[2])
+
+    def _solid(self, x: float, y: float) -> bool:
+        world = self.ctx.world if self.ctx is not None else None
+        if world is None:
+            return False
+        if self.lair is not None and not self.lair.inside(x, y):
+            return True                   # (past the ring of the arena)
+        t = world.tile_at(math.floor(x), math.floor(y))
+        return t is not None and t.solid
+
+    def _ball_blocked(self, a: float) -> bool:
+        """The front of the rolling ball touches something solid."""
+        bx, by, r = self.ball
+        return any(self._solid(bx + math.cos(a + d) * r * 0.95, by + math.sin(a + d) * r * 0.95)
+                   for d in (-0.7, -0.35, 0.0, 0.35, 0.7))
+
+    def _body_blocked(self, a: float) -> bool:
+        r = self.hit_radius * 0.9
+        return any(self._solid(self.x + math.cos(a + d) * r, self.y + math.sin(a + d) * r)
+                   for d in (-0.5, 0.0, 0.5))
+
+    def _shatter(self) -> None:
+        """The ball breaks: clods all round, and he's stunned."""
+        bx, by, r = self.ball
+        lo, hi = config.DUNG_CLODS
+        n = round(lo + (hi - lo) * self.ball_frac)
+        if self.room_for_shots():
+            patterns.radial(self, bx, by, n, self.shots["clod"], self.ctx.projectiles,
+                            self.rng.uniform(0, math.tau))
+        ctx = self.ctx
+        ctx.effects.append(Effect("explosion", bx, by))
+        ctx.effects.append(Effect("nova", bx, by, size=r + 1.0))
+        ctx.effects.append(Effect("toast", self.x, self.y - 3, label="SPLAT! HE'S STUNNED!"))
+        ctx.events.append(combat.BREAK)
+        self.ball = None
+        self.held = False
+        self.rolling = False
+        self.dazed = config.DUNG_STUN
+
+    # --- Every step ---------------------------------------------------------------------
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.ctx = ctx
+        if self.rolling or self.charging:
+            self.legs += dt * 14.0
+        t = self.tgt if self.tgt is not None and self.tgt.alive else None
+        if (t is not None and not (self.rolling or self.charging or self.submerged)
+                and self.dazed <= 0 and self.move not in ("roll", "charge")):
+            self.facing = math.atan2(t.y - self.y, t.x - self.x)
+        self._hold_ball()
+        super().think(ctx, dt)
+
+    def on_phase(self, phase: int, ctx: AIContext) -> None:
+        label = ("THE EMPEROR IS ANGRY!", "THE SANDS BOIL!")[min(phase, 2) - 1] if phase else ""
+        if label:
+            ctx.effects.append(Effect("toast", self.x, self.y - 3, label=label))
+
+    # --- Moves --------------------------------------------------------------------------
+
+    def _fetch_ball(self):
+        """Back to the ball he left (or a new one rolled up if it's gone or
+        too far to fetch)."""
+        if self.ball is not None and not self.held:
+            t0 = self.time
+            while self.time - t0 < 3.0:
+                bx, by, r = self.ball
+                a = math.atan2(by - self.y, bx - self.x)
+                d = math.hypot(bx - self.x, by - self.y) - (self.hit_radius * 0.8 + r)
+                if d <= 0.2:
+                    self.facing = a
+                    self.held = True
+                    break
+                self.facing = a
+                step = min(d, config.KHEPRI_WALK * self.dt)
+                if self._body_blocked(a):
+                    break
+                self.x += math.cos(a) * step
+                self.y += math.sin(a) * step
+                self.legs += self.dt * 10.0
+                yield 0
+            if not self.held:
+                self.ball = None
+        if self.ball is None:
+            self.tell = ("gather",)
+            r0 = config.DUNG_RADIUS[0]
+            self.ball = [*self._front(0.3), 0.3]
+            self.held = True
+            t0 = self.time
+            while self.time - t0 < config.DUNG_GATHER:
+                f = (self.time - t0) / config.DUNG_GATHER
+                self.ball[2] = 0.3 + (r0 - 0.3) * f
+                self._hold_ball()
+                yield 0
+            self.ball[2] = r0
+            self.tell = None
+
+    def m_roll(self):
+        """The signature: an aim line from the ball through where you'll be,
+        then he rolls it along the line, pushing behind. It grows as it
+        goes; anyone it runs over is hit (harder, the bigger it is) and
+        knocked aside; anything solid shatters it and stuns him."""
+        tell, speed, longest = config.KHEPRI_ROLL
+        frenzy = self.phase >= 2
+        if frenzy:
+            speed *= config.KHEPRI_FRENZY
+        for k in range(2 if frenzy else 1):
+            yield from self._fetch_ball()
+            t = self.target_now()
+            if t is None or self.ball is None:
+                return
+            wait = self.tell_s(tell if k == 0 else tell * 0.6)
+            bx, by, _ = self.ball
+            reach = math.hypot(t.x - bx, t.y - by)
+            tx, ty = self.lead(t, bx, by, secs=wait + reach / speed)
+            a = math.atan2(ty - self.y, tx - self.x)
+            self.facing = a
+            self._hold_ball()
+            bx, by, r = self.ball
+            length = min(longest, math.hypot(tx - bx, ty - by) + 8.0)
+            self.tell = ("roll", bx, by, bx + math.cos(a) * length, by + math.sin(a) * length, r)
+            yield wait
+            self.tell = None
+            self.rolling = True
+            self.ctx.events.append("swing")
+            hit = set()
+            lo, hi = config.DUNG_DAMAGE
+            gone = 0.0
+            while gone < length:
+                step = min(length - gone, speed * self.dt)
+                gone += step
+                self.x += math.cos(a) * step
+                self.y += math.sin(a) * step
+                self.ball[2] = min(config.DUNG_RADIUS[1], self.ball[2] + config.DUNG_GROW * step)
+                self.spin += step / max(0.5, self.ball[2])
+                self._hold_ball()
+                if self._ball_blocked(a):
+                    self._shatter()
+                    yield config.DUNG_STUN
+                    return
+                bx, by, r = self.ball
+                for h in self.ctx.players:
+                    if id(h) in hit or not h.hittable:
+                        continue
+                    if math.hypot(h.x - bx, h.y - by) <= r + h.hit_radius:
+                        hit.add(id(h))
+                        damage = (lo + (hi - lo) * self.ball_frac) * self.damage_mult
+                        combat.strike(h, damage, self, a, self.ctx.effects)
+                        # Knocked aside: off the ball's line, to whichever side you were on.
+                        side = math.copysign(1.0, math.sin(math.atan2(h.y - by, h.x - bx) - a))
+                        pa = a + side * math.pi / 2
+                        combat.push(h, self.ctx.world, math.cos(pa) * config.DUNG_PUSH,
+                                    math.sin(pa) * config.DUNG_PUSH)
+                        self.ctx.events.append("hit")
+                yield 0
+            self.rolling = False
+            yield 0.35
+
+    def m_charge(self):
+        """B1: he leaves the ball, lowers his horn (an aim line), and charges
+        through where you'll be; when he stops he kicks a fan of sand at
+        you. Into a pillar, he's dazed a moment instead."""
+        tell, speed, longest, damage, daze = config.KHEPRI_CHARGE
+        t = self.target_now()
+        if t is None:
+            return
+        self.held = False
+        wait = self.tell_s(tell)
+        tx, ty = self.lead(t, self.x, self.y,
+                           secs=wait + math.hypot(t.x - self.x, t.y - self.y) / speed)
+        a = math.atan2(ty - self.y, tx - self.x)
+        self.facing = a
+        length = min(longest, math.hypot(tx - self.x, ty - self.y) + 6.0)
+        self.tell = ("charge", self.x, self.y, self.x + math.cos(a) * length,
+                     self.y + math.sin(a) * length)
+        yield wait
+        self.tell = None
+        self.charging = True
+        self.ctx.events.append("swing")
+        hit = set()
+        gone = 0.0
+        while gone < length:
+            if self._body_blocked(a):
+                self.charging = False
+                self.ctx.effects.append(Effect("explosion", self.x + math.cos(a) * self.hit_radius,
+                                               self.y + math.sin(a) * self.hit_radius))
+                self.ctx.events.append(combat.BREAK)
+                self.dazed = daze
+                yield daze
+                return
+            step = min(length - gone, speed * self.dt)
+            gone += step
+            self.x += math.cos(a) * step
+            self.y += math.sin(a) * step
+            for h in self.ctx.players:
+                if id(h) in hit or not h.hittable:
+                    continue
+                if math.hypot(h.x - self.x, h.y - self.y) <= self.hit_radius + h.hit_radius:
+                    hit.add(id(h))
+                    combat.strike(h, damage * self.damage_mult, self, a, self.ctx.effects)
+            yield 0
+        self.charging = False
+        n, spread = config.KHEPRI_SPRAY
+        t = self.target_now()
+        if t is not None and self.room_for_shots():
+            shell = self.shots["sand"]
+            patterns.fan(self, self.x, self.y, self.aim(t, self.x, self.y, shell.speed), n,
+                         spread, shell, self.ctx.projectiles)
+            self.ctx.events.append("fizzle")
+        yield 0.4
+
+    def m_burrow(self):
+        """P8 + P1: he digs in (can't be hit; the ball stays where it is), a
+        ripple in the sand chases you, stops (the tell: a ring where he'll
+        come up), and he erupts there: a blast and a ring of sand."""
+        dig, chase, lock, radius, damage, ring = config.KHEPRI_BURROW
+        self.held = False
+        self.tell = ("dig",)
+        yield dig
+        self.submerged = True
+        self.ctx.effects.append(Effect("eruption", self.x, self.y))
+        self.ripple = [self.x, self.y]
+        t0 = self.time
+        while self.time - t0 < chase:
+            t = self.target_now()
+            if t is None:
+                break
+            rx, ry = self.ripple
+            a = math.atan2(t.y - ry, t.x - rx)
+            d = math.hypot(t.x - rx, t.y - ry)
+            step = min(d, 16.0 * self.dt)
+            self.ripple = list(self.clamp_to_lair(rx + math.cos(a) * step,
+                                                  ry + math.sin(a) * step, 4.0))
+            if int(self.time * 10) % 2 == 0:
+                self.ctx.effects.append(Effect("burrow", *self.ripple))
+            yield 0
+        rx, ry = self.ripple
+        self.tell = ("erupt", rx, ry, radius)
+        yield self.tell_s(lock)
+        self.tell = None
+        self.x, self.y = rx, ry
+        self.ripple = None
+        self.submerged = False
+        combat.blast(rx, ry, radius, damage * self.damage_mult, self, self.ctx.actors,
+                     effects=self.ctx.effects)
+        self.ctx.effects.append(Effect("eruption", rx, ry))
+        self.ctx.effects.append(Effect("explosion", rx, ry))
+        self.ctx.events.append("boulder")
+        self.shove_heroes(1.0)
+        if self.room_for_shots():
+            patterns.radial(self, rx, ry, ring, self.shots["sand"], self.ctx.projectiles,
+                            self.rng.uniform(0, math.tau))
+        yield 0.6
+
+    def m_storm(self):
+        """P10: wings out (the tell), and a storm of dust blows across where
+        you stood from one side, row after row, a hole drifting along the
+        rows to weave through (or run out to the side)."""
+        tell, dur, every, gap, hole, half = config.KHEPRI_STORM
+        self.wings = True
+        self.tell = ("storm",)
+        yield self.tell_s(tell)
+        t = self.target_now()
+        if t is None:
+            self.wings = False
+            return
+        heading = self.rng.choice((0.0, math.pi / 2, math.pi, -math.pi / 2))
+        cx, cy = t.x, t.y
+        phase = self.rng.uniform(0, math.tau)
+        tt = 0.0
+        while tt < dur:
+            hole_at = math.sin(phase + tt * 0.8) * half * 0.6
+            if self.room_for_shots():
+                patterns.curtain(self, cx, cy, heading, 20.0, half, gap, hole_at, hole,
+                                 self.shots["dust"], self.ctx.projectiles)
+            tt += every
+            yield every
+        self.wings = False
+        self.tell = None
+
+    def m_swarm(self):
+        """B2: a clicking call (the tell), and scarabs scuttle out of the
+        sand round him (never more than a few alive at once)."""
+        tell, k, cap = config.KHEPRI_SWARM
+        self.tell = ("click",)
+        yield self.tell_s(tell)
+        self.tell = None
+        alive = sum(1 for a in self.ctx.actors if getattr(a, "summoner", None) is self and a.alive)
+        for _ in range(min(k, cap - alive)):
+            if self.recruit is None:
+                break
+            a = self.rng.uniform(0, math.tau)
+            r = self.rng.uniform(4.0, 7.0)
+            x, y = self.clamp_to_lair(self.x + math.cos(a) * r, self.y + math.sin(a) * r, 4.0)
+            add = self.recruit("scarab", x, y)
+            if add is not None:
+                add.summoner = self
+                add.alert = True
+                self.ctx.effects.append(Effect("eruption", x, y))
+        self.ctx.events.append("orb")
+        yield 0.4

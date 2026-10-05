@@ -128,6 +128,14 @@ One entry per enemy type (12 now, more with every new enemy and boss).
 
 A natural "many things over time" shelf: every new monster adds a page.
 
+### 4.4b Journal 🆕 (M22.6, 2026-10-05)
+
+The archivist's fifth shelf. Nothing to buy: one row per quest (`config.QUESTS`), written when you beat that quest's boss (`Guild.record_quest`, saved as `journal` in guild.json).
+- A row shows the quest's title, its biome, the boss, your fastest fight and how many times you've beaten it (`x3`).
+- The highlighted row adds the giver's story (their offer lines) and every hero who has beaten it.
+- A co-op kill counts as one win, with every hero who was there.
+- Quests not completed yet show as `???` with their biome, so you can see how many are left.
+
 ### 4.5 Later shelves (proposals, not M16) Keep the shelves ideas in memory as possible future milestones, but for now do not implement
 
 | Shelf | Opens with | What |

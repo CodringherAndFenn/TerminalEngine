@@ -13,6 +13,9 @@ design/GUILD.md):
     a page is also yours after BESTIARY_KILLS kills of that enemy, which
     `kills` counts over all runs).
 Achievement cards ("A:<name>") unlock when `achievements` holds the name.
+The journal (M22.6, the archivist's last shelf) remembers every quest whose
+boss you've beaten: `journal` holds, per config.QUESTS key, how many times,
+the fastest fight (seconds) and which heroes did it (record_quest).
 
 Rev 2 (M16) changed the upgrades and their prices. A save from before it
 (no "version") has every upgrade level refunded into the purse, at what
@@ -57,6 +60,7 @@ class Guild:
     active_pacts: set = field(default_factory=set)  # ...and switched on
     pages: set = field(default_factory=set)         # bestiary pages bought
     kills: dict = field(default_factory=dict)       # enemy key -> kills over all runs
+    journal: dict = field(default_factory=dict)     # quest key -> {"wins", "best", "heroes"}
 
     # --- Save file ----------------------------------------------------------------------
 
@@ -85,6 +89,7 @@ class Guild:
         g.kills = {k: v for k, v in kills.items()
                    if k in config.BESTIARY and isinstance(v, int) and not isinstance(v, bool)
                    and v > 0}
+        g.journal = _journal(data.get("journal"))
         if data and data.get("version") != VERSION:
             g.refund_rev1(data)
         return g
@@ -136,7 +141,7 @@ class Guild:
             "guild": self.guild, "heroes": self.heroes, "cards": sorted(self.cards),
             "achievements": sorted(self.achievements), "pacts": sorted(self.pacts),
             "active_pacts": sorted(self.active_pacts), "pages": sorted(self.pages),
-            "kills": self.kills})
+            "kills": self.kills, "journal": self.journal})
 
     # --- Levels and prices --------------------------------------------------------------
 
@@ -217,6 +222,15 @@ class Guild:
 
     # --- Runs ---------------------------------------------------------------------------
 
+    def record_quest(self, key: str, heroes, seconds: float) -> None:
+        """The journal: `heroes` (co-op: everyone there; one win) beat the
+        boss of quest `key` in `seconds`."""
+        e = self.journal.setdefault(key, {"wins": 0, "best": None, "heroes": []})
+        e["wins"] += 1
+        if e["best"] is None or seconds < e["best"]:
+            e["best"] = round(seconds, 1)
+        e["heroes"] = sorted(set(e["heroes"]) | set(heroes))
+
     def meta_steps(self, hero: str) -> list[tuple[str, str, float]]:
         """Everything bought, as card-style steps for the run's hero."""
         steps = []
@@ -246,3 +260,23 @@ def _levels(data, specs: dict) -> dict:
 
 def _keys(data, registry: dict) -> set:
     return {k for k in data if k in registry} if isinstance(data, list) else set()
+
+
+def _journal(data) -> dict:
+    """Journal entries from a save: known quests only, sane values."""
+    if not isinstance(data, dict):
+        return {}
+    out = {}
+    for key, e in data.items():
+        if key not in config.QUESTS or not isinstance(e, dict):
+            continue
+        wins = e.get("wins")
+        if not isinstance(wins, int) or isinstance(wins, bool) or wins <= 0:
+            continue
+        best = e.get("best")
+        best = float(best) if isinstance(best, (int, float)) and not isinstance(best, bool) \
+            and best > 0 else None
+        heroes = e.get("heroes") if isinstance(e.get("heroes"), list) else []
+        out[key] = {"wins": wins, "best": best,
+                    "heroes": sorted({h for h in heroes if h in config.HEROES})}
+    return out

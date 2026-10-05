@@ -16,23 +16,14 @@ from ascii_adventurers.ai.bosses import Froggy
 from ascii_adventurers.ai.brain import AIContext
 from ascii_adventurers.entities.projectile import Projectile
 from ascii_adventurers.systems import combat, patterns
-from ascii_adventurers.systems.quests import QUEST_SID, Quests
+from ascii_adventurers.systems.quests import QUEST_SID, Quests, quest_id
 from ascii_adventurers.systems.spawner import Spawner
 from ascii_adventurers.tests.test_weapons import Dummy, hero, open_map
-from ascii_adventurers.world import biomes, tiles
+from ascii_adventurers.world import tiles
 from ascii_adventurers.world.chunked import ChunkedWorld
 
 SEEDS = (1, 2, 31, 999)
 _worlds: dict = {}
-
-
-def setUpModule():
-    # M22: the swamp's quest is picked per run; these tests are Froggy's.
-    config.QUEST_OVERRIDE["swamp"] = "bad_trip"
-
-
-def tearDownModule():
-    config.QUEST_OVERRIDE.pop("swamp", None)
 
 
 def world(seed=31) -> ChunkedWorld:
@@ -74,12 +65,17 @@ class LandmarkTest(unittest.TestCase):
             for m in (camp, lair):
                 self.assertEqual(w.layout.biome_at(m.cx, m.cy).name, "swamp", (seed, m.key))
 
-    def test_the_camp_is_near_the_plains_border(self):
+    def test_camps_and_lairs_keep_apart(self):
+        # M22.5: every quest's camp and lair, at random spots, never overlapping.
+        gap = config.QUEST_SITE_GAP
         for seed in SEEDS:
-            w = world(seed)
-            camp = w.layout.landmark("frog_camp")
-            past = math.hypot(camp.cx, camp.cy) - w.layout.plains_radius
-            self.assertLess(past, 250, seed)       # an early find, not deep in the ring
+            big = [m for m in world(seed).layout.landmarks if m.kind != "spot"]
+            self.assertEqual(len(big), 2 * len(config.QUESTS), seed)
+            for i, a in enumerate(big):
+                for b in big[i + 1:]:
+                    apart_x = abs(a.x0 + a.w / 2 - b.x0 - b.w / 2) >= (a.w + b.w) / 2 + gap - 6
+                    apart_y = abs(a.y0 + a.h / 2 - b.y0 - b.h / 2) >= (a.h + b.h) / 2 + gap - 6
+                    self.assertTrue(apart_x or apart_y, (seed, a.quest, a.kind, b.quest, b.kind))
 
     def test_lair_spans_several_screens(self):
         lair = world().layout.landmark("pond_lair")
@@ -326,18 +322,22 @@ class QuestFlowTest(unittest.TestCase):
     def test_the_whole_quest(self):
         m, s = game()
         q = s.quests
-        st = q.states["swamp"]
-        self.assertEqual(st.stage, "offered")
-        self.assertEqual([k for _, _, k, _ in q.pins()], ["quest"])     # pinned from the start
+        st = q.states["bad_trip"]
+        self.assertEqual(st.stage, "hunt")                  # out from the start (M22.5)...
+        self.assertFalse(st.taken)
+        self.assertEqual(q.pins(), [])                      # ...but hidden: nothing pinned
+        self.assertEqual(len(q.log()), 1)                   # (only the main quest)
         # Talk: E queues it, the next step delivers it.
         teleport(s, st.npc.x, st.npc.y)
         self.assertIsNotNone(q.npc_near(s.hero))
         s.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e, unicode="e", mod=0))
         step(s)
-        self.assertEqual(st.stage, "hunt")
+        self.assertTrue(st.taken)
         self.assertEqual(st.npc.line, config.QUESTS["bad_trip"].say("offer")[0])
-        bid = biomes.BY_NAME["swamp"].id
-        self.assertEqual(len(s.spawner.fixed), len(st.camp.spots))
+        self.assertEqual(q.log()[1][0], "SWAMP")            # taken: a counter in the log
+        bid = quest_id("bad_trip")
+        self.assertTrue({(QUEST_SID, bid, i, 0) for i in range(len(st.camp.spots))}
+                        <= s.spawner.fixed.keys())
         # No frog pins from the camp; next to one, its pin shows. It
         # appears, and each one that dies counts.
         self.assertNotIn("target", [k for _, _, k, _ in q.pins((s.hero.x, s.hero.y))])
@@ -351,8 +351,8 @@ class QuestFlowTest(unittest.TestCase):
             e.last_hit_by = s.hero
         step(s)
         self.assertEqual(st.found, 1)
-        self.assertEqual(s.spawner.fixed.keys(),
-                         {(QUEST_SID, bid, i, 0) for i in range(len(st.camp.spots))})
+        self.assertTrue({(QUEST_SID, bid, i, 0) for i in range(len(st.camp.spots))}
+                        <= s.spawner.fixed.keys())
         # The rest (dev shortcut, as F7), then the boss waits.
         self.assertTrue(q.dev_finish_hunt())
         self.assertEqual(st.stage, "awake")
@@ -383,13 +383,12 @@ class QuestFlowTest(unittest.TestCase):
         self.assertTrue({"froggy", "psy_frog"} <= m.app.guild.pages)
         self.assertGreaterEqual(s.me.progress.picks, 1)
         self.assertEqual(s.me.progress.decree, config.BOSS_CARD_RARITY)
-        self.assertEqual(q.log()[0], ("GLORY", f"guardians 1/{config.GUARDIANS}", False))
-        self.assertTrue(q.log()[1][2])
+        self.assertEqual(q.log(), [("GLORY", f"guardians 1/{config.GUARDIANS}", False)])
 
     def test_frogs_wake_on_screen_and_count_whoever_kills_them(self):
         m, s = game()
         q = s.quests
-        st = q.states["swamp"]
+        st = q.states["bad_trip"]
         teleport(s, st.npc.x, st.npc.y)
         q.talk(st.npc, s.me)
         step(s, 2)
@@ -412,10 +411,10 @@ class QuestFlowTest(unittest.TestCase):
     def test_spare_frogs_count_too(self):
         m, s = game()
         q = s.quests
-        st = q.states["swamp"]
+        st = q.states["bad_trip"]
         q.talk(st.npc, s.me)
         need = config.QUESTS["bad_trip"].count
-        bid = biomes.BY_NAME["swamp"].id
+        bid = quest_id("bad_trip")
         for i in reversed(range(len(st.camp.spots))):    # the extras first
             if st.stage != "hunt":
                 break
@@ -427,7 +426,7 @@ class QuestFlowTest(unittest.TestCase):
 
     def test_talking_again_tells_you_how_many_are_left(self):
         m, s = game()
-        st = s.quests.states["swamp"]
+        st = s.quests.states["bad_trip"]
         s.quests.talk(st.npc, s.me)
         st.found = 2
         s.quests.talk(st.npc, s.me)
@@ -435,11 +434,11 @@ class QuestFlowTest(unittest.TestCase):
 
     def test_nobody_far_away_can_talk(self):
         m, s = game()
-        st = s.quests.states["swamp"]
+        st = s.quests.states["bad_trip"]
         self.assertIsNone(s.quests.npc_near(s.hero))     # at the start, far away
         s.me.controls.queue_interact()
         step(s)
-        self.assertEqual(st.stage, "offered")
+        self.assertFalse(st.taken)
 
     def test_no_quests_on_the_test_map(self):
         class Scene:

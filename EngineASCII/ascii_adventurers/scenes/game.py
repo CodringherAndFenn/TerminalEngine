@@ -38,11 +38,12 @@ the step must keep it that way (e.g. no time.time(), no unseeded random).
 The view shows one player (the local one; F10 cycles through the others
 while debug ghosts are running).
 
-Quests (M17, systems/quests.py): each ring biome's quest giver waits at
-their camp, pinned on the maps; E (gamepad A) next to them talks. Their
-quest's targets, its boss's lair, the sealed fight and the rewards are run
-by the Quests object inside the step; the HUD shows the quest log, a boss's
-health bar, and an arrow toward the boss when it's off screen.
+Quests (M17, systems/quests.py; hidden since M22.5): every quest giver
+waits at their camp somewhere in their biome; E (gamepad A) next to them
+talks. Quest targets, bosses' lairs, the sealed fights and the rewards are
+run by the Quests object inside the step; the HUD shows the main quest and
+the quests taken from givers, the health bar of the boss you're fighting,
+and an arrow toward it when it's off screen.
 
 M opens the big map (ui/maps.py), ESC the pause menu (ui/overlays.py); both
 pause the game. Shift dodge-rolls. Gamepads: Start pauses, Back opens the
@@ -327,8 +328,10 @@ class GameScene(Scene):
             self._sounds.append("chime")
 
     def _dev_quest(self, key: int) -> None:
-        """Developer mode: F6 jumps next to the first quest giver, F7
-        finishes its hunt (the boss wakes), F8 jumps outside its lair's gate."""
+        """Developer mode: F6 jumps next to the dev quest's giver
+        (config.QUEST_FOCUS, set by run.py --boss; else the first quest not
+        beaten), F7 finishes its hunt (the boss wakes), F8 jumps outside its
+        lair's gate."""
         if key == pygame.K_F7:
             if self.quests.dev_finish_hunt():
                 self._sounds.append("chime")
@@ -914,7 +917,7 @@ class GameScene(Scene):
         draw_effects(text, cam, self.world, air)
         others = [(p.hero.x, p.hero.y, p.color) for p in self.players if p is not me and p.alive]
         pins = self.quests.pins((me.hero.x, me.hero.y))
-        fight = self.quests.fight
+        fight = self.quests.fight_for(me.hero)
         if fight is not None and fight.boss is not None and fight.boss.alive and not self.map_open:
             b = fight.boss
             dist = math.hypot(b.x - me.hero.x, b.y - me.hero.y)

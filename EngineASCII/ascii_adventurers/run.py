@@ -85,8 +85,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                         help="test: start a run straight away, play SECONDS without input, "
                              "quit and report (checks a build really works); saves nothing")
     parser.add_argument("--boss", metavar="KEY", default=None,
-                        help="test: make every run use the quest of this boss in its biome "
-                             "(e.g. froggy, leech_swarm, proboscia) instead of the seed's pick")
+                        help="test: the dev keys (F6 to the giver, F7 finish the quest, F8 "
+                             "to the lair) act on this boss's quest (e.g. froggy, leech_swarm, "
+                             "proboscia); use with --dev")
     parser.add_argument("--dev", action="store_true",
                         help="developer mode: the guild purse is full (nothing bought is "
                              "saved) and L levels you up in a run; records aren't saved")
@@ -94,7 +95,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def force_boss(boss: str | None) -> None:
-    """--boss: the quest leading to that boss replaces its biome's pick."""
+    """--boss: the dev keys (F6/F7/F8) act on the quest leading to that boss."""
     if not boss:
         return
     from ascii_adventurers import config
@@ -102,7 +103,7 @@ def force_boss(boss: str | None) -> None:
     if quest is None:
         sys.exit(f"--boss: no quest leads to {boss!r} "
                  f"(try: {', '.join(sorted({q.boss for q in config.QUESTS.values()}))})")
-    config.QUEST_OVERRIDE[config.QUESTS[quest].biome] = quest
+    config.QUEST_FOCUS = quest
 
 
 def main() -> None:

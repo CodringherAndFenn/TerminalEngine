@@ -315,3 +315,36 @@ HUNTER_POST = TileType(
     "hunter's post", ("==",), palette.DECK_FG, palette.DECK_BG,
     solid=True,
 )
+# The desert's landmarks (M23.1, world/landmarks.py): the scarab collector's
+# tent by an oasis, and the Dung Pit -- a sunken arena walled and pillared
+# in sandstone (solid: Khepri's ball shatters on it), with sand pits.
+SANDSTONE = TileType(
+    "sandstone", ("▓▓", "▓▒", "▒▓"), palette.SANDSTONE_FG, palette.SANDSTONE_BG,
+    solid=True, blocks_shots=True,
+)
+SAND_PIT = TileType(
+    "sand pit", ("..", ": ", " :", ".:"), palette.SAND_PIT_FG, palette.SAND_PIT_BG,
+)
+OASIS = TileType(
+    "oasis", ("░ ", " ░", "  ", "▒░"), palette.OASIS_FG, palette.OASIS_BG,
+    solid=True,
+)
+PALM = TileType(
+    "palm", ("T ", " T", "Y'"), palette.PALM_FG, palette.SAND_BG,
+    solid=True, blocks_shots=True,
+)
+TENT = TileType(
+    "tent", ("/\\", "\\/", "/\\"), palette.TENT_FG, palette.TENT_BG,
+    solid=True, blocks_shots=True,
+)
+RUG = TileType(
+    "rug", (". ", " .", "  ", "  "), palette.RUG_FG, palette.RUG_BG,
+)
+STALL = TileType(
+    "collector's stall", ("oo", "o:", ":o"), palette.STALL_FG, palette.RUG_BG,
+    solid=True,
+)
+NOMAD_POST = TileType(
+    "collector's post", ("##",), palette.RUG_FG, palette.RUG_BG,
+    solid=True,
+)

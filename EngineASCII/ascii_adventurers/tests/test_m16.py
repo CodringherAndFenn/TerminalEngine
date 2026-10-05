@@ -610,8 +610,9 @@ class ArchiveUiTest(unittest.TestCase):
     def test_shelves(self):
         panel = self.open("cards")
         self.assertEqual(panel.mode, "archive")
+        from ascii_adventurers.ui.guild_panel import SHELVES
         seen = []
-        for _ in range(4):
+        for _ in range(len(SHELVES)):
             seen.append(len(panel.rows()))
             self.s.draw(self.m.text)
             self.s.handle_event(key(pygame.K_RIGHT))
