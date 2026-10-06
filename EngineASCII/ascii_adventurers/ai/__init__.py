@@ -6,7 +6,11 @@ ai -- enemy behaviour.
   shooters.py   goblin archer, warlock, ogre, spell tower (Character bodies)
   creatures.py  fallen warrior, spore puffer, burrower
   bosses.py     bosses (M17): phases, moves, Froggy McFrogface, the Leech
-                Swarm (M22), Lady Proboscia (M22.2), Khepri (M23.1)
+                Swarm (M22), Lady Proboscia (M22.2), Khepri (M23.1),
+                Ol' Spitter (M23.2), the Nameless Magus (M23.3),
+                the Fallout King (M24.1),
+                the Snow King (M24.2),
+                Fragile (M24.3)
 
 make_enemy() builds one from its config.ENEMIES key.
 """
@@ -16,9 +20,11 @@ from __future__ import annotations
 import random
 
 from .. import config
-from .bosses import Froggy, Khepri, LeechSwarm, Proboscia
-from .creatures import (Boar, Burrower, DustDevil, GoldenScarab, Leech, Mosquito, Puffer,
-                        Scarab, Warrior)
+from .bosses import (FalloutKing, Fragile, Froggy, Khepri, LeechSwarm, Magus, OlSpitter,
+                     Proboscia, SnowKing)
+from .creatures import (Boar, Burrower, Camel, DustDevil, FrostWraith, Ghoul, GoldenScarab,
+                        Hourglass, IsotopeRod, Leech, Mosquito, Puffer, SandElemental, SandGolem, Scarab,
+                        Sigil, ToxicBarrel, Warrior)
 from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 
 KINDS = {
@@ -48,6 +54,25 @@ KINDS = {
     "golden_scarab": GoldenScarab,
     "scarab": Scarab,
     "khepri": Khepri,
+    # M23.2
+    "camel": Camel,
+    "ol_spitter": OlSpitter,
+    # M23.3
+    "elemental": SandElemental,
+    "golem": SandGolem,
+    "sigil": Sigil,
+    "hourglass": Hourglass,
+    "nameless_magus": Magus,
+    # M24.1
+    "ghoul": Ghoul,
+    "rod": IsotopeRod,
+    "barrel": ToxicBarrel,
+    "fallout_king": FalloutKing,
+    # M24.2
+    "wraith": FrostWraith,
+    "snow_king": SnowKing,
+    # M24.3
+    "fragile": Fragile,
 }
 
 

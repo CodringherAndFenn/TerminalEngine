@@ -214,8 +214,87 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   stunning him. He also charges, burrows up under you, blows dust storms
   and calls scarabs (`design/BOSSES.md` section 15).
 
-Next up (agreed order, `design/BOSSES.md` section 8): the desert's
-spitting camel and sand wizard, then the ruins, haunted forest and
+- Ol' Spitter, the Unmannered One (M23.2), the desert's second boss. A
+  caravan master lost his cargo when his lead camel bolted, and mangy
+  camels now sit on every bundle: run them off and take five bundles
+  (the first "collect" quest). Ol' Spitter wakes in the caravanserai, a
+  mud-brick yard with arcades, posts and stone water troughs. His humps
+  hold his spit and shrink as he uses it. When they're dry he kneels at a
+  trough to drink: hit him hard then, and smash the trough under his nose
+  to make him choke. Smash them all and he's parched: no more drinking,
+  but no more openings either. His ricochet loogie bounces off walls,
+  arches and posts, splitting as it goes. He also spits fans and mortar
+  loogies and gallops through the yard. Linger behind him and he kicks.
+  Later he calls a stampede of ghost camels and sends heat-haze mirages
+  of himself (`design/BOSSES.md` section 16).
+
+- The Nameless Magus, Holder of Time (M23.3), the desert's third boss. His
+  runaway apprentice wants his years back: the Magus hides behind sealed
+  star circles scattered over the desert. Stand in a circle for 30 s to
+  break its seal while sand elementals rise round you (the first
+  "survive" quest). Break four and he comes up in the sunken
+  observatory. He gains one signature per phase and keeps the earlier ones:
+  - sand runes: run through one, or roll through it, to scuff it out.
+    Scuff a whole batch and he's drained, kneeling;
+  - shifting dunes: walls of sand and quicksand;
+  - his hourglass: time zones that slow or speed everything but him.
+    Shatter the glass before the sand runs out, or it's TIME'S UP.
+  He also fires a sun lance (columns block it), sends homing sigils with
+  blade fans, blinks, conjures a pulling vortex and calls a sand serpent
+  (`design/BOSSES.md` section 17).
+
+- The Fallout King (M24.1), the ruins' first boss, sized like the Magus
+  (your difficulty target). A hazmat scavenger in the ruins needs four
+  sensor beacons planted. Take her quest and she follows you to the sites
+  and plants them, while glowing ghouls come for you; she can't be hurt
+  (the first "escort" quest). He wakes in the reactor vault, and gains
+  one signature per phase, keeping the earlier ones:
+  - rads: a RAD meter on your HUD fills near him and from his attacks.
+    Full, you're irradiated (a burn, no regen, a slow roll), so run for a
+    decontamination shower;
+  - fallout: patches you clear by smashing their isotope rods;
+  - his meltdown core: shut all four coolant valves to expose it for
+    triple damage, or hide behind a lead wall when it blows. The boss bar
+    shows the core and the countdown.
+  He also fires a turning gamma cross, hurls toxic barrels that leave
+  slowing goo, calls ghouls, pulses EMP rings, sends homing skulls and dives
+  between sewer grates (`design/BOSSES.md` section 18).
+
+- The Snow King, King of Loneliness (M24.2), the ruins' second boss. A
+  searching sister's people were frozen into ice blocks all over the
+  ruins. Shatter a block, then stay close while the captive thaws, as
+  frost wraiths drift in to re-freeze them (the first "rescue" quest).
+  Four free, and he waits in his frozen throne hall. He gains one
+  signature per phase, keeping the earlier ones:
+  - his crown: burst him with damage and it flies off. Crownless he can't
+    attack and takes extra damage, so kick it away to keep it that way;
+  - black ice: you slide on it. Light the hall's fire braziers to melt it;
+  - flash freeze: a CHL meter fills while you stand still or take his
+    frost. Full, you're encased; roll three times to break out.
+  He also fires shard fans and closing spike rings, sends penguin squads
+  sliding past, breathes sweeping frost, drops icicles, and later calls a
+  blizzard and rolls snowballs. The fires and the loose crown are pinned
+  on the map, labelled, and pointed at (`design/BOSSES.md` section 19).
+
+- Fragile, The Misunderstood (M24.3), the ruins' third boss. A pawn
+  dealer stole her old teddy bear, Mr. Buttons, and lost him in four
+  pieces, each guarded by vampire bats. Carry the pieces back to his stall
+  and he sews the bear whole. It stays with you (the first "fetch"
+  quest), and you carry it into her ruined ballroom. She gains one
+  signature per phase, keeping the earlier ones:
+  - sunlight: pull a lever to open a shutter. She burns in the shaft and
+    is stunned if it catches her; she slams shutters closed;
+  - shapeshift: a bat swarm (half damage except from the bard's pulse), a
+    wolf (charges, howls, claws), or herself;
+  - on the beat: a metronome; roll right on a beat to stagger her.
+  Her own moves: riff rings, a bass-axe throw that comes back, slashes, a
+  hypnotic gaze that pulls you in (break line of sight or stand in the
+  sun), mist steps, thralls from her coffins (stake them shut) and
+  falling chandeliers. Beaten, she sits down and cries. Give her back
+  Mr. Buttons for five level-ups (`design/BOSSES.md` section 20).
+
+Next up (agreed order, `design/BOSSES.md` section 8): the haunted forest's
+bosses, haunted forest and
 mushroom bosses one at a time, M27 the plains boss and the victory, and M28 an art spec so
 custom pixel art can replace the drawn sprites.
 
@@ -236,7 +315,7 @@ ascii_adventurers/.venv/bin/python ascii_adventurers/run.py
 
 This works from any working directory. Debug: `run.py --ghosts N` (N up
 to 3) adds bot players that wander off on their own and fight what they
-meet; `run.py --dev --boss leech_swarm` (or `froggy`, `proboscia`, `khepri`) points
+meet; `run.py --dev --boss leech_swarm` (or `froggy`, `proboscia`, `khepri`, `ol_spitter`, `nameless_magus`, `fallout_king`, `snow_king`, `fragile`) points
 the dev keys below at that boss's quest; F10 in game switches the view between players, and other players
 show as coloured dots on the minimap and big map.
 Developer mode: `run.py --dev` fills the guild purse (999,999 loot) and

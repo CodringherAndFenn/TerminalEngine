@@ -348,3 +348,241 @@ NOMAD_POST = TileType(
     "collector's post", ("##",), palette.RUG_FG, palette.RUG_BG,
     solid=True,
 )
+# Ol' Spitter's caravanserai (M23.2, world/landmarks._caravanserai): a ring
+# of mud brick round a flagstone yard, arcades of brick arches (cover; his
+# loogies bounce off them), stone water troughs he drinks from (smash one
+# while he drinks and he chokes: they're the only tiles here you can
+# break), tethering posts and hay. The caravan master's lost cargo
+# bundles sit in the quest's clearings, and crates stand at his camp.
+MUDBRICK = TileType(
+    "mud brick", ("▓▓", "▓▒", "▒▓", "▓▓"), palette.MUDBRICK_FG, palette.MUDBRICK_BG,
+    solid=True, blocks_shots=True,
+)
+FLAGSTONE = TileType(
+    "flagstones", ("  ", "_ ", " _", "  ", ". "), palette.FLAGSTONE_FG, palette.FLAGSTONE_BG,
+)
+ARCH = TileType(
+    "brick arch", ("██", "▓█", "█▓"), palette.ARCH_FG, palette.ARCH_BG,
+    solid=True, blocks_shots=True,
+)
+TROUGH_BROKEN = TileType(
+    "broken trough", (".,", ",.", ":."), palette.TROUGH_BROKEN_FG, palette.FLAGSTONE_BG,
+)
+TROUGH = TileType(
+    "water trough", ("==",), palette.TROUGH_FG, palette.TROUGH_BG,
+    solid=True, blocks_shots=True, hp=config.TROUGH_HP,
+    wear=(("=:", ":="),), becomes=TROUGH_BROKEN,
+)
+TETHER_POST = TileType(
+    "tethering post", ("||", "|'", "'|"), palette.POST_FG, palette.FLAGSTONE_BG,
+    solid=True,
+)
+HAY = TileType(
+    "hay", ("\"'", "'\"", ",'"), palette.HAY_FG, palette.FLAGSTONE_BG,
+)
+CARGO = TileType(
+    "cargo bundle", ("[#",), palette.CARGO_FG, palette.CARGO_BG,
+    solid=True,
+)
+CRATES = TileType(
+    "crates", ("[]", "#]", "[#"), palette.CRATES_FG, palette.RUG_BG,
+    solid=True,
+)
+# The Nameless Magus's sunken observatory (M23.3, world/landmarks.
+# _observatory) and the runaway apprentice's star circles. His dune walls
+# (he raises them in the fight) are solid sand you can shoot through.
+GLAZED = TileType(
+    "glazed stone", ("▓▓", "▓▒", "▒▓"), palette.GLAZED_FG, palette.GLAZED_BG,
+    solid=True, blocks_shots=True,
+)
+SLABS = TileType(
+    "sandstone slabs", ("  ", ". ", "  ", "_ ", " ."), palette.SLAB_FG, palette.SLAB_BG,
+)
+STAR_CHART = TileType(
+    "star chart", ("* ", " .", "  ", ". ", " +", "  "), palette.CHART_FG, palette.CHART_BG,
+)
+COLUMN = TileType(
+    "column", ("██", "▓█", "█▓"), palette.COLUMN_FG, palette.COLUMN_BG,
+    solid=True, blocks_shots=True,
+)
+BROKEN_COLUMN = TileType(
+    "broken column", ("o.", ".o", "oo"), palette.COLUMN_FG, palette.SLAB_BG,
+)
+BRASS = TileType(
+    "brass telescope", ("==", "=O", "O="), palette.BRASS_FG, palette.BRASS_BG,
+    solid=True, blocks_shots=True,
+)
+DRIFT = TileType(
+    "sand drift", ("..", ".:", ":."), palette.DRIFT_FG, palette.SLAB_BG,
+)
+STAR_RING = TileType(
+    "star ring", ("* ", " *", "+ ", " +"), palette.STAR_RING_FG, palette.SAND_BG,
+)
+SEAL = TileType(
+    "seal", ("<>",), palette.SEAL_FG, palette.SAND_BG,
+)
+SEAL_BROKEN = TileType(
+    "broken seal", ("><",), palette.SEAL_BROKEN_FG, palette.SAND_BG,
+)
+DUNE_WALL = TileType(
+    "sand wall", ("▒▒", "▒░", "░▒"), palette.DUNE_WALL_FG, palette.DUNE_WALL_BG,
+    solid=True, blocks_shots=True, hp=config.DUNE_HP, becomes=SLABS,
+)
+SCROLLS = TileType(
+    "scroll rack", ("=]", "[=", "=="), palette.SCROLLS_FG, palette.RUG_BG,
+    solid=True,
+)
+# The Fallout King's reactor vault (M24.1, world/landmarks._reactor_vault)
+# and the hazmat scavenger's scrap camp and beacon sites.
+VAULT_WALL = TileType(
+    "vault wall", ("▓▓", "▓▒", "▒▓"), palette.VAULT_WALL_FG, palette.VAULT_WALL_BG,
+    solid=True, blocks_shots=True,
+)
+REACTOR = TileType(    # (a low, cracked housing: shots fly over it, nobody walks through)
+    "reactor", ("██", "▓█", "█▓", "▒█"), palette.REACTOR_FG, palette.REACTOR_BG,
+    solid=True,
+)
+CONC_PILLAR = TileType(
+    "concrete pillar", ("██", "▓█", "█▓"), palette.PILLAR_FG, palette.PILLAR_BG,
+    solid=True, blocks_shots=True,
+)
+PIPE = TileType(
+    "pipe", ("==", "=+", "+="), palette.PIPE_FG, palette.PIPE_BG,
+    solid=True,
+)
+VALVE = TileType(
+    "coolant valve", ("@=",), palette.VALVE_FG, palette.PIPE_BG,
+    solid=True,
+)
+VALVE_SHUT = TileType(
+    "shut valve", ("@=",), palette.VALVE_SHUT_FG, palette.PIPE_BG,
+    solid=True,
+)
+SHOWER = TileType(
+    "shower", ("::", ".:", ":."), palette.SHOWER_FG, palette.CONCRETE_BG,
+)
+SHOWER_OFF = TileType(
+    "dry shower", ("..",), palette.SHOWER_OFF_FG, palette.CONCRETE_BG,
+)
+LEAD = TileType(
+    "lead wall", ("██", "▓█"), palette.LEAD_FG, palette.LEAD_BG,
+    solid=True, blocks_shots=True,
+)
+GRATE = TileType(
+    "sewer grate", ("##",), palette.GRATE_FG, palette.CONCRETE_BG,
+)
+BEACON_SITE = TileType(
+    "beacon site", ("[]",), palette.BEACON_FG, palette.CONCRETE_BG,
+)
+BEACON = TileType(
+    "beacon", ("|*",), palette.BEACON_FG, palette.CONCRETE_BG,
+    solid=True,
+)
+SLUDGE = TileType(
+    "sludge", ("░ ", " ░", "  ", "▒░"), palette.SLUDGE_FG, palette.SLUDGE_BG,
+    solid=True,
+)
+PLATES = TileType(
+    "metal plates", ("[]", "  ", "_ "), palette.PLATES_FG, palette.PLATES_BG,
+)
+SCRAP_WALL = TileType(
+    "scrap wall", ("#]", "[#", "##"), palette.SCRAP_FG, palette.SCRAP_BG,
+    solid=True, blocks_shots=True,
+)
+SCRAP_POST = TileType(
+    "scavenger's post", ("##",), palette.PLATES_FG, palette.PLATES_BG,
+    solid=True,
+)
+# The Snow King's frozen throne hall (M24.2, world/landmarks._throne_hall)
+# and the searching sister's captives (ice blocks you shatter).
+ICE_WALL = TileType(
+    "ice wall", ("▓▓", "▓▒", "▒▓"), palette.ICE_WALL_FG, palette.ICE_WALL_BG,
+    solid=True, blocks_shots=True,
+)
+FROST_STONE = TileType(
+    "frost stone", ("  ", "  ", ". ", "  ", " ."), palette.FROST_FG, palette.FROST_BG,
+)
+THRONE = TileType(
+    "ice throne", ("██", "▓█", "█▓"), palette.THRONE_FG, palette.THRONE_BG,
+    solid=True, blocks_shots=True,
+)
+ICE_PILLAR = TileType(
+    "ice pillar", ("██", "▓█", "█▓"), palette.ICE_PILLAR_FG, palette.ICE_PILLAR_BG,
+    solid=True, blocks_shots=True, hp=config.ICE_PILLAR_HP,
+    wear=(("▓▒", "▒▓"),), becomes=FROST_STONE,
+)
+FIRE_BOWL = TileType(
+    "fire brazier", ("[]",), palette.FIRE_FG, palette.FROST_BG,
+    solid=True,
+)
+FIRE_BOWL_LIT = TileType(
+    "lit fire brazier", ("[]",), palette.FIRE_LIT_FG, palette.FROST_BG,
+    solid=True,
+)
+STATUE = TileType(
+    "frozen statue", ("&&", "&@", "@&"), palette.STATUE_FG, palette.STATUE_BG,
+    solid=True, blocks_shots=True,
+)
+SNOWDRIFT = TileType(
+    "snowdrift", ("..", ".:", ":."), palette.SNOWDRIFT_FG, palette.FROST_BG,
+)
+SLUSH = TileType(
+    "slush", (". ", " ,", ".,"), palette.SLUSH_FG, palette.CONCRETE_BG,
+)
+ICE_BLOCK = TileType(
+    "ice block", ("[]", "[]"), palette.ICE_BLOCK_FG, palette.ICE_BLOCK_BG,
+    solid=True, blocks_shots=True, hp=config.RESCUE_BLOCK_HP,
+    wear=(("[:", ":]"), (":.", ".:")), becomes=SLUSH,
+)
+FROZEN_POND = TileType(
+    "frozen pond", ("░ ", " ░", "  ", "▒░"), palette.FROZEN_POND_FG, palette.FROZEN_POND_BG,
+    solid=True,
+)
+# Fragile's ruined ballroom (M24.3, world/landmarks._ballroom) and the
+# pawn dealer's quest (the pieces of Mr. Buttons).
+CASTLE_WALL = TileType(
+    "castle wall", ("▓▓", "▓▒", "▒▓"), palette.CASTLE_FG, palette.CASTLE_BG,
+    solid=True, blocks_shots=True,
+)
+PARQUET = TileType(
+    "parquet", ("  ", "_ ", "  ", " _", "  "), palette.PARQUET_FG, palette.PARQUET_BG,
+)
+SHUTTER = TileType(
+    "shuttered window", ("##", "#|", "|#"), palette.SHUTTER_FG, palette.SHUTTER_BG,
+    solid=True, blocks_shots=True,
+)
+WINDOW_OPEN = TileType(
+    "open window", ("░░", "▒░", "░▒"), palette.WINDOW_OPEN_FG, palette.WINDOW_OPEN_BG,
+    solid=True, blocks_shots=True,
+)
+LEVER = TileType(
+    "lever", ("/_",), palette.LEVER_FG, palette.PARQUET_BG,
+)
+MARBLE = TileType(
+    "marble pillar", ("██", "▓█", "█▓"), palette.MARBLE_FG, palette.MARBLE_BG,
+    solid=True, blocks_shots=True,
+)
+COFFIN = TileType(
+    "coffin", ("[]", "[+"), palette.COFFIN_FG, palette.COFFIN_BG,
+    solid=True,
+)
+COFFIN_STAKED = TileType(
+    "staked coffin", ("[X",), palette.MAP_TILE["staked coffin"], palette.COFFIN_BG,
+    solid=True,
+)
+VELVET_THRONE = TileType(
+    "velvet throne", ("██", "▓█"), palette.VELVET_FG, palette.VELVET_BG,
+    solid=True, blocks_shots=True,
+)
+MIRROR = TileType(
+    "cracked mirror", ("|/", "/|", "||"), palette.MIRROR_FG, palette.CASTLE_BG,
+    solid=True, blocks_shots=True,
+)
+CHANDELIER_RUBBLE = TileType(
+    "fallen chandelier", ("*#", "#*", "**"), palette.CHANDELIER_FG, palette.PARQUET_BG,
+    solid=True, blocks_shots=True, hp=60, becomes=PARQUET,
+)
+BEAR_PIECE = TileType(
+    "bear piece", ("@,",), palette.PIECE_FG, palette.CONCRETE_BG,
+    solid=True,
+)

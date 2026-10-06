@@ -20,13 +20,21 @@ import math
 import pygame
 
 from .. import config, palette
-from ..ai.bosses import Khepri, LeechPart, LeechSwarm, Proboscia
-from ..ai.creatures import (Boar, Burrower, DustDevil, GoldenScarab, Leech, Mosquito, Puffer,
-                            Scarab, Warrior)
+from ..ai.bosses import (FalloutKing, Fragile, Khepri, LeechPart, LeechSwarm, Magus, OlSpitter,
+                         Proboscia, SnowKing)
+from ..ai.creatures import (Boar, Burrower, Camel, DustDevil, FrostWraith, Ghoul, GoldenScarab,
+                            Hourglass,
+                            IsotopeRod, Leech, Mosquito, Puffer, SandElemental, SandGolem, Scarab,
+                            Sigil, ToxicBarrel, Warrior)
 from ..ai.shooters import PsyFrog, Shooter, Warlock, Wisp
 from ..engine_ext.camera import Camera
 from .ascii_fx import draw_beam, draw_boar_tell, draw_hp_bar, draw_searchlight
 from .beetle import draw_khepri, draw_scarab
+from .camel import draw_camel, draw_ol_spitter
+from .fallout import draw_king, draw_king_minion
+from .magus import draw_magus, draw_minion
+from .snowking import draw_snow_king, draw_wraith
+from .fragile import draw_bat, draw_fragile
 from .bosses import draw_froggy
 from .characters import draw_body, draw_character, walk_frame
 from .leeches import draw_leech_creature, draw_leech_part, draw_swarm
@@ -199,6 +207,47 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
     if isinstance(e, Khepri):                  # M23.1
         draw_khepri(text, bank, camera, e)
         return
+    if isinstance(e, OlSpitter):               # M23.2
+        draw_ol_spitter(text, bank, camera, e)
+        return
+    if isinstance(e, Magus):                   # M23.3
+        draw_magus(text, bank, camera, e)
+        return
+    if isinstance(e, Fragile):                 # M24.3
+        draw_fragile(text, bank, camera, e)
+        return
+    key = getattr(e, "kind_key", "")
+    if key == "vampire_bat":
+        draw_bat(text, camera, e)
+        if e.hp < e.max_hp:
+            draw_hp_bar(text, x, y - 18, e.hp / e.max_hp)
+        return
+    if key == "thrall":
+        draw_character(bank, x, y, "thrall", 2, math.cos(e.facing) < 0, 0, e.hurt_flash > 0)
+        if e.hp < e.max_hp:
+            draw_hp_bar(text, x, y - 26, e.hp / e.max_hp)
+        return
+    if isinstance(e, SnowKing):                # M24.2
+        draw_snow_king(text, bank, camera, e)
+        return
+    if isinstance(e, FrostWraith):
+        draw_wraith(text, camera, e)
+        if e.hp < e.max_hp:
+            draw_hp_bar(text, x, y - 24, e.hp / e.max_hp)
+        return
+    if isinstance(e, FalloutKing):             # M24.1
+        draw_king(text, bank, camera, e)
+        return
+    if isinstance(e, (Ghoul, IsotopeRod, ToxicBarrel)) or getattr(e, "kind_key", "") == "gamma_skull":
+        draw_king_minion(text, bank, camera, e)
+        if e.hp < e.max_hp and e.hittable and isinstance(e, (Ghoul, IsotopeRod)):
+            draw_hp_bar(text, x, y - e.hit_radius * config.TILE_PX_H - 14, e.hp / e.max_hp)
+        return
+    if isinstance(e, (SandElemental, SandGolem, Sigil, Hourglass)):
+        draw_minion(text, bank, camera, e)
+        if e.hp < e.max_hp and e.hittable and not isinstance(e, (Hourglass, Sigil)):
+            draw_hp_bar(text, x, y - e.hit_radius * config.TILE_PX_H - 6, e.hp / e.max_hp)
+        return
     if getattr(e, "boss", False):
         draw_froggy(text, bank, camera, e)     # (its health is the HUD's boss bar)
         return
@@ -228,6 +277,8 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
         sprite = bank.rotated(("warrior", pose, e.hurt_flash > 0, size), e.facing, 72,
                               _paint_warrior(pose, e.hurt_flash > 0, size), 20 * size / 16)
         bank.draw(sprite, x, y)
+    elif isinstance(e, Camel):                    # M23.2
+        draw_camel(text, bank, camera, e)
     elif isinstance(e, (Scarab, GoldenScarab)):   # (a scarab is a leech underneath)
         draw_scarab(bank, camera, e)
     elif isinstance(e, Leech):

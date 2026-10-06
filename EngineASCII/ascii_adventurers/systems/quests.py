@@ -13,7 +13,22 @@ a player takes one from its giver. Stages:
              whoever killed it, quest taken or not;
              (a "light" quest, M22.2: the spots hold braziers instead;
              one catches after a hero stands by it for a while, and
-             mosquitoes swarm whoever is lighting it);
+             mosquitoes swarm whoever is lighting it; a "collect" quest,
+             M23.2: the spots hold bundles of cargo, each guarded by a few
+             of the quest's enemies -- once they're dead, walk up to the
+             bundle to take it; a "survive" quest, M23.3: the spots hold
+             sealed star circles -- stand in one long enough to break its
+             seal, while the quest's enemies rise round you in waves; an
+             "escort" quest, M24.1: the giver herself follows whoever took
+             the quest and plants a beacon at each spot she's led to, while
+             waves of the quest's enemies come for the players -- she can't
+             be hurt; it needs her, so it can't be done without her; a
+             "rescue" quest, M24.2: the spots hold captives frozen in ice
+             blocks -- shatter one, then stay close while they thaw, with
+             the quest's enemies trying to re-freeze them; a "fetch" quest,
+             M24.3: guarded pieces to carry back to the giver -- and then,
+             sewn whole, Mr. Buttons the bear, carried into the fight and
+             given back to Fragile after it);
              the giver (unpinned: you find their camp) tells you what to
              do; talking to them TAKES the quest (`taken`): it gets a
              counter in the quest log, and its living targets are pinned
@@ -112,7 +127,15 @@ class QuestState:
     pending: list = field(default_factory=list)   # gate tiles still to seal
     fight_time: float = 0.0
     damage_taken: float = 0.0          # by the players during the fight (dev report)
-    lit: set = field(default_factory=set)       # light quests: spot indices lit
+    lit: set = field(default_factory=set)       # light / collect / survive / escort: spots done
+    stuck: float = 0.0                 # escort: s the giver has been blocked following
+    opened: set = field(default_factory=set)    # rescue: captives whose block is shattered
+    wraiths: dict = field(default_factory=dict) # rescue: spot -> the enemies sent at it
+    carry: dict = field(default_factory=dict)   # fetch: player index -> pieces carried
+    bear: int | None = None            # fetch: the player carrying the finished bear
+    drops: list = field(default_factory=list)   # fetch: [x, y, "piece" | "bear"] on the ground
+    crying: object = None              # fetch: Fragile, beaten, crying (an Npc)
+    gifted: bool = False               # fetch: the bear's been given back
     heat: dict = field(default_factory=dict)    # light quests: spot index -> s of heat
     swarmed: set = field(default_factory=set)   # light quests: (spot, wave) already sent
 
@@ -156,7 +179,8 @@ class Quests:
 
     @property
     def npcs(self) -> list[Npc]:
-        return [s.npc for s in self.states.values()]
+        return [s.npc for s in self.states.values()] + \
+            [s.crying for s in self.states.values() if s.crying is not None]
 
     @property
     def guardians(self) -> int:
@@ -205,6 +229,9 @@ class Quests:
         Quests nobody took stay hidden (M22.5)."""
         out = [("GLORY", f"guardians {self.guardians}/{config.GUARDIANS}", False)]
         for s in self.states.values():
+            if s.crying is not None and not s.gifted:            # (M24.3)
+                out.append((s.biome.upper(), "give Fragile her bear", False))
+                continue
             if not s.taken or s.stage == "cleared":
                 continue
             spec = s.spec
@@ -230,8 +257,12 @@ class Quests:
             giver_done = s.stage == "cleared"
             if s.stage == "hunt" and s.taken:
                 qid = s.qid
-                light = s.spec.kind == "light"
-                label = "BRAZIER" if light else config.ENEMIES[s.spec.target].name.split()[-1].upper()
+                light = s.spec.kind in ("light", "collect", "survive", "escort", "rescue",
+                                        "fetch")
+                label = {"light": "BRAZIER", "collect": "CARGO", "survive": "SEAL",
+                         "escort": "BEACON", "rescue": "CAPTIVE",
+                         "fetch": "PIECE"}.get(s.spec.kind) \
+                    or config.ENEMIES[s.spec.target].name.split()[-1].upper()
                 for i, (x, y) in enumerate(s.camp.spots):
                     if near is not None and math.hypot(x - near[0], y - near[1]) \
                             > config.QUEST_TARGET_PIN_RADIUS:
@@ -243,6 +274,11 @@ class Quests:
                         out.append((x, y, "target", label))
             if s.stage in ("awake", "fight", "cleared"):
                 out.append((s.lair.cx, s.lair.cy, "done" if giver_done else "lair", s.lair.name))
+            for x, y, what in s.drops:          # (M24.3: dropped pieces / the bear)
+                out.append((x, y, "bear", "MR. BUTTONS" if what == "bear" else "PIECE"))
+            marks = getattr(s.boss, "map_marks", None) if s.stage == "fight" else None
+            if marks is not None:
+                out.extend(marks())             # (M24.1: the fight's fixtures)
         return out
 
     # --- Simulation step -------------------------------------------------------------
@@ -263,8 +299,18 @@ class Quests:
                 if npc is not None:
                     self.talk(npc, p)
         for s in self.states.values():
+            if s.spec.kind == "fetch" and not s.gifted:   # (every stage: the pieces, the bear)
+                self._fetch(s, players, dt)
             if s.stage == "hunt" and s.spec.kind == "light":
                 self._tend_braziers(s, players, dt)
+            elif s.stage == "hunt" and s.spec.kind == "collect":
+                self._collect(s, players)
+            elif s.stage == "hunt" and s.spec.kind == "survive":
+                self._hold_seals(s, players, dt)
+            elif s.stage == "hunt" and s.spec.kind == "escort":
+                self._escort(s, players, dt)
+            elif s.stage == "hunt" and s.spec.kind == "rescue":
+                self._rescue(s, players, dt)
             elif s.stage == "awake":
                 self._maybe_start_fight(s, players)
             elif s.stage == "fight":
@@ -277,6 +323,9 @@ class Quests:
 
     def talk(self, npc: Npc, p) -> None:
         s = self.states[npc.quest]
+        if npc is s.crying:
+            self._gift(s, p)
+            return
         spec = s.spec
         first = not s.taken
         s.taken = True
@@ -295,11 +344,31 @@ class Quests:
             self.scene._sounds.append("ui")
 
     def _place_targets(self, s: QuestState) -> None:
-        """A hunt's targets go out at the camp's spots when the run starts."""
+        """A hunt's targets go out at the camp's spots when the run starts
+        (spawn id (QUEST_SID, quest, spot, 0)); a collect quest's guards
+        round each bundle (..., spot, 1..CARGO_GUARDS)."""
         sp = self.scene.spawner
-        if sp is not None and s.spec.kind == "hunt":
+        if sp is None:
+            return
+        if s.spec.kind == "hunt":
             for i, (x, y) in enumerate(s.camp.spots):
                 sp.place((QUEST_SID, s.qid, i, 0), s.spec.target, x, y)
+        elif s.spec.kind in ("collect", "fetch"):
+            n = config.CARGO_GUARDS
+            for i, (x, y) in enumerate(s.camp.spots):
+                for k in range(n):
+                    a = (i * 1.3 + k * math.tau / n)
+                    r = config.CARGO_GUARD_RING
+                    sp.place((QUEST_SID, s.qid, i, k + 1), s.spec.target,
+                             x + math.cos(a) * r, y + math.sin(a) * r * 0.7)
+
+    def guards_left(self, s: QuestState, i: int) -> int:
+        """Collect quests: the guards still alive round bundle i."""
+        sp = self.scene.spawner
+        if sp is None:
+            return 0
+        return sum(1 for k in range(config.CARGO_GUARDS)
+                   if (QUEST_SID, s.qid, i, k + 1) not in sp.dead)
 
     def is_target(self, s: QuestState, enemy) -> bool:
         sid = getattr(enemy, "spawn_id", None)
@@ -329,6 +398,336 @@ class Quests:
                 "toast", at.x, at.y - 1,
                 label=s.spec.goal.format(n=s.found, count=s.spec.count).upper()))
             self.scene._sounds.append("chime")
+
+    # --- Collect quests (M23.2) ---------------------------------------------------------
+
+    def _collect(self, s: QuestState, players) -> None:
+        """A hero by a bundle takes it once its guards are dead (until then,
+        a reminder over the bundle, once each time someone walks up)."""
+        heroes = [p.hero for p in players if p.alive and not p.ghost]
+        for i, (x, y) in enumerate(s.camp.spots):
+            if i in s.lit:
+                continue
+            by = [h for h in heroes if math.hypot(h.x - x, h.y - y) <= config.CARGO_RADIUS + 1.0]
+            if not by:
+                s.heat.pop(i, None)
+                continue
+            if self.guards_left(s, i):
+                if i not in s.heat:              # (s.heat: warned since they walked up)
+                    s.heat[i] = 1.0
+                    self.scene.effects.append(Effect("toast", x, y - 1.5,
+                                                     label="THE CAMELS WON'T BUDGE!"))
+                continue
+            s.lit.add(i)
+            s.heat.pop(i, None)
+            if hasattr(self.world, "set_tile"):
+                self.world.set_tile(math.floor(x), math.floor(y),
+                                    tiles.SAND if s.biome == "desert" else tiles.MUD)
+            self.scene.effects.append(Effect("nova", x, y, size=2.0))
+            self._found(s, by[0])
+            if s.stage != "hunt":
+                return
+
+    # --- Survive quests (M23.3) ---------------------------------------------------------
+
+    def _hold_seals(self, s: QuestState, players, dt: float) -> None:
+        """A star circle with a hero inside wears its seal down (s.heat: s of
+        it); with nobody inside it heals back SEAL_HEAL x as fast. Each
+        SEAL_WAVE s of wear, a wave of the quest's enemies rises round it
+        (each wave once). SEAL_TIME s and the seal breaks."""
+        heroes = [p.hero for p in players if p.alive and not p.ghost]
+        full = config.SEAL_TIME
+        for i, (x, y) in enumerate(s.camp.spots):
+            if i in s.lit:
+                continue
+            inside = [h for h in heroes if math.hypot(h.x - x, h.y - y) <= config.SEAL_RADIUS]
+            worn = s.heat.get(i, 0.0)
+            if not inside:
+                if worn > 0:
+                    s.heat[i] = max(0.0, worn - dt * config.SEAL_HEAL)
+                continue
+            wave = int(worn // config.SEAL_WAVE)
+            if (i, wave) not in s.swarmed:
+                s.swarmed.add((i, wave))
+                self._rise(s, i, wave, x, y)
+            worn += dt
+            s.heat[i] = worn
+            if worn >= full:
+                s.lit.add(i)
+                s.heat.pop(i, None)
+                if hasattr(self.world, "set_tile"):
+                    self.world.set_tile(math.floor(x), math.floor(y), tiles.SEAL_BROKEN)
+                self.scene.effects.append(Effect("nova", x, y, size=config.SEAL_RADIUS))
+                self.scene.effects.append(Effect("toast", x, y - 2, label="THE SEAL BREAKS!"))
+                self._found(s, inside[0])
+                if s.stage != "hunt":
+                    return
+
+    def _rise(self, s: QuestState, i: int, wave: int, x: float, y: float) -> None:
+        """A wave of the quest's enemies rising out of the sand round a star
+        circle (dice from the seed, the spot and the wave)."""
+        sp = self.scene.spawner
+        if sp is None:
+            return
+        rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0x5EA1, s.qid, i,
+                                        wave))
+        lo, hi = config.SEAL_WAVE_RANGE
+        for _ in range(rng.randint(*config.SEAL_WAVE_SIZE)):
+            a = rng.uniform(0, math.tau)
+            r = rng.uniform(lo, hi)
+            ex, ey = free_spot(self.world, x + math.cos(a) * r, y + math.sin(a) * r, 11.0)
+            e = sp.wake(s.spec.target, ex, ey, None, random.Random(rng.random()))
+            e.alert = True
+            self.scene.enemies.append(e)
+            self.scene.effects.append(Effect("eruption", ex, ey))
+
+    # --- Escort quests (M24.1) ----------------------------------------------------------
+
+    def _escort(self, s: QuestState, players, dt: float) -> None:
+        """Once taken, the giver follows the nearest player within
+        ESCORT_RANGE; within ESCORT_SITE of a spot without a beacon she stops
+        and plants one over ESCORT_SETUP s (s.heat), a wave of the quest's
+        enemies coming at each ESCORT_WAVES mark -- for the players: she
+        can't be hurt."""
+        if not s.taken:
+            return
+        npc = s.npc
+        for i, (x, y) in enumerate(s.camp.spots):
+            if i in s.lit or math.hypot(npc.x - x, npc.y - y) > config.ESCORT_SITE:
+                continue
+            done = s.heat.get(i, 0.0)
+            for wave, at in enumerate(config.ESCORT_WAVES):
+                if done >= at and (i, wave) not in s.swarmed:
+                    s.swarmed.add((i, wave))
+                    self._ambush(s, i, wave, x, y)
+            done += dt
+            s.heat[i] = done
+            if done >= config.ESCORT_SETUP:
+                s.lit.add(i)
+                s.heat.pop(i, None)
+                if hasattr(self.world, "set_tile"):
+                    self.world.set_tile(math.floor(x), math.floor(y), tiles.BEACON)
+                self.scene.effects.append(Effect("nova", x, y, size=3.0))
+                self.scene.effects.append(Effect("toast", x, y - 2, label="BEACON PLANTED!"))
+                self._found(s, npc)
+            return                                  # (planting: she stays put)
+        heroes = [p.hero for p in players if p.alive and not p.ghost]
+        near = [h for h in heroes if math.hypot(h.x - npc.x, h.y - npc.y) <= config.ESCORT_RANGE]
+        if not near:
+            return
+        lead = min(near, key=lambda h: math.hypot(h.x - npc.x, h.y - npc.y))
+        dx, dy = lead.x - npc.x, lead.y - npc.y
+        d = math.hypot(dx, dy)
+        if d <= config.ESCORT_GAP:
+            s.stuck = 0.0
+            return
+        step = min(d - config.ESCORT_GAP, config.ESCORT_SPEED * dt)
+        ux, uy = dx / d, dy / d
+        # (She starts on her post, a solid tile: from there any step goes.)
+        stuck_in = hull_hits_solid(self.world, npc.x, npc.y, 0.0, 9.0, 9.0)
+        for mx, my in ((ux, uy), (ux, 0.0), (0.0, uy)):
+            nx, ny = npc.x + mx * step, npc.y + my * step
+            if (mx or my) and (stuck_in or not hull_hits_solid(self.world, nx, ny, 0.0, 9.0, 9.0)):
+                npc.x, npc.y = nx, ny
+                s.stuck = 0.0
+                break
+        else:
+            s.stuck += dt
+            if s.stuck > 1.5:                       # caught on something: she catches up
+                npc.x, npc.y = free_spot(self.world, lead.x - ux * config.ESCORT_GAP,
+                                         lead.y - uy * config.ESCORT_GAP, 9.0)
+                s.stuck = 0.0
+                self.scene.effects.append(Effect("burrow", npc.x, npc.y))
+
+    def _ambush(self, s: QuestState, i: int, wave: int, x: float, y: float) -> None:
+        """A wave of the quest's enemies coming for the players at a site."""
+        sp = self.scene.spawner
+        if sp is None:
+            return
+        rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0xE5C0, s.qid, i,
+                                        wave))
+        lo, hi = config.ESCORT_WAVE_RANGE
+        for _ in range(config.ESCORT_WAVE_SIZE):
+            a = rng.uniform(0, math.tau)
+            r = rng.uniform(lo, hi)
+            ex, ey = free_spot(self.world, x + math.cos(a) * r, y + math.sin(a) * r, 9.0)
+            e = sp.wake(s.spec.target, ex, ey, None, random.Random(rng.random()))
+            e.alert = True
+            self.scene.enemies.append(e)
+            self.scene.effects.append(Effect("eruption", ex, ey))
+
+    # --- Rescue quests (M24.2) ----------------------------------------------------------
+
+    def _rescue(self, s: QuestState, players, dt: float) -> None:
+        """A captive whose ice block is shattered (the tile isn't ICE_BLOCK
+        any more) thaws while a hero is within RESCUE_WARM tiles (s.heat);
+        waves of the quest's enemies come at RESCUE_WAVES marks, drifting at
+        the captive, and one that touches them knocks the thaw back. Thawed:
+        freed. (Only spots near a hero are looked at: far ones may not be
+        loaded.)"""
+        heroes = [p.hero for p in players if p.alive and not p.ghost]
+        for i, (x, y) in enumerate(s.camp.spots):
+            if i in s.lit or not any(math.hypot(h.x - x, h.y - y) < 40 for h in heroes):
+                continue
+            if i not in s.opened:
+                if self.world.tile_at(math.floor(x), math.floor(y)) is tiles.ICE_BLOCK:
+                    continue
+                s.opened.add(i)
+                self.scene.effects.append(Effect("toast", x, y - 2, label="STAY CLOSE! KEEP THEM WARM!"))
+            for w in s.wraiths.get(i, []):
+                if w.alive and getattr(w, "touched", False):
+                    w.touched = False
+                    w.hp = 0.0
+                    w.last_hit_by = None
+                    s.heat[i] = max(0.0, s.heat.get(i, 0.0) - config.RESCUE_REFREEZE * config.RESCUE_THAW)
+                    self.scene.effects.append(Effect("toast", x, y - 2, label="RE-FROZEN!"))
+            if not any(math.hypot(h.x - x, h.y - y) <= config.RESCUE_WARM for h in heroes):
+                continue
+            done = s.heat.get(i, 0.0)
+            for wave, at in enumerate(config.RESCUE_WAVES):
+                if done >= at and (i, wave) not in s.swarmed:
+                    s.swarmed.add((i, wave))
+                    self._send_wraiths(s, i, wave, x, y)
+            done += dt
+            s.heat[i] = done
+            if done >= config.RESCUE_THAW:
+                s.lit.add(i)
+                s.heat.pop(i, None)
+                for w in s.wraiths.pop(i, []):
+                    w.goal_pos = None               # (they turn on the players)
+                self.scene.effects.append(Effect("nova", x, y, size=3.0))
+                self.scene.effects.append(Effect("toast", x, y - 2, label="FREED! THANK YOU!"))
+                self._found(s, heroes[0])
+                if s.stage != "hunt":
+                    return
+
+    def _send_wraiths(self, s: QuestState, i: int, wave: int, x: float, y: float) -> None:
+        sp = self.scene.spawner
+        if sp is None:
+            return
+        rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0xF205, s.qid, i,
+                                        wave))
+        lo, hi = config.RESCUE_WAVE_RANGE
+        for _ in range(config.RESCUE_WAVE_SIZE):
+            a = rng.uniform(0, math.tau)
+            r = rng.uniform(lo, hi)
+            e = sp.wake(s.spec.target, x + math.cos(a) * r, y + math.sin(a) * r, None,
+                        random.Random(rng.random()))
+            e.alert = True
+            e.goal_pos = (x, y)
+            s.wraiths.setdefault(i, []).append(e)
+            self.scene.enemies.append(e)
+            self.scene.effects.append(Effect("burrow", e.x, e.y))
+
+    # --- Fetch quests (M24.3) -----------------------------------------------------------
+
+    def _fetch(self, s: QuestState, players, dt: float) -> None:
+        """Pieces: taken (guards dead) and carried (s.carry); delivered to the
+        giver one by one. The last sews Mr. Buttons whole -- he goes with
+        whoever brought it (s.bear). A downed carrier drops what they have
+        (s.drops); anyone walking over it picks it up."""
+        for p in players:                         # a fallen carrier drops it all
+            if p.alive:
+                continue
+            n = s.carry.pop(p.index, 0)
+            for _ in range(n):
+                s.drops.append([p.hero.x, p.hero.y, "piece"])
+            if s.bear == p.index:
+                s.bear = None
+                s.drops.append([p.hero.x, p.hero.y, "bear"])
+        living = [p for p in players if p.alive and not p.ghost]
+        for d in list(s.drops):
+            p = next((p for p in living
+                      if math.hypot(p.hero.x - d[0], p.hero.y - d[1]) <= config.FETCH_PICKUP), None)
+            if p is None:
+                continue
+            s.drops.remove(d)
+            if d[2] == "bear":
+                s.bear = p.index
+                self.scene.effects.append(Effect("toast", d[0], d[1] - 1.5, label="MR. BUTTONS!"))
+            else:
+                s.carry[p.index] = s.carry.get(p.index, 0) + 1
+        if s.stage != "hunt":
+            return
+        for i, (x, y) in enumerate(s.camp.spots):
+            if i in s.lit:
+                continue
+            near = [p for p in living
+                    if math.hypot(p.hero.x - x, p.hero.y - y) <= config.CARGO_RADIUS + 1.0]
+            if not near:
+                s.heat.pop(i, None)
+                continue
+            if self.guards_left(s, i):
+                if i not in s.heat:
+                    s.heat[i] = 1.0
+                    self.scene.effects.append(Effect("toast", x, y - 1.5,
+                                                     label="THE BATS WON'T LET YOU!"))
+                continue
+            s.lit.add(i)
+            s.heat.pop(i, None)
+            p = near[0]
+            s.carry[p.index] = s.carry.get(p.index, 0) + 1
+            if hasattr(self.world, "set_tile"):
+                self.world.set_tile(math.floor(x), math.floor(y),
+                                    tiles.CONCRETE if s.biome == "ruins" else tiles.SAND)
+            self.scene.effects.append(Effect("toast", x, y - 1.5, label="A PIECE OF MR. BUTTONS!"))
+            self.scene._sounds.append("chime")
+        npc = s.npc
+        for p in living:
+            n = s.carry.get(p.index, 0)
+            if n <= 0 or math.hypot(p.hero.x - npc.x, p.hero.y - npc.y) > config.FETCH_DELIVER:
+                continue
+            s.carry.pop(p.index)
+            s.taken = True
+            for _ in range(n):
+                if s.stage == "hunt":
+                    self._found(s, p.hero)
+            if s.stage != "hunt":
+                s.bear = p.index
+                npc.say(s.spec.say("done"))
+                self.scene.effects.append(Effect("toast", p.hero.x, p.hero.y - 2,
+                                                 label="MR. BUTTONS IS WHOLE! TAKE HIM!"))
+                return
+            npc.say(line.format(left=s.spec.count - s.found) for line in s.spec.say("progress"))
+
+    def _gift(self, s: QuestState, p) -> None:
+        """Talking to Fragile, beaten and crying: whoever has Mr. Buttons
+        gives him back -- FRAGILE_GIFT_LEVELS levels for every player."""
+        cry = s.crying
+        if s.gifted:
+            cry.say(("Thank you... I'll take good care of him.",))
+            return
+        if s.bear != p.index:
+            cry.say(("*sniff* ...Mr. Buttons... where is he?",
+                     "They took him. They always take everything."))
+            return
+        s.bear = None
+        s.gifted = True
+        cry.say(("...Mr. Buttons? You... brought him back?",
+                 "Nobody ever brings anything back. Thank you.",
+                 "I'm... sorry. About the ballroom. And everything."))
+        scene = self.scene
+        for q in scene.players:
+            if q.ghost:
+                continue
+            for _ in range(config.FRAGILE_GIFT_LEVELS):
+                scene._gain_xp(q, q.progress.needed - q.progress.xp)
+        scene.effects.append(Effect("toast", cry.x, cry.y - 3,
+                                    label=f"+{config.FRAGILE_GIFT_LEVELS} LEVELS!"))
+        scene._sounds.append("chime")
+
+    def pointers(self, p) -> list[tuple[float, float, str]]:
+        """Edge-of-screen arrows for this player's quest errands: the giver's
+        stall while carrying pieces; Fragile, crying, while holding her bear."""
+        out = []
+        for s in self.states.values():
+            if s.spec.kind != "fetch":
+                continue
+            if s.carry.get(p.index, 0) > 0:
+                out.append((s.npc.x, s.npc.y, "STALL"))
+            if s.bear == p.index and s.crying is not None and not s.gifted:
+                out.append((s.crying.x, s.crying.y, "FRAGILE"))
+        return out
 
     # --- Light quests (M22.2) -----------------------------------------------------------
 
@@ -448,6 +847,10 @@ class Quests:
         s.stage = "cleared"
         self._open_gate(s)
         boss = s.boss
+        if s.spec.kind == "fetch":                 # (M24.3: she sits there crying)
+            s.crying = Npc(config.ENEMIES[s.spec.boss].name.split(",")[0], "fragile_crying",
+                           boss.x, boss.y, s.biome, quest=s.key)
+            s.crying.say(("*sob*",))
         spec = config.BOSSES[s.spec.boss]
         scene = self.scene
         self.banner = Banner(f"{boss.espec.name.upper()} IS DEFEATED",
@@ -495,19 +898,27 @@ class Quests:
         s.taken = True
         s.found = s.spec.count
         s.lit = set(range(len(s.camp.spots)))
-        if s.spec.kind == "light" and hasattr(self.world, "set_tile"):
+        done = {"light": tiles.BRAZIER_LIT, "collect": tiles.SAND,
+                "survive": tiles.SEAL_BROKEN, "escort": tiles.BEACON,
+                "rescue": tiles.SLUSH, "fetch": tiles.CONCRETE}.get(s.spec.kind)
+        if s.spec.kind == "fetch":
+            s.bear = self.scene.me.index           # (dev: the bear's yours)
+        if done is not None and hasattr(self.world, "set_tile"):
             for x, y in s.camp.spots:
-                self.world.set_tile(math.floor(x), math.floor(y), tiles.BRAZIER_LIT)
+                self.world.set_tile(math.floor(x), math.floor(y), done)
         s.stage = "awake"
         sp = self.scene.spawner
         if sp is not None:
             for i in range(len(s.camp.spots)):
-                sid = (QUEST_SID, s.qid, i, 0)
-                sp.dead.add(sid)
-                e = sp.awake.pop(sid, None)
-                if e is not None:
-                    e.hp = 0.0
-                    e.last_hit_by = None
+                for k in range(config.CARGO_GUARDS + 1):
+                    sid = (QUEST_SID, s.qid, i, k)
+                    if k and s.spec.kind not in ("collect", "fetch"):
+                        break
+                    sp.dead.add(sid)
+                    e = sp.awake.pop(sid, None)
+                    if e is not None:
+                        e.hp = 0.0
+                        e.last_hit_by = None
         self.banner = Banner("SOMETHING STIRS...", "(dev) hunt finished")
         return True
 

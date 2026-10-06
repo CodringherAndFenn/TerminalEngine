@@ -15,6 +15,7 @@ from .. import config
 
 # kind -> lifetime in seconds
 DURATIONS = {
+    "meltdown": 3.6,          # M24.1: the Fallout King's meltdown wave (render/fallout.py)
     "muzzle": config.MUZZLE_FLASH_TIME,
     "impact": config.IMPACT_TIME,
     "debris": config.IMPACT_TIME * 1.5,

@@ -1,6 +1,9 @@
 """
 ai/creatures.py -- enemies without weapons: fallen warrior, spore puffer,
-burrower, and (M12) thornback boar and dust devil.
+burrower, and (M12) thornback boar and dust devil; (M22-M23) the quest
+and boss creatures: leeches, mosquitoes, scarabs, camels, the Nameless
+Magus's sand elementals, golems, sigils and hourglass, and the Fallout
+King's ghouls, isotope rods and toxic barrels; the frost wraiths.
 
 Every attack is telegraphed (a wind-up the player can see) and hits an
 area, so friendly fire applies: a puffer bursting next to a warrior hurts
@@ -559,3 +562,360 @@ class GoldenScarab(Creature):
             self.jink_dir = -self.jink_dir
         a = math.atan2(self.y - h.y, self.x - h.x) + self.jink_dir * 0.6
         self.walk(ctx, self.x + math.cos(a) * 4, self.y + math.sin(a) * 4, dt, self.espec.speed)
+
+
+class Camel(Creature):
+    """Mangy camel (M23.2, the caravan master's quest) and mirage (Ol'
+    Spitter's heat-haze double). A camel keeps its distance from its
+    target (somewhere in preferred_range, drifting round it), and every
+    `cooldown` s stops, rears its head back (`rear`: the tell, `windup`
+    s) and spits a little fan of globs (CAMEL_FAN of CAMEL_SPIT) at you.
+    A mangy one guards a bundle of cargo: with nobody to chase it stays
+    within CAMEL_LEASH tiles of where it was put. A mirage pops at the
+    first hit, whatever it was."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.home = (self.x, self.y)
+        self.rear = 0.0               # > 0: head back, about to spit
+        self.cooldown = self.rng.uniform(0.6, 1.6)
+        self.phase = self.rng.uniform(0, math.tau)   # walk cycle (drawing)
+        self.side = self.rng.choice((-1, 1))
+        self.side_t = self.rng.uniform(1.5, 3.0)
+        self.summoner = None
+
+    @property
+    def mirage(self) -> bool:
+        return getattr(self, "kind_key", "") == "mirage"
+
+    def take_damage(self, amount, source, from_angle):
+        if self.mirage and amount > 0 and self.hittable:
+            amount = max(amount, self.hp)            # one touch and it's gone
+        return super().take_damage(amount, source, from_angle)
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        self.cooldown = max(0.0, self.cooldown - dt)
+        t = self.target
+        if self.rear > 0:
+            if t is not None:
+                self.facing = self.angle_to(t.x, t.y)
+            self.rear -= dt
+            if self.rear <= 0:
+                self._spit(ctx)
+            return
+        if t is None or not (self.alert or self.mirage):
+            gx, gy = self.wander_goal(dt)
+            if math.hypot(gx - self.home[0], gy - self.home[1]) > config.CAMEL_LEASH \
+                    and not self.mirage:
+                gx, gy = self.home
+            if self.walk(ctx, gx, gy, dt, self.espec.speed * 0.3) is False:
+                self.phase += dt * 4.0
+            return
+        if self.sees_target and self.cooldown <= 0:
+            self.facing = self.angle_to(t.x, t.y)
+            self.rear = self.espec.windup
+            return
+        gx, gy = (t.x, t.y) if self.sees_target else (self.last_known or (t.x, t.y))
+        self.side_t -= dt
+        if self.side_t <= 0:
+            self.side = -self.side
+            self.side_t = self.rng.uniform(1.5, 3.0)
+        lo, hi = self.espec.preferred_range
+        d = math.hypot(self.x - gx, self.y - gy)
+        away = math.atan2(self.y - gy, self.x - gx)
+        r = max(lo, min(hi, d))
+        a = away + self.side * math.radians(30)
+        if self.walk(ctx, gx + math.cos(a) * r, gy + math.sin(a) * r, dt, self.espec.speed) is False:
+            self.phase += dt * 8.0
+        if self.sees_target:
+            self.facing = self.angle_to(t.x, t.y)
+
+    def _spit(self, ctx: AIContext) -> None:
+        t = self.target
+        self.cooldown = self.espec.cooldown * self.rng.uniform(0.85, 1.15)
+        if t is None:
+            return
+        from ..systems import patterns
+        n, spread = config.CAMEL_FAN
+        mx = self.x + math.cos(self.facing) * self.hit_radius
+        my = self.y + math.sin(self.facing) * self.hit_radius
+        lead = math.hypot(t.x - mx, t.y - my) / config.CAMEL_SPIT.speed * 0.5
+        aim = math.atan2(t.y + getattr(t, "vy", 0.0) * lead - my,
+                         t.x + getattr(t, "vx", 0.0) * lead - mx)
+        patterns.fan(self, mx, my, aim, n, spread, config.CAMEL_SPIT, ctx.projectiles)
+        ctx.events.append("fizzle")
+
+
+class SandElemental(Creature):
+    """Sand elemental (M23.3: rises round a star circle being broken, and
+    serves the Magus). Keeps its distance; every `cooldown` s it draws back
+    (`windup`: the tell, eyes flaring) and throws a sand bolt at you. Now
+    and then it blinks: gone in a swirl for ELEMENTAL_BLINK[0] s (can't be
+    hit), and back a few tiles off to one side."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.windup = 0.0
+        self.cooldown = self.rng.uniform(0.8, 1.6)
+        self.blink_cd = self.rng.uniform(2.0, 4.0)
+        self.gone = 0.0
+        self.dest: tuple[float, float] | None = None
+        self.phase = self.rng.uniform(0, math.tau)    # its swirl (drawing)
+        self.summoner = None
+
+    @property
+    def hittable(self) -> bool:
+        return self.alive and self.gone <= 0
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        self.phase += dt * 6.0
+        self.cooldown = max(0.0, self.cooldown - dt)
+        self.blink_cd -= dt
+        if self.gone > 0:
+            self.gone -= dt
+            if self.gone <= 0 and self.dest is not None:
+                self.x, self.y = self.dest
+                ctx.effects.append(Effect("eruption", self.x, self.y))
+            return
+        t = self.target
+        if self.windup > 0:
+            if t is not None:
+                self.facing = self.angle_to(t.x, t.y)
+            self.windup -= dt
+            if self.windup <= 0 and t is not None:
+                from ..systems import patterns
+                shell = config.ELEMENTAL_BOLT
+                lead = self.dist_to(t) / shell.speed * 0.6
+                a = math.atan2(t.y + getattr(t, "vy", 0.0) * lead - self.y,
+                               t.x + getattr(t, "vx", 0.0) * lead - self.x)
+                patterns.shoot(self, self.x, self.y, a, shell, ctx.projectiles)
+                ctx.events.append("fizzle")
+                self.cooldown = self.espec.cooldown * self.rng.uniform(0.85, 1.2)
+            return
+        if t is None:
+            self.walk(ctx, *self.wander_goal(dt), dt, self.espec.speed * 0.4)
+            return
+        if self.blink_cd <= 0 and self.sees_target:
+            self._blink(ctx, t)
+            return
+        if self.sees_target and self.cooldown <= 0:
+            self.windup = self.espec.windup
+            return
+        lo, hi = self.espec.preferred_range
+        d = self.dist_to(t)
+        away = math.atan2(self.y - t.y, self.x - t.x)
+        r = max(lo, min(hi, d))
+        self.walk(ctx, t.x + math.cos(away + 0.4) * r, t.y + math.sin(away + 0.4) * r, dt,
+                  self.espec.speed)
+
+    def _blink(self, ctx: AIContext, t) -> None:
+        _, lo, hi = config.ELEMENTAL_BLINK
+        self.blink_cd = self.rng.uniform(2.5, 4.5)
+        for _ in range(8):
+            a = math.atan2(self.y - t.y, self.x - t.x) + self.rng.choice((-1, 1)) * \
+                self.rng.uniform(0.6, 1.4)
+            r = self.rng.uniform(lo, hi)
+            x, y = self.x + math.cos(a) * r, self.y + math.sin(a) * r
+            if not hull_hits_solid(ctx.world, x, y, 0.0, self.half, self.half):
+                self.dest = (x, y)
+                self.gone = config.ELEMENTAL_BLINK[0]
+                ctx.effects.append(Effect("burrow", self.x, self.y))
+                return
+
+
+class SandGolem(Creature):
+    """Sand golem (M23.3, out of the Magus's golem runes): plods at you;
+    in reach it raises its fists (`windup`: the tell) and slams the ground
+    -- a blast of `attack_radius` round where it stands."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.windup = 0.0
+        self.cooldown = 0.5
+        self.phase = 0.0
+        self.summoner = None
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        self.cooldown = max(0.0, self.cooldown - dt)
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            if self.windup <= 0:
+                combat.blast(self.x, self.y, self.espec.attack_radius,
+                             self.espec.damage * self.damage_mult, self,
+                             [a for a in ctx.actors if getattr(a, "faction", "") == "player"],
+                             effects=ctx.effects)
+                ctx.effects.append(Effect("nova", self.x, self.y, size=self.espec.attack_radius))
+                ctx.events.append(combat.BREAK)
+                self.cooldown = self.espec.cooldown
+            return
+        if t is None:
+            return
+        if self.dist_to(t) <= self.espec.attack_radius + t.hit_radius and self.cooldown <= 0:
+            self.windup = self.espec.windup
+            return
+        if not self.walk(ctx, t.x, t.y, dt, self.espec.speed):
+            self.phase += dt * 5.0
+
+
+class Sigil(Creature):
+    """A sand sigil (M23.3, the Magus's): a glowing glyph that drifts after
+    its target through everything, and bursts on touch (heroes only). One
+    hit of anything pops it; it fades after SIGIL_LIFE s."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.age = 0.0
+        self.phase = self.rng.uniform(0, math.tau)
+        self.summoner = None
+
+    def take_damage(self, amount, source, from_angle):
+        if amount > 0 and self.hittable:
+            amount = max(amount, self.hp)
+        return super().take_damage(amount, source, from_angle)
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        self.age += dt
+        self.phase += dt * 5.0
+        if self.age >= config.SIGIL_LIFE:
+            self.hp = 0.0
+            self.last_hit_by = None
+            return
+        heroes = [h for h in ctx.players if h.hittable]
+        if not heroes:
+            return
+        t = min(heroes, key=lambda h: math.hypot(h.x - self.x, h.y - self.y))
+        d = math.hypot(t.x - self.x, t.y - self.y)
+        if d <= self.espec.attack_radius + t.hit_radius:
+            combat.strike(t, self.espec.damage * self.damage_mult, self,
+                          math.atan2(t.y - self.y, t.x - self.x), ctx.effects)
+            ctx.effects.append(Effect("nova", self.x, self.y, size=1.2))
+            self.hp = 0.0
+            self.last_hit_by = None
+            return
+        want = math.atan2(t.y - self.y, t.x - self.x)
+        turn = (want - self.facing + math.pi) % math.tau - math.pi
+        self.facing += max(-2.0 * dt, min(2.0 * dt, turn))
+        self.x += math.cos(self.facing) * self.espec.speed * dt
+        self.y += math.sin(self.facing) * self.espec.speed * dt
+
+
+class Hourglass(Creature):
+    """The Magus's hourglass (M23.3): it stands where he plants it while
+    its sand runs (`sand`: 1 full .. 0 run out; the Magus keeps the time).
+    Shatter it and he's stunned."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.sand = 1.0
+        self.summoner = None
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        pass
+
+
+class Ghoul(Leech):
+    """Glowing ghoul (M24.1: the scavenger's escort, the Fallout King's
+    call): a leech's rush, wind-up and bite on two legs -- and when it dies
+    it bursts green (GHOUL_BURST: heroes only)."""
+
+    def on_death(self, ctx: AIContext) -> None:
+        radius, damage = config.GHOUL_BURST
+        combat.blast(self.x, self.y, radius, damage * self.damage_mult, self,
+                     [a for a in ctx.players if a.hittable], effects=ctx.effects)
+        ctx.effects.append(Effect("nova", self.x, self.y, size=radius))
+        ctx.events.append(combat.BREAK)
+
+
+class IsotopeRod(Creature):
+    """An isotope rod (M24.1) standing in a patch of the Fallout King's
+    fallout: it doesn't move or fight; smash it and its patch clears."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.phase = self.rng.uniform(0, math.tau)
+        self.summoner = None
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.phase += dt * 4.0
+
+
+class ToxicBarrel(Creature):
+    """A toxic barrel the Fallout King hurls (M24.1): it arcs from where it
+    was thrown to `target` over `flight` s (`height` 0..1 for drawing).
+    Nothing can hit it in the air (the user, 2026-10-06: harder, on
+    purpose) -- shots fly under it. Landed, it's gone (`landed`): the King
+    leaves a goo puddle there."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.start = (self.x, self.y)
+        self.target = (self.x, self.y)
+        self.flight = 1.0
+        self.t = 0.0
+        self.landed = False
+        self.height = 0.0
+        self.summoner = None
+
+    @property
+    def hittable(self) -> bool:
+        return False
+
+    def take_damage(self, amount, source, from_angle):
+        return 0.0
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.t = min(self.flight, self.t + dt)
+        f = self.t / self.flight if self.flight > 0 else 1.0
+        (x0, y0), (x1, y1) = self.start, self.target
+        self.x, self.y = x0 + (x1 - x0) * f, y0 + (y1 - y0) * f
+        self.height = 4 * f * (1 - f)
+        if f >= 1.0:
+            self.landed = True
+            self.hp = 0.0
+            self.last_hit_by = None
+
+
+class FrostWraith(Creature):
+    """Frost wraith (M24.2, the searching sister's rescue): a cold ghost
+    that drifts through walls. Sent at a thawing captive (`goal_pos`) it
+    makes for them and, touching them, sets `touched` (the quest knocks the
+    thaw back and it fades). Otherwise it drifts at you and chills you with
+    a touch (`damage` every `cooldown` s)."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.goal_pos: tuple[float, float] | None = None
+        self.touched = False
+        self.cooldown = 0.0
+        self.phase = self.rng.uniform(0, math.tau)
+        self.summoner = None
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.sense(ctx, dt)
+        self.phase += dt * 3.0
+        self.cooldown = max(0.0, self.cooldown - dt)
+        if self.goal_pos is not None:
+            gx, gy = self.goal_pos
+            if math.hypot(gx - self.x, gy - self.y) <= 1.0:
+                self.touched = True
+                return
+        else:
+            t = self.target
+            if t is None:
+                return
+            gx, gy = t.x, t.y
+            if math.hypot(gx - self.x, gy - self.y) <= self.espec.attack_radius + t.hit_radius:
+                if self.cooldown <= 0 and t.hittable:
+                    combat.strike(t, self.espec.damage * self.damage_mult, self,
+                                  self.angle_to(gx, gy), ctx.effects)
+                    self.cooldown = 1.0
+                return
+        a = math.atan2(gy - self.y, gx - self.x) + math.sin(self.phase) * 0.4
+        self.facing = a
+        self.x += math.cos(a) * self.espec.speed * dt
+        self.y += math.sin(a) * self.espec.speed * dt

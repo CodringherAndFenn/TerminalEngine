@@ -6,7 +6,8 @@ the corners, each on a small dark panel so it reads over any terrain:
 
   top-left     HP bar, level + XP bar, kills, loot found and the run's
                clock, the dodge roll's recharge (and charges, with Extra
-               Roll), and the hero's spells with their levels (once they
+               Roll), a boss's meter on you while you have some (M24.1
+               RAD from the Fallout King, M24.2 CHL from the Snow King), and the hero's spells with their levels (once they
                have any)
   top-right    the minimap (ui/maps.py)
   top-centre   a boss's name and health, during a boss fight
@@ -54,6 +55,8 @@ class HudInfo:
     loot: int = 0                # found this run
     shield: float = 0.0          # Ward Charm / Aegis: shown in blue after the HP
     roll: tuple | None = None    # (charges ready, most charges, 0..1 toward the next)
+    meter: tuple | None = None   # a boss's meter on you (M24.1 rads, M24.2 chill): (label,
+                                 # 0..1 full, alarm) or None
 
 
 # The last top-left panel drawn: key -> image.
@@ -98,11 +101,14 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
     if info.roll is not None:
         ready, most, frac = info.roll
         roll_key = (ready, most, round(frac * ROLL_BAR) if ready < most else ROLL_BAR)
-    rows = 3 + (info.roll is not None) + bool(info.spells)
+    meter_row = 3 + (info.roll is not None) if info.meter is not None else None
+    meter_key = ((info.meter[0], round(info.meter[1] * (BAR - 1)), info.meter[2])
+                 if info.meter is not None else None)
+    rows = 3 + (info.roll is not None) + (info.meter is not None) + bool(info.spells)
     area = pygame.Rect(0, 0, PANEL_W * d.cell_w, rows * d.cell_h)
     key = (id(text), d.cell_w, d.cell_h, hp_cells, hp_color, math.ceil(info.hp),
            info.level, xp_cells, info.kills, clock, info.spells, info.loot, shield_cells,
-           roll_key)
+           roll_key, meter_key)
     if key == _cache["key"]:
         d.canvas.blit(_cache["image"], area)
         return
@@ -125,6 +131,16 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
     text.put(PANEL_W - 1 - len(clock), 2, clock, palette.HUD_VALUE, palette.HUD_PANEL)
     if roll_key is not None:
         _roll_meter(text, roll_row, *roll_key)
+    if meter_key is not None:
+        label, cells, alarm = meter_key
+        colors = palette.CHILL_BAR if label == "CHL" else palette.RADS_BAR
+        col = colors[2] if alarm else colors[1] if cells > BAR * 0.75 else colors[0]
+        text.put(1, meter_row, label, palette.HUD_LABEL, palette.HUD_PANEL)
+        text.put(5, meter_row, "▄" * cells, col, palette.HUD_PANEL)
+        text.put(5 + cells, meter_row, "▄" * (BAR - 1 - cells) if cells < BAR - 1 else "",
+                 palette.HUD_ROLL_EMPTY, palette.HUD_PANEL)
+        if alarm:
+            text.put(PANEL_W - 4, meter_row, "!!!", col, palette.HUD_PANEL)
     if info.spells:
         line = "  ".join(f"{name} {level}" for name, level in info.spells)
         text.put(1, rows - 1, line[:PANEL_W - 2], palette.HUD_SPELL, palette.HUD_PANEL)

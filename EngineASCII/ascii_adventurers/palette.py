@@ -424,6 +424,12 @@ PIN_QUEST = ((255, 220, 90), (60, 40, 0))
 PIN_LAIR = ((255, 90, 70), (60, 10, 0))
 PIN_TARGET = ((225, 120, 255), (45, 10, 60))
 PIN_DONE = ((150, 150, 150), (40, 40, 40))
+# A fight's fixtures on the maps (M24.1, the Fallout King's vault).
+PIN_SHOWER = ((120, 220, 255), (20, 50, 70))
+PIN_DRY = ((90, 100, 110), (30, 30, 34))
+PIN_VALVE = ((255, 140, 60), (70, 30, 10))
+PIN_LEAD = ((170, 176, 210), (40, 40, 60))
+PIN_CORE = ((200, 255, 110), (40, 70, 20))
 # Quest log (ui/quest_log.py).
 QUEST_TITLE = (255, 220, 140)
 QUEST_TEXT = (210, 210, 190)
@@ -451,3 +457,219 @@ PSY_SHOTS = tuple(
 MAP_TILE.update({"sandstone": (196, 160, 104), "oasis": (60, 150, 170), "palm": (70, 140, 60),
                  "tent": (170, 80, 50), "collector's stall": (240, 200, 70)})   # M23.1
 MAP_TILE_BIOME.update({"sand pit": "desert", "rug": "desert", "collector's post": "desert"})
+# Ol' Spitter's caravanserai and the caravan master's quest (M23.2): a
+# ring of mud brick, a flagstone yard, arcades of brick arches, stone
+# water troughs (smashable), tethering posts, hay; the lost cargo bundles.
+MUDBRICK_FG = (200, 150, 100)
+MUDBRICK_BG = (120, 76, 46)
+FLAGSTONE_FG = (130, 112, 84)
+FLAGSTONE_BG = (52, 44, 32)
+ARCH_FG = (226, 186, 130)
+ARCH_BG = (146, 98, 58)
+TROUGH_FG = (120, 200, 230)
+TROUGH_BG = (96, 92, 84)
+TROUGH_BROKEN_FG = (100, 140, 150)
+POST_FG = (150, 100, 56)
+HAY_FG = (220, 190, 90)
+CARGO_FG = (240, 200, 120)
+CARGO_BG = (110, 64, 30)
+CRATES_FG = (200, 150, 80)
+MAP_TILE.update({"mud brick": (190, 140, 90), "brick arch": (226, 186, 130),
+                 "water trough": (90, 170, 200), "tethering post": (150, 100, 56),
+                 "cargo bundle": (240, 200, 120), "crates": (200, 150, 80)})
+MAP_TILE_BIOME.update({"flagstones": "desert", "hay": "desert", "broken trough": "desert"})
+# Ol' Spitter and the camels (render/camel.py). Colors: hide, its shade,
+# the humps' shine, the legs and outline, the muzzle.
+OL_SPITTER = {"hide": (206, 160, 100), "shade": (156, 112, 64), "shine": (240, 210, 156),
+              "edge": (62, 40, 22), "muzzle": (130, 92, 56), "eye": (30, 18, 10),
+              "leg": (176, 132, 82), "shadow": (24, 20, 14), "blanket": (176, 48, 40),
+              "fringe": (240, 196, 80)}
+MANGY_CAMEL = {"hide": (170, 136, 92), "shade": (124, 96, 62), "shine": (200, 172, 128),
+               "edge": (56, 40, 22), "muzzle": (104, 78, 48), "eye": (30, 18, 10),
+               "leg": (150, 116, 76), "shadow": (24, 20, 14), "patch": (112, 88, 62)}
+MIRAGE_CAMEL = {"hide": (170, 220, 255, 140), "shade": (120, 180, 230, 130),
+                "shine": (225, 245, 255, 170), "edge": (80, 130, 200, 150),
+                "muzzle": (120, 170, 220, 140), "eye": (50, 80, 130, 190),
+                "leg": (150, 200, 245, 140)}
+GHOST_CAMEL = {"hide": (205, 232, 255, 175), "shade": (150, 195, 240, 165),
+               "shine": (240, 252, 255, 200), "edge": (100, 145, 210, 185),
+               "muzzle": (150, 190, 230, 175), "eye": (70, 100, 150, 210),
+               "leg": (180, 215, 250, 170)}
+SPITTER_TELL = ((150, 255, 90), (80, 170, 50))   # his aim lines, rings: bright, dim
+KICK_TELL = ((255, 90, 70), (170, 50, 40))       # his hind legs flashing, the kick's cone
+DRINK_SPLASH = ((150, 220, 255), (90, 160, 210))
+LOOGIE = ((170, 230, 90), (110, 170, 60), (220, 255, 170))   # body, dark, shine
+SHOT_SPIT = ((190, 255, 120), ((130, 200, 80), (80, 140, 50)))
+SHOT_LOB_SPIT = ((170, 240, 100), (90, 140, 50), ((150, 255, 90), (80, 170, 50)))
+HOT_SAND = ((255, 190, 90), (200, 130, 60))      # the gallop's trail of churned, stinging sand
+# The Nameless Magus's sunken observatory and the apprentice's star
+# circles (M23.3): blue-glazed walls, sandstone slabs, a star-chart
+# mosaic, broken columns, a fallen brass telescope, sand drifts; walls of
+# sand he raises.
+GLAZED_FG = (110, 170, 230)
+GLAZED_BG = (34, 70, 120)
+SLAB_FG = (150, 128, 90)
+SLAB_BG = (66, 54, 36)
+CHART_FG = (240, 210, 120)
+CHART_BG = (30, 40, 86)
+COLUMN_FG = (230, 214, 176)
+COLUMN_BG = (150, 130, 96)
+BRASS_FG = (240, 196, 90)
+BRASS_BG = (130, 90, 30)
+DRIFT_FG = (200, 172, 112)
+STAR_RING_FG = (150, 200, 255)
+SEAL_FG = (255, 230, 120)
+SEAL_BROKEN_FG = (120, 110, 90)
+DUNE_WALL_FG = (226, 196, 130)
+DUNE_WALL_BG = (170, 136, 80)
+SCROLLS_FG = (230, 220, 180)
+MAP_TILE.update({"glazed stone": (90, 150, 210), "column": (230, 214, 176),
+                 "brass telescope": (240, 196, 90), "sand wall": (226, 196, 130),
+                 "scroll rack": (230, 220, 180)})
+MAP_TILE_BIOME.update({"sandstone slabs": "desert", "star chart": "desert", "sand drift": "desert",
+                       "broken column": "desert", "star ring": "desert", "seal": "desert",
+                       "broken seal": "desert"})
+# The Magus (render/magus.py): robe, its shade, sash, skin, beard, staff,
+# its lens; his runes, beams and time zones.
+MAGUS = {"robe": (70, 60, 120), "shade": (44, 36, 84), "sash": (230, 180, 70),
+         "skin": (190, 150, 110), "beard": (230, 228, 220), "staff": (120, 84, 46),
+         "lens": (160, 230, 255), "edge": (20, 16, 30), "hood": (52, 44, 96)}
+RUNE = ((255, 200, 90), (200, 120, 40), (120, 80, 30))     # charged, charging, dim
+RUNE_SCUFFED = (110, 96, 70)
+LANCE = ((255, 250, 200), (255, 220, 120))                 # the beam's core, its glow
+LANCE_TELL = ((255, 230, 120), (170, 140, 60))
+SERPENT = ((210, 170, 100), (150, 110, 60))
+TIME_SLOW_ZONE = ((120, 170, 255), (70, 110, 190))
+TIME_FAST_ZONE = ((255, 210, 90), (190, 140, 50))
+QUICKSAND_COL = ((200, 160, 90), (140, 106, 58))
+VORTEX_COL = ((230, 200, 140), (170, 140, 90))
+HOURGLASS_COL = {"frame": (170, 120, 50), "glass": (190, 230, 255), "sand": (240, 200, 110),
+                 "edge": (40, 28, 12)}
+ELEMENTAL = ((220, 190, 120), (170, 140, 80), (255, 240, 190))   # body, dark, eyes
+GOLEM = {"body": (186, 150, 96), "dark": (126, 96, 58), "eye": (255, 160, 60)}
+SIGIL = ((255, 210, 110), (200, 140, 50))
+SHOT_BLADE = ((255, 236, 170), ((210, 180, 110), (150, 120, 70)))
+SHOT_TIME = ((180, 220, 255), ((120, 170, 230), (80, 110, 170)))
+# The Fallout King's reactor vault and the scavenger's scrap camp (M24.1).
+VAULT_WALL_FG = (150, 150, 140)
+VAULT_WALL_BG = (70, 72, 68)
+REACTOR_FG = (120, 255, 120)
+REACTOR_BG = (40, 60, 44)
+PILLAR_FG = (176, 176, 166)
+PILLAR_BG = (100, 100, 94)
+PIPE_FG = (190, 150, 90)
+PIPE_BG = (60, 54, 44)
+VALVE_FG = (255, 80, 60)
+VALVE_SHUT_FG = (90, 220, 255)
+SHOWER_FG = (120, 220, 255)
+SHOWER_OFF_FG = (80, 90, 100)
+LEAD_FG = (120, 126, 150)
+LEAD_BG = (56, 58, 76)
+GRATE_FG = (110, 110, 100)
+BEACON_FG = (255, 230, 80)
+SLUDGE_FG = (140, 255, 90)
+SLUDGE_BG = (40, 80, 30)
+PLATES_FG = (130, 130, 120)
+PLATES_BG = (54, 54, 50)
+SCRAP_FG = (180, 140, 90)
+SCRAP_BG = (90, 66, 44)
+MAP_TILE.update({"vault wall": (150, 150, 140), "reactor": (120, 255, 120),
+                 "concrete pillar": (176, 176, 166), "pipe": (190, 150, 90),
+                 "coolant valve": (255, 80, 60), "shut valve": (90, 220, 255),
+                 "lead wall": (120, 126, 150), "sludge": (110, 200, 70),
+                 "scrap wall": (180, 140, 90), "beacon": (255, 230, 80)})
+MAP_TILE_BIOME.update({"shower": "ruins", "dry shower": "ruins", "sewer grate": "ruins",
+                       "beacon site": "ruins", "metal plates": "ruins", "scavenger's post": "ruins"})
+# The Fallout King (render/fallout.py) and his glow.
+KING = {"skin": (110, 190, 90), "dark": (60, 110, 50), "glow": (190, 255, 120),
+        "core": (230, 255, 160), "plate": (90, 96, 88), "edge": (20, 34, 18),
+        "eye": (255, 255, 200)}
+KING_TELL = ((190, 255, 90), (110, 170, 50))
+GAMMA = ((220, 255, 160), (140, 230, 90))
+GOO = ((140, 230, 80), (90, 160, 50))
+FALLOUT_COL = ((170, 255, 100), (90, 170, 60))
+RADS_BAR = ((150, 255, 90), (255, 220, 60), (255, 90, 60))   # low, high, irradiated
+GHOUL = {"body": (140, 200, 110), "dark": (70, 110, 60), "eye": (240, 255, 160)}
+ROD = {"rod": (200, 255, 140), "dark": (70, 120, 50), "cap": (150, 150, 140)}
+BARREL = {"body": (210, 190, 60), "band": (60, 50, 20), "goo": (140, 230, 80)}
+SKULL = ((220, 255, 150), (120, 200, 80))
+SHOT_GLOW = ((200, 255, 130), ((130, 210, 90), (80, 140, 60)))
+SHOT_EMP = ((150, 220, 255), ((90, 160, 230), (60, 100, 170)))
+# The Snow King's frozen throne hall and the sister's captives (M24.2).
+ICE_WALL_FG = (200, 235, 255)
+ICE_WALL_BG = (90, 140, 190)
+FROST_FG = (170, 200, 220)
+FROST_BG = (40, 54, 70)
+THRONE_FG = (230, 250, 255)
+THRONE_BG = (120, 170, 220)
+ICE_PILLAR_FG = (220, 245, 255)
+ICE_PILLAR_BG = (110, 170, 220)
+FIRE_FG = (150, 110, 70)
+FIRE_LIT_FG = (255, 170, 60)
+STATUE_FG = (200, 220, 240)
+STATUE_BG = (80, 100, 130)
+SNOWDRIFT_FG = (230, 240, 250)
+ICE_BLOCK_FG = (200, 240, 255)
+ICE_BLOCK_BG = (100, 160, 210)
+SLUSH_FG = (150, 170, 180)
+FROZEN_POND_FG = (180, 220, 240)
+FROZEN_POND_BG = (70, 110, 150)
+MAP_TILE.update({"ice wall": (200, 235, 255), "ice throne": (230, 250, 255),
+                 "ice pillar": (200, 235, 255), "fire brazier": (200, 120, 60),
+                 "lit fire brazier": (255, 170, 60), "frozen statue": (200, 220, 240),
+                 "ice block": (200, 240, 255), "frozen pond": (150, 200, 230)})
+MAP_TILE_BIOME.update({"frost stone": "ruins", "snowdrift": "ruins", "slush": "ruins"})
+PIN_FIRE = ((255, 160, 60), (70, 30, 10))
+PIN_FIRE_LIT = ((255, 230, 120), (90, 50, 10))
+PIN_CROWN = ((255, 225, 80), (80, 60, 10))
+# The Snow King (render/snowking.py).
+SNOW_KING = {"crown": (255, 215, 70), "gem": (120, 220, 255), "ice": (200, 240, 255),
+             "glow": (160, 220, 255)}
+SNOW_TELL = ((160, 230, 255), (90, 150, 200))
+ICE_SHEET = ((200, 240, 255), (130, 190, 230))
+PENGUIN = {"body": (30, 34, 44), "belly": (240, 244, 250), "beak": (255, 170, 40)}
+SNOWBALL = ((245, 250, 255), (190, 210, 230))
+CHILL_BAR = ((150, 220, 255), (255, 255, 255), (120, 160, 255))   # low, high, encased
+WRAITH = ((190, 230, 255), (110, 160, 210))
+SHOT_SHARD = ((220, 245, 255), ((150, 210, 240), (100, 150, 200)))
+SHOT_SPIKE = ((200, 240, 255), ((140, 190, 230), (90, 130, 180)))
+SHOT_SNOW = ((245, 250, 255), ((200, 215, 230), (150, 165, 185)))
+# Fragile's ruined ballroom and the pawn dealer's quest (M24.3).
+CASTLE_FG = (150, 140, 160)
+CASTLE_BG = (60, 52, 70)
+PARQUET_FG = (150, 100, 70)
+PARQUET_BG = (60, 38, 28)
+SHUTTER_FG = (120, 80, 50)
+SHUTTER_BG = (40, 26, 18)
+WINDOW_OPEN_FG = (255, 240, 170)
+WINDOW_OPEN_BG = (200, 170, 90)
+LEVER_FG = (200, 170, 90)
+MARBLE_FG = (230, 225, 235)
+MARBLE_BG = (150, 140, 160)
+COFFIN_FG = (140, 40, 50)
+COFFIN_BG = (50, 20, 24)
+VELVET_FG = (200, 40, 60)
+VELVET_BG = (90, 20, 30)
+MIRROR_FG = (200, 210, 230)
+CHANDELIER_FG = (230, 190, 90)
+PIECE_FG = (210, 150, 90)
+MAP_TILE.update({"castle wall": (150, 140, 160), "shuttered window": (120, 80, 50),
+                 "open window": (255, 240, 170), "marble pillar": (230, 225, 235),
+                 "coffin": (140, 40, 50), "staked coffin": (90, 70, 60),
+                 "velvet throne": (200, 40, 60), "cracked mirror": (200, 210, 230),
+                 "fallen chandelier": (230, 190, 90)})
+MAP_TILE_BIOME.update({"parquet": "ruins", "lever": "ruins", "bear piece": "ruins"})
+PIN_LEVER = ((255, 220, 120), (80, 60, 20))
+PIN_SUN = ((255, 250, 200), (110, 90, 30))
+PIN_COFFIN = ((220, 80, 90), (60, 20, 24))
+PIN_BEAR = ((210, 150, 90), (60, 40, 20))
+# Fragile (render/fragile.py).
+SUN = ((255, 240, 160), (230, 200, 110))
+FRAGILE_TELL = ((255, 70, 110), (170, 40, 70))
+GAZE = ((255, 60, 90), (150, 30, 50))
+MIST = ((190, 180, 220), (130, 120, 160))
+BAT_COL = ((70, 50, 90), (130, 100, 160))
+BEAT_COL = ((255, 120, 180), (110, 60, 90))
+SHOT_RIFF = ((255, 120, 200), ((200, 80, 160), (130, 50, 110)))
+SHOT_SLASH = ((255, 70, 90), ((200, 40, 60), (130, 30, 40)))
+SHOT_BAT = ((150, 110, 180), ((100, 70, 130), (60, 40, 80)))

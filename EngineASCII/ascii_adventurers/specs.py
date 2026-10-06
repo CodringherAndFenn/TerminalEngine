@@ -262,6 +262,16 @@ class QuestSpec:
     braziers (`target` unused); stand by `count` of them until each
     catches (config.BRAZIER_*), while mosquitoes come for you.
 
+    kind "collect" (M23.2): the camp's spots hold bundles of cargo, each
+    guarded by config.CARGO_GUARDS `target` enemies; with the guards dead,
+    walk up to a bundle to take it. `count` bundles finish it.
+
+    kind "survive" (M23.3): stand in a star circle until its seal breaks
+    while `target` enemies rise in waves. kind "escort" (M24.1): the giver
+    follows you to the spots and works at each while `target` enemies come
+    for you. kind "rescue" (M24.2): shatter a captive's ice block, then stay
+    close while they thaw as `target` enemies try to re-freeze them.
+
     A biome can have several quests, all in every run (M22.5). Quests may share camp and lair
     builders: `camp_name` / `lair_name` label them on the map and `skin`
     (world/landmarks.SKINS) swaps their tiles for this quest's look."""

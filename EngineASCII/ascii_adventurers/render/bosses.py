@@ -216,19 +216,19 @@ def draw_banner(text, banner) -> None:
         center(text, row + 1, f"  {banner.sub}  ", sub, bg=palette.HUD_PANEL)
 
 
-def _paint_pointer(angle: float):
+def _paint_pointer(angle: float, color: tuple = palette.BOSS_ARROW):
     def paint(surf, to_px):
         def pt(u, v):
             return to_px(u * math.cos(angle) - v * math.sin(angle),
                          u * math.sin(angle) + v * math.cos(angle))
         pts = [pt(10, 0), pt(-6, -7), pt(-2, 0), pt(-6, 7)]
         pygame.draw.polygon(surf, (20, 10, 8), [pt(12, 0), pt(-8, -9), pt(-3, 0), pt(-8, 9)])
-        pygame.draw.polygon(surf, palette.BOSS_ARROW, pts)
+        pygame.draw.polygon(surf, color, pts)
     return paint
 
 
 def draw_pointer(text, bank: SpriteBank, camera: Camera, x: float, y: float,
-                 label: str, size: float = 60) -> None:
+                 label: str, size: float = 60, color: tuple = palette.BOSS_ARROW) -> None:
     """An arrow at the screen's edge toward (x, y) when it's off screen
     (no part of a body `size` px across showing), with the distance --
     where the boss is in a big arena."""
@@ -244,8 +244,9 @@ def draw_pointer(text, bank: SpriteBank, camera: Camera, x: float, y: float,
     ax, ay = cx + dx * k, cy + dy * k
     angle = math.atan2(dy, dx)
     step = round(angle / (math.tau / 64)) % 64      # 64 baked directions
-    bank.draw(bank.static(f"boss_ptr{step}", _paint_pointer(step * math.tau / 64), 14), ax, ay)
+    bank.draw(bank.static(f"boss_ptr{step}{color}", _paint_pointer(step * math.tau / 64, color), 14),
+              ax, ay)
     cw = text.display.cell_w
     tx = ax - math.cos(angle) * 30 - len(label) * cw / 2
     ty = ay - math.sin(angle) * 22 - text.display.cell_h / 2
-    text.put_px(tx, ty, label, palette.BOSS_ARROW, palette.HUD_PANEL)
+    text.put_px(tx, ty, label, color, palette.HUD_PANEL)

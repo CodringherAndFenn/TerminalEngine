@@ -528,7 +528,7 @@ def update_projectiles(
             _weave(p)
         if p.seek_turn > 0:
             _home(p, actors, dt)
-        step = p.spec.speed * dt
+        step = p.spec.speed * dt * p.time_scale
         remaining = p.max_range - p.travelled
         last_leg = step >= remaining
         if last_leg:
@@ -738,8 +738,11 @@ def _hit_actor(p: Projectile, victim: Actor, hx: float, hy: float, world,
     if dart and stats.has("resonance"):
         extra += _resonance(victim, owner)
     full = not p.summon or (stats is not None and stats.has("pack_leader"))
-    strike(victim, p.damage, owner, p.angle, effects, p.tags, extra=extra, mult=p.mult,
-           on_hit=full, can_crit=full, sure_crit=p.sure_crit)
+    dealt = strike(victim, p.damage, owner, p.angle, effects, p.tags, extra=extra, mult=p.mult,
+                   on_hit=full, can_crit=full, sure_crit=p.sure_crit)
+    hook = getattr(owner, "on_shot_hit", None)      # (M24.1: the Fallout King's rads)
+    if hook is not None and dealt:
+        hook(victim, dealt)
     if dart:
         _dart_hit(p, victim, hx, hy, owner, stats, actors, effects, spawned)
     effects.append(Effect("impact", hx, hy, p.angle))
@@ -927,7 +930,7 @@ def _fly_lobbed(p: Projectile, world, effects: list[Effect], dt: float,
                 actors: list[Actor]) -> list[str]:
     """A lobbed shell: up and over (nothing stops it), bursting when it
     comes down at its target."""
-    step = min(p.spec.speed * dt, p.flight - p.travelled)
+    step = min(p.spec.speed * dt * p.time_scale, p.flight - p.travelled)
     p.x += p.dir_x * step
     p.y += p.dir_y * step
     p.travelled += step

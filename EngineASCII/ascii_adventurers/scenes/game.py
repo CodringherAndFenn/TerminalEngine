@@ -80,6 +80,9 @@ from ..players.controls import AutoControls, GhostControls, PlayerInput
 from ..players.player import Player, player_color
 from ..render.ascii_fx import draw_effects, draw_projectiles
 from ..render.bosses import draw_banner, draw_froggy, draw_npc, draw_pointer
+from ..render.fragile import draw_carried
+from ..render.snowking import draw_captives, draw_fight_marks
+from ..render.magus import draw_seals
 from ..render.mosquito import draw_braziers
 from ..render.characters import draw_body
 from ..render.enemies_sprite import draw_enemy
@@ -518,7 +521,7 @@ class GameScene(Scene):
             inputs[p.index] = inp
             self._cards(p, inp.pick)
             self.rules.tick(p, dt)
-            if p.regen > 0 and not self.pacts["famine"]:
+            if p.regen > 0 and not self.pacts["famine"] and p.hero.irradiated <= 0:
                 p.hero.heal(p.regen * dt)
             roll.step(self, p, inp, dt)
             rolling, x0, y0 = p.hero.rolling, p.hero.x, p.hero.y
@@ -535,7 +538,9 @@ class GameScene(Scene):
                 p.hero.aim_at(*inp.aim, dt)
                 p.aim = inp.aim
             weapon = p.hero.weapon
-            if weapon.update(self.rules.weapon_dt(p, dt), inp.fire or weapon.spec.auto):
+            frozen = p.hero.encased > 0            # (M24.2: encased in ice: no attacks)
+            if weapon.update(self.rules.weapon_dt(p, dt),
+                             (inp.fire or weapon.spec.auto) and not frozen):
                 self._attack(p)
             if p.spells:
                 cast = update_spells(p.hero, p.spells, self.world, self._actors(), self.effects, dt,
@@ -558,6 +563,7 @@ class GameScene(Scene):
                 # Chill slows the enemy's whole clock; frozen, it doesn't act.
                 # Pacts and Bounty speed it up.
                 scale = (e.status.time_scale if e.status is not None else 1.0) * (1 + getattr(e, "haste", 0.0))
+                scale *= getattr(e, "time_mult", 1.0)     # (the Magus's time zones, M23.3)
                 if getattr(e, "boss", False):
                     # A boss fights wherever it is in its arena, and is
                     # never frozen solid.
@@ -880,6 +886,16 @@ class GameScene(Scene):
             self._draw(text)
         self._last_draw_ms = (time.perf_counter() - started) * 1000
 
+    @staticmethod
+    def _meter(hero) -> tuple | None:
+        """The HUD's extra meter row while a boss has one on you (M24.1 rads,
+        M24.2 chill): (label, 0..1 full, alarm)."""
+        if hero.rads > 0 or hero.irradiated > 0:
+            return ("RAD", hero.rads / config.RADS_FULL, hero.irradiated > 0)
+        if hero.chill > 0 or hero.encased > 0:
+            return ("CHL", hero.chill / config.CHILL_FULL, hero.encased > 0)
+        return None
+
     def _draw(self, text: TextRenderer) -> None:
         d = self.manager.display
         me = self.viewed
@@ -904,6 +920,9 @@ class GameScene(Scene):
             if x0 - margin <= npc.x <= x1 + margin and y0 - margin <= npc.y <= y1 + margin:
                 draw_npc(text, self.sprites, cam, npc, me.hero.x, npc is talk_to)
         draw_braziers(text, cam, self.quests, self.steps / config.SIM_HZ)
+        draw_seals(text, cam, self.quests, self.steps / config.SIM_HZ)
+        draw_captives(text, self.sprites, cam, self.quests, self.steps / config.SIM_HZ)
+        draw_carried(text, cam, self.quests, self.players)
         for p in self.players:
             h = p.hero
             if p.alive and x0 - margin <= h.x <= x1 + margin and y0 - margin <= h.y <= y1 + margin:
@@ -922,6 +941,13 @@ class GameScene(Scene):
             b = fight.boss
             dist = math.hypot(b.x - me.hero.x, b.y - me.hero.y)
             draw_pointer(text, self.sprites, cam, b.x, b.y, f"{dist:.0f}")
+            if hasattr(b, "map_marks") and me.alive:   # (M24.1+: the arena's fixtures)
+                draw_fight_marks(text, self.sprites, cam, b, me.hero, self.steps / config.SIM_HZ)
+        if me.alive and not self.map_open:            # (M24.3: quest errands)
+            for px, py, label in self.quests.pointers(me):
+                draw_pointer(text, self.sprites, cam, px, py,
+                             f"{label} {math.hypot(px - me.hero.x, py - me.hero.y):.0f}", 30,
+                             palette.PIN_BEAR[0])
         minimap = self.players[0].minimap
         if minimap is not None and not self.map_open and not isinstance(self.overlay, CardPicker):
             minimap.draw(text, self.sprites, self.world, me.hero.x, me.hero.y,
@@ -936,7 +962,8 @@ class GameScene(Scene):
         if not self.map_open:
             boss = None
             if fight is not None and fight.boss is not None and fight.boss.alive:
-                boss = (fight.boss.espec.name, fight.boss.frac)
+                boss = (getattr(fight.boss, "bar_label", None) or fight.boss.espec.name,
+                        fight.boss.frac)
             draw_hud(text, HudInfo(
                 hp=me.hero.hp, max_hp=me.hero.max_hp, level=me.progress.level,
                 xp_frac=me.progress.frac, kills=me.stats.total_kills, time=me.stats.time,
@@ -944,13 +971,16 @@ class GameScene(Scene):
                 spells=tuple((s.spec.short, s.level) for s in me.spells.values()),
                 loot=int(me.stats.loot), shield=me.hero.shield, boss=boss,
                 roll=(me.hero.roll_charges, me.hero.stats.max_rolls if me.hero.stats else 1,
-                      roll.recharge_frac(me.hero))))
+                      roll.recharge_frac(me.hero)),
+                meter=self._meter(me.hero)))
             if self.quests.states:
-                draw_quest_log(text, self.quests.log(), 6 if me.spells else 5)
+                draw_quest_log(text, self.quests.log(),
+                               (6 if me.spells else 5) + (self._meter(me.hero) is not None))
             if self.quests.banner is not None and self.overlay is None:
                 draw_banner(text, self.quests.banner)
             if talk_to is not None and self.overlay is None:
-                center(text, d.rows - 3, f"  E / A: talk to the {talk_to.name}  ",
+                who = talk_to.name if talk_to.name[:1].isupper() else f"the {talk_to.name}"
+                center(text, d.rows - 3, f"  E / A: talk to {who}  ",
                        palette.HUB_PROMPT, bg=palette.HUD_PANEL)
         if self.app.dev and not self.map_open:
             text.put(0, d.rows - 1, " DEV  L: level up  F6: to quest giver  F7: finish hunt  "

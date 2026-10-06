@@ -64,6 +64,9 @@ class Projectile:
         self.base_angle = angle
         self.hold = 0.0
         self.tint = 0
+        # M23.3: how fast it flies right now (the Nameless Magus's time
+        # zones set it: slower or faster inside one).
+        self.time_scale = 1.0
         # Lobbed shells: where it comes down, and how far that is (full range
         # straight ahead unless combat.fire aims it at a point).
         self.flight = spec.max_range

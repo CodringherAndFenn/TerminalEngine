@@ -410,6 +410,98 @@ ENEMIES = {
         name="Khepri the Dung Emperor", kind="khepri", max_hp=8000, sight=400,
         biomes=(), size_px=110, xp=400,
     ),
+    # M23.2: the caravan master's quest and Ol' Spitter. Mangy camels sit on
+    # his lost cargo: they keep their distance, rear their heads (the tell)
+    # and spit a little fan of globs (CAMEL_SPIT). A mirage is one of Ol'
+    # Spitter's heat-haze decoys: it spits like a camel and pops at a touch.
+    "mangy_camel": EnemySpec(
+        name="mangy camel", kind="camel", max_hp=90, sight=18, biomes=(), speed=5.0,
+        preferred_range=(7.0, 11.0), windup=0.5, cooldown=2.2, size_px=34, xp=20,
+    ),
+    "mirage": EnemySpec(
+        name="mirage", kind="camel", max_hp=1, sight=30, biomes=(), speed=6.0,
+        preferred_range=(6.0, 10.0), windup=0.5, cooldown=2.0, size_px=46, xp=1,
+    ),
+    "ol_spitter": EnemySpec(
+        name="Ol' Spitter, the Unmannered One", kind="ol_spitter", max_hp=8000, sight=400,
+        biomes=(), size_px=110, xp=400,
+    ),
+    # M23.3: the runaway apprentice's quest and the Nameless Magus. Sand
+    # elementals rise round whoever holds a star circle (and serve the
+    # Magus): they blink in short hops and throw sand bolts. His sand golems
+    # climb out of golem runes, plod at you and slam the ground; his sigils
+    # drift after you and burst on touch (one hit pops one); his hourglass
+    # stands still and can be shattered.
+    "sand_elemental": EnemySpec(
+        name="sand elemental", kind="elemental", max_hp=60, sight=24, biomes=(), speed=6.0,
+        preferred_range=(6.0, 10.0), windup=0.45, cooldown=1.6, size_px=22, xp=10,
+    ),
+    "sand_golem": EnemySpec(
+        name="sand golem", kind="golem", max_hp=220, sight=30, biomes=(), speed=3.6,
+        damage=14, attack_radius=2.4, windup=0.7, cooldown=1.8, size_px=34, xp=8,
+    ),
+    "sigil": EnemySpec(
+        name="sand sigil", kind="sigil", max_hp=1, sight=60, biomes=(), speed=6.5,
+        damage=10, attack_radius=1.2, size_px=14, xp=1,
+    ),
+    "hourglass": EnemySpec(
+        name="the Magus's hourglass", kind="hourglass", max_hp=320, sight=0, biomes=(),
+        speed=0.0, size_px=40, xp=1,
+    ),
+    "nameless_magus": EnemySpec(
+        name="Nameless Magus, Holder of Time", kind="nameless_magus", max_hp=8000, sight=400,
+        biomes=(), size_px=60, xp=400,
+    ),
+    # M24.1: the hazmat scavenger's escort and the Fallout King. Glowing
+    # ghouls rush you (they come in waves while a beacon is set up, and at
+    # the King's call) and burst green when they die. His isotope rods stand
+    # in fallout; his barrels fly at you (they can't be hit in the air); his skulls
+    # home in (a sigil's flight: one hit pops one).
+    "glowing_ghoul": EnemySpec(
+        name="glowing ghoul", kind="ghoul", max_hp=40, sight=26, biomes=(), speed=7.0,
+        damage=7, attack_radius=1.0, windup=0.3, cooldown=0.9, size_px=18, xp=6,
+    ),
+    "isotope_rod": EnemySpec(
+        name="isotope rod", kind="rod", max_hp=60, sight=0, biomes=(), speed=0.0,
+        size_px=16, xp=2,
+    ),
+    "toxic_barrel": EnemySpec(
+        name="toxic barrel", kind="barrel", max_hp=1, sight=0, biomes=(), speed=0.0,
+        size_px=18, xp=1,
+    ),
+    "gamma_skull": EnemySpec(
+        name="gamma skull", kind="sigil", max_hp=1, sight=60, biomes=(), speed=7.0,
+        damage=9, attack_radius=1.1, size_px=14, xp=1,
+    ),
+    "fallout_king": EnemySpec(
+        name="The Fallout King", kind="fallout_king", max_hp=8000, sight=400,
+        biomes=(), size_px=90, xp=400,
+    ),
+    # M24.2: the searching sister's rescue and the Snow King. Frost wraiths
+    # drift through walls to re-freeze a thawing captive (or after you).
+    "frost_wraith": EnemySpec(
+        name="frost wraith", kind="wraith", max_hp=30, sight=30, biomes=(), speed=4.5,
+        damage=6, attack_radius=1.0, size_px=18, xp=6,
+    ),
+    "snow_king": EnemySpec(
+        name="Snow King, King of Loneliness", kind="snow_king", max_hp=8000, sight=400,
+        biomes=(), size_px=90, xp=400,
+    ),
+    # M24.3: the pawn dealer's fetch quest and Fragile. Vampire bats guard
+    # the pieces of her bear (and fly at you); thralls climb out of her
+    # coffins.
+    "vampire_bat": EnemySpec(
+        name="vampire bat", kind="mosquito", max_hp=35, sight=22, biomes=(), speed=8.0,
+        damage=6, attack_radius=0.9, windup=0.25, cooldown=1.0, size_px=14, xp=8,
+    ),
+    "thrall": EnemySpec(
+        name="thrall", kind="leech", max_hp=80, sight=30, biomes=(), speed=5.5,
+        damage=10, attack_radius=1.2, windup=0.4, cooldown=1.2, size_px=22, xp=6,
+    ),
+    "fragile": EnemySpec(
+        name="Fragile, The Misunderstood", kind="fragile", max_hp=8000, sight=400,
+        biomes=(), size_px=70, xp=400,
+    ),
 }
 
 # M12 enemy behaviour.
@@ -1337,6 +1429,24 @@ BESTIARY = {
     "golden_scarab": (1500, "Runs from you, and digs in if you're too slow. Worth its weight in gold."),
     "scarab": (800, "Scuttles out of the sand at Khepri's call and nips."),
     "khepri": (5000, "Rolls a dung ball that grows. Bait it into a pillar: it shatters, he's stunned."),
+    # M23.2
+    "mangy_camel": (1500, "Sits on lost cargo, keeps its distance and spits."),
+    "mirage": (800, "Ol' Spitter's heat-haze double. Spits like him; one hit and it's gone."),
+    "ol_spitter": (5000, "His humps hold his spit. Dry, he drinks: smash the trough and he chokes."),
+    # M23.3
+    "sand_elemental": (1500, "Rises from the sand round a star circle. Blinks about, throws sand bolts."),
+    "sand_golem": (800, "Climbs out of the Magus's runes, plods at you and slams the ground."),
+    "nameless_magus": (5000, "Scuff out his runes before they fire. Shatter his hourglass before time's up."),
+    # M24.1
+    "glowing_ghoul": (1500, "Rushes you in packs and bursts green when it dies."),
+    "fallout_king": (5000, "Watch your rads. Smash the rods, shut the valves, hide behind lead."),
+    # M24.2
+    "frost_wraith": (1500, "Drifts through walls to freeze the thawing. Keep it off them."),
+    "snow_king": (5000, "Knock off his crown and kick it away. Light the fires; keep moving."),
+    # M24.3
+    "vampire_bat": (1500, "Flits in to bite. Guarded Mr. Buttons' pieces for a pawn dealer."),
+    "thrall": (800, "Climbs out of Fragile's coffins. Stake an empty one to keep it shut."),
+    "fragile": (5000, "Open the shutters: she burns in the sun. Roll on the beat. Bring the bear."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -1348,6 +1458,11 @@ ACHIEVEMENTS = {
     "leech_swarm": "defeat the Leech Swarm",
     "proboscia": "defeat Lady Proboscia",
     "khepri": "defeat Khepri the Dung Emperor",
+    "ol_spitter": "defeat Ol' Spitter, the Unmannered One",
+    "nameless_magus": "defeat the Nameless Magus, Holder of Time",
+    "fallout_king": "defeat the Fallout King",
+    "snow_king": "defeat the Snow King, King of Loneliness",
+    "fragile": "defeat Fragile, The Misunderstood",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -1722,6 +1837,151 @@ QUESTS = {
                          "I'm rich! Well. You're rich. Mostly me.")),
         ),
     ),
+    # M23.2: a "collect" quest. The caravan master's cargo bundles lie in
+    # the quest's clearings, each guarded by CARGO_GUARDS mangy camels; with
+    # the guards gone, walk up to a bundle to take it (systems/quests.py).
+    # The camp is the oasis layout with crates; the lair, Ol' Spitter's
+    # caravanserai (world/landmarks._caravanserai).
+    "caravan_master": QuestSpec(
+        title="Lost Cargo", biome="desert", giver="caravan master",
+        giver_sprite="caravan_master", camp="oasis_camp", lair="caravanserai",
+        target="mangy_camel", count=5, boss="ol_spitter", goal="Cargo bundles {n}/{count}",
+        camp_name="CARAVAN MASTER", lair_name="THE CARAVANSERAI", skin="caravan",
+        kind="collect",
+        lines=(
+            ("offer", ("Adventurer! A word, a word, please.",
+                       "My lead camel threw a fit and bolted.",
+                       "My cargo's scattered all over the desert.",
+                       "Mangy strays sit on every bundle now.",
+                       "Run them off and bring back five.")),
+            ("progress", ("{left} more bundles out there.",
+                          "The strays won't give them up kindly.")),
+            ("done", ("Five! But... that bellow. Hear it?",
+                      "That's HIM. Ol' Spitter. My lead camel.",
+                      "He's holed up in the old caravanserai.",
+                      "When his humps run dry, he drinks.",
+                      "Smash his trough while he drinks!")),
+            ("fight", ("Ol' Spitter's at the caravanserai! Go!",)),
+            ("cleared", ("Ol' Spitter, tamed? I never thought...",
+                         "Manners at last. Well. Fewer spits.")),
+        ),
+    ),
+    # M23.3: a "survive" quest. The camp's spots hold sealed star circles;
+    # stand in one SEAL_TIME s (in total) to break its seal while sand
+    # elementals rise round you (systems/quests.py). The lair is the sunken
+    # observatory (world/landmarks._observatory).
+    "runaway_apprentice": QuestSpec(
+        title="Broken Seals", biome="desert", giver="runaway apprentice",
+        giver_sprite="runaway_apprentice", camp="oasis_camp", lair="observatory",
+        target="sand_elemental", count=4, boss="nameless_magus", goal="Seals broken {n}/{count}",
+        camp_name="RUNAWAY APPRENTICE", lair_name="THE SUNKEN OBSERVATORY", skin="apprentice",
+        kind="survive",
+        lines=(
+            ("offer", ("You! You can see me? Good. Listen.",
+                       "My old master has no name. Not any more.",
+                       "He took my years for his hourglass.",
+                       "He hides under the sand, behind seals.",
+                       "Stars are drawn round each seal. Stand in one.",
+                       "Hold it until the seal breaks. Four of them.",
+                       "The sand will fight you. Hold anyway.")),
+            ("progress", ("{left} more seals to break.",
+                          "Stay in the circle. Leave and it heals.")),
+            ("done", ("Four! He can't hide now. He's coming up.",
+                      "The sunken observatory. That's his.",
+                      "Scuff his runes out before they fire.",
+                      "And if he turns the hourglass... break it.")),
+            ("fight", ("The Magus is up! The observatory! Go!",)),
+            ("cleared", ("He's gone? Then my years...",
+                         "I feel them coming back. Thank you.")),
+        ),
+    ),
+    # M24.1: an "escort" quest (systems/quests._escort). The scavenger
+    # follows whoever took the quest to the beacon sites (the camp's spots)
+    # and plants a beacon at each (ESCORT_SETUP s) while glowing ghouls pour
+    # in -- for the players, not for her: she can't be hurt. She has to be
+    # talked to first (she's the one doing it). The lair is the reactor
+    # vault (world/landmarks._reactor_vault).
+    "hazmat_scavenger": QuestSpec(
+        title="Geiger Readings", biome="ruins", giver="hazmat scavenger",
+        giver_sprite="hazmat_scavenger", camp="scrap_camp", lair="reactor_vault",
+        target="glowing_ghoul", count=4, boss="fallout_king", goal="Beacons planted {n}/{count}",
+        camp_name="HAZMAT SCAVENGER", lair_name="THE REACTOR VAULT", kind="escort",
+        lines=(
+            ("offer", ("Whoa. Don't touch anything. Glowing, see?",
+                       "Something under these ruins is cooking.",
+                       "I need sensor beacons out there. Four.",
+                       "Walk me to the sites, I'll plant them.",
+                       "The ghouls will come for you, not me.",
+                       "This suit's seen worse. Lead the way!")),
+            ("progress", ("{left} more beacons to plant.",
+                          "Lead on. I'm right behind you.")),
+            ("done", ("Readings are off the chart. It's HIM.",
+                      "The Fallout King. In the old reactor vault.",
+                      "Watch your rads. Use the showers.",
+                      "And if his core heats up... hide behind lead.")),
+            ("fight", ("The King's awake in the vault! Go!",)),
+            ("cleared", ("The readings... they're dropping!",
+                         "You did it. The ruins can breathe again.")),
+        ),
+    ),
+    # M24.2: a "rescue" quest (systems/quests._rescue): the camp's spots
+    # hold people frozen in ice blocks (destructible tiles). Shatter one and
+    # the captive thaws over RESCUE_THAW s while a hero stands by them;
+    # frost wraiths come to re-freeze them. The lair is the frozen throne
+    # hall (world/landmarks._throne_hall).
+    "searching_sister": QuestSpec(
+        title="Cold Hearts", biome="ruins", giver="searching sister",
+        giver_sprite="searching_sister", camp="scrap_camp", lair="throne_hall",
+        target="frost_wraith", count=4, boss="snow_king", goal="Captives freed {n}/{count}",
+        camp_name="SEARCHING SISTER", lair_name="THE FROZEN THRONE HALL", skin="frost",
+        kind="rescue",
+        lines=(
+            ("offer", ("Please. Have you seen my sister?",
+                       "The Snow King took her. Took lots of us.",
+                       "He freezes people. Keeps them. For company.",
+                       "Break the ice. Then stay with them, close,",
+                       "until they thaw. Wraiths will try to stop you.",
+                       "Free four and he'll come looking. He always does.")),
+            ("progress", ("{left} more to free. She could be any of them.",
+                          "Stay close while they thaw. Keep them warm.")),
+            ("done", ("Four free! And... there. That cold wind.",
+                      "He's in his frozen throne hall. Angry.",
+                      "Knock his crown off: he's nothing without it.",
+                      "And light the fires. Don't stand still.")),
+            ("fight", ("The Snow King's in his hall! Go!",)),
+            ("cleared", ("He's... crying? He just wanted friends.",
+                         "My sister's home. Thank you. Truly.")),
+        ),
+    ),
+    # M24.3: a "fetch" quest (systems/quests._fetch): the camp's spots hold
+    # the pieces of Fragile's old bear, each guarded like the cargo; pick one
+    # up and carry it to the dealer's stall. Sewn back together, Mr. Buttons
+    # stays with whoever brought the last piece: carry him into the ruined
+    # ballroom (world/landmarks._ballroom). Beaten, Fragile sits there crying
+    # -- give her the bear (talk to her) for FRAGILE_GIFT_LEVELS levels.
+    "pawn_dealer": QuestSpec(
+        title="Mr. Buttons", biome="ruins", giver="pawn dealer", giver_sprite="pawn_dealer",
+        camp="scrap_camp", lair="ballroom", target="vampire_bat", count=4, boss="fragile",
+        goal="Mr. Buttons pieces sewn {n}/{count}", camp_name="PAWN DEALER",
+        lair_name="THE RUINED BALLROOM", skin="pawn", kind="fetch",
+        lines=(
+            ("offer", ("Psst. Wanna buy a teddy bear? ...No?",
+                       "Okay. I MAY have stolen it. From a vampire.",
+                       "Mr. Buttons, she called him. Then he... tore.",
+                       "Four pieces, all over the ruins. Bats on 'em.",
+                       "Bring 'em here, I'll sew him back up.",
+                       "Then maybe... you give him back? To her?")),
+            ("progress", ("{left} more pieces of Mr. Buttons.",
+                          "Bring every piece you find back here.")),
+            ("done", ("Good as new! Well. Good as used.",
+                      "Take him. She's in the old ballroom. Waiting.",
+                      "She's... upset. Open the shutters. Sun burns her.",
+                      "And when it's over... give him back. Please.")),
+            ("fight", ("She's at the ballroom! Take Mr. Buttons!",)),
+            ("cleared", ("You gave him back? She smiled? Huh.",
+                         "Maybe I'll stop stealing from vampires.")),
+        ),
+    ),
 }
 # Developer / test: the quest key the dev keys (F6 to its giver, F7 finish
 # it, F8 to its lair) act on; run.py --boss sets it. None: the first quest
@@ -1778,6 +2038,61 @@ BRAZIER_COOL = 0.5
 BRAZIER_SWARMS = (0.0, 0.5)
 BRAZIER_SWARM_SIZE = 3
 BRAZIER_SWARM_RANGE = (10.0, 13.0)
+# "collect" quests (M23.2, systems/quests.py): CARGO_GUARDS of the quest's
+# `target` enemy sit round each bundle (CARGO_GUARD_RING tiles out); once
+# they're all dead, a hero within CARGO_RADIUS tiles of the bundle takes it.
+CARGO_GUARDS = 3
+CARGO_GUARD_RING = 3.0
+CARGO_RADIUS = 2.6
+# "survive" quests (M23.3, systems/quests.py): a hero inside a star circle
+# (SEAL_RADIUS tiles of its middle) wears its seal down; SEAL_TIME s of it
+# breaks it. With nobody inside, it heals back SEAL_HEAL x as fast. Every
+# SEAL_WAVE s someone's inside, SEAL_WAVE_SIZE (low, high) of the quest's
+# `target` enemies rise SEAL_WAVE_RANGE tiles from the middle.
+SEAL_RADIUS = 4.0
+SEAL_TIME = 30.0
+SEAL_HEAL = 0.5
+SEAL_WAVE = 8.0
+SEAL_WAVE_SIZE = (2, 3)
+SEAL_WAVE_RANGE = (8.0, 12.0)
+# "escort" quests (M24.1, systems/quests._escort): once taken, the giver
+# follows the nearest player within ESCORT_RANGE tiles, ESCORT_GAP behind,
+# at ESCORT_SPEED tiles/s (a long way behind or stuck, she catches up). At
+# a site (within ESCORT_SITE tiles of a spot) she plants a beacon over
+# ESCORT_SETUP s; a wave of the quest's `target` enemies comes at each of
+# ESCORT_WAVES s into it (ESCORT_WAVE_SIZE each, ESCORT_WAVE_RANGE tiles
+# off), alert and after the players.
+ESCORT_RANGE = 30.0
+ESCORT_GAP = 2.5
+ESCORT_SPEED = 9.0
+ESCORT_SITE = 3.0
+ESCORT_SETUP = 10.0
+ESCORT_WAVES = (0.0, 3.5, 7.0)
+ESCORT_WAVE_SIZE = 3
+ESCORT_WAVE_RANGE = (10.0, 13.0)
+CAMP_SCRAP_RADII = (22, 10)     # the scavenger's scrap camp (M24.1)
+# "rescue" quests (M24.2, systems/quests._rescue): a captive's ice block
+# (tiles.ICE_BLOCK, RESCUE_BLOCK_HP) shattered, they thaw while a hero is
+# within RESCUE_WARM tiles: RESCUE_THAW s of it frees them. A wave of
+# RESCUE_WAVE_SIZE of the quest's `target` comes at each RESCUE_WAVES mark
+# (RESCUE_WAVE_RANGE tiles off), drifting at the captive; one that touches
+# them knocks RESCUE_REFREEZE of the thaw back.
+RESCUE_BLOCK_HP = 200
+RESCUE_WARM = 3.0
+RESCUE_THAW = 8.0
+RESCUE_WAVES = (0.0, 3.0, 6.0)
+RESCUE_WAVE_SIZE = 2
+RESCUE_WAVE_RANGE = (10.0, 13.0)
+RESCUE_REFREEZE = 0.3
+# "fetch" quests (M24.3, systems/quests._fetch): FETCH guards round each
+# piece like the cargo's (CARGO_GUARDS of the quest's `target`); with them
+# dead, a hero within CARGO_RADIUS takes it. Carried pieces are delivered by
+# coming within FETCH_DELIVER tiles of the giver. A downed hero drops what
+# they carry (pieces, the bear) where they fell; any hero within
+# FETCH_PICKUP tiles picks it up.
+FETCH_DELIVER = 3.5
+FETCH_PICKUP = 1.6
+FRAGILE_GIFT_LEVELS = 5       # levels for giving Fragile her bear back (every player)
 
 # A boss lair: an oval arena LAIR_RADII tiles (half-width, half-height) --
 # one screen shows ~86 x 30 tiles, so 125 x 50 is about 3 x 3 screens (room
@@ -1792,6 +2107,48 @@ LAIR_MARGIN = 12
 LAIR_POOLS = 9
 LAIR_PILLARS = 30
 SAND_LAIR_PILLARS = 36          # the Dung Pit's: taller (Khepri's ball breaks on them)
+# Ol' Spitter's caravanserai (M23.2, world/landmarks._caravanserai): the
+# same oval and gate in mud brick, with CARAVAN_ARCADES rows of brick arches
+# (CARAVAN_ARCHES each, 3 x 2 tiles) across the yard, CARAVAN_TROUGHS stone
+# water troughs (6 x 1 tiles, TROUGH_HP each tile) round the middle, and
+# CARAVAN_POSTS tethering posts.
+CARAVAN_ARCADES = 4
+CARAVAN_ARCHES = 9
+CARAVAN_TROUGHS = 6
+CARAVAN_POSTS = 26
+TROUGH_HP = 160
+# The Nameless Magus's sunken observatory (M23.3, world/landmarks.
+# _observatory): the same oval and gate in blue-glazed stone round a
+# sandstone floor; a round star chart (OBSERVATORY_CHART tiles across) in
+# the middle; broken columns (2 x 2) in OBSERVATORY_RINGS rings round it,
+# a fallen brass telescope, sand drifts.
+OBSERVATORY_CHART = 14
+OBSERVATORY_RINGS = ((0.32, 10), (0.58, 14), (0.84, 18))   # (oval fraction, columns)
+# The Fallout King's reactor vault (M24.1, world/landmarks._reactor_vault):
+# the oval and gate in concrete walls; a cracked reactor ring in the
+# middle; VAULT_PILLARS concrete pillars, VAULT_PIPES pipe runs; round the
+# edge 4 coolant valves and 4 decontamination showers; 4 lead walls (4 x 1)
+# and 6 sewer grates through the room.
+VAULT_PILLARS = 28
+VAULT_PIPES = 6
+# The Snow King's frozen throne hall (M24.2, world/landmarks._throne_hall):
+# the oval and gate in ice walls round frost-stone; his throne at the north
+# end; HALL_PILLAR_ROWS rows of ice pillars (2 x 2, ICE_PILLAR_HP a tile:
+# shatter them, he regrows them ICE_PILLAR_REGROW s later); 4 fire
+# braziers; HALL_STATUES frozen statues; snowdrifts.
+HALL_PILLAR_ROWS = ((-0.45, 9), (0.0, 7), (0.45, 9))   # (fraction of b, pillars a row)
+ICE_PILLAR_HP = 120
+ICE_PILLAR_REGROW = 20.0
+HALL_STATUES = 10
+# Fragile's ruined ballroom (M24.3, world/landmarks._ballroom): the oval and
+# gate in castle stone round a parquet floor; BALLROOM_WINDOWS shuttered
+# windows a long wall (each with a lever below it: props["windows"],
+# props["levers"]); coffins and her throne at the far end; BALLROOM_PILLARS
+# rows of marble pillars; BALLROOM_CHANDELIERS chandeliers (props).
+BALLROOM_WINDOWS = 3
+BALLROOM_PILLARS = ((-0.35, 8), (0.35, 8))
+BALLROOM_CHANDELIERS = 4
+BALLROOM_COFFINS = 5
 # The gate seals (thorns) once a player is this far inside the stones, and
 # opens again when the boss falls.
 LAIR_SEAL_DEPTH = 6
@@ -1875,6 +2232,80 @@ BOSSES = {
         ),
         loot=2500, achievement="khepri", pages=("khepri", "golden_scarab"),
     ),
+    # M23.2 (ai/bosses.OlSpitter, design/BOSSES.md section 16). His kick
+    # isn't in the lists: he bucks whenever someone lingers behind him.
+    "ol_spitter": BossSpec(
+        name="Ol' Spitter, the Unmannered One",
+        phases=(
+            BossPhase(1.0, (("fan", 3), ("mortar", 2), ("loogie", 3), ("gallop", 2)), rest=1.0),
+            BossPhase(0.6, (("fan", 2), ("mortar", 2), ("loogie", 3), ("gallop", 2),
+                            ("stampede", 2)), rest=0.85),
+            BossPhase(0.25, (("fan", 1), ("mortar", 2), ("loogie", 3), ("gallop", 1),
+                             ("stampede", 2), ("mirage", 1), ("spiral", 3)), rest=0.6),
+        ),
+        loot=2500, achievement="ol_spitter", pages=("ol_spitter", "mangy_camel", "mirage"),
+    ),
+    # M23.3 (ai/bosses.Magus, design/BOSSES.md section 17). One signature
+    # a phase, kept: runes; + dunes; + the hourglass (the user's curve).
+    "nameless_magus": BossSpec(
+        name="Nameless Magus, Holder of Time",
+        phases=(
+            BossPhase(1.0, (("runes", 3), ("lance", 2), ("sigils", 3), ("blink", 2),
+                            ("serpent", 2)), rest=1.0),
+            BossPhase(0.6, (("runes", 3), ("lance", 2), ("sigils", 3), ("blink", 2),
+                            ("serpent", 2), ("dunes", 2), ("vortex", 2)), rest=0.85),
+            BossPhase(0.25, (("runes", 3), ("lance", 2), ("sigils", 3), ("blink", 2),
+                             ("serpent", 2), ("dunes", 2), ("vortex", 2), ("hourglass", 2)),
+                      rest=0.6),
+        ),
+        loot=2500, achievement="nameless_magus",
+        pages=("nameless_magus", "sand_elemental", "sand_golem"),
+    ),
+    # M24.1 (ai/bosses.FalloutKing, design/BOSSES.md section 18): rads all
+    # fight; + fallout (the stomp); + the meltdown core (a gauge of its own).
+    "fallout_king": BossSpec(
+        name="The Fallout King",
+        phases=(
+            BossPhase(1.0, (("gamma", 2), ("barrels", 3), ("skulls", 2), ("ghouls", 2),
+                            ("grate", 2), ("emp", 2)), rest=1.0),
+            BossPhase(0.6, (("gamma", 2), ("barrels", 3), ("skulls", 2), ("ghouls", 2),
+                            ("grate", 2), ("emp", 2), ("stomp", 3)), rest=0.85),
+            BossPhase(0.25, (("gamma", 2), ("barrels", 3), ("skulls", 2), ("ghouls", 2),
+                             ("grate", 2), ("emp", 2), ("stomp", 3)), rest=0.6),
+        ),
+        loot=2500, achievement="fallout_king", pages=("fallout_king", "glowing_ghoul"),
+    ),
+    # M24.2 (ai/bosses.SnowKing, design/BOSSES.md section 19): his crown all
+    # fight; + black ice (the freeze); + flash freeze (a chill meter).
+    "snow_king": BossSpec(
+        name="Snow King, King of Loneliness",
+        phases=(
+            BossPhase(1.0, (("shards", 3), ("spikes", 2), ("breath", 2), ("icicles", 2),
+                            ("penguins", 2)), rest=1.0),
+            BossPhase(0.6, (("shards", 2), ("spikes", 2), ("breath", 2), ("icicles", 2),
+                            ("penguins", 2), ("freeze", 3), ("blizzard", 2), ("snowballs", 2)),
+                      rest=0.85),
+            BossPhase(0.25, (("shards", 2), ("spikes", 2), ("breath", 2), ("icicles", 2),
+                             ("penguins", 2), ("freeze", 3), ("blizzard", 2), ("snowballs", 2)),
+                      rest=0.6),
+        ),
+        loot=2500, achievement="snow_king", pages=("snow_king", "frost_wraith"),
+    ),
+    # M24.3 (ai/bosses.Fragile, design/BOSSES.md section 20): the shutters all
+    # fight; + shapeshifting (each form its own moves: FRAGILE_FORM_MOVES);
+    # + on the beat. These lists are her own form's (the girl's).
+    "fragile": BossSpec(
+        name="Fragile, The Misunderstood",
+        phases=(
+            BossPhase(1.0, (("riff", 3), ("axe", 2), ("slashes", 3), ("gaze", 2), ("mist", 2),
+                            ("thralls", 1)), rest=1.0),
+            BossPhase(0.6, (("riff", 2), ("axe", 2), ("slashes", 2), ("gaze", 2), ("mist", 2),
+                            ("thralls", 1), ("chandeliers", 2)), rest=0.85),
+            BossPhase(0.25, (("riff", 2), ("axe", 2), ("slashes", 2), ("gaze", 2), ("mist", 2),
+                             ("thralls", 1), ("chandeliers", 2)), rest=0.6),
+        ),
+        loot=2500, achievement="fragile", pages=("fragile", "vampire_bat", "thrall"),
+    ),
 }
 
 # Khepri the Dung Emperor (ai/bosses.Khepri): a giant dung beetle with his
@@ -1913,6 +2344,334 @@ KHEPRI_SHOTS = {
                       look="dust", sound="fizzle"),
     "clod": ShellSpec(speed=9.0, damage=10, max_range=24.0, damages_terrain=False,
                       look="clod", sound="fizzle"),
+}
+# Ol' Spitter, the Unmannered One (ai/bosses.OlSpitter, M23.2): a
+# two-humped camel in his caravanserai. Damages are per hit at level 1 (x
+# the enemy damage scaling).
+# Signature, HUMPS AND THIRST: his humps hold HUMP_WATER sips of spit (half
+# in each; they shrink as he spends it). Every spitting move costs
+# HUMP_COST. Empty, he goes to the nearest unbroken trough and kneels to
+# drink for DRINK[0] s, taking DRINK[1] x damage (the melee window), and
+# gets up full. Smash the trough he's drinking from (TROUGH_HP a tile) and
+# he CHOKES: stunned CHOKE_STUN s, with only what he'd drunk so far. With
+# no trough left he's PARCHED, slower but angrier: no more drinking (and no
+# more melee windows; his spit costs nothing), he walks and gallops x
+# PARCHED[0] as fast and rests x PARCHED[1] as long between moves -- so
+# smashing troughs early is a trade.
+# His other signature move, the RICOCHET LOOGIE: a big gob that bounces
+# off walls, arches and posts, splitting in two (LOOGIE_SPREAD degrees
+# apart, x LOOGIE_SHRINK the size) at each of its first LOOGIE_SPLITS
+# bounces and popping at the next; LOOGIE_DAMAGE per hit by generation.
+SPITTER_HIT_RADIUS = 2.4
+SPITTER_TURN = 1.6                       # rad/s he turns to face his target (slowly: a camel)
+SPITTER_SPIT_ARC = 70.0                  # degrees either side of his nose he can spit
+HUMP_WATER = 10
+HUMP_COST = {"fan": 2, "mortar": 2, "loogie": 3, "spiral": 3}
+DRINK = (4.0, 1.5, 14.0, 8.0)            # s drinking, damage taken x, walk speed, longest walk s
+CHOKE_STUN = 3.0
+PARCHED = (0.85, 0.75)
+SPITTER_FAN = (0.6, 5, 50.0, 3, 0.45)    # rear (tell) s, globs, fan degrees, volleys, s between
+SPITTER_MORTAR = (0.5, 3, 0.45, 6)       # tell s, loogies, s between, ring of spit each
+                                         # (from the edge of its blast, flying out)
+LOOGIE_TELL = 0.8
+LOOGIE_SPEED = 14.0
+LOOGIE_RADIUS = 1.2
+LOOGIE_SHRINK = 0.75
+LOOGIE_SPLITS = 3
+LOOGIE_SPREAD = 28.0
+LOOGIE_LIFE = 7.0
+LOOGIE_DAMAGE = (14, 11, 9, 7)
+SPITTER_GALLOP = (0.7, 22.0, 36.0, 14, 0.8)  # tell s, speed, longest, damage, dazed s if he
+                                             # runs into something
+SPITTER_TRAIL = (1.6, 3.0, 0.5, 5, 2.0)  # churned sand: radius, lasts s, s between stings,
+                                         # damage a sting, tiles between patches
+SPITTER_KICK = (0.5, 6.0, 55.0, 0.45, 16, 6.0)  # s someone stands behind him first, reach,
+                                                # half-angle of the cone (deg), tell s,
+                                                # damage, knockback tiles
+SPITTER_STAMPEDE = (0.9, 3, 1.1, 18.0, 26.0, 3.2, 7.0, 10, 1.1, 26.0)
+    # bellow (tell) s, rows, s between rows, ghost speed, row half-width, spacing,
+    # gap width, damage, ghost hit radius, how far back the rows start
+SPITTER_MIRAGE = (0.7, 2, 2)             # shimmer (tell) s, decoys per cast, most alive
+SPITTER_SPIRAL = (0.7, 3.0, 0.12, 2.4, 3)    # rear-up (tell) s, seconds, s between, turn
+                                             # rad/s, arms
+CAMEL_SPIT = ShellSpec(speed=11.0, damage=7, max_range=20.0, damages_terrain=False,
+                       look="spit", sound="fizzle")
+CAMEL_FAN = (3, 30.0)                    # a mangy camel's spit: globs, fan degrees
+CAMEL_LEASH = 9.0                        # tiles a mangy camel strays from its bundle
+SPITTER_SHOTS = {
+    "spit": ShellSpec(speed=12.0, damage=8, max_range=28.0, damages_terrain=False,
+                      look="spit", sound="fizzle"),
+    "lob": ShellSpec(speed=16.0, damage=12, max_range=34.0, damages_terrain=False,
+                     look="lob_spit", sound="fizzle", lob=True, blast_radius=2.4),
+    "splash": ShellSpec(speed=9.0, damage=7, max_range=14.0, damages_terrain=False,
+                        look="spit", sound="fizzle"),
+}
+# The Nameless Magus, Holder of Time (ai/bosses.Magus, M23.3): a robed
+# sand wizard in his sunken observatory. Damages are per hit at level 1 (x
+# the enemy damage scaling).
+# Signature 1, SAND RUNES (phase 1+): he draws RUNE_BATCH[phase] rune
+# circles (RUNE_RADIUS tiles) RUNE_RANGE tiles from his target, at least
+# RUNE_GAP apart. Each charges RUNE_CHARGE s, then fires: a firestorm (a
+# RUNE_FIRE blast and a ring of sand), a blade ring, or a sand golem (at
+# most RUNE_GOLEMS alive; else a firestorm). A hero inside one for
+# RUNE_SCUFF s (or rolling through it) scuffs it out. Scuff a whole batch
+# and he's DRAINED: kneeling RUNE_DRAIN s (the melee window).
+# Signature 2, SHIFTING DUNES (phase 2+): DUNE_WALLS walls of sand rise
+# near the target (DUNE_LEN tiles long, 2 thick, DUNE_HP a tile: shoot
+# through them), blocking shots both ways, with DUNE_PITS quicksand pits;
+# DUNE_LIFE s later (or at his next dunes) they collapse, each throwing
+# sand outward. Quicksand: slows to QUICKSAND[1] x and drags toward the
+# middle at QUICKSAND[2] tiles/s.
+# Signature 3, THE HOURGLASS (phase 3): he plants it HOURGLASS[1] tiles from
+# the target; its sand runs HOURGLASS[0] s. Meanwhile TIME_ZONES time zones
+# (radius TIME_ZONE_RADIUS) open round it: slow ones (everything inside but
+# him at TIME_SLOW x: heroes walk, shots fly, adds act) and fast ones
+# (shots and adds TIME_FAST x, heroes walk TIME_FAST_HERO x). Shatter the
+# glass (its HP: config.ENEMIES["hourglass"]) and he's stunned
+# HOURGLASS[2] s. If the sand runs out: TIME'S UP -- HOURGLASS[3] rings of
+# shots from the glass, each with a gap, and every rune on the field fires.
+MAGUS_HIT_RADIUS = 1.6
+RUNE_BATCH = (2, 3, 4)
+RUNE_RADIUS = 2.5
+RUNE_RANGE = (8.0, 18.0)
+RUNE_GAP = 9.0
+RUNE_CHARGE = 4.0
+RUNE_SCUFF = 0.4
+RUNE_DRAIN = 4.0
+RUNE_DRAW = 0.7                          # s he spends drawing a batch (the tell)
+RUNE_FIRE = (3.5, 16, 12)                # firestorm: blast radius, damage, ring of sand
+RUNE_BLADES = (14, 2, 0.35)              # blade ring: blades a ring, rings, s between
+RUNE_GOLEMS = 2
+DUNE_WALLS = (3, 5)
+DUNE_LEN = (8, 14)
+DUNE_HP = 60
+DUNE_PITS = 2
+DUNE_LIFE = 12.0
+DUNE_TELL = 0.9
+DUNE_RANGE = (5.0, 16.0)                 # tiles from the target a wall's middle goes
+QUICKSAND = (3.5, 0.5, 1.0)              # radius, walking speed x, drag tiles/s
+HOURGLASS = (12.0, 13.0, 4.0, 3)         # sand runs s, tiles from the target, stun s, rings
+TIME_ZONES = (2, 3)
+TIME_ZONE_RADIUS = 6.0
+TIME_SLOW = 0.5
+TIME_FAST = 2.0
+TIME_FAST_HERO = 1.5
+TIMES_UP_RING = (28, 50.0, 0.6)          # shots a ring, gap degrees, s between rings
+MAGUS_LANCE = (0.8, 1.5, 40.0, 40.0, 15, 0.7)   # aim line (tell) s, beam s, sweep degrees,
+                                                # longest, damage, beam half-width tiles
+MAGUS_SIGILS = (0.6, 4, 6, 7, 70.0)      # tell s, sigils a cast, most alive, blades, fan deg
+MAGUS_BLINK = (0.6, 14.0, 26.0, 8)       # shimmer (tell) s, nearest / farthest hop, puff shots
+MAGUS_VORTEX = (0.7, 4.0, 12.0, 2.5, 0.15, 2.2)  # tell s, lasts s, pull radius, pull
+                                                 # tiles/s, s between spiral shots, turn rad/s
+MAGUS_SERPENT = (0.9, 30.0, 1.4, 16, 44.0)       # tell s, speed, half-width, damage, length
+SIGIL_LIFE = 8.0
+MAGUS_SHOTS = {
+    "sand": ShellSpec(speed=12.0, damage=8, max_range=26.0, damages_terrain=False,
+                      look="sand", sound="fizzle"),
+    "blade": ShellSpec(speed=13.0, damage=9, max_range=24.0, damages_terrain=False,
+                       look="blade", sound="fizzle"),
+    "time": ShellSpec(speed=9.0, damage=10, max_range=40.0, damages_terrain=False,
+                      look="time", sound="fizzle"),
+}
+ELEMENTAL_BOLT = ShellSpec(speed=12.0, damage=7, max_range=20.0, damages_terrain=False,
+                           look="sand", sound="fizzle")
+ELEMENTAL_BLINK = (0.25, 4.0, 7.0)       # vanish s, shortest / longest hop
+# The Fallout King (ai/bosses.FalloutKing, M24.1): a hulking irradiated
+# monster in his reactor vault. Damages are per hit at level 1 (x the enemy
+# damage scaling).
+# Signature 1, RADS (all fight): each hero's meter (Character.rads, 0..
+# RADS_FULL). It fills RADS_GLOW a second within RADS_GLOW_RANGE tiles of
+# him, RADS_HIT per hit of his, RADS_GOO a second in toxic goo and
+# RADS_FALLOUT in fallout, and drains RADS_DRAIN a second on its own. Full:
+# IRRADIATED for IRRADIATED[0] s -- IRRADIATED[1] damage every IRRADIATED[2]
+# s, no regen, the roll recharging x IRRADIATED[3] -- then back to
+# IRRADIATED[4]. A decontamination shower (the lair's) wipes it after
+# SHOWER[0] s under it, then is off for SHOWER[1] s.
+# Signature 2, FALLOUT (phase 2+): his stomp throws FALLOUT_PATCHES[0..1]
+# patches round the target, each growing FALLOUT_RADIUS[0] -> [1] tiles over
+# FALLOUT_GROW s, burning FALLOUT_BURN a second (and rads), with an isotope
+# rod in the middle (config.ENEMIES): smash it and the patch clears. At most
+# FALLOUT_MOST (the oldest fades).
+# Signature 3, the MELTDOWN CORE (phase 3): heat climbs 100 over CORE_HEAT s.
+# Shut all 4 coolant valves (VALVE_TIME s at one) and his chest blows open:
+# CORE_EXPOSED[1] x damage for CORE_EXPOSED[0] s, heat back to 0. At 100:
+# MELTDOWN after a MELTDOWN[0] s countdown -- MELTDOWN[1] damage and
+# MELTDOWN[2] rads to every hero in the arena not behind a lead wall.
+KING_HIT_RADIUS = 2.4
+RADS_FULL = 100.0
+RADS_GLOW = 8.0
+RADS_GLOW_RANGE = 7.0
+RADS_HIT = 10.0
+RADS_GOO = 15.0
+RADS_FALLOUT = 12.0
+RADS_DRAIN = 2.0
+IRRADIATED = (6.0, 4, 0.5, 0.5, 50.0)
+SHOWER = (1.5, 20.0, 1.6)                # s under it, s offline, reach (tiles)
+FALLOUT_PATCHES = (2, 3)
+FALLOUT_RADIUS = (2.0, 3.5)              # (radius, tiles: the draft's "4 -> 7 across")
+FALLOUT_GROW = 10.0
+FALLOUT_BURN = 3.0
+FALLOUT_MOST = 6
+FALLOUT_STOMP = (0.8, 6.0, 14.0, 3.0, 12)   # tell s, nearest / farthest from target, stomp
+                                            # blast radius, damage
+CORE_HEAT = 35.0
+CORE_EXPOSED = (5.0, 3.0)
+VALVE_TIME = 2.0
+VALVE_REACH = 2.6
+MELTDOWN = (3.0, 60, 50.0)
+MELTDOWN_SPEED = 70.0                    # tiles/s the meltdown's wave races out (it hits
+                                         # you when it gets to you)
+KING_GAMMA = (0.8, 3.0, 0.6, 30.0, 7, 0.3, 0.7)  # aim (tell) s, burn s, turn rad/s,
+                                                  # longest, damage a tick, s a tick,
+                                                  # half-width
+KING_BARRELS = (0.6, 3, 0.4, 1.2, 3.0, 8.0, 0.6)  # tell s, barrels, s between, flight s,
+                                                  # goo radius, goo lasts s, slow x
+KING_GHOULS = (0.7, 3, 5)                # roar (tell) s, ghouls a call, most alive
+KING_EMP = (0.8, 40, 40.0, 2)            # charge (tell) s, shots a ring, gap degrees, rings
+KING_SKULLS = (0.6, 4, 6)                # tell s, skulls a volley, most alive
+KING_GRATE = (0.5, 1.0, 3.0, 14, 12)     # sink s, rattle (tell) s, burst radius, damage, ring
+GHOUL_BURST = (1.5, 6)                   # a ghoul's death: radius, damage
+KING_SHOTS = {
+    "glow": ShellSpec(speed=12.0, damage=10, max_range=28.0, damages_terrain=False,
+                      look="glow", sound="fizzle"),
+    "emp": ShellSpec(speed=14.0, damage=11, max_range=36.0, damages_terrain=False,
+                     look="emp", sound="fizzle"),
+}
+# The Snow King, King of Loneliness (ai/bosses.SnowKing, M24.2): a lonely
+# frost wizard-king in his throne hall. Damages are per hit at level 1 (x
+# the enemy damage scaling).
+# Signature 1, THE CROWN (all fight): deal CROWN_KNOCK[0] x his max HP within
+# CROWN_KNOCK[1] s and it flies off, skidding CROWN_FLY tiles/s (slowing at
+# CROWN_FRICTION /s) away from you. CROWNLESS he can't attack, waddles
+# after it at CROWN_CHASE tiles/s and takes CROWN_VULN x damage. A hero
+# touching it kicks it on (CROWN_KICK tiles/s, each hero every
+# CROWN_KICK_EVERY s). Back on his head (CROWN_DON s), an angry ring of
+# CROWN_RAGE shards, and CROWN_COOLDOWN s before it can be knocked again.
+# Signature 2, BLACK ICE (phase 2+): his freeze lays ICE_SHEETS sheets near
+# the target, growing ICE_RADIUS[0] -> [1] tiles over ICE_GROW s, lasting
+# ICE_LIFE s. On ice a hero's speeding up and stopping are x ICE_TRACTION,
+# top speed x ICE_TOP (a roll is unaffected). A fire brazier (the lair's)
+# lit by standing at it BRAZIER_KINDLE s burns FIRE_BURN s and melts every
+# sheet whose middle is within FIRE_MELT tiles.
+# Signature 3, FLASH FREEZE (phase 3): each hero's chill (Character.chill,
+# 0..CHILL_FULL) fills CHILL_HIT per frost hit and CHILL_STILL a second
+# standing still; drains CHILL_MOVING a second moving, CHILL_FIRE near a lit
+# brazier. Full: ENCASED in ice up to ENCASE[0] s (can't move or attack;
+# ENCASE[1] rolls break out; a partner's shots break it, ENCASE[2] HP), and
+# his hits on you do ENCASE[3] x damage.
+SNOW_HIT_RADIUS = 2.2
+CROWN_KNOCK = (0.06, 4.0)
+CROWN_FLY = 22.0
+CROWN_FRICTION = 18.0
+CROWN_CHASE = 6.0
+CROWN_VULN = 1.6
+CROWN_KICK = 16.0
+CROWN_KICK_EVERY = 2.0
+CROWN_DON = 0.8
+CROWN_RAGE = 20
+CROWN_COOLDOWN = 15.0
+ICE_SHEETS = (2, 3)
+ICE_RADIUS = (4.0, 8.0)
+ICE_GROW = 3.0
+ICE_LIFE = 30.0
+ICE_TELL = 1.0
+ICE_TRACTION = 0.15
+ICE_TOP = 1.15
+BRAZIER_KINDLE = 2.0
+FIRE_BURN = 20.0
+FIRE_MELT = 9.0
+FIRE_REACH = 2.5                         # tiles from a brazier you stand to light it
+CHILL_FULL = 100.0
+CHILL_HIT = 12.0
+CHILL_STILL = 6.0
+CHILL_MOVING = 4.0
+CHILL_FIRE = 25.0
+ENCASE = (4.0, 3, 60, 1.5)
+SNOW_SHARDS = (0.6, 6, 60.0, 3, 0.4)     # raise (tell) s, shards, fan degrees, volleys, s between
+SNOW_SPIKES = (0.5, 22, 8.0, 0.8, 45.0)  # tell s, spikes, ring radius, hold s, gap degrees
+SNOW_PENGUINS = (0.8, 9, 3.2, 7.0, 14.0, 50.0, 10, 1.0)  # whistle s, penguins a row, spacing,
+                                         # gap, speed, slide (tiles; x2 on ice), damage, radius
+SNOW_BREATH = (0.8, 1.6, 50.0, 40.0, 15.0, 0.25, 4, 6.0, 0.6)  # wedge (tell) s, breath s,
+                                         # cone degrees, sweep degrees, reach, s a tick,
+                                         # damage a tick, chill a tick, walking speed x
+SNOW_ICICLES = (1.0, 6, 1.6, 14, 4)      # shadows (tell) s, icicles, radius, damage, shards each
+SNOW_BLIZZARD = (0.7, 4.0, 3.0, 0.4, 3.4, 8.0, 22.0)  # tell s, lasts s, wind tiles/s, s between
+                                         # rows, row gap, hole, half-width
+SNOW_SNOWBALLS = (0.6, 2, 10.0, (1.0, 2.5), (10, 18), 6.0, 1.5)  # tell s, snowballs, speed,
+                                         # radius small..big, damage small..big, life s,
+                                         # speed x on ice
+SNOW_SHOTS = {
+    "shard": ShellSpec(speed=13.0, damage=9, max_range=26.0, damages_terrain=False,
+                       look="shard", sound="fizzle"),
+    "spike": ShellSpec(speed=12.0, damage=9, max_range=18.0, damages_terrain=False,
+                       look="spike", sound="fizzle"),
+    "snow": ShellSpec(speed=9.0, damage=7, max_range=40.0, damages_terrain=False,
+                      look="snow", sound="fizzle"),
+}
+# Fragile, The Misunderstood (ai/bosses.Fragile, M24.3): a vampire with a
+# bass-axe in her ruined ballroom. Damages are per hit at level 1 (x the
+# enemy damage scaling).
+# Signature 1, SUNLIGHT (all fight): a hero at a window's lever
+# LEVER_TIME s opens its shutter for SHAFT_OPEN s: a shaft of sun
+# SHAFT_WIDTH tiles wide, SHAFT_LEN long, slanting SHAFT_SLANT rad off
+# straight in. In it she takes SUN_VULN x damage; a shaft opening on her or
+# her running into one stuns her SUN_STUN s (once per opening). She keeps
+# out of the light, and every SLAM_EVERY s slams the nearest open shutter
+# (SLAM_TELL s). Heroes in the light are safe from her gaze.
+# Signature 2, SHAPESHIFT (phase 2+): every FORM_TIME s (FORM_TELL s tell)
+# she becomes another of FRAGILE_FORMS; the bat takes BAT_ARMOR x damage
+# (not from the bard's pulse), and each form has its own moves.
+# Signature 3, ON THE BEAT (phase 3): a metronome at BEAT_BPM (start ..
+# at 0 HP); her tells end on beats; a hero who starts a roll within
+# BEAT_PERFECT s of a beat stuns her PERFECT_STUN s (at most every
+# PERFECT_EVERY s).
+FRAGILE_HIT_RADIUS = 1.6
+LEVER_TIME = 1.5
+LEVER_REACH = 2.2
+SHAFT_OPEN = 15.0
+SHAFT_WIDTH = 5.0
+SHAFT_LEN = 60.0
+SHAFT_SLANT = 0.35
+SUN_VULN = 3.0
+SUN_STUN = 2.5
+SLAM_EVERY = 20.0
+SLAM_TELL = 1.0
+FRAGILE_FORMS = ("girl", "bat", "wolf")
+FRAGILE_FORM_MOVES = {
+    "bat": (("curtain", 3), ("swoop", 3), ("mist", 1)),
+    "wolf": (("charge", 3), ("howl", 2), ("claws", 3)),
+}
+FORM_TIME = 15.0
+FORM_TELL = 1.0
+BAT_ARMOR = 0.5
+FORM_SPEED = {"girl": 6.0, "bat": 10.0, "wolf": 8.0}   # tiles/s she drifts between moves
+BEAT_BPM = (100.0, 140.0)
+BEAT_PERFECT = 0.12
+PERFECT_STUN = 1.2
+PERFECT_EVERY = 5.0
+FRAGILE_RIFF = (0.6, 24, 40.0, 3, 0.5)   # strum (tell) s, notes a ring, gap degrees, rings, s between
+FRAGILE_AXE = (0.7, 18.0, 22.0, 14, 1.4)  # wind-up (tell) s, speed, reach, damage, hit radius
+FRAGILE_SLASHES = (0.5, 5, 40.0, 3, 0.35)  # tell s, slashes a fan, degrees, volleys, s between
+FRAGILE_GAZE = (0.8, 2.5, 40.0, 16.0, 3.0)  # wedge (tell) s, gaze s, cone degrees, reach, pull
+                                            # tiles/s
+FRAGILE_MIST = (0.6, 10.0, 22.0, 4.0, 0.6, 2.0)  # shimmer (tell) s, nearest / farthest hop, mist
+                                                 # lasts s, walking speed x, mist radius
+FRAGILE_THRALLS = (0.8, 2, 4)            # creak (tell) s, thralls a call, most alive
+STAKE_TIME = 2.0
+FRAGILE_CHANDELIER = (1.0, 2.5, 18)      # shadow (tell) s, crash radius, damage
+FRAGILE_CURTAIN = (0.7, 3.5, 0.35, 3.2, 7.0, 22.0)  # bats: tell s, lasts s, s between rows, gap,
+                                                    # hole, half-width
+FRAGILE_SWOOP = (0.6, 26.0, 30.0, 12, 1.0)  # line (tell) s, speed, longest, damage, width
+FRAGILE_CHARGE = (0.7, 26.0, 32.0, 16)   # line (tell) s, speed, longest, damage
+FRAGILE_HOWL = (0.8, 8.0, 5.0, 16)       # tell s, push radius, push tiles, ring of shots
+FRAGILE_CLAWS = (0.4, 5, 70.0, 2, 0.3)   # tell s, slashes, fan degrees, volleys, s between
+FRAGILE_SHOTS = {
+    "note": ShellSpec(speed=11.0, damage=9, max_range=30.0, damages_terrain=False,
+                      look="riff", sound="fizzle"),
+    "slash": ShellSpec(speed=15.0, damage=10, max_range=24.0, damages_terrain=False,
+                       look="slash", sound="fizzle"),
+    "bat": ShellSpec(speed=10.0, damage=8, max_range=40.0, damages_terrain=False,
+                     look="bat", sound="fizzle"),
 }
 # The golden scarab (ai/creatures.GoldenScarab): spooked within
 # GOLDEN_SCARAB[0] tiles, it flees; after GOLDEN_SCARAB[1] s of running it

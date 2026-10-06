@@ -120,6 +120,21 @@ class Character(Actor):
         self.roll_trail = 0.0
         self.roll_steps = 0
         self.speed_mult = 1.0             # Slipstream
+        # M23.3: the Nameless Magus's time zones and quicksand (walking
+        # only: a roll is never slowed). He sets it each step he's fighting.
+        self.time_mult = 1.0
+        # M24.1: the Fallout King's rads (0..RADS_FULL) and seconds left
+        # irradiated (no regen, a slower roll recharge; he does the burn).
+        self.rads = 0.0
+        self.irradiated = 0.0
+        # M24.2: the Snow King's black ice (how fast you speed up and stop,
+        # x), his chill (0..CHILL_FULL), and seconds left encased in ice
+        # (can't move or attack; rolls pressed meanwhile count toward
+        # breaking out).
+        self.traction = 1.0
+        self.chill = 0.0
+        self.encased = 0.0
+        self.encase_breaks = 0
         self.spiral = 0                   # Spiral: how far round its extra shot has turned
 
     @property
@@ -203,14 +218,17 @@ class Character(Actor):
         if self.roll_t > 0:
             self._roll_move(dt, world)
             return
+        if self.encased > 0:                  # (frozen solid, M24.2)
+            self.vx = self.vy = 0.0
+            return
         n = math.hypot(ax, ay)
-        top = spec.max_speed * self.speed_mult
+        top = spec.max_speed * self.speed_mult * self.time_mult
         if n > 0:
             tx, ty = ax / n * top, ay / n * top
-            rate = spec.accel * dt
+            rate = spec.accel * dt * self.traction
         else:
             tx = ty = 0.0
-            rate = spec.brake * dt
+            rate = spec.brake * dt * self.traction
         self.vx = _approach(self.vx, tx, rate)
         self.vy = _approach(self.vy, ty, rate)
         if self.vx == 0.0 and self.vy == 0.0:

@@ -65,7 +65,8 @@ def recharge(hero, dt: float) -> None:
         hero.roll_charges = most
         hero.roll_recharge = 0.0
         return
-    hero.roll_recharge += dt
+    # Irradiated (M24.1, the Fallout King): it recharges slower.
+    hero.roll_recharge += dt * (config.IRRADIATED[3] if getattr(hero, "irradiated", 0) > 0 else 1.0)
     while hero.roll_recharge >= every and hero.roll_charges < most:
         hero.roll_recharge -= every
         hero.roll_charges += 1
@@ -93,6 +94,10 @@ def step(scene, p, inp, dt: float) -> None:
     hero.riposte = max(0.0, hero.riposte - dt)
     hero.slipstream = max(0.0, hero.slipstream - dt)
     hero.speed_mult = 1 + config.SLIPSTREAM[0] if hero.slipstream > 0 else 1.0
+    if getattr(hero, "encased", 0) > 0:       # (M24.2: frozen solid -- a roll breaks the ice)
+        if inp.roll:
+            hero.encase_breaks += 1
+        return
     if inp.roll and not hero.rolling and hero.roll_charges > 0:
         start(scene, p, inp.move_x, inp.move_y)
     elif hero.rolling and st is not None:

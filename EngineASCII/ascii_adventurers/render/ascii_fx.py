@@ -108,6 +108,24 @@ SHOT_LOOKS = {
     "sand": (":", (".", "."), palette.SHOT_SAND),
     "dust": ("%", (".", "."), palette.SHOT_DUST),
     "clod": ("o", (".", "."), palette.SHOT_CLOD),
+    # M23.2: the camels' spit and Ol' Spitter's mortar loogies (lobbed:
+    # drawn by _draw_lobbed in their own green).
+    "spit": ("o", (",", "."), palette.SHOT_SPIT),
+    "lob_spit": ("@", (None, None), None),
+    # M23.3: the Magus's spinning sand blades, and his hourglass's time shots.
+    "blade": ("x", ("+", "."), palette.SHOT_BLADE),
+    "time": ("o", ("'", "."), palette.SHOT_TIME),
+    # M24.1: the Fallout King's glow and his EMP rings.
+    "glow": ("o", (".", "."), palette.SHOT_GLOW),
+    "emp": ("+", ("'", "."), palette.SHOT_EMP),
+    # M24.2: the Snow King's ice shards, ice spikes and blizzard snow.
+    "shard": ("*", ("'", "."), palette.SHOT_SHARD),
+    "spike": ("^", (".", "."), palette.SHOT_SPIKE),
+    "snow": ("o", (".", "."), palette.SHOT_SNOW),
+    # M24.3: Fragile's riff notes, her slashes, her bats.
+    "riff": ("&", ("'", "."), palette.SHOT_RIFF),
+    "slash": (")", ("-", "."), palette.SHOT_SLASH),
+    "bat": ("v", (".", "."), palette.SHOT_BAT),
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).
@@ -124,11 +142,13 @@ def _draw_lobbed(batch, camera: Camera, p: Projectile) -> None:
     gx, gy = camera.world_to_px(p.x, p.y)
     batch.put_c(gx, gy, ".", palette.BOMB_SHADOW)
     height = 4 * BOMB_ARC_PX * f * (1 - f)
-    batch.put_c(gx, gy - height, "@", palette.BOMB)
-    batch.put_c(gx + 4, gy - height - 10, "'", palette.BOMB_FUSE)
+    spit = p.spec.look == "lob_spit"          # (M23.2: a loogie, not a bomb)
+    batch.put_c(gx, gy - height, "@", palette.SHOT_LOB_SPIT[0] if spit else palette.BOMB)
+    batch.put_c(gx + 4, gy - height - 10, "," if spit else "'",
+                palette.SHOT_LOB_SPIT[1] if spit else palette.BOMB_FUSE)
     tx, ty = camera.world_to_px(*p.target)
     blink = int(p.travelled * (4 + 10 * f)) % 2 == 0
-    color = palette.BOMB_MARK[0 if blink else 1]
+    color = (palette.SHOT_LOB_SPIT[2] if spit else palette.BOMB_MARK)[0 if blink else 1]
     r = p.spec.blast_radius
     for dx, dy, glyph, _ in _ring(10, 1.0, ".", color):
         batch.put_c(tx + dx * r * config.TILE_PX_W, ty + dy * r * config.TILE_PX_H, glyph, color)
@@ -265,6 +285,12 @@ def draw_effects(text: TextRenderer, camera: Camera, world, effects: list[Effect
             tile = world.tile_at(tx, ty)
             x, y = camera.tile_to_px(tx, ty)
             batch.put_px(x, y, world.glyph_at(tx, ty), palette.TILE_FLASH_FG, tile.bg)
+            continue
+        if e.kind == "meltdown":                 # (M24.1: the whole screen)
+            batch.flush()
+            from .fallout import draw_meltdown
+            draw_meltdown(text, camera, e)
+            batch = _Batch(text)
             continue
         x, y = camera.world_to_px(e.x, e.y)
         if e.kind == "arc":

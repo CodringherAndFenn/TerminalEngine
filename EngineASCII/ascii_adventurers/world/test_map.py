@@ -108,5 +108,14 @@ class TestMap:
         self._changed.add((tx, ty))
         return Damage.DAMAGED
 
+    def set_tile(self, tx: int, ty: int, tile: TileType) -> None:
+        """Put a different tile at (tx, ty) (like ChunkedWorld.set_tile: a
+        lair gate sealing, a wall of sand rising)."""
+        if 0 <= ty < self.height and 0 <= tx < self.width:
+            self._tiles[ty][tx] = tile
+            self._glyphs[ty][tx] = tile.glyph_at(tx, ty)
+            self._hp.pop((tx, ty), None)
+            self._changed.add((tx, ty))
+
     def spawn_point(self) -> tuple[float, float]:
         return self._spawn

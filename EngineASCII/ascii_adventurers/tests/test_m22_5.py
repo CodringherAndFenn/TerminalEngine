@@ -22,7 +22,7 @@ SWAMP = ("bad_trip", "leech_doctor", "smoke_keeper")
 def finish(q, key):
     """Every target of a quest done, as if players found them (no giver)."""
     st = q.states[key]
-    if st.spec.kind == "light":
+    if st.spec.kind in ("light", "collect", "survive", "escort", "rescue", "fetch"):
         for i in range(st.spec.count):
             st.lit.add(i)
             q._found(st, st.npc)

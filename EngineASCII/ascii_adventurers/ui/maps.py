@@ -128,7 +128,14 @@ def draw_mate(bank: SpriteBank, color: tuple, x: float, y: float) -> None:
 
 
 _PIN_COLORS = {"quest": palette.PIN_QUEST, "lair": palette.PIN_LAIR,
-               "target": palette.PIN_TARGET, "done": palette.PIN_DONE}
+               "target": palette.PIN_TARGET, "done": palette.PIN_DONE,
+               # M24.1: a fight's fixtures (Boss.map_marks)
+               "shower": palette.PIN_SHOWER, "dry": palette.PIN_DRY,
+               "valve": palette.PIN_VALVE, "lead": palette.PIN_LEAD, "core": palette.PIN_CORE,
+               "fire": palette.PIN_FIRE, "fire_lit": palette.PIN_FIRE_LIT,     # M24.2
+               "crown": palette.PIN_CROWN,
+               "lever": palette.PIN_LEVER, "sun": palette.PIN_SUN,              # M24.3
+               "coffin": palette.PIN_COFFIN, "bear": palette.PIN_BEAR}
 
 
 def _paint_pin(kind: str):

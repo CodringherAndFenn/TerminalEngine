@@ -34,10 +34,10 @@ Strength is budgeted with the numbers in section 5.4, not by feel, so tiers stay
 | Kind | Example | Notes |
 |------|---------|-------|
 | **Hunt** | kill 5 psychedelic frogs | special quest-only enemy variants; the M17 kind |
-| Collect | gather 3 relic shards | pickups placed at points of interest |
+| Collect | gather 3 relic shards | pickups placed at points of interest; built in M23.2 (the caravan master's cargo, guarded) |
 | Visit / activate | light 4 ruin beacons | uses landmarks (section 4) |
-| Escort / defend | keep an NPC alive for 60 s | later; needs co-op-safe rules |
-| Survive | hold a ritual circle while waves come | later |
+| Escort / defend | keep an NPC alive for 60 s | built in M24.1 as an escort (the scavenger follows you and can't be hurt; the ghouls come for the players) |
+| Survive | hold a ritual circle while waves come | built in M23.3 (the apprentice's star circles) |
 
 ### 3.2 Quest rules
 
@@ -214,8 +214,11 @@ Suggested angles only (to keep playstyles different — change freely):
 | M22.5 (built) | **Every boss in every run** (section 14). All three swamp quests exist at once, their camps and arenas at random spots in the swamp; the quests are hidden, finishable without their giver; several fights at once; one guardian per biome counts |
 | M22.6 (built) | **Guild hall journal**: the archivist's fifth shelf lists every quest whose boss you've beaten (story, boss, wins, fastest fight, heroes), `???` for the rest (`GUILD.md` 4.4b) |
 | M23.1 (built) | Desert: **Khepri the Dung Emperor**, the beetle, and the scarab collector's golden scarab hunt; the desert's camp (oasis tent) and arena (the Dung Pit) (section 15) |
-| M23.2-3 | Desert: **spitting camel**, **nomad sand wizard** |
-| M24.1-3 | Ruins: **radioactive monster**, **ice wizard**, **vampire girl** |
+| M23.2 (built) | Desert: **Ol' Spitter, the Unmannered One**, the spitting camel, and the caravan master's "collect" quest (lost cargo); the caravanserai arena (section 16) |
+| M23.3 (built) | Desert: **the Nameless Magus, Holder of Time**, the nomad sand wizard, and the runaway apprentice's "survive" quest (star circles); the sunken observatory (section 17) |
+| M24.1 (built) | Ruins: **the Fallout King**, the radioactive monster, and the hazmat scavenger's "escort" quest; the reactor vault (section 18) |
+| M24.2 (built) | Ruins: **the Snow King, King of Loneliness**, the ice wizard, and the searching sister's "rescue" quest; the frozen throne hall (section 19) |
+| M24.3 (built) | Ruins: **Fragile, The Misunderstood**, the vampire girl, and the pawn dealer's "fetch" quest (Mr. Buttons); the ruined ballroom (section 20) |
 | M25.1-3 | Forest: **corrupted pixie**, **mad murderer squirrel**, **mimic tree** |
 | M26.1-3 | Mushroom: **Mycelium** (three variants: amanita muscaria + two more) |
 | M27 | Plains boss (not designed yet) + Adventurer's Glory + "end run" victory (+ water movement) |
@@ -281,8 +284,8 @@ Three bosses per ring biome. Since 2026-10-05 all three are in every run, each i
 | Biome | Bosses | Notes |
 |-------|--------|-------|
 | Swamp | **Froggy McFrogface** (built), a **leech swarm** (built), a **mosquito** (built: Lady Proboscia) | the swarm is many bodies with one shared health bar (a new boss shape); the mosquito is fast, flies, drains blood |
-| Desert | a **beetle** (built: Khepri the Dung Emperor), a **spitting camel**, a **nomad sand wizard** | |
-| Ruins | a **radioactive monster**, an **ice wizard**, a **vampire girl** | Adventure Time nods (the glowing lich-like monster, the ice king, the vampire queen). Use our own names and looks so the built game doesn't copy the show (the user will rename them) |
+| Desert | a **beetle** (built: Khepri the Dung Emperor), a **spitting camel** (built: Ol' Spitter, the Unmannered One), a **nomad sand wizard** (built: the Nameless Magus, Holder of Time) | |
+| Ruins | a **radioactive monster** (built: the Fallout King), an **ice wizard** (built: the Snow King, King of Loneliness), a **vampire girl** (built: Fragile, The Misunderstood) | Adventure Time nods (the glowing lich-like monster, the ice king, the vampire queen). Use our own names and looks so the built game doesn't copy the show (the user will rename them) |
 | Haunted forest (M21) | a **corrupted pixie**, a **mad murderer squirrel**, a **mimic tree** | the mimic hides among ordinary trees |
 | Mushroom | **Mycelium**, always: one of three real mushrooms (**amanita muscaria** + two others), but the name, quest and HUD always say just "Mycelium", so you only find out which one in the fight. With all three in every run (M22.5), there are three "Mycelium" arenas, and you don't know which mushroom is in which | the other two (user, 2026-10-02): **shaggy ink cap** (melts into ink pools) and **giant puffball** (spore bursts) |
 | Plains (tier II) | not decided | |
@@ -411,3 +414,362 @@ The user's answers on the details:
 
 **Readability:** VT323 draws `~` like an "N", so the oasis is a block-shade dither, the dust shots are `%` and the burrow ripple is `^`.
 
+## 16. Ol' Spitter, the Unmannered One (desert, built in M23.2, 2026-10-06)
+
+**The user's picks:**
+- Signature: humps and thirst, **and** the ricochet loogie.
+- Supporting moves: all of them (spit fan + mortar loogie, rear kick + gallop, stampede **and** mirage, spray spiral).
+- Quest: collect the lost cargo.
+- Arena: a new caravanserai.
+- Name: Ol' Spitter, the Unmannered One (the user's).
+
+**Quest: "Lost Cargo"** (the caravan master; the first `kind="collect"` quest, `systems/quests.py`).
+- His lead camel bolted and scattered his cargo over the desert. Five bundles finish the quest, out of 8 spots (`count` + `QUEST_SPOT_EXTRA`).
+- Each bundle (a `CARGO` tile in the middle of the spot's sandy clearing) is guarded by `CARGO_GUARDS` (3) **mangy camels**, placed round it as fixed spawns `(QUEST_SID, quest, spot, 1..3)`.
+- A mangy camel (90 HP) keeps 7–11 tiles from you, drifting round you. Every ~2.2 s it stops, rears its head back (the 0.5 s tell, with green drool) and spits a fan of 3 globs. With nobody to chase, it stays within `CAMEL_LEASH` (9) tiles of its bundle.
+- When all of a bundle's guards are dead, walk within ~3.6 tiles of it to take it. While any are alive, walking up says "THE CAMELS WON'T BUDGE!", once per approach.
+- Pins (taken quest) say CARGO. The dev finish (F7) also clears the guards and the bundles.
+- Camp: the oasis layout with the `caravan` skin (crates instead of the collector's stalls). The caravan master wears an indigo turban and carries a camel stick.
+
+**Arena: the caravanserai** (`world/landmarks._caravanserai`). The arena's oval and gate are now shared with the pond/pit builder (`_arena_shell`). Inside:
+- A ring of **mud brick** round a **flagstone** yard.
+- An open middle yard with hay heaped round it, where he sleeps (`spots[0]`).
+- Six stone **water troughs** (6×1 tiles each, `spots[1:]` are their middles, `trough_tiles` gives their tiles): two beside the middle, four out toward the ends. They're the only tiles here you can break (`TROUGH_HP` 160 a tile; heroes' shots break them, his own don't).
+- Four rows of **brick arches** (3×2 tiles, up to 9 a row) for cover. His loogies bounce off them.
+- 26 **tethering posts**, and hay.
+
+**Boss** (8,000 HP like the others; HP waits for the balance milestone). Hit radius 2.4. The sprite is a top-down two-humped camel with a red saddle blanket, about 130 px long (`render/camel.py`). He turns slowly (`SPITTER_TURN`, 1.6 rad/s) and can only spit within 70° of his nose.
+- **Signature 1, humps and thirst.** His humps hold `HUMP_WATER` (10) sips of spit. They shrink as he spends it: the front hump empties first, then the back one, and the blanket shows between them.
+  - Costs: fan 2, mortar 2, loogie 3, spiral 3. The gallop, kick, stampede and mirage are free.
+  - When he can't afford a spit move, he trots to the nearest whole trough (14 tiles/s) and kneels to drink for 4 s, taking **1.5× damage**: the melee window. "HE STOPS TO DRINK!", with splashes at his mouth. He gets up full.
+  - Smash the trough he's drinking from and he **chokes**: stunned for 3 s, keeping only what he'd drunk so far. "HE CHOKES! HIT HIM!"
+  - With every trough smashed he's **parched**: he can't drink, so his spit costs nothing. He moves 0.85× as fast and rests 0.75× as long between moves: slower but angrier. So smashing troughs early is a trade, because you lose the drinking windows.
+- **Signature 2, the ricochet loogie.**
+  - The tell: a 0.8 s green dotted line through its first two bounces, with "o" at each bounce.
+  - Then a big gob (1.2 tiles) flies at 14 tiles/s and bounces off anything solid (walls, arches, posts, the sealed gate).
+  - At each of its first 3 bounces it splits in two, 28° apart and 0.75× the size. At the next bounce it pops.
+  - It hits for 14 / 11 / 9 / 7 by generation and pops on the hit. It lasts at most 7 s.
+- **Spit fan:** head back (0.6 s), then 3 volleys of 5 globs over 50° (the first aimed at you, the rest leading you).
+- **Mortar loogies:** 3 lobbed loogies, each with a blinking green landing ring. Each lands for 12 in a 2.4-tile blast, then splashes 6 drops out from the edge of the blast.
+- **Gallop:** a red ">" line, then he gallops at 22 tiles/s for up to 36 tiles. He tramples for 14 and shoves you aside, and leaves churned sand behind (patches that sting for 5 every 0.5 s, for 3 s). Running into anything solid dazes him for 0.8 s.
+- **Kick:** not in the phase lists. If someone stays in the 55° cone behind him (within ~6 tiles) for 0.5 s, his hind legs flash red with a cone of "x" (0.45 s), then he bucks for 16 and throws you 6 tiles. Because he turns slowly, standing behind him is safe from his spit but not for long.
+- **Stampede** (phase 2+): a bellow (pulsing rings, 0.9 s), then 3 rows of ghost camels charge across where you stood, 1.1 s apart. Each row has a 7-tile gap. The ghosts pass through everything, fade in harmless for 0.35 s, and trample once each for 10. In phase 3 every other row comes from the side (those start closer, so they begin on screen).
+- **Mirage** (phase 3): a shimmer, then 2 see-through doubles of him (at most 2 alive). They walk and spit like camels and pop at any hit.
+- **Spray spiral** (phase 3): head back, then he spins for 3 s, spraying 3 arms of spit.
+
+| Phase | Health | Moves |
+|---|---|---|
+| 1 | 100–60% | fan ×3, mortar ×2, loogie ×3, gallop ×2 |
+| 2 | 60–25% | fan ×2, mortar ×2, loogie ×3, gallop ×2, stampede ×2 |
+| 3 | 25–0% | fan ×1, mortar ×2, loogie ×3, gallop ×1, stampede ×2, mirage ×1, spiral ×3 |
+
+Plus the kick whenever someone lingers behind him, and a drink whenever he's dry. If his target is more than 30 tiles away, he gallops to close in.
+
+**Measured** (the headless wizard bot that never dies, circle-strafes and doesn't dodge; seeds 31/7/12):
+- Fight times: 2:31 / 2:17 / 3:01.
+- Damage taken per minute: 370 / 376 / 324.
+- He drank 6–8 times per fight. The bot never choked him, and broke 1–3 troughs by accident.
+- The first build hit for ~650 a minute. Half of that was the mortar: its splash ring spawned on the landing point, so standing on the mark took the blast and the whole ring. The ring now starts at the blast's edge. The fan went from 7 globs to 5, and the ghosts from 12 to 10 damage.
+- What's left is mostly the mortar's blast (26–36%), which the bot never steps out of.
+
+## 17. The Nameless Magus, Holder of Time (desert, built in M23.3, 2026-10-06)
+
+**The user's picks:**
+- Signatures: all three offered (sand runes, shifting dunes, the hourglass). "Other bosses will also get more abilities in the future."
+- Phases: "one in phase one, two in phase 2, all 3 in phase 3. trust me on the difficulty curve". I put them in the order runes, then dunes, then the hourglass.
+- Supporting moves: all four (sun lance, sigils + blade fan, blink + vortex, quicksand + serpent).
+- Quest: survive at the star circles.
+- Arena: a new sunken observatory.
+- Name: the user's.
+
+**Quest: "Broken Seals"** (the runaway apprentice; the first `kind="survive"` quest, `systems/quests._hold_seals`).
+- The Magus took the apprentice's years for his hourglass and hides behind seals. Each spot's clearing has a seal (`<>`) in the middle, ringed with stars.
+- Stand within `SEAL_RADIUS` (4) tiles of a seal: it wears down, with a bar over it. After `SEAL_TIME` (30) s in total, it breaks. With nobody inside it heals back at half speed.
+- Every `SEAL_WAVE` (8) s of wear, a wave of 2–3 **sand elementals** rises 8–12 tiles out, each wave once.
+- Four seals of 7 finish it. The dev finish (F7) breaks them all.
+- Sand elemental (60 HP): it keeps its distance and throws sand bolts (a 0.45 s tell, with a "!" over it). Every few seconds it blinks: gone 0.25 s, then back 4–7 tiles to one side.
+- Camp: the oasis layout with the `apprentice` skin (scroll racks).
+
+**Arena: the sunken observatory** (`world/landmarks._observatory`, on the shared `_arena_shell`):
+- blue-glazed stone round a floor of sandstone slabs;
+- a round star chart in the middle (14 tiles across), where he sleeps;
+- three rings of 2×2 columns (10, 14 and 18 columns), a quarter of them fallen (walkable rubble). They're cover from his sun lance;
+- a fallen 12-tile brass telescope;
+- sand drifts.
+
+**Boss** (8,000 HP; hit radius 1.6). He's drawn as a big pixel-art character, a violet hooded robe with a white beard and a staff with a sun lens (`render/magus.py`, art in `render/characters.py`). The lens blazes while he casts. He's never slowed by his own time zones.
+
+**Signature 1, sand runes** (phase 1+).
+- He raises his staff (0.7 s), and 2 / 3 / 4 runes (by phase) appear 8–18 tiles from his target, at least 9 apart.
+- Each charges for 4 s, its ring lighting up and blinking at the end. Then it fires:
+  - **firestorm** (`*`, 45%): a 3.5-tile blast for 16, plus 12 sand shots;
+  - **blade ring** (`x`, 35%): 2 rings of 14 blades;
+  - **golem** (`#`, 20%): a sand golem climbs out (220 HP, plods at you, raises its fists for 0.7 s and slams in a 2.4-tile blast for 14; at most 2 alive, otherwise it's a firestorm).
+- **Scuffing:** stand in a rune for 0.4 s, or roll through it, and it's gone.
+- Scuff out every rune of a batch and he's **drained**: kneeling for 4 s with stars over his head ("HE'S DRAINED! HIT HIM!").
+
+**Signature 2, shifting dunes** (phase 2+).
+- He collapses the walls he raised before. Then the sand ripples (0.9 s) along 3–5 lines 5–16 tiles from the target, each 8–14 tiles long and set across the line toward you.
+- **Walls** rise there: 2 tiles thick, `DUNE_HP` 60 a tile, so you can shoot through them. They block shots both ways, including his lance. They never rise on anyone or in the gate.
+- 2 **quicksand** pits come with them: half walking speed and a 1 tile/s drag toward the middle. A roll isn't slowed.
+- After 12 s (or at his next dunes) the walls collapse, throwing sand both ways along them, and the floor comes back.
+
+**Signature 3, the hourglass** (phase 3).
+- He plants it 9–16 tiles to one side of the target, so it's on screen. It's an enemy with 320 HP and a bar.
+- 2–3 **time zones** open, 6 tiles across, never overlapping:
+  - SLOW (blue `o`): heroes walk, shots fly and his adds act at 0.5×;
+  - FAST (gold `+`): shots and adds go 2×, heroes walk 1.5×.
+  - They never affect him.
+  - Hooks: `Character.time_mult`, `Projectile.time_scale`, and an enemy's `time_mult` in the game loop.
+- **Shatter it** and he's stunned for 4 s ("TIME STANDS STILL!").
+- After 12 s it's **TIME'S UP**: 3 rings of 28 time shots from the glass (0.6 s apart, each with a 50° gap), and every rune on the field fires at once.
+
+**Supporting moves:**
+- **Sun lance** (P7, the first beam): a 0.8 s gold aim line from his lens, starting a little behind you. Then the beam burns for 1.5 s, sweeping 40° the way you're moving. It's stopped by columns, walls and the arena's edge, and hits once for 15.
+- **Sigils and blade fan:** 4 sand sigils (homing glyphs that drift after you through everything and burst for 10; one hit of anything pops one; at most 6, gone after 8 s), plus a 7-blade fan over 70°.
+- **Blink:** a shimmer for 0.6 s where he'll be (14–26 tiles off, at least 7 from you), then he's there in a puff of 8 sand shots.
+- **Vortex** (phase 2+): a marked whirl (0.7 s) 6–9 tiles from you, then for 4 s it drags heroes within 12 tiles toward it at 2.5 tiles/s (a roll breaks free) and sprays a 2-arm spiral.
+- **Sand serpent:** a blinking `^` line 44 tiles long through you (0.9 s), then the serpent races along it at 30 tiles/s, hitting once for 16.
+
+| Phase | Health | Signatures | Moves |
+|---|---|---|---|
+| 1 | 100–60% | runes | runes ×3, lance ×2, sigils ×3, blink ×2, serpent ×2 |
+| 2 | 60–25% | runes, dunes | the same, plus dunes ×2 and vortex ×2 |
+| 3 | 25–0% | runes, dunes, hourglass | the same, plus hourglass ×2 (one at a time) |
+
+**Measured** (the headless wizard bot that never dies, circle-strafes, doesn't dodge and never scuffs runes; seeds 31/7/12):
+- Fight times: 2:59 / 3:04 / 2:54.
+- Damage taken per minute: 257 / 226 / 163.
+- Most of it comes from the sigils' blade fans, the vortex spiral, the serpent and the lance.
+- The bot never gets the drained windows, so players who scuff runes should be faster.
+
+## 18. The Fallout King (ruins, built in M24.1, 2026-10-06)
+
+**The user's picks:**
+- The difficulty target from now on is the Nameless Magus ("basically the difficulty curve im looking for"), so this boss is sized to him.
+- Signatures, one per phase, kept: rads, then fallout, then the meltdown core.
+- Moves: all four (gamma cross, toxic barrels, ghoul horde + EMP, skull volley + grate dive).
+- Quest: an escort "but the npc is invulnerable to damage", and the ghouls "target you instead".
+- Arena: the reactor vault.
+- Name: The Fallout King (the user picked it from the draft).
+
+**Quest: "Geiger Readings"** (the hazmat scavenger; the first `kind="escort"` quest, `systems/quests._escort`).
+- Talk to her and she follows the nearest player within 30 tiles, 2.5 tiles behind, at 9 tiles/s. She slides round obstacles, and catches up if she's stuck for 1.5 s.
+- Lead her within 3 tiles of a beacon site (7 sites in the ruins) and she plants a beacon over 10 s, with a bar over the site.
+- Waves of 3 glowing ghouls come at 0, 3.5 and 7 s into each setup, for the players. She isn't an actor: nothing can hurt her.
+- Four beacons wake him.
+- **Unlike the other quests, this one can't be done without her** (she's the one planting). F7 plants them all.
+- Camp: a new `scrap_camp` style: a sludge pit ringed with rubble, a scrap shack on metal plates, crates.
+
+**Arena: the reactor vault** (`world/landmarks._reactor_vault`, on `_arena_shell`):
+- concrete vault walls round a concrete floor;
+- a cracked reactor ring in the middle, with four openings. He sleeps inside. It's low, so shots fly over it;
+- round the edge, 4 coolant valves and 4 decontamination showers (2×2 pads);
+- through the room, 4 lead walls (4×2) and 6 sewer grates;
+- 28 concrete pillars and 6 pipe runs, clear of all of it.
+- The fixtures are in `Landmark.props` (new: a lair's named fixtures).
+
+**Boss** (8,000 HP since the playtest, see the end; hit radius 2.4). He's a big pixel-art character: a green ghoul-king with a skull face and a reactor core glowing in his plated chest (`render/fallout.py`, art in `render/characters.py`).
+- **HP is calibrated, not the usual 8,000.** With the same bot, his ghouls, rods and barrels soak up about a quarter of your damage. At 8,000 HP his fight took 4:16–5:15 against the Magus's 3:03–3:30.
+- A faint dotted ring shows how far his glow reaches.
+
+**Signature 1, rads** (all fight).
+- A meter on each hero (`Character.rads`, the RAD row on the HUD while above 0).
+- **What fills it:** 6 a second within 7 tiles of his body; 8 per hit of his (including his shots, through the new `on_shot_hit` hook in `combat`); 15 a second in goo; 12 a second in fallout.
+- It drains on its own at 2 a second.
+- **At 100 you're irradiated for 6 s:** 4 damage every 0.5 s, no regen, and the roll recharges at half speed. Then the meter drops back to 50.
+- **Showers:** stand under one for 1.5 s and it's wiped; that shower is then dry for 20 s.
+- So melee and close range cost you trips to the showers. Ranged players can stay outside his glow.
+
+**Signature 2, fallout** (phase 2+).
+- **The stomp:** rings mark the landing spots for 0.8 s. Then 2–3 blasts (3 tiles across, 12 damage) land round you, the first within 4 tiles.
+- Each blast leaves a patch growing from 4 to 7 tiles across over 10 s. A patch burns for 3 a second and builds rads.
+- An **isotope rod** (60 HP) stands in each patch's middle. Smash it and the patch clears. At most 6 patches; the oldest fades.
+
+**Signature 3, the meltdown core** (phase 3).
+- The heat climbs from 0 to 100 over 35 s. The boss bar reads "CORE 80%", so everyone can see it wherever he is.
+- **Shut a valve:** stand within 2.6 tiles of it for 2 s. Shut all four and the core is **exposed**: 3× damage for 5 s, and the heat goes back to 0.
+- **Meltdown:** at 100, a 3 s countdown ("MELTDOWN IN 2 - HIDE BEHIND LEAD!" on the boss bar). Then 45 damage and +50 rads to every hero in the vault who isn't shielded (the first thing on the line from him to you is a lead wall).
+
+**Supporting moves:**
+- **Gamma cross:** four dotted aim lines (0.8 s), then four beams for 3 s, turning at 0.6 rad/s (in phase 3, one way then back). Each tick is 5 damage every 0.3 s, plus rads. Pillars and walls stop the beams.
+- **Toxic barrels:** he heaves (0.6 s), then throws 3 barrels 0.4 s apart. Each flies 1.2 s with a landing ring and lands as a 3-tile goo puddle for 8 s (0.6× walking speed, plus rads). Since the playtest, nothing can hit a barrel in the air (the user: "the barrels shouldnt be destroyable while in the air, that would make the fight even harder which is ok for now"). Dodge the rings.
+- **Ghouls:** a roar, then 2 glowing ghouls (40 HP, fast bites; they burst green when they die, 6 damage). At most 4 alive.
+- **EMP:** a crackle (0.8 s), then 2 rings of 40 shots, 0.5 s apart, each with a 40° gap near you.
+- **Skulls:** 4 homing skulls (one hit pops one; at most 6).
+- **Grate dive:** he sinks into the nearest grate (can't be hit), the grate nearest you rattles (1 s), and he bursts out: a 3-tile blast for 14 and a ring of 12 glow shots.
+
+| Phase | Health | Signatures | Moves |
+|---|---|---|---|
+| 1 | 100–60% | rads | gamma ×2, barrels ×3, skulls ×2, ghouls ×2, grate ×2, EMP ×2 |
+| 2 | 60–25% | rads, fallout | the same, plus stomp ×3 |
+| 3 | 25–0% | rads, fallout, core | the same; the core heats in the background |
+
+**Measured** (the wizard bot that never dies and doesn't dodge; for this boss it showers when its rads pass 70 and circles just outside his glow; seeds 31/7/12):
+- 3:41 / 4:04 / 4:08, taking 192 / 132 / 140 damage per minute. The Magus with the same circling distance: 3:03–3:30.
+- The bot never shuts the valves, so it never gets the 3× windows.
+
+**Tuning on the way** (from a first measurement of 5:07–5:32 and about 520 a minute, before the bot showered):
+- ghouls from 4 a call (8 max) down to 2 (4 max), and their burst from 8 to 6;
+- skulls from 5 (8 max) to 4 (6 max);
+- the glow from 8 rads a second to 6, and hits from 10 rads to 8;
+- rods from 150 HP to 60; the gamma beams from 6 every 0.25 s to 5 every 0.3 s; EMP shots from 10 to 8;
+- HP from 8,000 to 6,500.
+
+**Also fixed:** the Magus's time zones reset walking speed for every hero, even ones fighting in another arena. Both bosses now touch only heroes in their own arena (`Boss.in_arena`).
+
+**After the user's playtest (2026-10-06):**
+- Feedback: "the meltdown ... its like getting hit by air"; "i almost killed the boss as a level 1 character"; "i dont see the core im supposed to hit or the showers, i think they need to be marked on the map during the fight".
+- **The meltdown is now a wave** (`MELTDOWN_SPEED`, 70 tiles/s) racing out from him across the vault. It's drawn screen-wide by `render/fallout.draw_meltdown`: a flash, the front, its wake, sparks settling. **It hits each hero when it reaches them**, and the lead check is made then, so you can still duck behind a wall as it comes. During the countdown, radiation motes rise all over the vault.
+- **Marked during the fight** (`FalloutKing.map_marks`, `render/fallout.draw_vault_marks`):
+  - on the minimap and the big map: SHOWER (cyan; grey "DRY" while it recovers); from phase 3 the open VALVEs (orange); LEAD walls during a countdown; the CORE (him) while it's exposed;
+  - in the world: rings and labels over showers ("DRY 12" while dry), valves and lead walls ("HIDE BEHIND"), and "HIT THE CORE!" with a target ring on him while it's exposed;
+  - an arrow at the screen's edge to what you need now: the nearest running shower when your rads are 60+, the nearest open valve in phase 3, the nearest lead wall in a countdown;
+  - the boss bar: "CORE 40% - SHUT THE VALVES 1/4", "CORE EXPOSED - HIT HIM NOW!", "MELTDOWN IN 2 - HIDE BEHIND LEAD!".
+- **Harder** (the user's pick: "back to 8,000 HP, hit harder"):
+  - HP back to 8,000;
+  - glow 8 rads a second, hits 10 rads;
+  - meltdown 60 damage (was 45);
+  - gamma 7 a tick (was 5); EMP 11 (was 8); glow shots 10 (was 8);
+  - ghouls 3 a call, 5 alive.
+- Bot after the changes: 4:21–5:59 at 147–225 damage per minute. The bot is slower than a person here (a level-1 player nearly beat the old version), so the playtest outranks it for this boss.
+
+## 19. The Snow King, King of Loneliness (ruins, built in M24.2, 2026-10-06)
+
+**The user's picks:**
+- Signatures by phase, kept: knock off his crown, then black ice, then flash freeze.
+- Moves: all four sets (shard fan + spike ring, penguin squad, frost breath + icicles, blizzard + snowballs).
+- Quest: rescue the captives.
+- Arena: the frozen throne hall.
+- Name: the user's.
+- They passed on "frozen reflections" (ice copies replaying you) for now and asked to keep it for later (it's in the memory backlog).
+
+Built to the playtest lessons from the start: everything the fight needs you to find is marked (map pins, labels in the world, an edge arrow, the boss bar), and big effects are visible.
+
+**Quest: "Cold Hearts"** (the searching sister; the first `kind="rescue"` quest, `systems/quests._rescue`).
+- Seven captives frozen in **ice blocks** (`tiles.ICE_BLOCK`, 200 HP: every hero's attack wears terrain, the bard's pulse too).
+- Shatter one and the captive stands there shivering (drawn by `render/snowking.draw_captives`). They thaw over 8 s, but only while a hero is within 3 tiles; a bar shows it.
+- Waves of 2 **frost wraiths** (30 HP; they drift through walls) come at 0, 3 and 6 s and make for the captive. One that touches them knocks 30% of the thaw back and fades.
+- Four freed wake him. Only spots within 40 tiles of a hero are looked at (far chunks may not be loaded). F7 frees them all.
+- The camp is the scrap camp with a `frost` skin (a frozen pond, snowdrifts).
+
+**Arena: the frozen throne hall** (`world/landmarks._throne_hall`):
+- ice walls round frost-stone;
+- his ice throne across from the gate; he sleeps in front of it;
+- three rows of 2×2 ice pillars (120 HP a tile; he regrows a shattered one 20 s later if nobody's in the way);
+- 4 fire braziers, 10 frozen statues, snowdrifts.
+- The fixtures are in `props`.
+
+**Boss** (8,000 HP; hit radius 2.2). He's a big pixel-art king in a blue robe with a white beard, wearing a gold crown (drawn on its own, so it can come off).
+
+**Signature 1, the crown** (all fight).
+- Deal 6% of his HP within 4 s and it flies off at 22 tiles/s, slowing to a stop (about 13 tiles away from you) and bouncing off walls. The boss bar shows "CROWN 60%" as you build toward it.
+- **Crownless:** he can't attack. He waddles after it at 6 tiles/s with "?" over his head, and takes 1.6× damage.
+- **Kick it:** touch the crown to kick it on (16 tiles/s, each player every 2 s).
+- **Back on** (0.8 s): "HOW DARE YOU!", a ring of 20 shards, and 15 s before it can come off again.
+- Marked: a CROWN map pin, "CROWN - KICK IT!" over it, an edge arrow, and "CROWNLESS - HIT HIM! KICK THE CROWN AWAY!" on the boss bar.
+
+**Signature 2, black ice** (phase 2+).
+- His freeze: frost spreads from 2–3 spots for 1 s (one right by you), then sheets grow from 4 to 8 tiles across over 3 s. They last 30 s, at most 6.
+- **On ice:** your speeding up and stopping are 0.15× (`Character.traction`, a new hook in `move`), and your top speed is 1.15×. A roll is unaffected. Penguins slide twice as far on ice, snowballs roll 1.5× as fast.
+- **Fire braziers:** stand within 2.5 tiles for 2 s to light one. It burns 20 s and melts every sheet whose middle is within 9 tiles.
+- Marked: map pins (FIRE? unlit, FIRE lit), "LIGHT ME" or "FIRE 12" over them with a lighting bar, and an edge arrow to a fire (a lit one first) while you're on ice.
+
+**Signature 3, flash freeze** (phase 3).
+- **Chill** (`Character.chill`, the HUD's CHL row; the HUD's extra row is now a general `meter`, shared with rads).
+- **What fills it:** +12 per frost hit (shots, breath ticks +6, icicles, penguins, snowballs) and +6 a second standing still.
+- **What drains it:** −4 a second moving, −25 a second near a lit fire.
+- **Full: encased** for up to 4 s. You can't move or attack (hooks in `move` and the game step). 3 roll presses break out (`roll.step`), or a partner's shots chip the ice (60 HP).
+- His hits on an encased hero do 1.5×, and icicles always fall on encased heroes.
+- Marked: an ice block round you with "ROLL! 1/3", and an arrow to a fire once your chill reaches 60.
+
+**Supporting moves:**
+- **Shards:** staff raised (0.6 s), then 3 fans of 6 shards over 60°.
+- **Spikes:** a ring of 22 ice spikes round you that hangs 0.8 s, then closes, with a 45° gap.
+- **Penguins:** a whistle (0.8 s), then a row of up to 9 penguins sliding across where you stood at 14 tiles/s, with a 7-tile gap. They hit for 10 and shove.
+- **Breath:** a wedge of aim lines (0.8 s), then a 50° cone that sweeps 40° the way you're moving for 1.6 s: 4 damage a tick, +6 chill, and slowed to 0.6× for 1 s.
+- **Icicles:** blinking shadows (1 s) on you, around you and on any encased hero. Each falls in a 1.6-tile blast for 14, plus 4 shards.
+- **Blizzard** (phase 2+): arrows show the wind (0.7 s), then for 4 s it shoves everyone at 3 tiles/s (a roll is unaffected). Snow streams across the whole screen, and curtain rows of snow blow through with a drifting hole.
+- **Snowballs** (phase 2+): 2 snowballs that grow from 1 to 2.5 tiles over 6 s. They hit for 10–18 by size and burst into shards.
+
+| Phase | Health | Signatures | Moves |
+|---|---|---|---|
+| 1 | 100–60% | crown | shards ×3, spikes ×2, breath ×2, icicles ×2, penguins ×2 |
+| 2 | 60–25% | crown, ice | the same, plus freeze ×3, blizzard ×2, snowballs ×2 |
+| 3 | 25–0% | crown, ice, freeze | the same; chill builds in the background |
+
+**Measured** (the wizard bot: it doesn't dodge, light fires or kick the crown, and it rolls out of ice; seeds 31/7/12):
+- 3:25 / 2:42 / 2:46, taking 295 / 282 / 343 damage per minute.
+- That's the Magus's fight length, with more damage than the hardened Fallout King (147–225). It's left on the hard side for the user's playtest.
+- Tuned once on the way: blizzard rows 0.3 → 0.4 s apart, snow 8 → 7, spikes 11 → 9, shard fans 7 → 6.
+
+## 20. Fragile, The Misunderstood (ruins, built in M24.3, 2026-10-06)
+
+**The user's picks:**
+- Signatures by phase, kept: sunlight shutters, then shapeshift, then on the beat.
+- Moves: all four sets (riff rings + axe throw, bat curtain + mist step, hypnotic gaze + slashes, thralls + chandeliers).
+- Quest: her stolen teddy bear.
+- Arena: the ruined ballroom.
+- Name: the user's. The bear is "Mr. Buttons" (my placeholder).
+- The user's change to the draft: "the bear should be with me even after being sewn, i take it to the ballroom, if she is defeated she start crying and i can give her the bear. giving her the bear is 5 level ups."
+
+**Quest: "Mr. Buttons"** (the pawn dealer; the first `kind="fetch"` quest, `systems/quests._fetch`).
+- **Pieces:** 4 bear pieces out of 7 spots (`tiles.BEAR_PIECE`), each guarded by 3 **vampire bats**. Bats are the mosquito's flier: 35 HP, they bite for 6.
+- **Carrying:** with a piece's guards dead, walk up to take it. You carry it (`QuestState.carry`; a "@x2" by your hero), and an edge arrow points to the STALL.
+- **Delivering:** come within 3.5 tiles of the dealer and each piece is sewn in. The last one makes **Mr. Buttons whole, and he stays with you** (`QuestState.bear`; "(@)" by your hero). Her ballroom is then pinned and the quest says to take him there.
+- **Falling:** a downed carrier drops the pieces and the bear where they fell (`drops`, pinned as PIECE / MR. BUTTONS). Anyone walking over them picks them up.
+- **After the fight:** she doesn't die. She sits where she fell, crying, and becomes an NPC (`QuestState.crying`, art `fragile_crying`; the quest log says "give Fragile her bear").
+- **The gift:** talk to her while carrying the bear and every player gains **`FRAGILE_GIFT_LEVELS` (5) levels**, each with its card pick. Without the bear she just sobs for Mr. Buttons.
+- Like the escort, this quest needs its giver. F7 hands you the finished bear.
+- The camp is the scrap camp with a `pawn` skin (stalls of wares).
+
+**Arena: the ruined ballroom** (`world/landmarks._ballroom`):
+- castle stone round a parquet floor;
+- 3 shuttered windows along each long wall (one is dropped if it would sit at the gate), each with a **lever** below it;
+- her velvet throne across from the gate, 5 coffins behind it;
+- two rows of marble pillars (cover from the gaze), 4 chandeliers overhead, cracked mirrors.
+- The fixtures are in `props`.
+
+**Boss** (8,000 HP; hit radius 1.6, 2.1 as a bat or wolf). She's a big pixel-art vampire with long black hair and a red bass-axe; the wolf has its own picture, and the bats are a swirling cloud of glyphs (`render/fragile.py`).
+- Between moves she keeps 9–12 tiles from her target and out of the light.
+
+**Signature 1, sunlight** (all fight).
+- **Open a shutter:** stand within 2.2 tiles of a lever for 1.5 s. The window opens and a slanted shaft of sun (5 tiles wide, 60 long) falls across the floor for 15 s.
+- **In the light:** she takes **3× damage**. A shaft opening on her, or her running into one, **stuns her for 2.5 s** (once per opening).
+- **She fights back:** every 20 s she slams the nearest open shutter (a "SLAM!" tell at the window, 1 s).
+- Heroes in the light are immune to her gaze.
+- Marked: "OPEN" with a pull bar over closed levers, "SUN 12" over open ones, LEVER / SUN map pins, an edge arrow to the nearest closed lever while she's within 14 tiles of you, and "SHE BURNS IN THE SUN!" on the boss bar.
+
+**Signature 2, shapeshift** (phase 2+).
+- Every 15 s she becomes another form (a 1 s flicker tell); the boss bar shows it ("- BATS", "- WOLF").
+- **Bats:** fast, flying over everything. Half damage from everything except the bard's pulse (the game can't tell area hits from shots; a change from the draft). Moves: the bat curtain (rows of bats with a drifting hole), swoops, mist steps.
+- **Wolf:** charges along a ">" line (16 damage; into sunlight, it's stunned), a howl (throws you 5 tiles, plus a ring of slashes), claw fans.
+- **Herself:** her own moves below.
+
+**Signature 3, on the beat** (phase 3).
+- A metronome at 100 bpm, rising to 140 as she nears 0 HP. It's drawn across the bottom of the screen ("ROLL NOW!" on the beat).
+- Every tell is stretched to end exactly on a beat (`tell_s`).
+- **Perfect roll:** a roll started within 0.12 s of a beat is "PERFECT!" and staggers her for 1.2 s (at most every 5 s).
+
+**Her own moves:**
+- **Riff:** a strum, then 3 rings of 24 notes, each with a gap.
+- **Axe throw:** the axe raised, then the bass-axe flies out 22 tiles on a curve and back to her, hitting for 14 on each leg.
+- **Slashes:** 3 fans of 5 red crescents.
+- **Gaze:** a red wedge (0.8 s), then for 2.5 s heroes in the 40° cone (within 16 tiles, with line of sight) are pulled toward her at 3 tiles/s. Rolling, the sun, or anything blocking sight stops it.
+- **Mist step:** a shimmer where she'll appear, then she's there, leaving a mist trail that slows you to 0.6× for 4 s.
+- **Thralls:** her coffins creak, then 2 thralls (80 HP) climb out of the ones not staked, at most 4 alive. Stand at a coffin for 2 s to stake it shut for good ("STAKE" marks and pins).
+- **Chandeliers** (phase 2+): shadows under the 2 nearest you, then they crash (2.5 tiles, 18 damage) and stay as rubble cover.
+
+| Phase | Health | Signatures | Her own moves |
+|---|---|---|---|
+| 1 | 100–60% | sun | riff ×3, axe ×2, slashes ×3, gaze ×2, mist ×2, thralls ×1 |
+| 2 | 60–25% | sun, forms | the same, plus chandeliers ×2; bat and wolf forms have their own moves |
+| 3 | 25–0% | sun, forms, beat | the same, all ending on the beat |
+
+**Measured** (the wizard bot: it doesn't dodge, pull levers, stake coffins or roll on the beat; seeds 31/7/12):
+- 2:48 / 2:43 / 3:04, taking 285 / 350 / 270 damage per minute. That's in line with the Snow King. Left for the user's playtest.
+
+**Fixed along the way:**
+- A stun from inside one of her own moves (the wolf charging into the sun) tried to close the move that was calling it.
+- A quest hook placed in the middle of an `if`/`elif` chain stopped her fight from ever starting.
+- The talk prompt now says "talk to Fragile" for named characters, not "talk to the Fragile".
