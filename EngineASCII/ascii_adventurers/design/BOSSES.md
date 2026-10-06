@@ -219,7 +219,10 @@ Suggested angles only (to keep playstyles different — change freely):
 | M24.1 (built) | Ruins: **the Fallout King**, the radioactive monster, and the hazmat scavenger's "escort" quest; the reactor vault (section 18) |
 | M24.2 (built) | Ruins: **the Snow King, King of Loneliness**, the ice wizard, and the searching sister's "rescue" quest; the frozen throne hall (section 19) |
 | M24.3 (built) | Ruins: **Fragile, The Misunderstood**, the vampire girl, and the pawn dealer's "fetch" quest (Mr. Buttons); the ruined ballroom (section 20) |
-| M25.1-3 | Forest: **corrupted pixie**, **mad murderer squirrel**, **mimic tree** |
+| M24.4 (built) | Art pass: the Snow King repainted as the Frost Hermit, Fragile/wolf/crying repainted, Mr. Buttons drawn and riding on his carrier's head (section 21) |
+| M24.5 (built) | Boss movement: the Snow King glides round his hall and Fragile circles you, between moves and (slower) during most of them (section 22) |
+| M25.1 (built) | Forest: **Nettle, the Blighted**, the corrupted pixie, and the hedge witch's "cleanse" quest; the withered glade (section 23) |
+| M25.2-3 | Forest: **mad murderer squirrel**, **mimic tree** |
 | M26.1-3 | Mushroom: **Mycelium** (three variants: amanita muscaria + two more) |
 | M27 | Plains boss (not designed yet) + Adventurer's Glory + "end run" victory (+ water movement) |
 | M28 | **Art handoff spec** (user, 2026-10-05; much later, after the content is in). A document with the exact pixel-art specs, so the user can draw their own models for chosen things (arenas, bosses, enemies, heroes, NPCs, tiles) and drop them in. It covers: the grid and tile size (a tile is 20×24 px, 2 text cells of 10×24); canvas sizes per thing (body sizes like Froggy's ~5×3 tiles, a leech's 14 px); top-down vs. the 3/4 view; which things rotate (baked by angle, drawn facing +x) and which use frames (walk, wind-up, hurt flash, dazed/engorged states); frame counts; the palette and the reserved colors (telegraph red, hit flash); transparency; file format and folder layout (PNG under `assets/`); and how arenas are made (the tile map text format like `guild_hall.txt`, or a picture). Plus a loader that uses a provided PNG when there is one and the procedural painter otherwise, so art can arrive one piece at a time |
@@ -286,7 +289,7 @@ Three bosses per ring biome. Since 2026-10-05 all three are in every run, each i
 | Swamp | **Froggy McFrogface** (built), a **leech swarm** (built), a **mosquito** (built: Lady Proboscia) | the swarm is many bodies with one shared health bar (a new boss shape); the mosquito is fast, flies, drains blood |
 | Desert | a **beetle** (built: Khepri the Dung Emperor), a **spitting camel** (built: Ol' Spitter, the Unmannered One), a **nomad sand wizard** (built: the Nameless Magus, Holder of Time) | |
 | Ruins | a **radioactive monster** (built: the Fallout King), an **ice wizard** (built: the Snow King, King of Loneliness), a **vampire girl** (built: Fragile, The Misunderstood) | Adventure Time nods (the glowing lich-like monster, the ice king, the vampire queen). Use our own names and looks so the built game doesn't copy the show (the user will rename them) |
-| Haunted forest (M21) | a **corrupted pixie**, a **mad murderer squirrel**, a **mimic tree** | the mimic hides among ordinary trees |
+| Haunted forest (M21) | a **corrupted pixie** (built: Nettle, the Blighted), a **mad murderer squirrel**, a **mimic tree** | the mimic hides among ordinary trees |
 | Mushroom | **Mycelium**, always: one of three real mushrooms (**amanita muscaria** + two others), but the name, quest and HUD always say just "Mycelium", so you only find out which one in the fight. With all three in every run (M22.5), there are three "Mycelium" arenas, and you don't know which mushroom is in which | the other two (user, 2026-10-02): **shaggy ink cap** (melts into ink pools) and **giant puffball** (spore bursts) |
 | Plains (tier II) | not decided | |
 
@@ -660,7 +663,7 @@ Built to the playtest lessons from the start: everything the fight needs you to 
 - 4 fire braziers, 10 frozen statues, snowdrifts.
 - The fixtures are in `props`.
 
-**Boss** (8,000 HP; hit radius 2.2). He's a big pixel-art king in a blue robe with a white beard, wearing a gold crown (drawn on its own, so it can come off).
+**Boss** (8,000 HP; hit radius 2.2). Since M24.4 he's the **Frost Hermit** (the user's pick, to look less like the Ice King; section 21): hunched and hooded in grey furs, two eyes glowing in a pointed cowl, a braided frost beard, an ice-root staff, and a crown of black iron with ice gems on the cowl (drawn on its own, so it can come off). He was a pixel-art king in a blue robe with a white beard and a gold crown.
 
 **Signature 1, the crown** (all fight).
 - Deal 6% of his HP within 4 s and it flies off at 22 tiles/s, slowing to a stop (about 13 tiles away from you) and bouncing off walls. The boss bar shows "CROWN 60%" as you build toward it.
@@ -703,6 +706,16 @@ Built to the playtest lessons from the start: everything the fight needs you to 
 - That's the Magus's fight length, with more damage than the hardened Fallout King (147–225). It's left on the hard side for the user's playtest.
 - Tuned once on the way: blizzard rows 0.3 → 0.4 s apart, snow 8 → 7, spikes 11 → 9, shard fans 7 → 6.
 
+**Toned down ~20% (the user, 2026-10-06, with Fragile).** His hits are ~20% weaker and his openings more generous:
+- shards 9 → 7 (→ 5 in M24.5, section 22), spikes 9 → 7, snow 7 → 6, penguins 10 → 8 (gap 7 → 8 tiles);
+- breath 4 → 3 a tick (chill 6 → 5, slow 0.6× → 0.7×);
+- icicles 6 → 5, 14 → 11 damage; snowballs 10–18 → 8–14; the crown's angry ring 20 → 16 shards;
+- the crown comes off at 6% → 5% of his HP and is stuck on 15 → 12 s;
+- chill +12 → +10 a hit, +6 → +5 a second standing still; encased 4 → 3.5 s, its ice 60 → 50 HP, his hits on you 1.5× → 1.4×;
+- ice traction 0.15 → 0.2 (a little less slippery).
+
+Bot after: 2:47 / 2:57 / 2:31 at 248 / 232 / 249 damage per minute (was 282–343).
+
 ## 20. Fragile, The Misunderstood (ruins, built in M24.3, 2026-10-06)
 
 **The user's picks:**
@@ -716,9 +729,9 @@ Built to the playtest lessons from the start: everything the fight needs you to 
 **Quest: "Mr. Buttons"** (the pawn dealer; the first `kind="fetch"` quest, `systems/quests._fetch`).
 - **Pieces:** 4 bear pieces out of 7 spots (`tiles.BEAR_PIECE`), each guarded by 3 **vampire bats**. Bats are the mosquito's flier: 35 HP, they bite for 6.
 - **Carrying:** with a piece's guards dead, walk up to take it. You carry it (`QuestState.carry`; a "@x2" by your hero), and an edge arrow points to the STALL.
-- **Delivering:** come within 3.5 tiles of the dealer and each piece is sewn in. The last one makes **Mr. Buttons whole, and he stays with you** (`QuestState.bear`; "(@)" by your hero). Her ballroom is then pinned and the quest says to take him there.
+- **Delivering:** come within 3.5 tiles of the dealer and each piece is sewn in. The last one makes **Mr. Buttons whole, and he stays with you** (`QuestState.bear`; since M24.4 he sits on your hero's head). Her ballroom is then pinned and the quest says to take him there.
 - **Falling:** a downed carrier drops the pieces and the bear where they fell (`drops`, pinned as PIECE / MR. BUTTONS). Anyone walking over them picks them up.
-- **After the fight:** she doesn't die. She sits where she fell, crying, and becomes an NPC (`QuestState.crying`, art `fragile_crying`; the quest log says "give Fragile her bear").
+- **After the fight:** she doesn't die. She sits where she fell, crying, and becomes an NPC (`QuestState.crying`, art `fragile_crying`; the quest log says "give Fragile her bear"). Once she has him back she sits hugging him (`fragile_hugging`, M24.4).
 - **The gift:** talk to her while carrying the bear and every player gains **`FRAGILE_GIFT_LEVELS` (5) levels**, each with its card pick. Without the bear she just sobs for Mr. Buttons.
 - Like the escort, this quest needs its giver. F7 hands you the finished bear.
 - The camp is the scrap camp with a `pawn` skin (stalls of wares).
@@ -730,7 +743,7 @@ Built to the playtest lessons from the start: everything the fight needs you to 
 - two rows of marble pillars (cover from the gaze), 4 chandeliers overhead, cracked mirrors.
 - The fixtures are in `props`.
 
-**Boss** (8,000 HP; hit radius 1.6, 2.1 as a bat or wolf). She's a big pixel-art vampire with long black hair and a red bass-axe; the wolf has its own picture, and the bats are a swirling cloud of glyphs (`render/fragile.py`).
+**Boss** (8,000 HP; hit radius 1.6, 2.1 as a bat or wolf). She's a vampire with long white hair, a black gothic gown and a black lace parasol (black hair, a red top and a red bass-axe until M24.4, section 21); the wolf has its own picture, and the bats are a swirling cloud of glyphs (`render/fragile.py`).
 - Between moves she keeps 9–12 tiles from her target and out of the light.
 
 **Signature 1, sunlight** (all fight).
@@ -752,8 +765,8 @@ Built to the playtest lessons from the start: everything the fight needs you to 
 - **Perfect roll:** a roll started within 0.12 s of a beat is "PERFECT!" and staggers her for 1.2 s (at most every 5 s).
 
 **Her own moves:**
-- **Riff:** a strum, then 3 rings of 24 notes, each with a gap.
-- **Axe throw:** the axe raised, then the bass-axe flies out 22 tiles on a curve and back to her, hitting for 14 on each leg.
+- **Petals** (was the riff): she twirls her parasol, then flings 3 rings of 24 rose petals, each with a gap.
+- **Parasol throw** (was the axe throw): her parasol furled and raised, then it flies out open and spinning, 22 tiles on a curve and back to her, hitting for 14 on each leg.
 - **Slashes:** 3 fans of 5 red crescents.
 - **Gaze:** a red wedge (0.8 s), then for 2.5 s heroes in the 40° cone (within 16 tiles, with line of sight) are pulled toward her at 3 tiles/s. Rolling, the sun, or anything blocking sight stops it.
 - **Mist step:** a shimmer where she'll appear, then she's there, leaving a mist trail that slows you to 0.6× for 4 s.
@@ -762,14 +775,159 @@ Built to the playtest lessons from the start: everything the fight needs you to 
 
 | Phase | Health | Signatures | Her own moves |
 |---|---|---|---|
-| 1 | 100–60% | sun | riff ×3, axe ×2, slashes ×3, gaze ×2, mist ×2, thralls ×1 |
+| 1 | 100–60% | sun | petals ×3, parasol ×2, slashes ×3, gaze ×2, mist ×2, thralls ×1 |
 | 2 | 60–25% | sun, forms | the same, plus chandeliers ×2; bat and wolf forms have their own moves |
 | 3 | 25–0% | sun, forms, beat | the same, all ending on the beat |
 
 **Measured** (the wizard bot: it doesn't dodge, pull levers, stake coffins or roll on the beat; seeds 31/7/12):
 - 2:48 / 2:43 / 3:04, taking 285 / 350 / 270 damage per minute. That's in line with the Snow King. Left for the user's playtest.
 
+**Toned down ~20% (the user, 2026-10-06: "take the difficulty of snow king and fragile down a notch, something like 20% weaker").** Her hits are ~20% weaker and her openings more generous:
+- notes 9 → 7, slashes 10 → 8, bats 8 → 6, the axe 14 → 11, swoop 12 → 10, wolf charge 16 → 13, chandeliers 18 → 14, the howl's ring 16 → 12;
+- riff rings 24 → 22 notes, with gaps 40° → 50°;
+- levers 1.5 → 1.2 s; shafts stay open 15 → 18 s; sun stun 2.5 → 3 s; she slams shutters every 20 → 25 s;
+- bats take 0.5× → 0.6×;
+- the perfect-roll window ±0.12 → ±0.15 s, every 5 → 4 s;
+- the gaze pulls 3 → 2.4 tiles/s; at most 4 → 3 thralls.
+
+Bot after: 2:40 / 2:39 / 2:31 at 180 / 210 / 217 damage per minute (was 270–350).
+
 **Fixed along the way:**
 - A stun from inside one of her own moves (the wolf charging into the sun) tried to close the move that was calling it.
 - A quest hook placed in the middle of an `if`/`elif` chain stopped her fight from ever starting.
 - The talk prompt now says "talk to Fragile" for named characters, not "talk to the Fragile".
+
+## 21. Art pass: the Frost Hermit, Fragile, Mr. Buttons (built in M24.4, 2026-10-06)
+
+**The user's ask:** "put Fragile's teddy bear on top of my character's head up until we give it to her"; improve the snow wizard, Fragile and the teddy bear the way the camel was improved; the snow wizard "should look more different to Adventure Time Ice King". Of three drafts (Hollow Monarch, Frost Hermit, Glacier King) the user picked the **Frost Hermit**.
+
+**How they're drawn** (`render/painted.py`): painted from shapes, like the camels, instead of a 14 × 18 pixel picture. They use outlines, a shaded side, highlights and a soft shadow. Coordinates are in the old picture's "art units", so the same scale gives the same size. `draw_character()` draws them by name (`painted.PAINTED`), with an optional `pose`. A hit washes them white as before. The old pictures `snow_king`, `fragile`, `fragile_crying` and `fragile_wolf` are gone from `render/characters.ART`.
+
+**The Frost Hermit** (scale 6):
+- He's hunched in layered grey furs over a slate-blue coat, with tufted hems, icicles hanging off the mantle and frost on the edges.
+- He wears a pointed cowl. Two cold eyes glow inside it.
+- He has one long braided frost beard that swings as he walks and ends in an ice bead.
+- He carries a gnarled ice-root staff with a shard of ice at the top.
+- Poses:
+  - walking: his boots step with `Boss.walked`, a new count of tiles moved that is used only for drawing;
+  - `cast` (his casts and whistles): the staff is raised, the shard and his eyes blaze, and the `*` tell circles the shard;
+  - `down` (crownless): he slumps, his eyes are squeezed shut and the staff leans, with `?` over his head.
+- **The crown** is black iron with ice gems and a pale rime outline, so it shows on dark frost stone and on ice. The CROWN pin and label are now ice blue instead of gold.
+
+**Fragile** (scale 5 → 6, she looked small next to her old picture):
+- She hovers off the floor and bobs. Her **white** hair hangs to her knees and its ends sway.
+- She has grey-blue skin, a pointed ear, red eyes and fangs. She wears a **black gothic gown**: a corset laced in red, a lace collar, long sleeves, and a flared skirt with a ruffled hem trimmed in red lace. (The user asked for this to move her further from Adventure Time; she had black hair, a red top and jeans.)
+- She carries a black lace parasol with a scalloped red trim and a crook handle. It keeps the sun off a vampire, and it fits her sunlight fight. It replaced her bass-axe, which the user said was "too similar to adventure time". Her moves were renamed to match: `riff` → `petals` (rose petals instead of notes, shot `petal`, `FRAGILE_PETALS`), `axe` → `parasol` (`FRAGILE_PARASOL`, `Fragile.parasol`). The numbers are unchanged.
+- Poses:
+  - the parasol open over her shoulder;
+  - `twirl` (the petals' tell: its ribs turn);
+  - `raise` (the throw's tell: it's furled and lifted);
+  - `bare` (it's out spinning, seen from above as a turning black canopy with a red rim, so her hands are empty).
+- **The wolf** is a big black wolf side on. It has raised hackles, a bushy tail, red eyes and bared fangs, with a torn strip of her gown's red lace knotted round its neck. Its legs walk with `walked`, and its jaw opens for the howl.
+- **Beaten**, she sits in a pool of her hair with her skirt spread round her, knees up, face down, crying. **After the gift** (`fragile_hugging`), she sits up, eyes closed and smiling, with Mr. Buttons in her arms.
+
+**Mr. Buttons:**
+- He's a tan bear, sewn back together: you can see the seams and a purple patch.
+- He has one bead eye and one big blue button eye, and wears her red bow.
+- He **rides on his carrier's head** (`render/fragile.draw_bear_riders`, drawn after the heroes). He sits on the top row of the hero's picture (the wizard's hat tip), bobs with their step, and faces their way.
+- He stays there until he's given back. A fallen carrier drops him, and he's drawn sitting on the floor.
+- Carried pieces still show as `@x2` by the hero.
+
+Tests: `tests/test_m24_4.py`. No changes to how anything plays.
+
+## 22. Boss movement: the Snow King and Fragile (built in M24.5, 2026-10-06)
+
+**The user's ask:** "snow king needs some movement, he's mostly sitting still, same with her". Picked from the draft: the Snow King **glides on ice**, Fragile **circles you**, only these two bosses for now. Then, after the bot showed they're mid-move ~70% of the fight (and planted all that time), the user also picked **keep moving during moves**.
+
+**The Snow King glides** (`SnowKing._glide`, `SNOW_GLIDE`):
+- He skates round his target at 7–12 tiles, at 4.5 tiles/s (×1.5 on his own black ice).
+- His heading turns at most 1.6 rad/s, so he moves in long curves. He turns about every 4–8 s, or when he's boxed in.
+- During his moves he glides at half speed (`SNOW_IN_MOVE`). During the frost breath he walks straight at you instead (1.5 tiles/s, no closer than 5; `SNOW_ADVANCE`), so the cone comes with him.
+- He stands still only while dazed. Crownless, he still waddles after his crown as before.
+- He leaves a short trail of frost (`,`; `SNOW_TRAIL`).
+
+**Fragile circles** (`Fragile._drift`, `FRAGILE_CIRCLE`):
+- She circles her target at 8–12 tiles, at 0.8× her form's speed, turning about every 4–7 s or when the way round is blocked by a wall or a sun shaft. She still never drifts into the sun.
+- During her moves she circles at half that (`FRAGILE_IN_MOVE`), except for the gaze, mist step, swoop and charge (`FRAGILE_PLANTED`), which need her in place or move her anyway.
+- Before her first move both bosses go round the nearest hero (`Boss.drift_target`, no dice rolled).
+
+**Measured** (a rebuilt wizard bot that circle-strafes at 8 tiles and never dodges; seeds 31 / 7 / 12; "still" = the share of the fight the boss didn't move):
+
+| | Before | After |
+|---|---|---|
+| Snow King: fight | 2:55 / 3:10 / 3:44 | 2:24 / 2:18 / 2:33 |
+| Snow King: damage per minute | 171 / 183 / 238 | 284 / 217 / 187 |
+| Snow King: still | 100% | 0–2% |
+| Fragile: fight | 2:34 / 2:51 / 2:43 | 2:57 / 2:37 / 2:36 |
+| Fragile: damage per minute | 200 / 188 / 180 | 164 / 171 / 157 |
+| Fragile: still | ~69% | ~26–34% |
+
+- The Snow King's shard fans hurt much more once he moved: 40–53 → 62–126 damage per minute, because he now circles at about the range the bot strafes at. So **his shards are 7 → 5 damage**. With that change, his average damage per minute is ~229 (it was ~197). The fight is shorter because he's often in reach.
+- Fragile got slightly easier for the bot. Both are left for the user's playtest.
+
+## 23. Nettle, the Blighted (haunted forest, built in M25.1, 2026-10-06)
+
+**The user's picks:**
+- Signatures: all three offered (glamour decoys, shrinking dust, blight seeds). Wing gales were not picked. As with the Magus, they're in the order offered: decoys from phase 1, the dust from phase 2, the seeds in phase 3.
+- Moves: all four sets (dust spirals + hex sparks, thorn lines + bramble cage, moths + dive-bombs, wisp lure + nettle rain).
+- Quest: cleanse the shrines.
+- Name: Nettle, the Blighted (the first offered). Arena: THE WITHERED GLADE.
+- Built to keep moving through her moves from the start (section 22).
+
+**Quest: "Cleanse the Shrines"** (the hedge witch; the first `kind="cleanse"` quest).
+- It runs on the "survive" quest's circle code, `systems/quests._hold_seals`, with `circle_rules` and `circle_radius`.
+- **The camp:** the hedge witch's plank hut by a black pond in the fog (`witch_camp`).
+- **The shrines:** 7 blighted shrines (`tiles.SHRINE` in a ring of rot) are scattered over the forest. Four cleansed wake her.
+- **Cleansing:** stand in a shrine's ring for `CLEANSE_TIME` (20 s) to cleanse it. **The ring tightens as it cleans**, from 4.5 to 2 tiles. Step out and it slides back at half speed.
+- Every 5 s of cleansing, 2–3 **blighted sprites** (fliers, 30 HP, they bite for 6) rise 8–12 tiles off.
+
+**Arena: the withered glade** (`world/landmarks._glade`).
+- A bramble oval round dead leaves and fog, with a dead hollow tree (8 × 4) in the middle.
+- A ring of 26 giant toadstools halfway out is cover. Her shots stop on it, but she flies over it.
+- 6 growcaps are spread round the outer floor (`props["growcaps"]`), and 24 stumps.
+
+**Boss** (8,000 HP; hit radius 1.9).
+- She's painted (`render/painted.paint_nettle`): a moth-winged pixie with tattered grey-violet wings with rot-green eye spots, wild green hair stuck with twigs, a dress of dead leaves, and glowing eyes. Her poses are hover, cast and dive (`render/nettle.py`).
+- She flies, so she ignores toadstools and stumps but stays in the glade, and she doesn't shove heroes.
+- She circles her target at 9–13 tiles, 4.5 tiles/s, at half that during her moves. She holds still on her dive lines.
+
+**Signature 1, glamour** (all fight).
+- Every 18 s (the timer runs through her moves) she shimmers for 1 s and splits into 2 / 3 / 4 copies by phase, up to 7 tiles away. She may come out of it as any of them.
+- The copies (`ai/bosses.Glamour`, 1 HP each) fly round you with her, keep apart from each other, show the same tells, and cast her spirals and sparks at half the rate.
+- **Only she casts a shadow** (a dark oval with a moonlit rim, so it shows on the dark leaves), and only she has a faint glitter.
+- A hit pops a copy into a ring of 8 dust shots. A copy lasts 14 s, flickering over its last 2 s. Copies give nothing when they pop.
+
+**Signature 2, shrinking dust** (phase 2+).
+- Her "dust" move flings 3 clouds (radius 2.5, lasting 6 s) onto and round you. Her dives also trail a cloud every 4 tiles.
+- 0.8 s in a cloud shrinks you (`Character.shrunk`): ×1.35 speed and ×0.6 damage, for up to 15 s. Her direct hits knock you 1.5 tiles.
+- Standing 0.4 s on a **growcap** grows you back. The growcap is spent and regrows 20 s later.
+- While anyone is tiny: the HUD shows a "TNY" meter, the growcaps get rings and labels (REGROWS n when spent), and an arrow points to the nearest one.
+
+**Signature 3, blight** (phase 3).
+- Every 16 s she plants 2 rot seeds, one near you (a 1 s tell; at most 5 out).
+- Each patch grows to 6 tiles over 10 s. On it you take 3 damage every 0.5 s.
+- **Between her moves she flies back to the nearest patch to drink**, healing 30 HP/s; the bar says so.
+- Stand 1.5 s on a seed to **pull** it. Seeds are labelled PULL, with a bar, and have map pins. An arrow points to the nearest seed while she's drinking.
+
+**Her moves** (her own damage at level 1):
+- **Spiral:** two arms of glitter turning out from her and every copy, for 2.4 s.
+- **Sparks:** 5 homing hex sparks, 8 each.
+- **Thorns:** the ground cracks in 3 lines toward you, then thorns burst along them, out from her. 10 each.
+- **Cage:** a ring of 22 brambles round you, with a gap, closing in.
+- **Moths:** 4 rot moths, at most 8 out.
+- **Dive:** 3 dashes along shown lines, 9 each.
+- **Wisps:** the forest's wisps drift in to her, then she flings 5 homing lights, 8 each.
+- **Nettles:** 9 blinking shadows, one on you, then nettles fall on them, 11 each.
+
+**Measured** (the wizard bot: it circle-strafes, walks to a growcap when tiny, and pulls a seed while she drinks; seeds 31/7/12):
+- 2:51 / 3:11 / 2:44, taking 143 / 244 / 241 damage per minute. That's in line with the toned-down Snow King and Fragile.
+- Tiny 8–16% of the fight. She healed 38–346 HP a fight.
+- Tuned on the way:
+  - The decoy and blight timers ran only between moves, so the copies came every ~75 s and the seeds hardly ever. Now the timers run all the time.
+  - The bot was tiny 66% of the time (half damage) and fights took 3:40–4:30: the shrink went from 30 s to 15 s, you now need 0.8 s in a cloud (was 0.5), clouds went from 3 to 2.5 tiles, and the dust move's weight from 3 to 2. Tiny damage is ×0.6, not the drafted ×0.5.
+  - Hit radius 1.5 → 1.9 (her wings are big). Flight speed 6.5 → 4.5. Healing 40 → 30.
+
+**Fixed along the way:**
+- During a dive's tell she kept circling, so the dash missed the line she'd shown you. She now holds still on the line.
+- The base boss's shove pushed a hero ahead of her dive, so it never hit. She flies, so she doesn't shove.
+- The tiny damage cut covers every hit, not only those of heroes with card stats.

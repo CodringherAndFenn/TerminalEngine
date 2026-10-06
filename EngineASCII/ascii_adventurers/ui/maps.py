@@ -135,7 +135,8 @@ _PIN_COLORS = {"quest": palette.PIN_QUEST, "lair": palette.PIN_LAIR,
                "fire": palette.PIN_FIRE, "fire_lit": palette.PIN_FIRE_LIT,     # M24.2
                "crown": palette.PIN_CROWN,
                "lever": palette.PIN_LEVER, "sun": palette.PIN_SUN,              # M24.3
-               "coffin": palette.PIN_COFFIN, "bear": palette.PIN_BEAR}
+               "coffin": palette.PIN_COFFIN, "bear": palette.PIN_BEAR,
+               "growcap": palette.PIN_GROWCAP, "seed": palette.PIN_SEED}       # M25.1
 
 
 def _paint_pin(kind: str):

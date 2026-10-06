@@ -20,8 +20,8 @@ import math
 import pygame
 
 from .. import config, palette
-from ..ai.bosses import (FalloutKing, Fragile, Khepri, LeechPart, LeechSwarm, Magus, OlSpitter,
-                         Proboscia, SnowKing)
+from ..ai.bosses import (FalloutKing, Fragile, Glamour, Khepri, LeechPart, LeechSwarm, Magus,
+                         Nettle, OlSpitter, Proboscia, SnowKing)
 from ..ai.creatures import (Boar, Burrower, Camel, DustDevil, FrostWraith, Ghoul, GoldenScarab,
                             Hourglass,
                             IsotopeRod, Leech, Mosquito, Puffer, SandElemental, SandGolem, Scarab,
@@ -35,6 +35,7 @@ from .fallout import draw_king, draw_king_minion
 from .magus import draw_magus, draw_minion
 from .snowking import draw_snow_king, draw_wraith
 from .fragile import draw_bat, draw_fragile
+from .nettle import draw_glamour, draw_moth, draw_nettle, draw_sprite
 from .bosses import draw_froggy
 from .characters import draw_body, draw_character, walk_frame
 from .leeches import draw_leech_creature, draw_leech_part, draw_swarm
@@ -216,7 +217,19 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
     if isinstance(e, Fragile):                 # M24.3
         draw_fragile(text, bank, camera, e)
         return
+    if isinstance(e, Nettle):                  # M25.1
+        draw_nettle(text, bank, camera, e)
+        return
+    if isinstance(e, Glamour):
+        draw_glamour(text, bank, camera, e)
+        return
     key = getattr(e, "kind_key", "")
+    if key == "rot_moth":
+        draw_moth(text, camera, e)
+        return
+    if key == "blighted_sprite":
+        draw_sprite(text, camera, e)
+        return
     if key == "vampire_bat":
         draw_bat(text, camera, e)
         if e.hp < e.max_hp:

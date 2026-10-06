@@ -25,7 +25,9 @@ a player takes one from its giver. Stages:
              be hurt; it needs her, so it can't be done without her; a
              "rescue" quest, M24.2: the spots hold captives frozen in ice
              blocks -- shatter one, then stay close while they thaw, with
-             the quest's enemies trying to re-freeze them; a "fetch" quest,
+             the quest's enemies trying to re-freeze them; a "cleanse"
+             quest, M25.1: a "survive" quest's circles as blighted shrines,
+             whose ring tightens as it cleans; a "fetch" quest,
              M24.3: guarded pieces to carry back to the giver -- and then,
              sewn whole, Mr. Buttons the bear, carried into the fight and
              given back to Fragile after it);
@@ -258,10 +260,10 @@ class Quests:
             if s.stage == "hunt" and s.taken:
                 qid = s.qid
                 light = s.spec.kind in ("light", "collect", "survive", "escort", "rescue",
-                                        "fetch")
+                                        "fetch", "cleanse")
                 label = {"light": "BRAZIER", "collect": "CARGO", "survive": "SEAL",
                          "escort": "BEACON", "rescue": "CAPTIVE",
-                         "fetch": "PIECE"}.get(s.spec.kind) \
+                         "fetch": "PIECE", "cleanse": "SHRINE"}.get(s.spec.kind) \
                     or config.ENEMIES[s.spec.target].name.split()[-1].upper()
                 for i, (x, y) in enumerate(s.camp.spots):
                     if near is not None and math.hypot(x - near[0], y - near[1]) \
@@ -305,7 +307,7 @@ class Quests:
                 self._tend_braziers(s, players, dt)
             elif s.stage == "hunt" and s.spec.kind == "collect":
                 self._collect(s, players)
-            elif s.stage == "hunt" and s.spec.kind == "survive":
+            elif s.stage == "hunt" and s.spec.kind in ("survive", "cleanse"):
                 self._hold_seals(s, players, dt)
             elif s.stage == "hunt" and s.spec.kind == "escort":
                 self._escort(s, players, dt)
@@ -431,22 +433,26 @@ class Quests:
     # --- Survive quests (M23.3) ---------------------------------------------------------
 
     def _hold_seals(self, s: QuestState, players, dt: float) -> None:
-        """A star circle with a hero inside wears its seal down (s.heat: s of
-        it); with nobody inside it heals back SEAL_HEAL x as fast. Each
-        SEAL_WAVE s of wear, a wave of the quest's enemies rises round it
-        (each wave once). SEAL_TIME s and the seal breaks."""
+        """A star circle (or a blighted shrine's ring, M25.1 "cleanse") with
+        a hero inside wears its seal down (s.heat: s of it); with nobody
+        inside it heals back (circle_rules: SEAL_HEAL / CLEANSE_HEAL x as
+        fast). Each wave's worth of wear, a wave of the quest's enemies
+        rises round it (each wave once). Worn through, the seal breaks /
+        the shrine is clean. A shrine's ring shrinks as it cleans."""
         heroes = [p.hero for p in players if p.alive and not p.ghost]
-        full = config.SEAL_TIME
+        rules = circle_rules(s.spec.kind)
+        full = rules["time"]
         for i, (x, y) in enumerate(s.camp.spots):
             if i in s.lit:
                 continue
-            inside = [h for h in heroes if math.hypot(h.x - x, h.y - y) <= config.SEAL_RADIUS]
             worn = s.heat.get(i, 0.0)
+            reach = circle_radius(s.spec.kind, worn)
+            inside = [h for h in heroes if math.hypot(h.x - x, h.y - y) <= reach]
             if not inside:
                 if worn > 0:
-                    s.heat[i] = max(0.0, worn - dt * config.SEAL_HEAL)
+                    s.heat[i] = max(0.0, worn - dt * rules["heal"])
                 continue
-            wave = int(worn // config.SEAL_WAVE)
+            wave = int(worn // rules["wave"])
             if (i, wave) not in s.swarmed:
                 s.swarmed.add((i, wave))
                 self._rise(s, i, wave, x, y)
@@ -456,9 +462,9 @@ class Quests:
                 s.lit.add(i)
                 s.heat.pop(i, None)
                 if hasattr(self.world, "set_tile"):
-                    self.world.set_tile(math.floor(x), math.floor(y), tiles.SEAL_BROKEN)
-                self.scene.effects.append(Effect("nova", x, y, size=config.SEAL_RADIUS))
-                self.scene.effects.append(Effect("toast", x, y - 2, label="THE SEAL BREAKS!"))
+                    self.world.set_tile(math.floor(x), math.floor(y), rules["done"])
+                self.scene.effects.append(Effect("nova", x, y, size=reach))
+                self.scene.effects.append(Effect("toast", x, y - 2, label=rules["toast"]))
                 self._found(s, inside[0])
                 if s.stage != "hunt":
                     return
@@ -471,8 +477,9 @@ class Quests:
             return
         rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0x5EA1, s.qid, i,
                                         wave))
-        lo, hi = config.SEAL_WAVE_RANGE
-        for _ in range(rng.randint(*config.SEAL_WAVE_SIZE)):
+        rules = circle_rules(s.spec.kind)
+        lo, hi = rules["range"]
+        for _ in range(rng.randint(*rules["size"])):
             a = rng.uniform(0, math.tau)
             r = rng.uniform(lo, hi)
             ex, ey = free_spot(self.world, x + math.cos(a) * r, y + math.sin(a) * r, 11.0)
@@ -703,6 +710,7 @@ class Quests:
             return
         s.bear = None
         s.gifted = True
+        cry.sprite = "fragile_hugging"                # Mr. Buttons back in her arms
         cry.say(("...Mr. Buttons? You... brought him back?",
                  "Nobody ever brings anything back. Thank you.",
                  "I'm... sorry. About the ballroom. And everything."))
@@ -900,7 +908,8 @@ class Quests:
         s.lit = set(range(len(s.camp.spots)))
         done = {"light": tiles.BRAZIER_LIT, "collect": tiles.SAND,
                 "survive": tiles.SEAL_BROKEN, "escort": tiles.BEACON,
-                "rescue": tiles.SLUSH, "fetch": tiles.CONCRETE}.get(s.spec.kind)
+                "rescue": tiles.SLUSH, "fetch": tiles.CONCRETE,
+                "cleanse": tiles.SHRINE_CLEAN}.get(s.spec.kind)
         if s.spec.kind == "fetch":
             s.bear = self.scene.me.index           # (dev: the bear's yours)
         if done is not None and hasattr(self.world, "set_tile"):
@@ -935,6 +944,30 @@ class Quests:
             d = math.hypot(dx, dy) or 1.0
             return gx + dx / d * 8.0, gy + dy / d * 8.0
         return None
+
+
+def circle_rules(kind: str) -> dict:
+    """A "survive" quest's star circles / a "cleanse" quest's shrines
+    (M25.1): how long to hold one, how fast it heals back with nobody in
+    it, its waves, the tile it leaves and what it says."""
+    if kind == "cleanse":
+        return {"time": config.CLEANSE_TIME, "heal": config.CLEANSE_HEAL,
+                "wave": config.CLEANSE_WAVE, "size": config.CLEANSE_WAVE_SIZE,
+                "range": config.CLEANSE_WAVE_RANGE, "done": tiles.SHRINE_CLEAN,
+                "toast": "THE SHRINE IS CLEAN!"}
+    return {"time": config.SEAL_TIME, "heal": config.SEAL_HEAL, "wave": config.SEAL_WAVE,
+            "size": config.SEAL_WAVE_SIZE, "range": config.SEAL_WAVE_RANGE,
+            "done": tiles.SEAL_BROKEN, "toast": "THE SEAL BREAKS!"}
+
+
+def circle_radius(kind: str, worn: float) -> float:
+    """How far out a hero still counts as inside: a star circle's fixed
+    SEAL_RADIUS, or a shrine's ring tightening from CLEANSE_RADIUS[0] to
+    [1] as it cleans."""
+    if kind == "cleanse":
+        r0, r1 = config.CLEANSE_RADIUS
+        return r0 + (r1 - r0) * min(1.0, worn / config.CLEANSE_TIME)
+    return config.SEAL_RADIUS
 
 
 def free_spot(world, x: float, y: float, half: float) -> tuple[float, float]:

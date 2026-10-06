@@ -15,6 +15,10 @@ exact pixel position:
     still planted, stand, hop with the other foot planted -- advanced by
     distance walked (config.WALK_STEPS_PER_TILE);
   * hit: every color washed toward white for a moment after taking damage.
+
+A few big figures are painted from shapes instead (render/painted.PAINTED:
+the Snow King, Fragile, Mr. Buttons); draw_character() draws those too,
+by the same name.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ from __future__ import annotations
 import pygame
 
 from .. import config, palette
+from .painted import PAINTED, painter
 from .sprites import SpriteBank
 
 ART: dict[str, list[str]] = {
@@ -494,26 +499,6 @@ ART: dict[str, list[str]] = {
         "..kkkk.kkkk...",
         "..............",
     ],
-    "snow_king": [  # M24.2: a gold crown, a long white beard, a blue robe
-        "....y.y.y.....",
-        "....yyyyy.....",
-        "....kwwwwk....",
-        "...kwwwwwwk...",
-        "...kwkwwkwk...",
-        "...kwwwwwwk...",
-        "...kwwssswk...",
-        "..kbbwwwwwbbk.",
-        ".kbBbwwwwwbBbk",
-        ".kbbbbwwwbbbbk",
-        ".kbBbbbwbbbBbk",
-        ".kbbbbbbbbbbbk",
-        "..kbBbbbbbBbk.",
-        "..kbbbbbbbbbk.",
-        "..kbbbbbbbbbk.",
-        "..kBBk..kBBk..",
-        "..kkkk..kkkk..",
-        "..............",
-    ],
     "searching_sister": [  # M24.2: a grey winter hood and cloak over blue
         "..............",
         ".....kkkk.....",
@@ -554,66 +539,6 @@ ART: dict[str, list[str]] = {
         "..kkkk.kkkk...",
         "..............",
     ],
-    "fragile": [  # M24.3: long black hair, grey-blue skin, a red top, her red bass-axe
-        "..........rr..",
-        "....kkkk..rr..",
-        "...kkkkkk.r...",
-        "..kkkmmmkk.r..",
-        "..kkmkmkmk.r..",
-        "..kkmmmmmk.r..",
-        "..kkkmrmkk.r..",
-        "..kkrrrrrkkr..",
-        ".kkmrrrrrmkrr.",
-        ".kk.rrrrr.krr.",
-        ".kk.RRRRR.krr.",
-        ".k..kMMMk..rr.",
-        "....kMMMk..r..",
-        "....kMkMk.....",
-        "....kMkMk.....",
-        "....kMkMk.....",
-        "....kkkkk.....",
-        "..............",
-    ],
-    "fragile_crying": [  # M24.3: Fragile beaten, sitting, crying (tears)
-        "..............",
-        "..............",
-        "....kkkk......",
-        "...kkkkkk.....",
-        "..kkkmmmkk....",
-        "..kkokmokk....",
-        "..kkomomkk....",
-        "..kkkmMmkk....",
-        "..kkrrrrrkk...",
-        ".kkmrrrrrmkk..",
-        ".kkmrrrrrmkk..",
-        ".kk.RRRRR.kk..",
-        "..kMMMMMMMk...",
-        ".kMMMMMMMMMk..",
-        ".kkkk...kkkk..",
-        "..............",
-        "..............",
-        "..............",
-    ],
-    "fragile_wolf": [  # M24.3: Fragile as a black wolf with red eyes
-        "..............",
-        "..k......k....",
-        "..kk....kk....",
-        "..kkkkkkkk....",
-        "..kkrkkrkk....",
-        "..kkkkkkkk....",
-        "...kkkwkk.....",
-        "..kkkkkkkkk...",
-        ".kkkkkkkkkkk..",
-        ".kkMkkkkkMkkk.",
-        ".kkkkkkkkkkkkk",
-        "..kkkkkkkkkk.k",
-        "..kkk.kk.kkk..",
-        "..kk..kk..kk..",
-        "..kk..kk..kk..",
-        "..............",
-        "..............",
-        "..............",
-    ],
     "pawn_dealer": [  # M24.3: a shifty pawn dealer: a flat cap, a striped vest, a sack
         "..............",
         ".....kkkk.....",
@@ -652,6 +577,26 @@ ART: dict[str, list[str]] = {
         "....kk.kkk....",
         "..............",
         "..............",
+        "..............",
+    ],
+    "hedge_witch": [         # M25.1: a mossy green shawl, grey hair, a crooked hat, herbs
+        "......kk......",
+        ".....kGGk.....",
+        "....kGgGGk....",
+        "..kkGGGGGGkk..",
+        "...kmmmmmmk...",
+        "...kmskkskk...",
+        "...kmsSsssk...",
+        "....kssSsk....",
+        "..kGgGgGgGgk..",
+        ".kGgGgGgGgGGk.",
+        ".kGVVVVVVVVGkg",
+        ".ksVVVVVVVVskg",
+        "..kVVVVVVVVkt.",
+        "..kVVVVVVVVkt.",
+        "..kVVVVVVVVkt.",
+        "..kTTk..kTTkt.",
+        "..kkkk..kkkk..",
         "..............",
     ],
     "smoke_keeper": [        # M22.2: a soot-grey hood and robe, a smoking censer on a chain
@@ -738,17 +683,31 @@ def walk_frame(character) -> int:
 
 
 def draw_character(bank: SpriteBank, x: float, y: float, sprite: str, scale: int,
-                   facing_left: bool, frame: int, hurt: bool) -> None:
+                   facing_left: bool, frame: int, hurt: bool, pose: str = "") -> None:
     """Draw a character centred on canvas pixel (x, y). Each (sprite, facing,
-    frame, hurt) combination is baked once and kept."""
+    frame, hurt) combination is baked once and kept. A painted figure
+    (render/painted.PAINTED) is drawn the same way, and can take a `pose`."""
+    fig = PAINTED.get(sprite)
+    if fig is not None:
+        key = f"paint:{sprite}:{pose}:{scale}:{int(facing_left)}:{frame}:{int(hurt)}"
+        bank.draw(bank.static(key, painter(sprite, scale, facing_left, frame, hurt, pose),
+                              fig.reach * scale), x, y)
+        return
     key = f"char:{sprite}:{scale}:{int(facing_left)}:{frame}:{int(hurt)}"
     reach = max(ART_W, ART_H) * scale / 2 + 1
     sprite = bank.static(key, _painter(sprite, scale, facing_left, frame, hurt), reach)
     bank.draw(sprite, x, y)
 
 
+def body_scale(c) -> int:
+    """How big a Character is drawn: its spec's scale, a size smaller while
+    Nettle's dust has it shrunk (M25.1)."""
+    scale = c.spec.sprite_scale
+    return max(1, scale - 1) if getattr(c, "shrunk", 0) > 0 else scale
+
+
 def draw_body(bank: SpriteBank, camera, c) -> None:
     """Draw a Character (the hero or a shooting enemy) at its world spot."""
     x, y = camera.world_to_px(c.x, c.y)
-    draw_character(bank, x, y, c.spec.sprite, c.spec.sprite_scale, c.facing_left,
+    draw_character(bank, x, y, c.spec.sprite, body_scale(c), c.facing_left,
                    walk_frame(c), c.hurt_flash > 0)

@@ -77,7 +77,7 @@ class Fight:
             self.b.think(self.ctx(), DT)
             if move is not None and self.b.last_move == move:
                 self.b._rest = 99.0
-                self.b._pick_move = lambda: "riff"
+                self.b._pick_move = lambda: "petals"
                 move = None
 
 
@@ -121,6 +121,7 @@ class BallroomTest(unittest.TestCase):
 class SunTest(unittest.TestCase):
     def test_a_lever_opens_the_shutter_and_she_burns(self):
         f = Fight(hx=40.5, hy=5.0, bx=41.0, by=20.0)
+        f.b._drift = lambda t, dt: None                     # (M24.5: held where the sun falls)
         f.run(config.LEVER_TIME + 0.1)
         self.assertIn(0, f.b.open)
         self.assertIs(f.w.tile_at(40, 1), tiles.WINDOW_OPEN)
@@ -213,13 +214,13 @@ class BeatTest(unittest.TestCase):
 
 
 class MoveTest(unittest.TestCase):
-    def test_the_axe_goes_out_and_comes_back(self):
+    def test_the_parasol_goes_out_and_comes_back(self):
         f = Fight(hx=75.0)
-        f.run(1.5, "axe")
+        f.run(1.5, "parasol")
         f.run(0.2)
-        self.assertIsNotNone(f.b.axe)
+        self.assertIsNotNone(f.b.parasol)
         f.run(4.0)
-        self.assertIsNone(f.b.axe)
+        self.assertIsNone(f.b.parasol)
 
     def test_mist_step_leaves_slowing_mist(self):
         f = Fight()

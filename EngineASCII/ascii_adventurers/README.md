@@ -287,16 +287,46 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   - shapeshift: a bat swarm (half damage except from the bard's pulse), a
     wolf (charges, howls, claws), or herself;
   - on the beat: a metronome; roll right on a beat to stagger her.
-  Her own moves: riff rings, a bass-axe throw that comes back, slashes, a
-  hypnotic gaze that pulls you in (break line of sight or stand in the
-  sun), mist steps, thralls from her coffins (stake them shut) and
+  Her own moves: rings of rose petals, a parasol throw that comes back,
+  slashes, a hypnotic gaze that pulls you in (break line of sight or
+  stand in the sun), mist steps, thralls from her coffins (stake them shut) and
   falling chandeliers. Beaten, she sits down and cries. Give her back
   Mr. Buttons for five level-ups (`design/BOSSES.md` section 20).
 
+- Art pass (M24.4). The Snow King is now the Frost Hermit: hunched in grey
+  furs, eyes glowing in a pointed cowl, a braided frost beard, an ice-root
+  staff and an iron-and-ice crown. Fragile, her wolf form and her crying
+  pose are repainted too: white hair, a black gothic gown, and a black
+  lace parasol instead of her bass-axe.
+  These figures are painted from shapes like the camels
+  (`render/painted.py`). Mr. Buttons rides on his carrier's head
+  until he's given back, then Fragile hugs him (`design/BOSSES.md`
+  section 21).
+
+- Boss movement (M24.5). The Snow King glides round his hall on the ice,
+  and Fragile circles you. They keep moving between moves and, slower,
+  during most of them (`design/BOSSES.md` section 22).
+
+- Nettle, the Blighted (M25.1), the haunted forest's first boss. A hedge
+  witch asks you to cleanse the forest's blighted shrines: stand in a
+  shrine's ring (it tightens as it cleans) while blighted sprites attack.
+  Four clean, and the corrupted pixie waits in her withered glade, ringed
+  with giant toadstools. She gains one signature per phase, keeping the
+  earlier ones:
+  - glamour: she splits into copies that fly and cast with her; only she
+    casts a shadow, and a hit pops a copy into dust;
+  - shrinking dust: linger in her dust and you shrink (faster, weaker,
+    knocked about) until you stand on a growcap;
+  - blight: rot seeds spread a patch that hurts you and heals her; pull
+    them.
+  Her own moves: glitter spirals, homing hex sparks, thorn lines, a
+  bramble cage, rot moths, dive-bombs, flung wisps and nettle rain
+  (`design/BOSSES.md` section 23).
+
 Next up (agreed order, `design/BOSSES.md` section 8): the haunted forest's
-bosses, haunted forest and
-mushroom bosses one at a time, M27 the plains boss and the victory, and M28 an art spec so
-custom pixel art can replace the drawn sprites.
+other two bosses (the mad murderer squirrel, the mimic tree), then the
+mushroom bosses one at a time, M27 the plains boss and the victory, and
+M28 an art spec so custom pixel art can replace the drawn sprites.
 
 ## Setup (once)
 
@@ -490,6 +520,8 @@ render/         terrain.py (cached pre-drawn terrain blocks), glyphs.py
                 (text pre-rendered to images for batched drawing),
                 sprites.py (baked pictures, per angle), characters.py
                 (pixel-art heroes and enemies, walk frames),
+                painted.py (big figures painted from shapes: the Frost
+                Hermit, Fragile, Mr. Buttons, Nettle),
                 enemies_sprite.py (creatures, tells), ascii_fx.py (shots,
                 effects, numbers, bars as glyphs), spell_fx.py (gems,
                 spells, status pips), bosses.py (bosses and their tells,

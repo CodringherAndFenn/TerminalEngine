@@ -1,13 +1,17 @@
 """
 render/fragile.py -- Fragile, The Misunderstood: the sun through her
-shutters, her three forms, her tells, her mist and bass-axe, the
+shutters, her three forms, her tells, her mist and parasol, the
 chandeliers, the ballroom's markers and the metronome, her bats and
-thralls, and Mr. Buttons carried and dropped (M24.3).
+thralls, and Mr. Buttons carried, dropped, and riding on a head (M24.3).
 
-She's a character picture (render/characters.ART["fragile"], drawn big),
-or the wolf picture, or a cloud of bats. Her tells, in her own red
+She's painted (render/painted.py, M24.4): a girl hovering off the floor
+with her black lace parasol (on her shoulder, twirled for the petals,
+furled and raised to throw, gone while it spins), a
+black wolf in a torn strip of her red top, or a cloud of bats. Mr.
+Buttons rides on his carrier's head until he's given back. Her tells, in her own red
 (design/BOSSES.md 5.3):
-  * strum (riff): notes circling her; axe: the axe raised over her;
+  * twirl (petals): petals circling her; parasol: it furled and raised,
+    "/!\\" over her;
   * gaze: a red wedge, then the cone itself;
   * mist step: a shimmer where she'll appear; swoop/charge: a dotted
     line (">" for the wolf);
@@ -33,19 +37,31 @@ from .fallout import _bar, _hash01, _nearest
 from .magus import _dotted, _px_ring
 from .sprites import SpriteBank
 
-SCALE = 5
+SCALE = 6
 
 
-def _paint_axe(spin: int):
+def _paint_parasol(spin: int):
+    """Her thrown parasol seen from above, open and spinning: a black
+    canopy, its ribs turning, a scalloped red lace rim, a silver tip."""
+    c = palette.FRAGILE
+
     def paint(surf, to_px):
         cx, cy = to_px(0, 0)
-        a = spin * math.pi / 4
-        ca, sa = math.cos(a), math.sin(a)
-        pts = [(cx + ca * 14, cy + sa * 14), (cx - ca * 14, cy - sa * 14)]
-        pygame.draw.line(surf, (140, 30, 40), *[(round(x), round(y)) for x, y in pts], 4)
-        hx, hy = cx + ca * 12, cy + sa * 12
-        pygame.draw.circle(surf, (210, 40, 60), (round(hx), round(hy)), 6)
-        pygame.draw.circle(surf, (240, 200, 200), (round(hx), round(hy)), 2)
+        r = 15
+        rim = []
+        for k in range(16):                         # scallops: in, out, in, ...
+            a = k * math.tau / 16
+            rr = r if k % 2 == 0 else r - 2.5
+            rim.append((round(cx + math.cos(a) * rr), round(cy + math.sin(a) * rr * 0.8)))
+        pygame.draw.polygon(surf, c["lace"], rim)
+        pygame.draw.ellipse(surf, c["canopy"], pygame.Rect(round(cx - r + 3), round(cy - (r - 3) * 0.8),
+                                                           2 * (r - 3), round(2 * (r - 3) * 0.8)))
+        for k in range(8):
+            a = (k + spin / 2) * math.tau / 8
+            pygame.draw.line(surf, c["rib"], (round(cx), round(cy)),
+                             (round(cx + math.cos(a) * (r - 3)),
+                              round(cy + math.sin(a) * (r - 3) * 0.8)), 1)
+        pygame.draw.circle(surf, c["tip"], (round(cx), round(cy)), 2)
     return paint
 
 
@@ -116,10 +132,10 @@ def draw_fragile(text, bank: SpriteBank, camera: Camera, boss) -> None:
             batch.put_c(px, py, "<" if math.cos(a) > 0 else ">", palette.GAZE[k % 2])
     batch.flush()
 
-    if boss.axe is not None:
-        px, py = camera.world_to_px(boss.axe[0], boss.axe[1])
+    if boss.parasol is not None:
+        px, py = camera.world_to_px(boss.parasol[0], boss.parasol[1])
         spin = int(boss.time * 16) % 8
-        bank.draw(bank.static(f"bassaxe{spin}", _paint_axe(spin), 18), px, py)
+        bank.draw(bank.static(f"parasol{spin}", _paint_parasol(spin), 18), px, py)
 
     x, y = camera.world_to_px(boss.x, boss.y)
     hurt = boss.hurt_flash > 0
@@ -132,14 +148,21 @@ def draw_fragile(text, bank: SpriteBank, camera: Camera, boss) -> None:
             batch.put_c(x + math.cos(a) * r, y + math.sin(a) * r * 0.8,
                         "^v^" if (k + int(boss.time * 10)) % 2 else "vVv",
                         palette.HIT_FLASH if hurt else palette.BAT_COL[k % 2])
+    elif boss.form == "wolf":
+        draw_character(bank, x, y, "fragile_wolf", SCALE, left, int(boss.walked * 1.2) % 4, hurt,
+                       "howl" if kind == "howl" else "")
     else:
-        art = "fragile_wolf" if boss.form == "wolf" else "fragile"
-        draw_character(bank, x, y, art, SCALE, left, 0, hurt)
-    if kind == "strum":
-        for dx, dy, glyph, c in _ring(8, 40 + 4 * blink, "o", palette.SHOT_RIFF[0], boss.time * 4):
+        # She hovers (the 4-step cycle bobs her), her parasol on her
+        # shoulder: twirled for the petals, furled and raised before she
+        # throws it, and gone while it's out spinning.
+        pose = ("bare" if boss.parasol is not None else "raise" if kind == "parasol"
+                else "twirl" if kind == "twirl" else "")
+        draw_character(bank, x, y, "fragile", SCALE, left, int(boss.time * 3) % 4, hurt, pose)
+    if kind == "twirl":
+        for dx, dy, glyph, c in _ring(8, 40 + 4 * blink, "*", palette.SHOT_PETAL[0], boss.time * 4):
             batch.put_c(x + dx, y + dy * 0.8, glyph, c)
-    elif kind in ("axe", "claw"):
-        batch.put_c(x, y - 56, "!" if kind == "claw" else "/!\\", palette.FRAGILE_TELL[blink])
+    elif kind in ("parasol", "claw"):
+        batch.put_c(x, y - 64, "!" if kind == "claw" else "/!\\", palette.FRAGILE_TELL[blink])
     elif kind in ("screech", "howl"):
         rr = 46 + (boss.time * 80) % 30
         for dx, dy, glyph, c in _ring(16, rr, "o", palette.FRAGILE_TELL[blink], boss.time):
@@ -151,7 +174,7 @@ def draw_fragile(text, bank: SpriteBank, camera: Camera, boss) -> None:
     if boss.dazed > 0:
         for k in range(3):
             a = boss.time * 4 + k * math.tau / 3
-            batch.put_c(x + math.cos(a) * 26, y - 54 + math.sin(a) * 6, "*", palette.TOAST)
+            batch.put_c(x + math.cos(a) * 26, y - 62 + math.sin(a) * 6, "*", palette.TOAST)
     batch.flush()
 
 
@@ -225,23 +248,54 @@ def draw_bat(text, camera: Camera, e) -> None:
     batch.flush()
 
 
-def draw_carried(text, camera: Camera, quests, players) -> None:
-    """Mr. Buttons' pieces and the bear himself: a little bear by whoever
-    carries them (with how many pieces), and on the ground where dropped."""
+def draw_carried(text, bank: SpriteBank, camera: Camera, quests, players) -> None:
+    """Mr. Buttons' pieces by whoever carries them (with how many), and
+    the pieces and the bear on the ground where they were dropped. (The
+    bear himself rides on his carrier's head: draw_bear_riders.)"""
     batch = _Batch(text)
+    bears = []
     for s in quests.states.values():
         if s.spec.kind != "fetch":
             continue
         for p in players:
-            if not p.alive:
-                continue
             n = s.carry.get(p.index, 0)
-            px, py = camera.world_to_px(p.hero.x, p.hero.y)
-            if s.bear == p.index:
-                batch.put_c(px + 18, py - 4, "(@)", palette.PIECE_FG)
-            elif n:
+            if p.alive and n:
+                px, py = camera.world_to_px(p.hero.x, p.hero.y)
                 batch.put_c(px + 16, py - 4, f"@x{n}", palette.PIECE_FG)
         for x, y, what in s.drops:
             px, py = camera.world_to_px(x, y)
-            batch.put_c(px, py, "(@)" if what == "bear" else "@,", palette.PIECE_FG)
+            if what == "bear":
+                bears.append((px, py))
+            else:
+                batch.put_c(px, py, "@,", palette.PIECE_FG)
     batch.flush()
+    for px, py in bears:
+        draw_character(bank, px, py - 6, "mr_buttons", BEAR_SCALE, False, 0, False)
+
+
+BEAR_SCALE = 2.2             # Mr. Buttons: ~20 px tall, sitting on a head
+
+
+def draw_bear_riders(bank: SpriteBank, camera: Camera, quests, players) -> None:
+    """Mr. Buttons sitting on top of the head of whoever carries him (drawn
+    after the heroes), bobbing with their step, until he's given back."""
+    from .characters import ART, ART_H, body_scale, walk_frame
+    for s in quests.states.values():
+        if s.spec.kind != "fetch" or s.bear is None:
+            continue
+        p = next((p for p in players if p.index == s.bear and p.alive), None)
+        if p is None:
+            continue
+        h = p.hero
+        spec = h.spec
+        rows = ART.get(spec.sprite, ())
+        top = next((r for r, row in enumerate(rows) if row.strip(".")), 0)
+        frame = walk_frame(h)
+        px, py = camera.world_to_px(h.x, h.y)
+        scale = body_scale(h)
+        head = py + (top - ART_H / 2) * scale - (scale if frame % 2 else 0)
+        # The bear's seat (his legs' bottom) is 5.4 bear units below his
+        # centre; sink him a couple of pixels into the hair (or hat).
+        draw_character(bank, px + (3 if h.facing_left else -3),
+                       head - 5.4 * BEAR_SCALE + 3, "mr_buttons", BEAR_SCALE, h.facing_left, 0,
+                       False)

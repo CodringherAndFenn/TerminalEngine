@@ -139,6 +139,8 @@ class Boss(Brain, Actor):
         self.dazed = 0.0                  # seconds left sitting stunned
         self.tgt = None                   # this move's target hero
         self.combo = 0                    # moves chained since the last rest
+        self.walked = 0.0                 # tiles moved, all told (drawing: the walk cycle)
+        self._was_at = (x, y)
 
     # --- Being a boss ----------------------------------------------------------------
 
@@ -163,6 +165,8 @@ class Boss(Brain, Actor):
         self.ctx = ctx
         self.dt = dt
         self.time += dt
+        self.walked += min(2.0, math.hypot(self.x - self._was_at[0], self.y - self._was_at[1]))
+        self._was_at = (self.x, self.y)
         self.dazed = max(0.0, self.dazed - dt)
         self.shove_heroes(0.0)
         self._check_phase(ctx)
@@ -276,6 +280,14 @@ class Boss(Brain, Actor):
     def pick_target(self):
         heroes = self.heroes()
         return self.rng.choice(heroes) if heroes else None
+
+    def drift_target(self):
+        """Who to keep moving round between moves: this move's target, else
+        the nearest hero (without picking one: no dice rolled)."""
+        if self.tgt is not None and self.tgt.alive:
+            return self.tgt
+        heroes = self.heroes()
+        return min(heroes, key=lambda h: math.hypot(h.x - self.x, h.y - self.y), default=None)
 
     def target_now(self):
         """This move's target, or a new one if it fell."""
@@ -3749,6 +3761,11 @@ class SnowKing(Boss):
         self.ice_hp: dict[int, float] = {}
         self.slow: dict[int, float] = {}  # hero id -> s slowed by breath
         self.waddle = 0.0                 # (drawing)
+        self.glide_a = 0.0                # the way he's gliding (M24.5)
+        self.glide_dir = 1                # round the target: +1 / -1
+        self.glide_t = 0.0                # s before he turns about
+        self.trail: list[list[float]] = []   # frost left behind him: [x, y, age]
+        self._trail_at = 0.0
 
     # --- Helpers ------------------------------------------------------------------------
 
@@ -3850,7 +3867,71 @@ class SnowKing(Boss):
         t = self.tgt if self.tgt is not None and self.tgt.alive else None
         if t is not None and self.breath is None:
             self.facing = math.atan2(t.y - self.y, t.x - self.x)
+        g = self.drift_target()
+        if g is not None and self.dazed <= 0:
+            if self._gen is None:
+                self._glide(g, dt)
+            elif self.move == "breath":             # he walks his breath at you
+                self._advance(g, dt)
+            else:                                   # casting on the move, slower
+                self._glide(g, dt, config.SNOW_IN_MOVE)
+        self._tick_trail(dt)
         super().think(ctx, dt)
+
+    def _glide(self, t, dt: float, mult: float = 1.0) -> None:
+        """Between moves, and slower (`mult`) during most of them (M24.5):
+        he skates round the hall, circling the
+        target at SNOW_GLIDE[1]..[2] tiles in long curves (his heading turns
+        at most SNOW_GLIDE[4] rad/s toward where he wants to go), turning
+        about every so often or when something's in his way. His own black
+        ice speeds him up."""
+        speed, near, far, every, turn, ice = config.SNOW_GLIDE
+        self.glide_t -= dt
+        if self.glide_t <= 0:
+            self.glide_dir = -self.glide_dir
+            self.glide_t = self.rng.uniform(*every)
+        d = math.hypot(t.x - self.x, t.y - self.y)
+        out = math.atan2(self.y - t.y, self.x - t.x)     # from the target out to him
+        # Round the target (a quarter turn off "out"), bent outward when
+        # he's too close and inward when too far.
+        bend = 0.7 if d < near else (-0.7 if d > far else 0.0)
+        want = out + self.glide_dir * (math.pi / 2 - bend)
+        diff = (want - self.glide_a + math.pi) % math.tau - math.pi
+        self.glide_a += max(-turn * dt, min(turn * dt, diff))
+        step = speed * mult * (ice if self.on_ice(self.x, self.y) else 1.0) * dt
+        for k in (0.0, 0.6, -0.6, 1.2, -1.2):
+            a = self.glide_a + k
+            nx, ny = self.x + math.cos(a) * step, self.y + math.sin(a) * step
+            r = self.hit_radius * 0.9
+            if not any(self._solid(nx + math.cos(a + e) * r, ny + math.sin(a + e) * r)
+                       for e in (-0.6, 0.0, 0.6)):
+                self.x, self.y = nx, ny
+                self.glide_a = a
+                return
+        self.glide_dir = -self.glide_dir                   # boxed in: turn about
+        self.glide_a += math.pi * 0.5 * self.glide_dir
+
+    def _advance(self, t, dt: float) -> None:
+        """During his frost breath: a slow walk at the target (to
+        SNOW_ADVANCE[1] tiles away), the cone coming with him."""
+        speed, closest = config.SNOW_ADVANCE
+        d = math.hypot(t.x - self.x, t.y - self.y)
+        if d <= closest:
+            return
+        a = math.atan2(t.y - self.y, t.x - self.x)
+        nx, ny = self.x + math.cos(a) * speed * dt, self.y + math.sin(a) * speed * dt
+        if not self._solid(nx + math.cos(a) * self.hit_radius * 0.9,
+                           ny + math.sin(a) * self.hit_radius * 0.9):
+            self.x, self.y = nx, ny
+
+    def _tick_trail(self, dt: float) -> None:
+        """A short trail of frost where he's glided (drawing only)."""
+        for p in self.trail:
+            p[2] += dt
+        self.trail = [p for p in self.trail if p[2] < config.SNOW_TRAIL[1]]
+        if self.walked - self._trail_at >= config.SNOW_TRAIL[0]:
+            self._trail_at = self.walked
+            self.trail.append([self.x, self.y + self.hit_radius * 0.6, 0.0])
 
     def on_phase(self, phase: int, ctx: AIContext) -> None:
         label = ("THE FLOOR FREEZES OVER!", "THE COLD GETS INTO YOUR BONES...")[min(phase, 2) - 1] \
@@ -4337,7 +4418,7 @@ class SnowKing(Boss):
 
 
 class Fragile(Boss):
-    """A vampire with a bass-axe in her ruined ballroom, one signature a
+    """A vampire with a black lace parasol in her ruined ballroom, one signature a
     phase, each kept:
 
     1. SUNLIGHT: the ballroom's shuttered windows (props["windows"]) each
@@ -4352,8 +4433,8 @@ class Fragile(Boss):
     3. ON THE BEAT (phase 3): a metronome; her tells end on beats; a roll
        started right on a beat is PERFECT and stuns her.
 
-    Her own moves (girl form): riff rings, the bass-axe throw (out and
-    back), crescent slashes, the hypnotic gaze (a cone that pulls you in),
+    Her own moves (girl form): rose-petal rings (her parasol twirled), the
+    parasol throw (spinning out and back), crescent slashes, the hypnotic gaze (a cone that pulls you in),
     mist step (leaving slowing mist), thralls from her coffins (stake an
     empty coffin to keep it shut) and, from phase 2, chandeliers."""
 
@@ -4372,7 +4453,7 @@ class Fragile(Boss):
         self.beat0 = 0.0                      # the metronome's start (her clock)
         self.perfect_cd = 0.0
         self.rolling_was: dict[int, bool] = {}
-        self.axe: list | None = None          # [x, y, angle, gone, back?, hit set]
+        self.parasol: list | None = None          # [x, y, angle, gone, back?, hit set]
         self.mist: list[list[float]] = []     # [x, y, age]
         self.staked: set[int] = set()
         self.stake_t: dict[int, float] = {}
@@ -4381,6 +4462,8 @@ class Fragile(Boss):
         self.gaze: tuple | None = None        # (angle, cone, reach) while gazing
         self.dashing = False
         self.sway = 0.0
+        self.circle_dir = 1                   # round the target: +1 / -1 (M24.5)
+        self.circle_t = 0.0                   # s before she turns about
 
     # --- Helpers ------------------------------------------------------------------------
 
@@ -4464,7 +4547,7 @@ class Fragile(Boss):
         self._tick_sun(dt)
         self._tick_coffins(dt)
         self._tick_mist(dt)
-        self._tick_axe(dt)
+        self._tick_parasol(dt)
         self._tick_beat()
         if self.dazed > 0:
             self.time += dt
@@ -4479,8 +4562,13 @@ class Fragile(Boss):
         t = self.tgt if self.tgt is not None and self.tgt.alive else None
         if t is not None and not self.dashing and self.gaze is None:
             self.facing = math.atan2(t.y - self.y, t.x - self.x)
-        if self._gen is None and t is not None:
-            self._drift(t, dt)
+        g = self.drift_target()
+        if g is not None:
+            if self._gen is None:
+                self._drift(g, dt)
+            elif self.move not in config.FRAGILE_PLANTED and not self.dashing \
+                    and self.gaze is None:
+                self._drift(g, dt, config.FRAGILE_IN_MOVE)   # casting on the move, slower
         super().think(ctx, dt)
 
     def on_phase(self, phase: int, ctx: AIContext) -> None:
@@ -4495,22 +4583,29 @@ class Fragile(Boss):
         self.gaze = None
         self.dashing = False
 
-    def _drift(self, t, dt: float) -> None:
-        """Between moves: keep 9-12 tiles from the target, out of the light."""
+    def _drift(self, t, dt: float, mult: float = 1.0) -> None:
+        """Between moves, and slower (`mult`) during most of them (M24.5):
+        she circles the target at
+        FRAGILE_CIRCLE[0]..[1] tiles, out of the light, turning about every
+        so often or when the way round is blocked (a wall, a sun shaft)."""
+        near, far, every, _ = config.FRAGILE_CIRCLE
+        self.circle_t -= dt
+        if self.circle_t <= 0:
+            self.circle_dir = -self.circle_dir
+            self.circle_t = self.rng.uniform(*every)
         d = math.hypot(t.x - self.x, t.y - self.y)
-        want = 10.5
-        away = math.atan2(self.y - t.y, self.x - t.x) + math.sin(self.sway * 0.5) * 0.6
-        gx, gy = t.x + math.cos(away) * want, t.y + math.sin(away) * want
-        gx, gy = self.clamp_to_lair(gx, gy, 4.0)
-        speed = config.FORM_SPEED[self.form] * dt
-        a = math.atan2(gy - self.y, gx - self.x)
-        if math.hypot(gx - self.x, gy - self.y) < 0.5 or abs(d - want) < 1.0:
-            return
-        for turn in (0.0, 0.7, -0.7, 1.4, -1.4):
+        out = math.atan2(self.y - t.y, self.x - t.x)
+        bend = 0.8 if d < near else (-0.8 if d > far else 0.0)
+        a = out + self.circle_dir * (math.pi / 2 - bend)
+        speed = config.FORM_SPEED[self.form] * config.FRAGILE_CIRCLE[3] * mult * dt
+        for turn in (0.0, 0.5, -0.5, 1.0, -1.0):
             nx, ny = self.x + math.cos(a + turn) * speed, self.y + math.sin(a + turn) * speed
+            if self.lair is not None and not self.lair.inside(nx, ny):
+                continue
             if (self.form == "bat" or not self._solid(nx, ny)) and not self.in_sun(nx, ny, 0.5):
                 self.x, self.y = nx, ny
                 return
+        self.circle_dir = -self.circle_dir                 # blocked: the other way round
 
     def _tick_sun(self, dt: float) -> None:
         """Levers open shutters; open shafts run out or get slammed; a shaft
@@ -4590,13 +4685,13 @@ class Fragile(Boss):
                 math.hypot(h.x - m[0], h.y - m[1]) <= radius for m in self.mist)
             h.time_mult = slow if inside else 1.0
 
-    def _tick_axe(self, dt: float) -> None:
-        """The thrown bass-axe: out along its throw, curving, then back to her;
-        it hits each hero once a leg."""
-        if self.axe is None:
+    def _tick_parasol(self, dt: float) -> None:
+        """The thrown parasol, open and spinning: out along its throw,
+        curving, then back to her; it hits each hero once a leg."""
+        if self.parasol is None:
             return
-        _, speed, reach, damage, radius = config.FRAGILE_AXE
-        ax = self.axe
+        _, speed, reach, damage, radius = config.FRAGILE_PARASOL
+        ax = self.parasol
         step = speed * dt
         if not ax[4]:
             ax[2] += 1.2 * dt                     # (it curves)
@@ -4610,7 +4705,7 @@ class Fragile(Boss):
             dx, dy = self.x - ax[0], self.y - ax[1]
             d = math.hypot(dx, dy)
             if d <= step + 0.5:
-                self.axe = None
+                self.parasol = None
                 return
             ax[0] += dx / d * step
             ax[1] += dy / d * step
@@ -4719,7 +4814,7 @@ class Fragile(Boss):
             if self.in_arena(h):
                 h.time_mult = 1.0
         self.mist = []
-        self.axe = None
+        self.parasol = None
         # (No explosion: she doesn't die -- she sits down and cries.)
         ctx.effects.append(Effect("nova", self.x, self.y, size=3.0))
 
@@ -4741,10 +4836,11 @@ class Fragile(Boss):
             self.ctx.events.append("boulder")
         yield 0.2
 
-    def m_riff(self):
-        """P1 with a gap: she strums (the tell), then rings of notes."""
-        tell, n, gap, rings, between = config.FRAGILE_RIFF
-        self.tell = ("strum",)
+    def m_petals(self):
+        """P1 with a gap: she twirls her parasol (the tell), then flings rings of
+        rose petals."""
+        tell, n, gap, rings, between = config.FRAGILE_PETALS
+        self.tell = ("twirl",)
         yield self.tell_s(tell)
         self.tell = None
         half = math.radians(gap) / 2
@@ -4756,22 +4852,22 @@ class Fragile(Boss):
                 a = k * 0.13 + i * math.tau / n
                 if abs((a - gap_at + math.pi) % math.tau - math.pi) < half:
                     continue
-                patterns.shoot(self, self.x, self.y, a, self.shots["note"], self.ctx.projectiles)
+                patterns.shoot(self, self.x, self.y, a, self.shots["petal"], self.ctx.projectiles)
             self.ctx.events.append("orb")
             yield self.tell_s(between) if self.phase >= 2 else between
 
-    def m_axe(self):
-        """She raises the bass-axe (the tell), then hurls it: it spins out on
-        a curve and comes back to her, hitting on both legs."""
-        tell = config.FRAGILE_AXE[0]
+    def m_parasol(self):
+        """She furls her parasol and raises it (the tell), then hurls it open:
+        it spins out on a curve and comes back to her, hitting on both legs."""
+        tell = config.FRAGILE_PARASOL[0]
         t = self.target_now()
-        if t is None or self.axe is not None:
+        if t is None or self.parasol is not None:
             return
-        self.tell = ("axe",)
+        self.tell = ("parasol",)
         yield self.tell_s(tell)
         self.tell = None
         a = math.atan2(t.y - self.y, t.x - self.x) - 0.6
-        self.axe = [self.x, self.y, a, 0.0, False, set()]
+        self.parasol = [self.x, self.y, a, 0.0, False, set()]
         self.ctx.events.append("swing")
         yield 0.4
 
@@ -5010,3 +5106,708 @@ class Fragile(Boss):
                 patterns.fan(self, self.x, self.y, math.atan2(t.y - self.y, t.x - self.x), n,
                              spread, self.shots["slash"], self.ctx.projectiles)
             yield gap
+
+
+# --- Nettle, the Blighted (M25.1) ---------------------------------------------------------
+
+
+class Glamour(Actor):
+    """One of Nettle's glamour decoys: a copy of her that flies and casts
+    with her, but casts no shadow. One hit pops it (Nettle sees it gone and
+    bursts it into dust). It's part of her: her shots pass it, it gives
+    nothing when it pops, and she moves it."""
+
+    faction = "enemy"
+    boss = True                       # never sleeps; flies with her
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(1, config.NETTLE_HIT_RADIUS)
+        self.espec = spec
+        self.spawn_id = spawn_id
+        self.x, self.y = x, y
+        self.half = spec.size_px / 2
+        self.facing = 0.0
+        self.vx = self.vy = 0.0
+        self.part_of = None           # Nettle (set when she makes it)
+        self.age = 0.0
+        self.faded = False            # gone by itself (no dust)
+        self.dir = rng.choice((-1, 1))
+        self.walked = 0.0
+        self.damage_mult = 1.0
+        self.haste = 0.0
+        self.level = 1
+
+    def scale_to_level(self, level: int) -> None:
+        pass
+
+    def think(self, ctx, dt: float) -> None:
+        pass                          # Nettle flies her copies
+
+    def hear(self, x: float, y: float) -> None:
+        pass
+
+
+class Nettle(Boss):
+    """A corrupted pixie in her withered glade, one signature a phase, each
+    kept (design/BOSSES.md section 23):
+
+    1. GLAMOUR (all fight): every DECOY_EVERY s she shimmers and splits
+       into copies (Glamour bodies) -- and may come out as any of them.
+       They fly round you with her and cast her spirals and sparks; only
+       she casts a shadow. A hit pops a copy into a ring of dust.
+    2. SHRINKING DUST (phase 2+): clouds of dust (her "dust" move, and her
+       dives' trails); a moment in one shrinks you (Character.shrunk:
+       faster, half damage, her hits knock you about) until you stand on
+       a growcap (props["growcaps"]; each regrows a while after) or it
+       wears off.
+    3. BLIGHT (phase 3): every BLIGHT_EVERY s she plants rot seeds; each
+       patch spreads, hurts you on it and heals her over it -- between
+       moves she flies back to drink. Stand on a seed a moment to pull it.
+
+    Her own moves: dust spirals, hex sparks (homing), thorn lines (the
+    ground cracks first), a bramble cage, rot moths, dive-bombs, the
+    wisp lure (the forest's lights drift to her and she flings them,
+    homing) and nettle rain. She flies -- over toadstools and stumps,
+    never out of the glade -- circling her target, and keeps circling
+    (slower) through her moves (M24.5)."""
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.NETTLE_HIT_RADIUS)
+        self.shots = config.NETTLE_SHOTS
+        self.decoys: list[Glamour] = []
+        self.decoy_t = config.DECOY_EVERY * 0.5
+        self.clouds: list[list[float]] = []     # [x, y, age]
+        self.in_cloud: dict[int, float] = {}    # hero id -> s in a cloud
+        self.spent: dict[int, float] = {}       # growcap -> s before it regrows
+        self.grow_t: dict[int, float] = {}      # growcap -> s a tiny hero has stood on it
+        self.seeds: list[list[float]] = []      # [x, y, age, pulled s]
+        self.falling: list[tuple] = []          # seeds about to land (the tell): (x, y)
+        self.blight_t = config.BLIGHT_EVERY
+        self.blight_hit: dict[int, float] = {}  # hero id -> s toward the next blight tick
+        self.healing = False                    # over the blight (drawing, the bar)
+        self.homers: list[list] = []            # [x, y, angle, speed, turn, life, damage, look, hit]
+        self.gather: list[list[float]] = []     # wisps drifting in (the tell): [x, y]
+        self.cracks: list[tuple] = []           # thorn lines' tell: (x, y)
+        self.bursts: list[list] = []            # thorns to come: [x, y, s until, hit set]
+        self.spikes: list[list[float]] = []     # thorns out (drawing): [x, y, age]
+        self.shadows: list[tuple] = []          # nettle rain's tell: (x, y)
+        self.dashing = False
+        self.circle_dir = 1
+        self.circle_t = 0.0
+        self.shimmer = 0.0                      # drawing: the split's flash
+
+    # --- Helpers ------------------------------------------------------------------------
+
+    @property
+    def props(self) -> dict:
+        return self.lair.props if self.lair is not None else {}
+
+    def _air(self, x: float, y: float) -> bool:
+        """Somewhere she can fly: anywhere in the glade (over toadstools)."""
+        return self.lair is None or self.lair.inside(x, y, 1.5)
+
+    def _solid(self, x: float, y: float) -> bool:
+        t = self.ctx.world.tile_at(math.floor(x), math.floor(y))
+        return t is not None and t.solid
+
+    def _set(self, x: float, y: float, tile) -> None:
+        world = self.ctx.world
+        if hasattr(world, "set_tile"):
+            world.set_tile(math.floor(x), math.floor(y), tile)
+
+    def emitters(self) -> list:
+        """Who casts her spirals and sparks: her, and her copies."""
+        return [self] + [d for d in self.decoys if d.alive]
+
+    def _hit(self, h, damage: float, angle) -> float:
+        """One of her hits; a tiny hero is knocked about by it."""
+        dealt = combat.strike(h, damage * self.damage_mult, self, angle, self.ctx.effects)
+        if dealt:
+            self.on_shot_hit(h, dealt, angle)
+        return dealt or 0.0
+
+    def on_shot_hit(self, victim, dealt: float, angle=None) -> None:
+        if getattr(victim, "shrunk", 0) <= 0 or not dealt:
+            return
+        if angle is None:
+            angle = math.atan2(victim.y - self.y, victim.x - self.x)
+        push = config.SHRINK[3]
+        combat.push(victim, self.ctx.world, math.cos(angle) * push, math.sin(angle) * push)
+
+    def _fly(self, body, t, dt: float, mult: float, way: int) -> int:
+        """One step of circling hero `t` at NETTLE_ORBIT's distance (bent
+        out when too close, in when too far), staying in the glade. Returns
+        the way round (turned about when the way is blocked)."""
+        near, far, _, speed, _ = config.NETTLE_ORBIT
+        d = math.hypot(t.x - body.x, t.y - body.y)
+        out = math.atan2(body.y - t.y, body.x - t.x)
+        bend = 0.8 if d < near else (-0.8 if d > far else 0.0)
+        a = out + way * (math.pi / 2 - bend)
+        step = speed * mult * dt
+        for turn in (0.0, 0.5, -0.5, 1.0, -1.0):
+            nx, ny = body.x + math.cos(a + turn) * step, body.y + math.sin(a + turn) * step
+            if self._air(nx, ny):
+                body.walked = getattr(body, "walked", 0.0) + step
+                body.x, body.y = nx, ny
+                body.facing = math.atan2(t.y - ny, t.x - nx)
+                return way
+        return -way
+
+    def shove_heroes(self, extra: float = 0.3) -> None:
+        pass                                    # (she flies: nothing to bump into)
+
+    def _drink(self, seed, dt: float) -> None:
+        """Phase 3, between moves: she flies to a rot seed's patch and hovers
+        over it, drinking (healing)."""
+        dx, dy = seed[0] - self.x, seed[1] - self.y
+        d = math.hypot(dx, dy)
+        if d < 1.0:
+            return
+        step = min(d, config.NETTLE_ORBIT[3] * 1.3 * dt)
+        self.x += dx / d * step
+        self.y += dy / d * step
+        self.walked += step
+
+    def _spread(self, dt: float) -> None:
+        """Her and her copies drift apart (DECOY_SPREAD x 0.6 tiles at the
+        least), so they don't bunch up on the same ring round you."""
+        bodies = self.emitters()
+        gap = config.DECOY_SPREAD * 0.6
+        for i, p in enumerate(bodies):
+            for q in bodies[i + 1:]:
+                dx, dy = q.x - p.x, q.y - p.y
+                d = math.hypot(dx, dy)
+                if d >= gap:
+                    continue
+                if d < 1e-6:
+                    dx, dy, d = 1.0, 0.0, 1.0
+                k = config.NETTLE_ORBIT[3] * dt * 0.5
+                for body, sgn in ((p, -1), (q, 1)):
+                    nx, ny = body.x + sgn * dx / d * k, body.y + sgn * dy / d * k
+                    if self._air(nx, ny):
+                        body.x, body.y = nx, ny
+
+    # --- Every step ---------------------------------------------------------------------
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.ctx = ctx
+        self.shimmer = max(0.0, self.shimmer - dt)
+        self._tick_decoys(dt)
+        self._tick_clouds(dt)
+        self._tick_growcaps(dt)
+        self._tick_blight(dt)
+        self._tick_homers(dt)
+        self._tick_bursts(dt)
+        g = self.drift_target()
+        if g is not None and self.dazed <= 0 and not self.dashing:
+            self.circle_t -= dt
+            if self.circle_t <= 0:
+                self.circle_dir = -self.circle_dir
+                self.circle_t = self.rng.uniform(*config.NETTLE_ORBIT[2])
+            mult = 1.0 if self._gen is None else config.NETTLE_ORBIT[4]
+            seed = min(self.seeds, key=lambda s: math.hypot(s[0] - self.x, s[1] - self.y),
+                       default=None)
+            if self._gen is None and seed is not None:
+                self._drink(seed, dt)              # between moves: back to the blight
+            else:
+                self.circle_dir = self._fly(self, g, dt, mult, self.circle_dir)
+            self.facing = math.atan2(g.y - self.y, g.x - self.x)
+            for d in self.decoys:
+                if d.alive:
+                    d.dir = self._fly(d, g, dt, mult, d.dir)
+            self._spread(dt)
+        self.decoy_t -= dt                          # (her signatures' timers run on
+        if self.phase >= 2:                         # through her moves; each starts
+            self.blight_t -= dt                     # once she's free)
+        if self._gen is None and self.dazed <= 0:
+            if self.decoy_t <= 0:
+                self.decoy_t = config.DECOY_EVERY
+                self._start("glamour")
+            elif self.phase >= 2 and self.blight_t <= 0:
+                self.blight_t = config.BLIGHT_EVERY
+                self._start("seeds")
+        super().think(ctx, dt)
+
+    def on_phase(self, phase: int, ctx: AIContext) -> None:
+        label = ("HER DUST... YOU FEEL SMALL", "THE ROT SPREADS!")[min(phase, 2) - 1] \
+            if phase else ""
+        if label:
+            ctx.effects.append(Effect("toast", self.x, self.y - 3, label=label))
+
+    def _end_move(self) -> None:
+        super()._end_move()
+        self.dashing = False
+        self.cracks = []
+        self.shadows = []
+        self.gather = []
+        self.falling = []
+
+    def _tick_decoys(self, dt: float) -> None:
+        """Copies age; one popped (hit) bursts into a ring of dust; one too
+        old fades."""
+        keep = []
+        for d in self.decoys:
+            d.age += dt
+            if not d.alive:
+                if not d.faded:
+                    self.ctx.effects.append(Effect("nova", d.x, d.y, size=2.0))
+                    self.ctx.effects.append(Effect("toast", d.x, d.y - 2, label="POP!"))
+                    patterns.radial(self, d.x, d.y, config.DECOY_POP, self.shots["pop"],
+                                    self.ctx.projectiles, self.rng.uniform(0, math.tau))
+                    self.ctx.events.append("fizzle")
+                continue
+            if d.age >= config.DECOY_LIFE:
+                d.faded = True
+                d.hp = 0.0
+                continue
+            keep.append(d)
+        self.decoys = keep
+
+    def _tick_clouds(self, dt: float) -> None:
+        """Dust clouds drift out of life; a hero DUST_SHRINK s in one shrinks."""
+        life, radius = config.NETTLE_DUST[3], config.NETTLE_DUST[2]
+        for c in self.clouds:
+            c[2] += dt
+        self.clouds = [c for c in self.clouds if c[2] < life]
+        for h in self.ctx.players:
+            if not h.alive or not self.in_arena(h):
+                continue
+            inside = not h.rolling and any(math.hypot(h.x - c[0], h.y - c[1]) <= radius
+                                           for c in self.clouds)
+            if not inside:
+                self.in_cloud.pop(id(h), None)
+                continue
+            self.in_cloud[id(h)] = self.in_cloud.get(id(h), 0.0) + dt
+            if self.in_cloud[id(h)] >= config.DUST_SHRINK and h.shrunk <= 0:
+                h.shrunk = config.SHRINK[0]
+                self.ctx.effects.append(Effect("toast", h.x, h.y - 2, label="YOU SHRINK!"))
+                self.ctx.events.append("fizzle")
+
+    def _tick_growcaps(self, dt: float) -> None:
+        """Shrinking wears off; a tiny hero GROWCAP_TIME s on a growcap grows
+        back (the growcap's spent, and regrows GROWCAP_REGROW s on)."""
+        from ..world import tiles
+        for h in self.ctx.players:
+            if h.shrunk > 0 and self.in_arena(h):
+                h.shrunk = max(0.0, h.shrunk - dt)
+        for i in list(self.spent):
+            self.spent[i] -= dt
+            if self.spent[i] <= 0:
+                self.spent.pop(i)
+                self._set(*self.props["growcaps"][i], tiles.GROWCAP)
+        for i, (gx, gy) in enumerate(self.props.get("growcaps", [])):
+            if i in self.spent:
+                continue
+            tiny = [h for h in self.ctx.players if h.alive and h.shrunk > 0
+                    and math.hypot(h.x - gx, h.y - gy) <= config.GROWCAP_REACH]
+            if not tiny:
+                self.grow_t.pop(i, None)
+                continue
+            self.grow_t[i] = self.grow_t.get(i, 0.0) + dt
+            if self.grow_t[i] >= config.GROWCAP_TIME:
+                self.grow_t.pop(i)
+                for h in tiny:
+                    h.shrunk = 0.0
+                self.spent[i] = config.GROWCAP_REGROW
+                self._set(gx, gy, tiles.GROWCAP_SPENT)
+                self.ctx.effects.append(Effect("toast", gx, gy - 2, label="BACK TO SIZE!"))
+                self.ctx.events.append("chime")
+
+    def seed_radius(self, seed) -> float:
+        return config.BLIGHT_RADIUS * min(1.0, seed[2] / config.BLIGHT_GROW)
+
+    def on_blight(self, x: float, y: float) -> bool:
+        return any(math.hypot(x - s[0], y - s[1]) <= self.seed_radius(s) for s in self.seeds)
+
+    def _tick_blight(self, dt: float) -> None:
+        """Patches spread; heroes on one are hurt each BLIGHT_TICK; she heals
+        over one; a hero at a seed BLIGHT_PULL s pulls it."""
+        for s in self.seeds:
+            s[2] += dt
+        for h in self.ctx.players:
+            if not h.alive or not self.in_arena(h):
+                continue
+            if self.on_blight(h.x, h.y):
+                t = self.blight_hit.get(id(h), 0.0) - dt
+                if t <= 0:
+                    t = config.BLIGHT_TICK
+                    self._hit(h, config.BLIGHT_DAMAGE, None)
+                self.blight_hit[id(h)] = t
+            else:
+                self.blight_hit.pop(id(h), None)
+        keep = []
+        for s in self.seeds:
+            by = any(h.alive and math.hypot(h.x - s[0], h.y - s[1]) <= config.BLIGHT_REACH
+                     for h in self.ctx.players)
+            s[3] = s[3] + dt if by else 0.0
+            if s[3] >= config.BLIGHT_PULL:
+                self.ctx.effects.append(Effect("toast", s[0], s[1] - 2, label="PULLED!"))
+                self.ctx.effects.append(Effect("nova", s[0], s[1], size=2.0))
+                self.ctx.events.append("chime")
+                continue
+            keep.append(s)
+        self.seeds = keep
+        self.healing = self.alive and self.on_blight(self.x, self.y)
+        if self.healing:
+            self.hp = min(float(self.max_hp), self.hp + config.BLIGHT_HEAL * dt)
+
+    def _tick_homers(self, dt: float) -> None:
+        """Hex sparks and flung wisps: they turn toward the nearest hero in
+        the glade, and hit once."""
+        keep = []
+        heroes = [h for h in self.ctx.players if h.alive and self.in_arena(h)]
+        for m in self.homers:
+            x, y, a, speed, turn, life, damage, look, hit = m
+            life -= dt
+            if life <= 0 or hit:
+                continue
+            t = min(heroes, key=lambda h: math.hypot(h.x - x, h.y - y), default=None)
+            if t is not None:
+                want = math.atan2(t.y - y, t.x - x)
+                diff = (want - a + math.pi) % math.tau - math.pi
+                a += max(-turn * dt, min(turn * dt, diff))
+            x, y = x + math.cos(a) * speed * dt, y + math.sin(a) * speed * dt
+            if self._solid(x, y) or not self._air(x, y):
+                self.ctx.effects.append(Effect("impact", x, y))
+                continue
+            for h in heroes:
+                if h.hittable and math.hypot(h.x - x, h.y - y) <= 0.6 + h.hit_radius:
+                    self._hit(h, damage, a)
+                    self.ctx.effects.append(Effect("impact", x, y))
+                    hit = True
+                    break
+            if not hit:
+                keep.append([x, y, a, speed, turn, life, damage, look, False])
+        self.homers = keep
+
+    def _tick_bursts(self, dt: float) -> None:
+        """Thorns bursting along their lines, one after another."""
+        radius, damage = config.NETTLE_THORNS[5], config.NETTLE_THORNS[6]
+        keep = []
+        for b in self.bursts:
+            b[2] -= dt
+            if b[2] > 0:
+                keep.append(b)
+                continue
+            self.spikes.append([b[0], b[1], 0.0])
+            for h in self.ctx.players:
+                if h.hittable and math.hypot(h.x - b[0], h.y - b[1]) <= radius + h.hit_radius:
+                    self._hit(h, damage, None)
+        self.bursts = keep
+        for s in self.spikes:
+            s[2] += dt
+        self.spikes = [s for s in self.spikes if s[2] < 0.6]
+
+    # --- The bar, the map ---------------------------------------------------------------
+
+    @property
+    def bar_label(self) -> str:
+        if self.healing:
+            return "SHE DRINKS THE BLIGHT - PULL THE SEEDS!"
+        n = sum(1 for d in self.decoys if d.alive)
+        if n:
+            return f"{self.espec.name} - {n + 1} OF HER"
+        return self.espec.name
+
+    def map_marks(self) -> list[tuple[float, float, str, str]]:
+        """Map pins: growcaps ready to eat, rot seeds to pull."""
+        out = [(x, y, "growcap", "GROWCAP")
+               for i, (x, y) in enumerate(self.props.get("growcaps", [])) if i not in self.spent]
+        out += [(s[0], s[1], "seed", "SEED") for s in self.seeds]
+        return out
+
+    def on_death(self, ctx: AIContext) -> None:
+        self.ctx = ctx
+        for d in self.decoys:
+            d.faded = True
+            d.hp = 0.0
+        self.decoys = []
+        self.clouds, self.seeds, self.homers, self.bursts = [], [], [], []
+        for h in ctx.players:
+            if self.in_arena(h):
+                h.shrunk = 0.0
+        ctx.effects.append(Effect("explosion", self.x, self.y))
+        ctx.effects.append(Effect("nova", self.x, self.y, size=4.0))
+
+    # --- Moves --------------------------------------------------------------------------
+
+    def m_glamour(self):
+        """Signature 1: she shimmers (the tell), then splits -- copies all
+        round, and she may be any of them."""
+        self.tell = ("shimmer",)
+        yield self.tell_s(config.DECOY_TELL)
+        self.tell = None
+        want = config.DECOYS[min(self.phase, len(config.DECOYS) - 1)]
+        n = want - sum(1 for d in self.decoys if d.alive)
+        if n <= 0 or self.recruit is None:
+            return
+        spots = [(self.x, self.y)]
+        for _ in range(n):
+            for _ in range(20):
+                a = self.rng.uniform(0, math.tau)
+                r = self.rng.uniform(config.DECOY_SPREAD * 0.5, config.DECOY_SPREAD)
+                x, y = self.x + math.cos(a) * r, self.y + math.sin(a) * r
+                if self._air(x, y):
+                    spots.append((x, y))
+                    break
+        self.rng.shuffle(spots)
+        self.x, self.y = spots[0]
+        for x, y in spots[1:]:
+            d = self.recruit("glamour", x, y)
+            if d is None:
+                continue
+            d.part_of = self
+            d.facing = self.facing
+            self.decoys.append(d)
+        for x, y in spots:
+            self.ctx.effects.append(Effect("nova", x, y, size=2.0))
+        self.shimmer = 0.4
+        self.ctx.events.append("orb")
+        yield 0.3
+
+    def m_spiral(self):
+        """P2: arms of glitter turning out from her (and every copy)."""
+        tell, arms, dur, every, turn = config.NETTLE_SPIRAL
+        self.tell = ("cast",)
+        yield self.tell_s(tell)
+        self.tell = None
+        base = self.rng.uniform(0, math.tau)
+        way = self.rng.choice((-1, 1))
+        tt, k = 0.0, 0
+        while tt < dur:
+            if self.room_for_shots():
+                for j, e in enumerate(self.emitters()):
+                    if e is not self and (k + j) % round(1 / config.DECOY_SHARE):
+                        continue
+                    for arm in range(arms):
+                        a = base + arm * math.tau / arms + j * 0.7
+                        patterns.shoot(self, e.x, e.y, a, self.shots["glitter"],
+                                       self.ctx.projectiles)
+            base += way * turn * every
+            tt += every
+            k += 1
+            yield every
+
+    def m_sparks(self):
+        """P1: hex sparks fanned at you; they curve after you."""
+        tell, n, speed, turn, life, damage, fan = config.NETTLE_SPARKS
+        self.tell = ("cast",)
+        yield self.tell_s(tell)
+        self.tell = None
+        t = self.target_now()
+        if t is None:
+            return
+        for e in self.emitters():
+            count = n if e is self else max(1, round(n * config.DECOY_SHARE))
+            a0 = math.atan2(t.y - e.y, t.x - e.x)
+            for i in range(count):
+                a = a0 + math.radians(fan) * ((i + 0.5) / count - 0.5)
+                self.homers.append([e.x, e.y, a, speed, turn, life, damage, "spark", False])
+        self.ctx.events.append("hex")
+        yield 0.3
+
+    def m_thorns(self):
+        """P4: the ground cracks in lines toward you (the tell), then thorns
+        burst along them, one after another, out from her."""
+        tell, lines, length, spacing, gap, _, _, spread = config.NETTLE_THORNS
+        t = self.target_now()
+        if t is None:
+            return
+        a0 = math.atan2(t.y - self.y, t.x - self.x)
+        pts = []
+        for k in range(lines):
+            a = a0 + math.radians(spread) * (k - (lines - 1) / 2)
+            d = 2.0
+            while d <= length:
+                x, y = self.x + math.cos(a) * d, self.y + math.sin(a) * d
+                if self._air(x, y):
+                    pts.append((x, y, d))
+                d += spacing
+        self.cracks = [(x, y) for x, y, _ in pts]
+        self.tell = ("cracks",)
+        yield self.tell_s(tell)
+        self.tell = None
+        self.cracks = []
+        for x, y, d in pts:
+            self.bursts.append([x, y, d / spacing * gap, set()])
+        self.ctx.events.append("boulder")
+        yield length / spacing * gap
+
+    def m_cage(self):
+        """P5 with a gap: a ring of brambles round you, hanging a moment,
+        then closing in."""
+        tell, n, radius, hold, gap = config.NETTLE_CAGE
+        self.tell = ("cast",)
+        yield self.tell_s(tell)
+        self.tell = None
+        t = self.target_now()
+        if t is None:
+            return
+        patterns.ring_in(self, t.x, t.y, radius, n, self.shots["thorn"], self.ctx.projectiles,
+                         hold, gap_deg=gap, gap_at=self.rng.uniform(0, math.tau))
+        self.ctx.events.append("orb")
+        yield 0.3
+
+    def m_moths(self):
+        """She calls rot moths (no more than NETTLE_MOTHS[2] out)."""
+        tell, n, most = config.NETTLE_MOTHS
+        self.tell = ("call",)
+        yield self.tell_s(tell)
+        self.tell = None
+        alive = sum(1 for a in self.ctx.actors if getattr(a, "summoner", None) is self and a.alive)
+        for _ in range(min(n, most - alive)):
+            if self.recruit is None:
+                break
+            a = self.rng.uniform(0, math.tau)
+            x, y = self.clamp_to_lair(self.x + math.cos(a) * 3, self.y + math.sin(a) * 3, 3.0)
+            add = self.recruit("rot_moth", x, y)
+            if add is not None:
+                add.summoner = self
+                add.alert = True
+        self.ctx.events.append("orb")
+        yield 0.3
+
+    def m_dive(self):
+        """B1: dotted lines (the tell), then she zips along them; from phase
+        2 her trail leaves shrinking dust."""
+        tell, dives, speed, longest, damage, width, trail = config.NETTLE_DIVE
+        for _ in range(dives):
+            t = self.target_now()
+            if t is None:
+                return
+            wait = self.tell_s(tell)
+            tx, ty = self.lead(t, self.x, self.y, secs=wait)
+            a = math.atan2(ty - self.y, tx - self.x)
+            length = min(longest, math.hypot(tx - self.x, ty - self.y) + 6.0)
+            x1, y1 = self.clamp_to_lair(self.x + math.cos(a) * length,
+                                        self.y + math.sin(a) * length, 3.0)
+            self.facing = a
+            self.tell = ("dive", self.x, self.y, x1, y1)
+            self.dashing = True                    # (held on the line she's shown you)
+            yield wait
+            self.tell = None
+            self.ctx.events.append("swing")
+            x0, y0 = self.x, self.y
+            total = math.hypot(x1 - x0, y1 - y0) or 1.0
+            gone, dropped = 0.0, 0.0
+            hit = set()
+            while gone < total:
+                gone = min(total, gone + speed * self.dt)
+                self.x = x0 + (x1 - x0) * gone / total
+                self.y = y0 + (y1 - y0) * gone / total
+                if self.phase >= 1 and gone - dropped >= trail:
+                    dropped = gone
+                    self.clouds.append([self.x, self.y, 0.0])
+                for h in self.ctx.players:
+                    if h.hittable and id(h) not in hit and \
+                            math.hypot(h.x - self.x, h.y - self.y) <= width + h.hit_radius:
+                        hit.add(id(h))
+                        self._hit(h, damage, a)
+                yield 0
+            self.dashing = False
+            yield 0.25
+
+    def m_wisps(self):
+        """The forest's wisps drift in to her (the tell), and she flings
+        them at you; they home."""
+        tell, n, speed, turn, life, damage, far = config.NETTLE_WISPS
+        self.gather = []
+        for k in range(n):
+            a = k * math.tau / n + self.rng.uniform(-0.3, 0.3)
+            self.gather.append([self.x + math.cos(a) * far, self.y + math.sin(a) * far])
+        self.tell = ("gather",)
+        wait = self.tell_s(tell)
+        tt = 0.0
+        while tt < wait:
+            k = min(1.0, self.dt / max(0.05, wait - tt))
+            for w in self.gather:
+                w[0] += (self.x - w[0]) * k
+                w[1] += (self.y - w[1]) * k
+            tt += self.dt
+            yield 0
+        self.tell = None
+        self.gather = []
+        t = self.target_now()
+        if t is None:
+            return
+        a0 = math.atan2(t.y - self.y, t.x - self.x)
+        for k in range(n):
+            a = a0 + (k - (n - 1) / 2) * 0.5
+            self.homers.append([self.x, self.y, a, speed, turn, life, damage, "wisp", False])
+        self.ctx.events.append("orb")
+        yield 0.3
+
+    def m_nettles(self):
+        """P8: blinking shadows (one on you), then nettles fall on them."""
+        tell, n, radius, damage, spread = config.NETTLE_NETTLES
+        t = self.target_now()
+        if t is None:
+            return
+        spots = [(t.x, t.y)]
+        for _ in range(n - 1):
+            a = self.rng.uniform(0, math.tau)
+            r = self.rng.uniform(2.0, spread)
+            spots.append(self.clamp_to_lair(t.x + math.cos(a) * r, t.y + math.sin(a) * r, 3.0))
+        self.shadows = spots
+        self.tell = ("nettles",)
+        yield self.tell_s(tell)
+        self.tell = None
+        self.shadows = []
+        for x, y in spots:
+            for h in self.ctx.players:
+                if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius:
+                    self._hit(h, damage, None)
+            self.spikes.append([x, y, 0.0])
+        self.ctx.events.append("boulder")
+        yield 0.3
+
+    def m_dust(self):
+        """Signature 2 (phase 2+): she flings glittering dust: clouds on and
+        round you that shrink whoever lingers in them."""
+        tell, n, _, _ = config.NETTLE_DUST
+        self.tell = ("cast",)
+        yield self.tell_s(tell)
+        self.tell = None
+        t = self.target_now()
+        if t is None:
+            return
+        x, y = self.lead(t, self.x, self.y, secs=0.6)
+        self.clouds.append([x, y, 0.0])
+        for _ in range(n - 1):
+            a = self.rng.uniform(0, math.tau)
+            r = self.rng.uniform(4.0, 7.0)
+            self.clouds.append([*self.clamp_to_lair(x + math.cos(a) * r, y + math.sin(a) * r, 3.0),
+                                0.0])
+        self.ctx.events.append("fizzle")
+        yield 0.3
+
+    def m_seeds(self):
+        """Signature 3 (phase 3): rot seeds fall (the tell: where they'll
+        land), then take root and the blight spreads."""
+        room = config.BLIGHT_MAX - len(self.seeds)
+        if room <= 0:
+            return
+        t = self.target_now()
+        spots = []
+        for k in range(min(room, config.BLIGHT_SEEDS)):
+            if k == 0 and t is not None:
+                a = self.rng.uniform(0, math.tau)
+                x, y = t.x + math.cos(a) * 3.0, t.y + math.sin(a) * 3.0
+            else:
+                lair = self.lair
+                cx, cy = (lair.cx, lair.cy) if lair is not None else (self.x, self.y)
+                x, y = cx + self.rng.uniform(-0.6, 0.6) * (lair.radii[0] if lair else 30), \
+                    cy + self.rng.uniform(-0.6, 0.6) * (lair.radii[1] if lair else 15)
+            spots.append(self.clamp_to_lair(x, y, 4.0))
+        self.falling = spots
+        self.tell = ("seeds",)
+        yield self.tell_s(config.BLIGHT_TELL)
+        self.tell = None
+        self.falling = []
+        for x, y in spots:
+            self.seeds.append([x, y, 0.0, 0.0])
+            self.ctx.effects.append(Effect("nova", x, y, size=1.5))
+        self.ctx.events.append("hex")
+        yield 0.2

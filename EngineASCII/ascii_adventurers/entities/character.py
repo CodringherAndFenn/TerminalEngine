@@ -135,6 +135,9 @@ class Character(Actor):
         self.chill = 0.0
         self.encased = 0.0
         self.encase_breaks = 0
+        # M25.1: seconds left shrunk by Nettle's dust (faster, half damage,
+        # knocked about; a growcap grows you back sooner).
+        self.shrunk = 0.0
         self.spiral = 0                   # Spiral: how far round its extra shot has turned
 
     @property
@@ -223,6 +226,8 @@ class Character(Actor):
             return
         n = math.hypot(ax, ay)
         top = spec.max_speed * self.speed_mult * self.time_mult
+        if self.shrunk > 0:                   # (tiny: quicker on your feet, M25.1)
+            top *= config.SHRINK[1]
         if n > 0:
             tx, ty = ax / n * top, ay / n * top
             rate = spec.accel * dt * self.traction

@@ -10,7 +10,7 @@ ai -- enemy behaviour.
                 Ol' Spitter (M23.2), the Nameless Magus (M23.3),
                 the Fallout King (M24.1),
                 the Snow King (M24.2),
-                Fragile (M24.3)
+                Fragile (M24.3), Nettle (M25.1)
 
 make_enemy() builds one from its config.ENEMIES key.
 """
@@ -20,8 +20,8 @@ from __future__ import annotations
 import random
 
 from .. import config
-from .bosses import (FalloutKing, Fragile, Froggy, Khepri, LeechSwarm, Magus, OlSpitter,
-                     Proboscia, SnowKing)
+from .bosses import (FalloutKing, Fragile, Froggy, Glamour, Khepri, LeechSwarm, Magus, Nettle,
+                     OlSpitter, Proboscia, SnowKing)
 from .creatures import (Boar, Burrower, Camel, DustDevil, FrostWraith, Ghoul, GoldenScarab,
                         Hourglass, IsotopeRod, Leech, Mosquito, Puffer, SandElemental, SandGolem, Scarab,
                         Sigil, ToxicBarrel, Warrior)
@@ -73,6 +73,9 @@ KINDS = {
     "snow_king": SnowKing,
     # M24.3
     "fragile": Fragile,
+    # M25.1
+    "glamour": Glamour,
+    "nettle": Nettle,
 }
 
 

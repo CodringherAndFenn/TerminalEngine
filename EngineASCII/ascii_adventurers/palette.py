@@ -621,7 +621,7 @@ MAP_TILE.update({"ice wall": (200, 235, 255), "ice throne": (230, 250, 255),
 MAP_TILE_BIOME.update({"frost stone": "ruins", "snowdrift": "ruins", "slush": "ruins"})
 PIN_FIRE = ((255, 160, 60), (70, 30, 10))
 PIN_FIRE_LIT = ((255, 230, 120), (90, 50, 10))
-PIN_CROWN = ((255, 225, 80), (80, 60, 10))
+PIN_CROWN = ((160, 225, 255), (20, 50, 80))     # his crown is iron and ice (M24.4)
 # The Snow King (render/snowking.py).
 SNOW_KING = {"crown": (255, 215, 70), "gem": (120, 220, 255), "ice": (200, 240, 255),
              "glow": (160, 220, 255)}
@@ -670,6 +670,71 @@ GAZE = ((255, 60, 90), (150, 30, 50))
 MIST = ((190, 180, 220), (130, 120, 160))
 BAT_COL = ((70, 50, 90), (130, 100, 160))
 BEAT_COL = ((255, 120, 180), (110, 60, 90))
-SHOT_RIFF = ((255, 120, 200), ((200, 80, 160), (130, 50, 110)))
+SHOT_PETAL = ((255, 120, 150), ((210, 50, 90), (130, 30, 60)))   # her rose petals (was the riff's notes)
 SHOT_SLASH = ((255, 70, 90), ((200, 40, 60), (130, 30, 40)))
 SHOT_BAT = ((150, 110, 180), ((100, 70, 130), (60, 40, 80)))
+# Nettle's withered glade and the hedge witch's shrines (M25.1).
+SHRINE_FG = (150, 200, 90)
+SHRINE_CLEAN_FG = (240, 230, 170)
+ROT_RING_FG = (120, 170, 70)
+BRAMBLE_FG = (100, 120, 60)
+BRAMBLE_BG = (22, 26, 16)
+TOADSTOOL_FG = (220, 70, 70)
+TOADSTOOL_BG = (70, 24, 30)
+HOLLOW_TREE_FG = (80, 64, 60)
+GROWCAP_FG = (150, 255, 170)
+GROWCAP_SPENT_FG = (70, 96, 74)
+MAP_TILE.update({"blighted shrine": (150, 200, 90), "cleansed shrine": (240, 230, 170),
+                 "bramble": (100, 120, 60), "giant toadstool": (220, 70, 70),
+                 "hollow tree": (80, 64, 60), "growcap": (150, 255, 170),
+                 "spent growcap": (70, 96, 74)})
+MAP_TILE_BIOME.update({"rot ring": "forest"})
+PIN_GROWCAP = ((150, 255, 170), (20, 60, 30))
+PIN_SEED = ((170, 110, 200), (50, 20, 60))
+# Nettle (render/nettle.py).
+NETTLE_TELL = ((200, 255, 120), (110, 170, 60))      # her tells: bright, dim
+NETTLE_GLOW = ((210, 255, 150), (140, 220, 90))
+DUST_CLOUD = ((255, 240, 160), (220, 190, 120), (170, 140, 100))
+NETTLE_SHADOW = ((0, 0, 0, 150), (120, 130, 150, 200))   # fill, moonlit rim
+BLIGHT_FG = ((110, 150, 60), (80, 110, 40))
+BLIGHT_SEED_FG = (200, 120, 230)
+SPARK_COL = ((220, 140, 255), (150, 90, 200))
+WISP_COL = ((190, 255, 225), (120, 210, 180))
+THORN_TELL = ((160, 120, 80), (110, 80, 50))
+SHOT_GLITTER = ((255, 245, 170), ((230, 200, 110), (170, 140, 80)))
+SHOT_THORN = ((170, 200, 110), ((120, 150, 70), (80, 100, 50)))
+MOTH_COL = ((170, 160, 120), (120, 110, 84))
+SPRITE_COL = ((150, 230, 110), (90, 160, 70))
+
+# The painted figures (render/painted.py, M24.4): a soft shadow under them,
+# then each figure's colors.
+FIGURE_SHADOW = (0, 0, 0, 90)
+HERMIT = {"edge": (16, 20, 30), "fur": (124, 132, 150), "fur_light": (178, 186, 202),
+          "fur_dark": (72, 82, 106), "fur_deep": (54, 60, 80), "frost": (226, 242, 255),
+          "ice": (150, 225, 255), "face": (12, 14, 24), "eye": (140, 230, 255),
+          "eye_cast": (235, 252, 255), "eye_glow": (90, 180, 240), "eye_dim": (90, 140, 180),
+          "beard": (236, 244, 252), "beard_shade": (172, 196, 224), "boot": (70, 64, 70),
+          "staff": (48, 76, 112), "staff_hi": (110, 160, 210), "shard_cast": (235, 252, 255),
+          "glow": (150, 225, 255, 110), "iron": (56, 60, 72), "iron_hi": (130, 138, 158),
+          "rime": (196, 236, 255)}
+FRAGILE = {"edge": (14, 10, 18), "hair": (236, 234, 244), "hair_hi": (170, 166, 196),
+           "skin": (158, 172, 196), "skin_dark": (120, 132, 160), "eye": (240, 40, 70),
+           "mouth": (90, 30, 50), "fang": (250, 250, 255), "dress": (40, 28, 48),
+           "dress_dark": (24, 16, 30), "dress_hi": (78, 58, 92), "boot": (20, 16, 24), "handle": (76, 44, 32),
+           "canopy": (30, 22, 38), "canopy_hi": (66, 50, 84), "rib": (110, 96, 130),
+           "lace": (200, 34, 60), "tip": (220, 220, 230), "tear": (150, 210, 255),
+           "blush": (220, 120, 150)}
+FRAGILE_WOLF = {"edge": (6, 6, 10), "fur": (36, 32, 48), "fur_hi": (78, 72, 104),
+                "fur_dark": (20, 18, 28), "ear": (90, 50, 70), "eye": (255, 230, 230),
+                "eye_glow": (255, 40, 70), "mouth": (150, 20, 40), "fang": (250, 250, 255),
+                "nose": (10, 10, 14), "collar": (204, 34, 56)}
+NETTLE = {"edge": (14, 16, 12), "aura": (170, 255, 110, 34), "wing": (150, 140, 172, 225),
+          "wing_hi": (190, 182, 210, 200), "wing_dark": (100, 92, 124, 230),
+          "spot": (140, 200, 80), "vein": (110, 150, 70), "skin": (178, 198, 168),
+          "skin_dark": (140, 160, 132), "eye": (240, 255, 170), "eye_glow": (150, 230, 80),
+          "leaf": (150, 92, 52), "leaf_dark": (100, 60, 36), "rot": (110, 150, 60),
+          "hair": (40, 84, 54), "twig": (110, 80, 50), "thorn": (200, 220, 160),
+          "glow": (210, 255, 140, 170)}
+MR_BUTTONS = {"edge": (60, 36, 20), "fur": (200, 146, 88), "shade": (160, 110, 64),
+              "inner": (232, 186, 150), "muzzle": (236, 206, 160), "button": (90, 140, 225),
+              "patch": (150, 104, 160), "stitch": (90, 56, 30), "bow": (214, 36, 58)}

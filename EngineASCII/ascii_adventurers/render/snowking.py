@@ -3,16 +3,19 @@ render/snowking.py -- the Snow King, King of Loneliness, his crown, black
 ice, tells, penguins and snowballs, the hall's markers, the frost wraiths
 and the sister's captives (M24.2).
 
-The King is a character picture (render/characters.ART["snow_king"], drawn
-big) wearing his crown; knocked off, the crown spins on the floor, bright,
-labelled. His tells, in ice blue (design/BOSSES.md 5.3):
-  * a staff raised before shards, spikes and snowballs ("*" round it);
+The King is the Frost Hermit (render/painted.paint_hermit, M24.4): hunched
+in grey furs, eyes glowing in a pointed cowl, a braided frost beard, an
+ice-root staff. His crown (black iron, ice gems) sits on the cowl; knocked
+off, it spins on the floor, labelled. His tells, in ice blue (design/BOSSES.md 5.3):
+  * his staff raised before shards, spikes and snowballs (its shard and
+    his eyes blaze, "*" round the shard);
   * frost breath: a wedge of dots, then the cone itself;
   * icicles: blinking shadows where they'll fall;
   * freeze: frost spreading from where the sheets will grow;
   * whistle (penguins): a pulsing ring; gust (blizzard): arrows the way
     the wind will blow, then snow streaming across the whole screen.
-Black ice is a pale ring with glints. Markers (what to run to): FIRE
+Black ice is a pale ring with glints. Between moves he glides round the
+hall (M24.5), leaving a short trail of frost (","). Markers (what to run to): FIRE
 over each brazier (and a lighting bar), CROWN - KICK IT! over the loose
 crown, the ice block round an encased hero with "ROLL x/3", and an arrow
 at the screen's edge to the crown, or to a fire when you're on ice or
@@ -30,6 +33,7 @@ from ..engine_ext.camera import Camera
 from .ascii_fx import _Batch, _ring
 from .characters import draw_character
 from .fallout import _bar, _hash01, _nearest, draw_vault_marks
+from . import painted
 from .magus import _dotted, _px_ring
 from .sprites import SpriteBank
 
@@ -37,18 +41,8 @@ KING_SCALE = 6
 
 
 def _paint_crown(spin: int):
-    c = palette.SNOW_KING
-
     def paint(surf, to_px):
-        cx, cy = to_px(0, 0)
-        w = 12 if spin % 2 == 0 else 7
-        pygame.draw.rect(surf, c["crown"], pygame.Rect(round(cx - w), round(cy - 2), 2 * w, 7))
-        for k in (-1, 0, 1):
-            x = cx + k * w * 0.8
-            pygame.draw.polygon(surf, c["crown"], [(round(x - 3), round(cy - 2)),
-                                                   (round(x + 3), round(cy - 2)),
-                                                   (round(x), round(cy - 10))])
-        pygame.draw.circle(surf, c["gem"], (round(cx), round(cy + 1)), 3)
+        painted.paint_crown(painted.Pen(surf, to_px, KING_SCALE, False, False), spin)
     return paint
 
 
@@ -91,6 +85,10 @@ def draw_snow_king(text, bank: SpriteBank, camera: Camera, boss) -> None:
             a, d = hx * math.tau, math.sqrt(hy) * r * 0.9
             px, py = camera.world_to_px(s["x"] + math.cos(a) * d, s["y"] + math.sin(a) * d)
             batch.put_c(px, py, "-" if k % 3 else "/", palette.ICE_SHEET[0])
+    for tx, ty, age in boss.trail:            # frost where he's glided (M24.5)
+        px, py = camera.world_to_px(tx, ty)
+        fade = age / config.SNOW_TRAIL[1]
+        batch.put_c(px, py, ",," if fade < 0.5 else ",", palette.ICE_SHEET[0 if fade < 0.5 else 1])
     tell = boss.tell
     kind = tell[0] if tell is not None else None
     if kind == "wedge":
@@ -139,22 +137,29 @@ def draw_snow_king(text, bank: SpriteBank, camera: Camera, boss) -> None:
 
     x, y = camera.world_to_px(boss.x, boss.y)
     down = boss.crownless
-    draw_character(bank, x, y + (8 if down else 0), "snow_king", KING_SCALE,
-                   math.cos(boss.facing) < 0, int(boss.waddle) % 4 if down else 0,
-                   boss.hurt_flash > 0)
+    left = math.cos(boss.facing) < 0
+    sx = -1 if left else 1
+    cast = kind in ("cast", "whistle")
+    pose = "down" if down else ("cast" if cast else "")
+    frame = int(boss.waddle if down else boss.walked * 1.5) % 4
+    draw_character(bank, x, y, "snow_king", KING_SCALE, left, frame, boss.hurt_flash > 0, pose)
+    cu, cv = painted.HERMIT_CROWN
+    crown_x, crown_y = x + sx * cu * KING_SCALE, y + (cv + (0.7 if down else 0)) * KING_SCALE
     if boss.crown_on and boss.donning <= 0:
-        bank.draw(bank.static("crown0", _paint_crown(0), 16), x, y - 58)
+        bank.draw(bank.static("crown0", _paint_crown(0), 30), crown_x, crown_y)
     else:
         cx, cy = camera.world_to_px(boss.crown[0], boss.crown[1])
         spin = int(boss.time * 10) % 2 if math.hypot(boss.crown[2], boss.crown[3]) > 1 else 0
         if boss.donning > 0:
-            cx, cy = x, y - 58 - 30 * boss.donning / config.CROWN_DON
-        bank.draw(bank.static(f"crown{spin}", _paint_crown(spin), 16), cx, cy)
+            cx, cy = crown_x, crown_y - 30 * boss.donning / config.CROWN_DON
+        bank.draw(bank.static(f"crown{spin}", _paint_crown(spin), 30), cx, cy)
     batch = _Batch(text)
-    if kind in ("cast", "whistle"):
+    if cast:                                # the shard on his staff blazing
+        su, sv = painted.HERMIT_SHARD
+        tip_x, tip_y = x + sx * su * KING_SCALE, y + (sv + painted.HERMIT_LIFT) * KING_SCALE
         for dx, dy, glyph, c in _ring(8, 14 + 4 * blink, "*", palette.SNOW_KING["glow"],
                                       boss.time * 6):
-            batch.put_c(x + (24 if math.cos(boss.facing) >= 0 else -24) + dx, y - 40 + dy, glyph, c)
+            batch.put_c(tip_x + dx, tip_y + dy, glyph, c)
         if kind == "whistle":
             rr = 50 + (boss.time * 80) % 30
             for dx, dy, glyph, c in _ring(16, rr, "o", palette.SNOW_TELL[blink], boss.time):
@@ -162,7 +167,7 @@ def draw_snow_king(text, bank: SpriteBank, camera: Camera, boss) -> None:
     if down:
         for k in range(3):
             a = boss.time * 4 + k * math.tau / 3
-            batch.put_c(x + math.cos(a) * 26, y - 54 + math.sin(a) * 6, "?", palette.TOAST)
+            batch.put_c(crown_x + math.cos(a) * 26, crown_y + math.sin(a) * 6, "?", palette.TOAST)
     batch.flush()
 
 
@@ -237,10 +242,13 @@ def draw_hall_marks(text, bank: SpriteBank, camera: Camera, boss, hero, time: fl
 
 def draw_fight_marks(text, bank: SpriteBank, camera: Camera, boss, hero, time: float) -> None:
     """The markers for whichever boss's fixtures this is (M24.1 vault,
-    M24.2 hall)."""
-    from ..ai.bosses import FalloutKing, Fragile, SnowKing
+    M24.2 hall, M24.3 ballroom, M25.1 glade)."""
+    from ..ai.bosses import FalloutKing, Fragile, Nettle, SnowKing
     from .fragile import draw_ballroom_marks
-    if isinstance(boss, Fragile):
+    from .nettle import draw_glade_marks
+    if isinstance(boss, Nettle):
+        draw_glade_marks(text, bank, camera, boss, hero, time)
+    elif isinstance(boss, Fragile):
         draw_ballroom_marks(text, bank, camera, boss, hero, time)
     elif isinstance(boss, SnowKing):
         draw_hall_marks(text, bank, camera, boss, hero, time)

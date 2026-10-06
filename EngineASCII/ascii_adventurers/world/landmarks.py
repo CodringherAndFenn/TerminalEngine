@@ -29,7 +29,9 @@ King's, with a reactor ring, valves, showers, lead walls and grates), and
 the frozen throne hall (M24.2: _throne_hall, the Snow King's, with his
 throne, ice pillars, fire braziers and frozen statues), and the ruined
 ballroom (M24.3: _ballroom, Fragile's, with shuttered windows and levers,
-coffins, marble pillars and chandeliers). The swamp's (the desert's, M23.1, are the same shapes in
+coffins, marble pillars and chandeliers), and the withered glade (M25.1:
+_glade, Nettle's, in bramble, with a hollow tree, a ring of giant
+toadstools, growcaps and stumps). The swamp's (the desert's, M23.1, are the same shapes in
 sand: a nomad tent by an oasis, and the Dung Pit -- sandstone walls,
 taller pillars, sand pits for pools):
   * the frog hunter's camp: a big bog (an oval of pools, reeds and lily
@@ -297,12 +299,13 @@ def _scatter(layout, quest, camp, marks, others, rng: random.Random) -> list[tup
 
 
 # The ground of a quest spot's clearing, per biome.
-CLEARING = {"swamp": tiles.MUD, "desert": tiles.SAND, "ruins": tiles.CONCRETE}
+CLEARING = {"swamp": tiles.MUD, "desert": tiles.SAND, "ruins": tiles.CONCRETE,
+            "forest": tiles.DEAD_LEAVES}
 # What stands in the middle of a quest spot's clearing, per quest kind: a
 # "light" quest's cold brazier (M22.2), a "collect" quest's bundle (M23.2).
 SPOT_CENTRE = {"light": tiles.BRAZIER, "collect": tiles.CARGO, "survive": tiles.SEAL,
                "escort": tiles.BEACON_SITE, "rescue": tiles.ICE_BLOCK,
-               "fetch": tiles.BEAR_PIECE}
+               "fetch": tiles.BEAR_PIECE, "cleanse": tiles.SHRINE}
 
 
 def _clearing(biome: str, x: float, y: float, centre: TileType | None = None) -> Landmark:
@@ -317,14 +320,15 @@ def _clearing(biome: str, x: float, y: float, centre: TileType | None = None) ->
              for i in range(2 * r + 1)] for j in range(2 * r + 1)]
     if centre is not None:
         rows[r][r] = centre
-    if centre is tiles.SEAL:
-        # A star circle (M23.3): a ring of stars round the seal, as wide as
-        # the circle you stand in to break it.
+    if centre is tiles.SEAL or centre is tiles.SHRINE:
+        # A star circle (M23.3) / a blighted shrine's ring of rot (M25.1),
+        # as wide as the circle you stand in to break / cleanse it.
+        ring = tiles.STAR_RING if centre is tiles.SEAL else tiles.ROT_RING
         for j in range(2 * r + 1):
             for i in range(2 * r + 1):
                 d = math.hypot(i - r, (j - r) * 1.0)
                 if abs(d - (r - 0.5)) < 0.55 and (i + j) % 2 == 0:
-                    rows[j][i] = tiles.STAR_RING
+                    rows[j][i] = ring
     return Landmark("quest_spot", "spot", biome, "", tx - r, ty - r, rows, cx=x, cy=y)
 
 
@@ -351,6 +355,12 @@ CAMP_STYLES = {
                        pool_edge=tiles.RUBBLE, plants=tiles.RUBBLE, plant_min=0.66, core=0.3,
                        floor=tiles.PLATES, wall=tiles.SCRAP_WALL, post=tiles.SCRAP_POST,
                        rack=tiles.CRATES),
+    # M25.1: the hedge witch's camp in the haunted forest -- a black pond in
+    # the fog, her plank hut with herbs drying on racks.
+    "witch_camp": dict(radii=config.CAMP_WITCH_RADII, ground=tiles.DEAD_LEAVES, pool=tiles.POND,
+                       pool_edge=tiles.FOG, plants=tiles.BARK, plant_min=0.6, core=0.3,
+                       floor=tiles.DECK, wall=tiles.PLANK_WALL, post=tiles.HUNTER_POST,
+                       rack=tiles.DRYING_RACK),
 }
 
 
@@ -1064,6 +1074,93 @@ def _ballroom(layout, quest, rng: random.Random, avoid: list) -> Landmark | None
                     gate=shell.gate, radii=(float(a), float(b)), floor=floor, props=props)
 
 
+# --- The withered glade (M25.1) -------------------------------------------------------------
+
+
+def _glade(layout, quest, rng: random.Random, avoid: list) -> Landmark | None:
+    """Nettle's lair: the arena's oval in bramble round dead leaves and
+    fog. A dead hollow tree in the middle (GLADE_TREE); GLADE_TOADSTOOLS
+    giant toadstools (2 x 1, cover) in a ring GLADE_RING of the way out;
+    GLADE_GROWCAPS growcaps spread further out (props["growcaps"]); stumps
+    (breakable cover) over the floor. She waits in front of the tree, on
+    the gate's side (`spots[0]`)."""
+    floor = tiles.DEAD_LEAVES
+    shell = _arena_shell(layout, quest, rng, avoid, floor, tiles.BRAMBLE_WALL)
+    if shell is None:
+        return None
+    a, b = config.LAIR_RADII
+    ex, ey = shell.ex, shell.ey
+    put = shell.put
+    cx, cy = shell.cx, shell.cy
+
+    # Fog over the floor where a slow noise is high (looks only).
+    xs = (np.arange(shell.x0, shell.x0 + shell.W) + 0.5)[None, :]
+    ys = (np.arange(shell.y0, shell.y0 + shell.H) + 0.5)[:, None]
+    fog = fbm(layout.seed, _SALT_REEDS + 7, xs, ys, 9.0, 2)
+    for j in range(shell.H):
+        for i in range(shell.W):
+            if shell.rows[j][i] is floor and shell.inner[j, i] < 0.97 and fog[j, i] > 0.6:
+                shell.rows[j][i] = tiles.FOG
+
+    def free(i0: int, j0: int, w: int, h: int, pad: int = 1) -> bool:
+        for j in range(j0 - pad, j0 + h + pad):
+            for i in range(i0 - pad, i0 + w + pad):
+                ii, jj = cx + i - shell.x0, cy + j - shell.y0
+                if not (0 <= jj < shell.H and 0 <= ii < shell.W) or \
+                        shell.rows[jj][ii] not in (floor, tiles.FOG):
+                    return False
+        return True
+
+    def lay(i: int, j: int, tile: TileType) -> None:
+        put(i, j, tile, floor) or put(i, j, tile, tiles.FOG)
+
+    # The dead hollow tree in the middle.
+    tw, th = config.GLADE_TREE
+    for dj in range(th):
+        for di in range(tw):
+            lay(di - tw // 2, dj - th // 2, tiles.HOLLOW_TREE)
+    # The ring of giant toadstools.
+    n = config.GLADE_TOADSTOOLS
+    for k in range(n):
+        t = (k + 0.5) / n * math.tau
+        i, j = round(math.cos(t) * a * config.GLADE_RING), round(math.sin(t) * b * config.GLADE_RING)
+        if math.hypot(i - ex * config.GLADE_RING, j - ey * config.GLADE_RING) < 6 or \
+                not free(i, j, 2, 1, 0):
+            continue
+        for di in (0, 1):
+            lay(i + di, j, tiles.TOADSTOOL)
+    # Growcaps, spread round the outer part of the floor.
+    props: dict = {"growcaps": []}
+    m = config.GLADE_GROWCAPS
+    for k in range(m):
+        for _ in range(40):
+            t = (k + rng.uniform(0.2, 0.8)) / m * math.tau
+            f = rng.uniform(0.66, 0.82)
+            i, j = round(math.cos(t) * a * f), round(math.sin(t) * b * f)
+            if math.hypot(i - ex, j - ey) > 16 and free(i, j, 1, 1, 1):
+                lay(i, j, tiles.GROWCAP)
+                props["growcaps"].append((cx + i + 0.5, cy + j + 0.5))
+                break
+    # Stumps over the floor.
+    placed = tries = 0
+    while placed < config.GLADE_STUMPS and tries < 2000:
+        tries += 1
+        u, v = rng.uniform(-0.9, 0.9), rng.uniform(-0.9, 0.9)
+        if u * u + v * v > 0.85 or abs(u * u + v * v - config.GLADE_RING ** 2) < 0.03:
+            continue
+        i, j = round(u * a), round(v * b)
+        if math.hypot(i - ex, j - ey) > 18 and math.hypot(i, j * 2.5) > 12 and free(i, j, 1, 1, 1):
+            lay(i, j, tiles.STUMP)
+            placed += 1
+
+    # She waits in front of the tree, toward the gate.
+    gl = math.hypot(ex, ey) or 1.0
+    sx, sy = ex / gl * 12.0, ey / gl * 5.0
+    return Landmark("glade", "lair", quest.biome, quest.lair_name or "LAIR", shell.x0,
+                    shell.y0, shell.rows, cx=cx, cy=cy, spots=[(cx + sx + 0.5, cy + sy + 0.5)],
+                    gate=shell.gate, radii=(float(a), float(b)), floor=floor, props=props)
+
+
 BUILDERS = {key: (lambda layout, q, rng, avoid, key=key: _camp(layout, q, rng, avoid, key))
             for key in CAMP_STYLES}
 BUILDERS.update({key: (lambda layout, q, rng, avoid, key=key: _lair(layout, q, rng, avoid, key))
@@ -1073,3 +1170,4 @@ BUILDERS["observatory"] = _observatory
 BUILDERS["reactor_vault"] = _reactor_vault
 BUILDERS["throne_hall"] = _throne_hall
 BUILDERS["ballroom"] = _ballroom
+BUILDERS["glade"] = _glade

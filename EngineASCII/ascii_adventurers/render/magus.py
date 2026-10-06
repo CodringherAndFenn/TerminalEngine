@@ -28,6 +28,7 @@ import pygame
 
 from .. import config, palette
 from ..engine_ext.camera import Camera
+from ..systems.quests import circle_radius
 from .ascii_fx import _Batch, _ring, draw_hp_bar
 from .characters import draw_character
 from .sprites import SpriteBank
@@ -266,10 +267,10 @@ def draw_seals(text, camera: Camera, quests, time: float) -> None:
     x1, y1 = camera.canvas_to_world(camera.view_w, camera.view_h)
     cw = text.display.cell_w
     for s in quests.states.values():
-        if s.spec.kind not in ("survive", "escort", "rescue") or s.stage != "hunt":
+        if s.spec.kind not in ("survive", "escort", "rescue", "cleanse") or s.stage != "hunt":
             continue
         full = {"survive": config.SEAL_TIME, "escort": config.ESCORT_SETUP,
-                "rescue": config.RESCUE_THAW}[s.spec.kind]
+                "rescue": config.RESCUE_THAW, "cleanse": config.CLEANSE_TIME}[s.spec.kind]
         for i, (sx, sy) in enumerate(s.camp.spots):
             if i in s.lit or not (x0 - 6 <= sx <= x1 + 6 and y0 - 8 <= sy <= y1 + 6):
                 continue
@@ -280,6 +281,10 @@ def draw_seals(text, camera: Camera, quests, time: float) -> None:
             if s.spec.kind == "survive":
                 _px_ring(batch, camera, sx, sy, config.SEAL_RADIUS, 24, "*",
                          palette.STAR_RING_FG if blink else palette.SEAL_FG, time)
+            elif s.spec.kind == "cleanse":            # (M25.1: the ring tightening)
+                r = circle_radius("cleanse", worn)
+                _px_ring(batch, camera, sx, sy, r, max(12, int(r * 6)), "*",
+                         palette.SHRINE_CLEAN_FG if blink else palette.ROT_RING_FG, time)
             frac = min(1.0, worn / full)
             width = 10
             filled = round(frac * width)

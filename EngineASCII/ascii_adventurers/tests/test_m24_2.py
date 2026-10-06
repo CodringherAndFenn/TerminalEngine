@@ -129,7 +129,10 @@ class CrownTest(unittest.TestCase):
         x0 = f.b.x
         f.run(0.5)
         self.assertNotEqual(f.b.x, x0)                  # waddling after it
-        f.run(15.0)
+        for _ in range(60 * 15):
+            f.run(DT)
+            if f.b.crown_on:
+                break
         self.assertTrue(f.b.crown_on)                   # back on...
         self.assertGreater(f.b.crown_cd, 0)             # ...and stuck on a while
         self.assertTrue(any(p.owner is f.b for p in f.shots))   # (furious)

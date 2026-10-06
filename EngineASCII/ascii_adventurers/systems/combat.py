@@ -95,6 +95,8 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
     hits pass on_hit / can_crit False (unless Pack Leader); `sure_crit`
     makes a hit that may crit always crit (Riposte). Returns the
     damage dealt; whether it crit is left in source.last_crit."""
+    if getattr(source, "shrunk", 0) > 0:              # tiny (Nettle's dust, M25.1)
+        mult *= config.SHRINK[2]
     stats = getattr(source, "stats", None)
     if stats is None:
         dealt = victim.take_damage(base * mult, source, angle)

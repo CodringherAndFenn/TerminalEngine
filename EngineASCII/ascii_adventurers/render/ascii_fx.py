@@ -122,8 +122,12 @@ SHOT_LOOKS = {
     "shard": ("*", ("'", "."), palette.SHOT_SHARD),
     "spike": ("^", (".", "."), palette.SHOT_SPIKE),
     "snow": ("o", (".", "."), palette.SHOT_SNOW),
-    # M24.3: Fragile's riff notes, her slashes, her bats.
-    "riff": ("&", ("'", "."), palette.SHOT_RIFF),
+    # M24.3: Fragile's rose petals (M24.4; were her riff's notes), her
+    # slashes, her bats.
+    "petal": ("*", (",", "."), palette.SHOT_PETAL),
+    # M25.1: Nettle's glitter (and a popped copy's dust), her brambles.
+    "glitter": ("+", ("'", ":"), palette.SHOT_GLITTER),
+    "thorn": ("^", (":", "'"), palette.SHOT_THORN),
     "slash": (")", ("-", "."), palette.SHOT_SLASH),
     "bat": ("v", (".", "."), palette.SHOT_BAT),
 }

@@ -87,7 +87,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--boss", metavar="KEY", default=None,
                         help="test: the dev keys (F6 to the giver, F7 finish the quest, F8 "
                              "to the lair) act on this boss's quest (e.g. froggy, leech_swarm, "
-                             "proboscia, khepri, ol_spitter, nameless_magus, fallout_king, snow_king, fragile); "
+                             "proboscia, khepri, ol_spitter, nameless_magus, fallout_king, snow_king, fragile, "
+                             "nettle); "
                              "use with --dev")
     parser.add_argument("--dev", action="store_true",
                         help="developer mode: the guild purse is full (nothing bought is "

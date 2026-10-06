@@ -586,3 +586,36 @@ BEAR_PIECE = TileType(
     "bear piece", ("@,",), palette.PIECE_FG, palette.CONCRETE_BG,
     solid=True,
 )
+
+# --- Nettle's withered glade and the hedge witch's shrines (M25.1) ----------------------
+
+SHRINE = TileType(
+    "blighted shrine", ("[]",), palette.SHRINE_FG, palette.HAUNT_BG,
+)
+SHRINE_CLEAN = TileType(
+    "cleansed shrine", ("[]",), palette.SHRINE_CLEAN_FG, palette.HAUNT_BG,
+)
+ROT_RING = TileType(
+    # The ring you stand in to cleanse a shrine.
+    "rot ring", ("; ", " ;", "' ", " '"), palette.ROT_RING_FG, palette.HAUNT_BG,
+)
+BRAMBLE_WALL = TileType(
+    "bramble", ("#%", "%#", "##", "%%"), palette.BRAMBLE_FG, palette.BRAMBLE_BG,
+    solid=True, blocks_shots=True,
+)
+TOADSTOOL = TileType(
+    # A giant toadstool: cover (Nettle flies over them; her shots don't).
+    "giant toadstool", ("nn", "Nn", "nN"), palette.TOADSTOOL_FG, palette.TOADSTOOL_BG,
+    solid=True, blocks_shots=True,
+)
+HOLLOW_TREE = TileType(
+    "hollow tree", ("██", "▓█", "█▓"), palette.HOLLOW_TREE_FG, palette.HAUNT_BG,
+    solid=True, blocks_shots=True,
+)
+GROWCAP = TileType(
+    # Glowing: stand on one to grow back from Nettle's dust.
+    "growcap", ("n'", "'n"), palette.GROWCAP_FG, palette.HAUNT_BG,
+)
+GROWCAP_SPENT = TileType(
+    "spent growcap", ("n.", ".n"), palette.GROWCAP_SPENT_FG, palette.HAUNT_BG,
+)

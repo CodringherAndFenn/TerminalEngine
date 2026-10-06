@@ -80,7 +80,7 @@ from ..players.controls import AutoControls, GhostControls, PlayerInput
 from ..players.player import Player, player_color
 from ..render.ascii_fx import draw_effects, draw_projectiles
 from ..render.bosses import draw_banner, draw_froggy, draw_npc, draw_pointer
-from ..render.fragile import draw_carried
+from ..render.fragile import draw_bear_riders, draw_carried
 from ..render.snowking import draw_captives, draw_fight_marks
 from ..render.magus import draw_seals
 from ..render.mosquito import draw_braziers
@@ -894,6 +894,8 @@ class GameScene(Scene):
             return ("RAD", hero.rads / config.RADS_FULL, hero.irradiated > 0)
         if hero.chill > 0 or hero.encased > 0:
             return ("CHL", hero.chill / config.CHILL_FULL, hero.encased > 0)
+        if hero.shrunk > 0:                   # (M25.1: tiny, until a growcap or this runs out)
+            return ("TNY", hero.shrunk / config.SHRINK[0], True)
         return None
 
     def _draw(self, text: TextRenderer) -> None:
@@ -922,11 +924,12 @@ class GameScene(Scene):
         draw_braziers(text, cam, self.quests, self.steps / config.SIM_HZ)
         draw_seals(text, cam, self.quests, self.steps / config.SIM_HZ)
         draw_captives(text, self.sprites, cam, self.quests, self.steps / config.SIM_HZ)
-        draw_carried(text, cam, self.quests, self.players)
+        draw_carried(text, self.sprites, cam, self.quests, self.players)
         for p in self.players:
             h = p.hero
             if p.alive and x0 - margin <= h.x <= x1 + margin and y0 - margin <= h.y <= y1 + margin:
                 draw_body(self.sprites, cam, h)
+        draw_bear_riders(self.sprites, cam, self.quests, self.players)
         draw_statuses(text, cam, self.enemies, [p.hero.marked for p in self.players
                                                  if p.alive and p.hero.marked is not None])
         draw_spells(text, cam, [p for p in self.players if p.alive], self.steps)

@@ -502,6 +502,25 @@ ENEMIES = {
         name="Fragile, The Misunderstood", kind="fragile", max_hp=8000, sight=400,
         biomes=(), size_px=70, xp=400,
     ),
+    # M25.1: the hedge witch's "cleanse" quest and Nettle. Blighted sprites
+    # rise round a shrine being cleansed; rot moths come at Nettle's call;
+    # her glamour decoys are bodies too (ai/bosses.Glamour: one hit pops
+    # one, and it's worth nothing).
+    "blighted_sprite": EnemySpec(
+        name="blighted sprite", kind="mosquito", max_hp=30, sight=24, biomes=(), speed=7.0,
+        damage=6, attack_radius=0.9, windup=0.3, cooldown=1.1, size_px=14, xp=6,
+    ),
+    "rot_moth": EnemySpec(
+        name="rot moth", kind="mosquito", max_hp=25, sight=30, biomes=(), speed=8.5,
+        damage=5, attack_radius=0.9, windup=0.25, cooldown=1.0, size_px=14, xp=3,
+    ),
+    "glamour": EnemySpec(
+        name="glamour", kind="glamour", max_hp=1, sight=400, biomes=(), size_px=50, xp=0,
+    ),
+    "nettle": EnemySpec(
+        name="Nettle, the Blighted", kind="nettle", max_hp=8000, sight=400,
+        biomes=(), size_px=50, xp=400,
+    ),
 }
 
 # M12 enemy behaviour.
@@ -1447,6 +1466,10 @@ BESTIARY = {
     "vampire_bat": (1500, "Flits in to bite. Guarded Mr. Buttons' pieces for a pawn dealer."),
     "thrall": (800, "Climbs out of Fragile's coffins. Stake an empty one to keep it shut."),
     "fragile": (5000, "Open the shutters: she burns in the sun. Roll on the beat. Bring the bear."),
+    # M25.1
+    "blighted_sprite": (1500, "Rises round a blighted shrine to stop you cleansing it."),
+    "rot_moth": (800, "Flutters in at Nettle's call and bites."),
+    "nettle": (5000, "Only the real one casts a shadow. Growcaps undo her dust. Pull her seeds."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -1463,6 +1486,7 @@ ACHIEVEMENTS = {
     "fallout_king": "defeat the Fallout King",
     "snow_king": "defeat the Snow King, King of Loneliness",
     "fragile": "defeat Fragile, The Misunderstood",
+    "nettle": "defeat Nettle, the Blighted",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -1982,6 +2006,34 @@ QUESTS = {
                          "Maybe I'll stop stealing from vampires.")),
         ),
     ),
+    # M25.1: a "cleanse" quest (systems/quests._hold_seals, like "survive"):
+    # the camp's spots hold blighted shrines; stand in one's ring to cleanse
+    # it (the ring tightens as it cleans) while blighted sprites rise round
+    # you. The lair is the withered glade (world/landmarks._glade).
+    "hedge_witch": QuestSpec(
+        title="Cleanse the Shrines", biome="forest", giver="hedge witch",
+        giver_sprite="hedge_witch", camp="witch_camp", lair="glade", target="blighted_sprite",
+        count=4, boss="nettle", goal="Shrines cleansed {n}/{count}", camp_name="HEDGE WITCH",
+        lair_name="THE WITHERED GLADE", kind="cleanse",
+        lines=(
+            ("offer", ("Hush. Hear that? The trees are sick.",
+                       "A pixie did it. Nettle. She was sweet once.",
+                       "Something rotten got into her, and she spread it.",
+                       "The old shrines keep this wood well. She blighted them.",
+                       "Stand in a shrine's ring until it's clean.",
+                       "Her sprites will come for you. Four shrines will do.")),
+            ("progress", ("{left} more shrines to cleanse.",
+                          "Stay in the ring. It tightens as it cleans.")),
+            ("done", ("Four clean! She felt that. She's in her glade.",
+                      "The withered glade, ringed with toadstools.",
+                      "Her copies cast no shadow. Watch the ground.",
+                      "Shrunk by her dust? Stand on a growcap.",
+                      "And pull her seeds before the rot spreads.")),
+            ("fight", ("Nettle's in the glade! Go!",)),
+            ("cleared", ("The rot's lifting. Smell that? Moss.",
+                         "Poor Nettle. Maybe she can heal too, now.")),
+        ),
+    ),
 }
 # Developer / test: the quest key the dev keys (F6 to its giver, F7 finish
 # it, F8 to its lair) act on; run.py --boss sets it. None: the first quest
@@ -2093,6 +2145,19 @@ RESCUE_REFREEZE = 0.3
 FETCH_DELIVER = 3.5
 FETCH_PICKUP = 1.6
 FRAGILE_GIFT_LEVELS = 5       # levels for giving Fragile her bear back (every player)
+# "cleanse" quests (M25.1, systems/quests._hold_seals): a hero inside a
+# blighted shrine's ring cleanses it; CLEANSE_TIME s of it and it's clean.
+# The ring shrinks from CLEANSE_RADIUS[0] to [1] tiles as it cleans. With
+# nobody inside, it slides back CLEANSE_HEAL x as fast. Every CLEANSE_WAVE s
+# of cleansing, CLEANSE_WAVE_SIZE (low, high) of the quest's `target` rise
+# CLEANSE_WAVE_RANGE tiles off.
+CLEANSE_TIME = 20.0
+CLEANSE_RADIUS = (4.5, 2.0)
+CLEANSE_HEAL = 0.5
+CLEANSE_WAVE = 5.0
+CLEANSE_WAVE_SIZE = (2, 3)
+CLEANSE_WAVE_RANGE = (8.0, 12.0)
+CAMP_WITCH_RADII = (20, 9)      # the hedge witch's camp: a black pond in the fog
 
 # A boss lair: an oval arena LAIR_RADII tiles (half-width, half-height) --
 # one screen shows ~86 x 30 tiles, so 125 x 50 is about 3 x 3 screens (room
@@ -2149,6 +2214,16 @@ BALLROOM_WINDOWS = 3
 BALLROOM_PILLARS = ((-0.35, 8), (0.35, 8))
 BALLROOM_CHANDELIERS = 4
 BALLROOM_COFFINS = 5
+# Nettle's withered glade (M25.1, world/landmarks._glade): the oval and gate
+# in bramble round a floor of dead leaves and fog; a dead hollow tree in the
+# middle (GLADE_TREE tiles, w x h); GLADE_TOADSTOOLS giant toadstools in a
+# ring GLADE_RING of the way out (cover); GLADE_GROWCAPS glowing growcaps
+# further out (props["growcaps"]); GLADE_STUMPS stumps.
+GLADE_TREE = (8, 4)
+GLADE_TOADSTOOLS = 26
+GLADE_RING = 0.5
+GLADE_GROWCAPS = 6
+GLADE_STUMPS = 24
 # The gate seals (thorns) once a player is this far inside the stones, and
 # opens again when the boss falls.
 LAIR_SEAL_DEPTH = 6
@@ -2297,14 +2372,31 @@ BOSSES = {
     "fragile": BossSpec(
         name="Fragile, The Misunderstood",
         phases=(
-            BossPhase(1.0, (("riff", 3), ("axe", 2), ("slashes", 3), ("gaze", 2), ("mist", 2),
+            BossPhase(1.0, (("petals", 3), ("parasol", 2), ("slashes", 3), ("gaze", 2), ("mist", 2),
                             ("thralls", 1)), rest=1.0),
-            BossPhase(0.6, (("riff", 2), ("axe", 2), ("slashes", 2), ("gaze", 2), ("mist", 2),
+            BossPhase(0.6, (("petals", 2), ("parasol", 2), ("slashes", 2), ("gaze", 2), ("mist", 2),
                             ("thralls", 1), ("chandeliers", 2)), rest=0.85),
-            BossPhase(0.25, (("riff", 2), ("axe", 2), ("slashes", 2), ("gaze", 2), ("mist", 2),
+            BossPhase(0.25, (("petals", 2), ("parasol", 2), ("slashes", 2), ("gaze", 2), ("mist", 2),
                              ("thralls", 1), ("chandeliers", 2)), rest=0.6),
         ),
         loot=2500, achievement="fragile", pages=("fragile", "vampire_bat", "thrall"),
+    ),
+    # M25.1 (ai/bosses.Nettle, design/BOSSES.md section 23): her glamour
+    # decoys come on a timer all fight (DECOY_EVERY); "dust" (her shrinking
+    # dust) joins in phase 2; her blight seeds come on a timer in phase 3.
+    "nettle": BossSpec(
+        name="Nettle, the Blighted",
+        phases=(
+            BossPhase(1.0, (("spiral", 3), ("sparks", 2), ("thorns", 2), ("cage", 1),
+                            ("moths", 1), ("dive", 2), ("wisps", 1), ("nettles", 2)), rest=1.0),
+            BossPhase(0.6, (("spiral", 2), ("sparks", 2), ("thorns", 2), ("cage", 1),
+                            ("moths", 1), ("dive", 2), ("wisps", 1), ("nettles", 2),
+                            ("dust", 2)), rest=0.85),
+            BossPhase(0.25, (("spiral", 2), ("sparks", 2), ("thorns", 2), ("cage", 1),
+                             ("moths", 1), ("dive", 2), ("wisps", 1), ("nettles", 2),
+                             ("dust", 2)), rest=0.6),
+        ),
+        loot=2500, achievement="nettle", pages=("nettle", "blighted_sprite", "rot_moth"),
     ),
 }
 
@@ -2345,6 +2437,9 @@ KHEPRI_SHOTS = {
     "clod": ShellSpec(speed=9.0, damage=10, max_range=24.0, damages_terrain=False,
                       look="clod", sound="fizzle"),
 }
+# (2026-10-06: the Snow King and Fragile were taken down ~20% at the user's
+# request -- their hits ~20% weaker, their openings more generous; the old
+# numbers are in design/BOSSES.md sections 19 and 20.)
 # Ol' Spitter, the Unmannered One (ai/bosses.OlSpitter, M23.2): a
 # two-humped camel in his caravanserai. Damages are per hit at level 1 (x
 # the enemy damage scaling).
@@ -2560,7 +2655,17 @@ KING_SHOTS = {
 # ENCASE[1] rolls break out; a partner's shots break it, ENCASE[2] HP), and
 # his hits on you do ENCASE[3] x damage.
 SNOW_HIT_RADIUS = 2.2
-CROWN_KNOCK = (0.06, 4.0)
+# M24.5: between moves he glides round the hall (ai/bosses.SnowKing._glide):
+# SNOW_GLIDE = (tiles/s, nearest, farthest tiles from his target, (s, s)
+# between turning about, how fast his heading turns (rad/s), x speed on his
+# own black ice). SNOW_TRAIL = (tiles between frost marks, s they last).
+SNOW_GLIDE = (4.5, 7.0, 12.0, (4.0, 8.0), 1.6, 1.5)
+SNOW_TRAIL = (0.7, 1.4)
+# He glides during his moves too, SNOW_IN_MOVE x as fast; during his frost
+# breath he walks at you instead: SNOW_ADVANCE = (tiles/s, no closer than).
+SNOW_IN_MOVE = 0.5
+SNOW_ADVANCE = (1.5, 5.0)
+CROWN_KNOCK = (0.05, 4.0)
 CROWN_FLY = 22.0
 CROWN_FRICTION = 18.0
 CROWN_CHASE = 6.0
@@ -2568,48 +2673,48 @@ CROWN_VULN = 1.6
 CROWN_KICK = 16.0
 CROWN_KICK_EVERY = 2.0
 CROWN_DON = 0.8
-CROWN_RAGE = 20
-CROWN_COOLDOWN = 15.0
+CROWN_RAGE = 16
+CROWN_COOLDOWN = 12.0
 ICE_SHEETS = (2, 3)
 ICE_RADIUS = (4.0, 8.0)
 ICE_GROW = 3.0
 ICE_LIFE = 30.0
 ICE_TELL = 1.0
-ICE_TRACTION = 0.15
+ICE_TRACTION = 0.2
 ICE_TOP = 1.15
 BRAZIER_KINDLE = 2.0
 FIRE_BURN = 20.0
 FIRE_MELT = 9.0
 FIRE_REACH = 2.5                         # tiles from a brazier you stand to light it
 CHILL_FULL = 100.0
-CHILL_HIT = 12.0
-CHILL_STILL = 6.0
+CHILL_HIT = 10.0
+CHILL_STILL = 5.0
 CHILL_MOVING = 4.0
 CHILL_FIRE = 25.0
-ENCASE = (4.0, 3, 60, 1.5)
+ENCASE = (3.5, 3, 50, 1.4)
 SNOW_SHARDS = (0.6, 6, 60.0, 3, 0.4)     # raise (tell) s, shards, fan degrees, volleys, s between
 SNOW_SPIKES = (0.5, 22, 8.0, 0.8, 45.0)  # tell s, spikes, ring radius, hold s, gap degrees
-SNOW_PENGUINS = (0.8, 9, 3.2, 7.0, 14.0, 50.0, 10, 1.0)  # whistle s, penguins a row, spacing,
+SNOW_PENGUINS = (0.8, 9, 3.2, 8.0, 14.0, 50.0, 8, 1.0)  # whistle s, penguins a row, spacing,
                                          # gap, speed, slide (tiles; x2 on ice), damage, radius
-SNOW_BREATH = (0.8, 1.6, 50.0, 40.0, 15.0, 0.25, 4, 6.0, 0.6)  # wedge (tell) s, breath s,
+SNOW_BREATH = (0.8, 1.6, 50.0, 40.0, 15.0, 0.25, 3, 5.0, 0.7)  # wedge (tell) s, breath s,
                                          # cone degrees, sweep degrees, reach, s a tick,
                                          # damage a tick, chill a tick, walking speed x
-SNOW_ICICLES = (1.0, 6, 1.6, 14, 4)      # shadows (tell) s, icicles, radius, damage, shards each
+SNOW_ICICLES = (1.0, 5, 1.6, 11, 4)      # shadows (tell) s, icicles, radius, damage, shards each
 SNOW_BLIZZARD = (0.7, 4.0, 3.0, 0.4, 3.4, 8.0, 22.0)  # tell s, lasts s, wind tiles/s, s between
                                          # rows, row gap, hole, half-width
-SNOW_SNOWBALLS = (0.6, 2, 10.0, (1.0, 2.5), (10, 18), 6.0, 1.5)  # tell s, snowballs, speed,
+SNOW_SNOWBALLS = (0.6, 2, 10.0, (1.0, 2.5), (8, 14), 6.0, 1.5)  # tell s, snowballs, speed,
                                          # radius small..big, damage small..big, life s,
                                          # speed x on ice
 SNOW_SHOTS = {
-    "shard": ShellSpec(speed=13.0, damage=9, max_range=26.0, damages_terrain=False,
+    "shard": ShellSpec(speed=13.0, damage=5, max_range=26.0, damages_terrain=False,
                        look="shard", sound="fizzle"),
-    "spike": ShellSpec(speed=12.0, damage=9, max_range=18.0, damages_terrain=False,
+    "spike": ShellSpec(speed=12.0, damage=7, max_range=18.0, damages_terrain=False,
                        look="spike", sound="fizzle"),
-    "snow": ShellSpec(speed=9.0, damage=7, max_range=40.0, damages_terrain=False,
+    "snow": ShellSpec(speed=9.0, damage=6, max_range=40.0, damages_terrain=False,
                       look="snow", sound="fizzle"),
 }
 # Fragile, The Misunderstood (ai/bosses.Fragile, M24.3): a vampire with a
-# bass-axe in her ruined ballroom. Damages are per hit at level 1 (x the
+# black lace parasol in her ruined ballroom (it was a bass-axe until M24.4). Damages are per hit at level 1 (x the
 # enemy damage scaling).
 # Signature 1, SUNLIGHT (all fight): a hero at a window's lever
 # LEVER_TIME s opens its shutter for SHAFT_OPEN s: a shaft of sun
@@ -2626,15 +2731,15 @@ SNOW_SHOTS = {
 # BEAT_PERFECT s of a beat stuns her PERFECT_STUN s (at most every
 # PERFECT_EVERY s).
 FRAGILE_HIT_RADIUS = 1.6
-LEVER_TIME = 1.5
+LEVER_TIME = 1.2
 LEVER_REACH = 2.2
-SHAFT_OPEN = 15.0
+SHAFT_OPEN = 18.0
 SHAFT_WIDTH = 5.0
 SHAFT_LEN = 60.0
 SHAFT_SLANT = 0.35
 SUN_VULN = 3.0
-SUN_STUN = 2.5
-SLAM_EVERY = 20.0
+SUN_STUN = 3.0
+SLAM_EVERY = 25.0
 SLAM_TELL = 1.0
 FRAGILE_FORMS = ("girl", "bat", "wolf")
 FRAGILE_FORM_MOVES = {
@@ -2643,35 +2748,114 @@ FRAGILE_FORM_MOVES = {
 }
 FORM_TIME = 15.0
 FORM_TELL = 1.0
-BAT_ARMOR = 0.5
+BAT_ARMOR = 0.6
 FORM_SPEED = {"girl": 6.0, "bat": 10.0, "wolf": 8.0}   # tiles/s she drifts between moves
 BEAT_BPM = (100.0, 140.0)
-BEAT_PERFECT = 0.12
+BEAT_PERFECT = 0.15
 PERFECT_STUN = 1.2
-PERFECT_EVERY = 5.0
-FRAGILE_RIFF = (0.6, 24, 40.0, 3, 0.5)   # strum (tell) s, notes a ring, gap degrees, rings, s between
-FRAGILE_AXE = (0.7, 18.0, 22.0, 14, 1.4)  # wind-up (tell) s, speed, reach, damage, hit radius
+PERFECT_EVERY = 4.0
+# M24.5: between moves she circles you (ai/bosses.Fragile._drift):
+# FRAGILE_CIRCLE = (nearest, farthest tiles, (s, s) between turning about,
+# x FORM_SPEED).
+FRAGILE_CIRCLE = (8.0, 12.0, (4.0, 7.0), 0.8)
+# ...and during her moves too, FRAGILE_IN_MOVE x as fast -- except these,
+# which need her in place (and her dashes, which move her anyway).
+FRAGILE_IN_MOVE = 0.5
+FRAGILE_PLANTED = ("gaze", "mist", "swoop", "charge")
+FRAGILE_PETALS = (0.6, 22, 50.0, 3, 0.5)  # twirl (tell) s, petals a ring, gap degrees, rings, s between
+FRAGILE_PARASOL = (0.7, 18.0, 22.0, 11, 1.4)  # wind-up (tell) s, speed, reach, damage, hit radius
 FRAGILE_SLASHES = (0.5, 5, 40.0, 3, 0.35)  # tell s, slashes a fan, degrees, volleys, s between
-FRAGILE_GAZE = (0.8, 2.5, 40.0, 16.0, 3.0)  # wedge (tell) s, gaze s, cone degrees, reach, pull
+FRAGILE_GAZE = (0.8, 2.5, 40.0, 16.0, 2.4)  # wedge (tell) s, gaze s, cone degrees, reach, pull
                                             # tiles/s
 FRAGILE_MIST = (0.6, 10.0, 22.0, 4.0, 0.6, 2.0)  # shimmer (tell) s, nearest / farthest hop, mist
                                                  # lasts s, walking speed x, mist radius
-FRAGILE_THRALLS = (0.8, 2, 4)            # creak (tell) s, thralls a call, most alive
+FRAGILE_THRALLS = (0.8, 2, 3)            # creak (tell) s, thralls a call, most alive
 STAKE_TIME = 2.0
-FRAGILE_CHANDELIER = (1.0, 2.5, 18)      # shadow (tell) s, crash radius, damage
+FRAGILE_CHANDELIER = (1.0, 2.5, 14)      # shadow (tell) s, crash radius, damage
 FRAGILE_CURTAIN = (0.7, 3.5, 0.35, 3.2, 7.0, 22.0)  # bats: tell s, lasts s, s between rows, gap,
                                                     # hole, half-width
-FRAGILE_SWOOP = (0.6, 26.0, 30.0, 12, 1.0)  # line (tell) s, speed, longest, damage, width
-FRAGILE_CHARGE = (0.7, 26.0, 32.0, 16)   # line (tell) s, speed, longest, damage
-FRAGILE_HOWL = (0.8, 8.0, 5.0, 16)       # tell s, push radius, push tiles, ring of shots
+FRAGILE_SWOOP = (0.6, 26.0, 30.0, 10, 1.0)  # line (tell) s, speed, longest, damage, width
+FRAGILE_CHARGE = (0.7, 26.0, 32.0, 13)   # line (tell) s, speed, longest, damage
+FRAGILE_HOWL = (0.8, 8.0, 5.0, 12)       # tell s, push radius, push tiles, ring of shots
 FRAGILE_CLAWS = (0.4, 5, 70.0, 2, 0.3)   # tell s, slashes, fan degrees, volleys, s between
 FRAGILE_SHOTS = {
-    "note": ShellSpec(speed=11.0, damage=9, max_range=30.0, damages_terrain=False,
-                      look="riff", sound="fizzle"),
-    "slash": ShellSpec(speed=15.0, damage=10, max_range=24.0, damages_terrain=False,
+    "petal": ShellSpec(speed=11.0, damage=7, max_range=30.0, damages_terrain=False,
+                       look="petal", sound="fizzle"),
+    "slash": ShellSpec(speed=15.0, damage=8, max_range=24.0, damages_terrain=False,
                        look="slash", sound="fizzle"),
-    "bat": ShellSpec(speed=10.0, damage=8, max_range=40.0, damages_terrain=False,
+    "bat": ShellSpec(speed=10.0, damage=6, max_range=40.0, damages_terrain=False,
                      look="bat", sound="fizzle"),
+}
+# Nettle, the Blighted (ai/bosses.Nettle, M25.1): a corrupted pixie in her
+# withered glade. She flies (over toadstools and stumps, never out of the
+# glade), circling her target NETTLE_ORBIT = (nearest, farthest tiles, (s, s)
+# between turning about, tiles/s, x that speed during her moves). Damages
+# are per hit at level 1 (x the enemy damage scaling).
+# Signature 1, GLAMOUR (all fight): every DECOY_EVERY s (a DECOY_TELL s
+# shimmer) she splits into DECOYS[phase] copies besides herself, DECOY_SPREAD
+# tiles about -- and she may come out of the shimmer as any of them. Copies
+# fly and cast her spirals and sparks too (with DECOY_SHARE of the shots).
+# Only she casts a shadow. A hit pops a copy into a ring of DECOY_POP dust
+# shots; one not popped fades after DECOY_LIFE s.
+# Signature 2, SHRINKING DUST (phase 2+): her "dust" move throws dust clouds
+# (NETTLE_DUST); in phase 2+ her dives trail them too. DUST_SHRINK s in a
+# cloud shrinks you (Character.shrunk): SHRINK = (s it lasts, your speed x,
+# your damage x, tiles her hits knock you). Standing GROWCAP_TIME s within
+# GROWCAP_REACH of a growcap grows you back; it regrows GROWCAP_REGROW s on.
+# Signature 3, BLIGHT (phase 3): every BLIGHT_EVERY s she plants
+# BLIGHT_SEEDS rot seeds (BLIGHT_TELL s falling; at most BLIGHT_MAX); each
+# patch grows to BLIGHT_RADIUS over BLIGHT_GROW s. On one you take
+# BLIGHT_DAMAGE every BLIGHT_TICK s; while she's over one she heals
+# BLIGHT_HEAL HP a second -- and between her moves she flies back to the
+# nearest patch to drink. BLIGHT_PULL s within BLIGHT_REACH of a seed pulls
+# it (its patch goes with it).
+NETTLE_HIT_RADIUS = 1.9
+NETTLE_ORBIT = (9.0, 13.0, (4.0, 7.0), 4.5, 0.5)
+DECOY_EVERY = 18.0
+DECOY_TELL = 1.0
+DECOYS = (2, 3, 4)
+DECOY_SPREAD = 7.0
+DECOY_SHARE = 0.5
+DECOY_POP = 8
+DECOY_LIFE = 14.0
+NETTLE_DUST = (0.7, 3, 2.5, 6.0)          # tell s, clouds, radius, lasts s
+DUST_SHRINK = 0.8
+SHRINK = (15.0, 1.35, 0.6, 1.5)
+GROWCAP_REACH = 1.8
+GROWCAP_TIME = 0.4
+GROWCAP_REGROW = 20.0
+BLIGHT_EVERY = 16.0
+BLIGHT_SEEDS = 2
+BLIGHT_TELL = 1.0
+BLIGHT_MAX = 5
+BLIGHT_RADIUS = 6.0
+BLIGHT_GROW = 10.0
+BLIGHT_DAMAGE = 3
+BLIGHT_TICK = 0.5
+BLIGHT_HEAL = 30.0
+BLIGHT_REACH = 1.8
+BLIGHT_PULL = 1.5
+# Her moves.
+NETTLE_SPIRAL = (0.6, 2, 2.4, 0.1, 2.4)  # tell s, arms, lasts s, s between, turn rad/s
+NETTLE_SPARKS = (0.6, 5, 7.0, 2.0, 5.0, 8, 50.0)  # tell s, sparks, speed, turn rad/s, life s,
+                                         # damage, fan degrees
+NETTLE_THORNS = (0.8, 3, 20.0, 1.6, 0.05, 1.3, 10, 22.0)  # cracks (tell) s, lines, length,
+                                         # spacing, s between bursts, hit radius, damage,
+                                         # degrees between lines
+NETTLE_CAGE = (0.7, 22, 8.0, 0.7, 50.0)  # tell s, thorns, ring radius, hold s, gap degrees
+NETTLE_MOTHS = (0.8, 4, 8)               # tell s, moths a call, most alive
+NETTLE_DIVE = (0.5, 3, 24.0, 30.0, 9, 1.2, 4.0)  # line (tell) s, dives, speed, longest,
+                                         # damage, width, tiles between trail clouds
+NETTLE_WISPS = (1.2, 5, 6.0, 1.8, 7.0, 8, 12.0)  # gathering (tell) s, wisps, speed, turn
+                                         # rad/s, life s, damage, from how far they drift in
+NETTLE_NETTLES = (1.0, 9, 1.6, 11, 6.0)  # shadows (tell) s, nettles, radius, damage, spread
+NETTLE_SHOTS = {
+    "glitter": ShellSpec(speed=10.0, damage=6, max_range=30.0, damages_terrain=False,
+                         look="glitter", sound="fizzle"),
+    "pop": ShellSpec(speed=8.0, damage=5, max_range=10.0, damages_terrain=False,
+                     look="glitter", sound="fizzle"),
+    "thorn": ShellSpec(speed=12.0, damage=7, max_range=18.0, damages_terrain=False,
+                       look="thorn", sound="fizzle"),
 }
 # The golden scarab (ai/creatures.GoldenScarab): spooked within
 # GOLDEN_SCARAB[0] tiles, it flees; after GOLDEN_SCARAB[1] s of running it
