@@ -68,7 +68,7 @@ from .. import config, palette
 from ..ai.brain import AIContext
 from ..app import app_of
 from ..engine_ext.camera import Camera
-from ..engine_ext.gamepads import BUTTON_A, BUTTON_B, BUTTON_LB, BUTTON_RB, EV_BUTTON
+from ..engine_ext.gamepads import BUTTON_A, BUTTON_B, BUTTON_LB, BUTTON_RB, BUTTON_Y, EV_BUTTON
 from ..engine_ext.input import Mouse, move_axes
 from ..entities.character import Character
 from ..entities.effects import Effect, update_effects
@@ -91,10 +91,11 @@ from ..render.slash import draw_slashes
 from ..render.spell_fx import draw_gems, draw_spells, draw_statuses, draw_summons
 from ..render.sprites import SpriteBank
 from ..render.terrain import TerrainRenderer
-from ..systems import combat, roll
+from ..ai.plains import drum_haste, tick_drum
+from ..systems import combat, mount, roll
 from ..systems.quests import Quests, free_spot
 from ..systems.spawner import Spawner
-from ..systems.run_rules import RunRules, pact_totals
+from ..systems.run_rules import RunRules, difficulty_totals, pact_totals
 from ..systems.spells import sync_spells, update_spells
 from ..systems.statuses import update_statuses
 from ..systems.zones import update_zones
@@ -118,9 +119,11 @@ _GAME_OVER_DELAY = 1.0
 
 
 class GameScene(Scene):
-    def __init__(self, hero: str | None = None, seed: int | None = None) -> None:
+    def __init__(self, hero: str | None = None, seed: int | None = None,
+                 difficulty: int | None = None) -> None:
         self.hero_key = hero          # None: the last hero picked (settings)
         self.seed_choice = seed       # None: a random island
+        self.difficulty_choice = difficulty   # None: the last one picked (settings)
 
     # --- Setup ---------------------------------------------------------------------------
 
@@ -137,6 +140,13 @@ class GameScene(Scene):
         # the cards that react to what happens (systems/run_rules.py).
         self.pact_keys = sorted(self.app.guild.active_pacts)
         self.pacts = pact_totals(self.pact_keys)
+        # The difficulty level (P5): only those opened, unless in dev mode.
+        level = self.difficulty_choice
+        if level is None:
+            level = self.app.settings.difficulty
+        top = len(config.DIFFICULTIES) - 1 if self.app.dev else self.app.guild.difficulty_open
+        self.difficulty = max(0, min(top, level))
+        self.diff = difficulty_totals(self.difficulty)
         self.rules = RunRules(self)
         self.zones: list = []
         self.players: list[Player] = [self._make_player(0, self.hero_key, local=True)]
@@ -156,6 +166,7 @@ class GameScene(Scene):
         self.quests = Quests(self)
         # Maps exist only on the island (the test map has no layout).
         self.big_map = BigMap(self.world) if self.players[0].minimap is not None else None
+        self.dev_targets = False        # dev mode, F4: the big map shows every quest's targets
         self._run_recorded = False
         self.broken: set[str] = set()     # records this run broke
         self.overlay = None               # None | PauseMenu | SettingsPanel | GameOverPanel
@@ -190,7 +201,8 @@ class GameScene(Scene):
         else:
             controls = AutoControls(self.mouse, self.app.pads)
         has_maps = getattr(self.world, "layout", None) is not None
-        p = Player(index, hero, controls, camera, RunStats(hero_key, seed, (sx, sy)),
+        p = Player(index, hero, controls, camera,
+                   RunStats(hero_key, seed, (sx, sy), difficulty=self.difficulty),
                    local=local, ghost=ghost, color=player_color(index),
                    minimap=Minimap() if has_maps and local else None,
                    meta=meta, unlocked=None if ghost else guild.unlocked_cards())
@@ -210,7 +222,8 @@ class GameScene(Scene):
         return p
 
     def _update_spawner(self) -> None:
-        """Pacts, Beacon and Bounty: how many enemies, how tough, how fast."""
+        """Pacts, Beacon, Bounty and the difficulty: how many enemies, how
+        tough, how fast."""
         sp = self.spawner
         if sp is None:
             return
@@ -220,7 +233,9 @@ class GameScene(Scene):
                 flags |= p.hero.stats.flags
         pacts = self.pacts
         sp.density = (1 + pacts["enemy_count"]) * (1 + (config.BEACON_SPAWNS if "beacon" in flags
-                                                        else 0.0))
+                                                        else 0.0)) * (1 + self.diff["enemies"])
+        sp.hp_mult = self.diff["hp"]
+        sp.damage_mult = self.diff["damage"]
         sp.level_bonus = pacts["enemy_levels"]
         sp.damage_bonus = pacts["enemy_damage"]
         sp.haste = pacts["enemy_haste"] + (config.HASTE_BOUNTY if "bounty" in flags else 0.0)
@@ -292,14 +307,15 @@ class GameScene(Scene):
         self._set_overlay(self._pause_menu)
 
     def _where(self) -> str:
-        """Biome, distance from the start and seed (the pause menu's line;
-        they're not on the HUD)."""
+        """Biome, distance from the start, seed and difficulty (the pause
+        menu's line; they're not on the HUD)."""
         h = self.viewed.hero
         biome_at = getattr(self.world, "biome_at", None)
         biome = biome_at(math.floor(h.x), math.floor(h.y)).title.upper() if biome_at else "TEST MAP"
         dist = math.hypot(h.x - self.spawn[0], h.y - self.spawn[1])
         seed = getattr(self.world, "seed", None)
-        return f"{biome}   {dist:.0f} tiles out" + (f"   seed {seed}" if seed is not None else "")
+        return (f"{biome}   {dist:.0f} tiles out" + (f"   seed {seed}" if seed is not None else "")
+                + f"   {self.diff['name'].upper()}")
 
     def _open_settings(self) -> None:
         self._set_overlay(SettingsPanel(self.manager, self._pause))
@@ -331,15 +347,26 @@ class GameScene(Scene):
             self._sounds.append("chime")
 
     def _dev_quest(self, key: int) -> None:
-        """Developer mode: F6 jumps next to the dev quest's giver
-        (config.QUEST_FOCUS, set by run.py --boss; else the first quest not
-        beaten), F7 finishes its hunt (the boss wakes), F8 jumps outside its
-        lair's gate."""
+        """Developer mode: F4 switches the big map's every-target view on
+        and off (off at first: the maps look like a normal run's). F5 picks the next quest as the dev quest (P2; at
+        first it's config.QUEST_FOCUS, set by run.py --boss, else the first
+        quest not beaten). F6 jumps next to its giver, F7 finishes its hunt
+        (the boss wakes), F8 jumps outside its lair's gate, F9 to its
+        nearest target still to do."""
+        if key == pygame.K_F4:
+            self.dev_targets = not self.dev_targets
+            self._sounds.append("ui")
+            return
+        if key == pygame.K_F5:
+            if self.quests.dev_cycle() is not None:
+                self._sounds.append("ui")
+            return
         if key == pygame.K_F7:
             if self.quests.dev_finish_hunt():
                 self._sounds.append("chime")
             return
-        spot = self.quests.dev_spot("giver" if key == pygame.K_F6 else "lair")
+        which = {pygame.K_F6: "giver", pygame.K_F8: "lair", pygame.K_F9: "target"}[key]
+        spot = self.quests.dev_spot(which, (self.hero.x, self.hero.y))
         if spot is None or not self.me.alive:
             return
         h = self.hero
@@ -353,7 +380,7 @@ class GameScene(Scene):
 
     def _restart(self) -> None:
         """Go again: same hero, and the same island if a seed was chosen."""
-        self.manager.switch_to(GameScene(self.hero_key, self.seed_choice))
+        self.manager.switch_to(GameScene(self.hero_key, self.seed_choice, self.difficulty))
 
     @property
     def map_open(self) -> bool:
@@ -380,6 +407,9 @@ class GameScene(Scene):
             return
         if not in_menu and event.type == EV_BUTTON and event.button in (BUTTON_B, BUTTON_LB):
             self.me.controls.queue_roll()
+            return
+        if not in_menu and event.type == EV_BUTTON and event.button == BUTTON_Y:
+            self.me.controls.queue_mount()        # (P6)
             return
         for ev in app_events(self.manager, event, menu=in_menu):
             self._handle(ev)
@@ -409,6 +439,9 @@ class GameScene(Scene):
             if event.type == pygame.KEYDOWN and event.key in (pygame.K_m, pygame.K_ESCAPE):
                 self._toggle_map()
                 return
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_F4 and self.app.dev:
+                self._dev_quest(event.key)          # (see it change on the open map)
+                return
             d = self.manager.display
             pos = getattr(event, "pos", None) or pygame.mouse.get_pos()
             self.big_map.handle_event(event, d.window_to_canvas(*pos), d.cell_w, d.cell_h,
@@ -427,9 +460,12 @@ class GameScene(Scene):
                 self.me.controls.queue_interact()
             elif event.key in (pygame.K_LSHIFT, pygame.K_RSHIFT):
                 self.me.controls.queue_roll()
+            elif event.key == pygame.K_q:
+                self.me.controls.queue_mount()        # (P6)
             elif event.key == pygame.K_l and self.app.dev and self.me.alive:
                 self._dev_level_up()
-            elif event.key in (pygame.K_F6, pygame.K_F7, pygame.K_F8) and self.app.dev:
+            elif event.key in (pygame.K_F4, pygame.K_F5, pygame.K_F6, pygame.K_F7, pygame.K_F8,
+                               pygame.K_F9) and self.app.dev:
                 self._dev_quest(event.key)
 
     # --- Frame -------------------------------------------------------------------------
@@ -514,6 +550,7 @@ class GameScene(Scene):
                 inp.pick = p.controls.take_pick()
             inp.interact = inp.interact or p.controls.take_interact()
             inp.roll = inp.roll or p.controls.take_roll()
+            inp.mount = inp.mount or p.controls.take_mount()
             if p.ghost and p.progress.offer:
                 inp.pick = 0                  # bots take the first card
             if p.hero.stats is not None and p.hero.stats.has("hunters_mark"):
@@ -523,6 +560,7 @@ class GameScene(Scene):
             self.rules.tick(p, dt)
             if p.regen > 0 and not self.pacts["famine"] and p.hero.irradiated <= 0:
                 p.hero.heal(p.regen * dt)
+            mount.step(self, p, inp, dt)
             roll.step(self, p, inp, dt)
             rolling, x0, y0 = p.hero.rolling, p.hero.x, p.hero.y
             p.hero.move(inp.move_x, inp.move_y, dt, self.world)
@@ -539,6 +577,7 @@ class GameScene(Scene):
                 p.aim = inp.aim
             weapon = p.hero.weapon
             frozen = p.hero.encased > 0            # (M24.2: encased in ice: no attacks)
+            frozen = frozen or bool(p.hero.mount)  # (P6: nobody attacks from the saddle)
             if weapon.update(self.rules.weapon_dt(p, dt),
                              (inp.fire or weapon.spec.auto) and not frozen):
                 self._attack(p)
@@ -550,7 +589,8 @@ class GameScene(Scene):
 
         # Enemies act. Only those near some player think; others wait frozen.
         heroes = [p.hero for p in self.players]
-        ctx = AIContext(self.world, heroes, self._actors(), self.projectiles, self.effects)
+        ctx = AIContext(self.world, heroes, self._actors(), self.projectiles, self.effects,
+                        zones=self.zones)
         m = config.ENEMY_ACTIVE_MARGIN
         boxes = [(f.x - f.half_w - m, f.x + f.half_w + m, f.y - f.half_h - m, f.y + f.half_h + m)
                  for f in (p.focus() for p in self.players if p.alive or not p.ghost)]
@@ -562,7 +602,9 @@ class GameScene(Scene):
                 x, y = e.x, e.y
                 # Chill slows the enemy's whole clock; frozen, it doesn't act.
                 # Pacts and Bounty speed it up.
-                scale = (e.status.time_scale if e.status is not None else 1.0) * (1 + getattr(e, "haste", 0.0))
+                tick_drum(e, dt)                          # (P7: the war drummer's ring)
+                scale = (e.status.time_scale if e.status is not None else 1.0) * (
+                    1 + getattr(e, "haste", 0.0) + drum_haste(e))
                 scale *= getattr(e, "time_mult", 1.0)     # (the Magus's time zones, M23.3)
                 if getattr(e, "boss", False):
                     # A boss fights wherever it is in its arena, and is
@@ -575,6 +617,7 @@ class GameScene(Scene):
                     if x0 <= x <= x1 and y0 <= y <= y1:
                         e.think(ctx, dt * scale)
                         break
+        self._wake_spawned(ctx)          # (P7: what a molehill or scarecrow sent out)
         sounds += ctx.events
         ctx.events.clear()
 
@@ -659,6 +702,8 @@ class GameScene(Scene):
         """Act on the player's card choice, if any (see _choose_card), then
         put a new offer on the table while picks are banked."""
         prog = p.progress
+        if prog.level != p.loadout_level:                # (P3: faster with each level)
+            self._apply_loadout(p)
         if pick is not None and prog.offer:
             if pick == "reroll":
                 if prog.rerolls > 0:
@@ -709,8 +754,10 @@ class GameScene(Scene):
 
     @staticmethod
     def _apply_loadout(p: Player) -> None:
-        """Rebuild the hero from the base specs plus every card taken."""
-        lo = build_loadout(p.stats.hero, p.progress.taken, p.meta)
+        """Rebuild the hero from the base specs plus every card taken (and
+        the speed of its level, P3)."""
+        lo = build_loadout(p.stats.hero, p.progress.taken, p.meta, p.progress.level)
+        p.loadout_level = p.progress.level
         hero = p.hero
         gained = lo.body.max_hp - hero.max_hp
         old_shield = hero.stats.shield if hero.stats is not None else 0.0
@@ -815,11 +862,12 @@ class GameScene(Scene):
     def _loot(self, p: Player, enemy, times: int = 1) -> None:
         """A kill's loot goes straight into the run's purse; a shard flies
         from the body to the hero to show it. The loot bonus and the active
-        pacts' bonus add to it; `times`: a Bounty cache, worth many kills."""
+        pacts' bonus add to it, and the difficulty's (P5); `times`: a Bounty
+        cache, worth many kills."""
         stats = p.hero.stats
         bonus = stats.loot if stats is not None else 0.0
         amount = (enemy.espec.xp * config.LOOT_PER_XP * (1 + bonus) * (1 + self.pacts["loot"])
-                  * times)
+                  * (1 + self.diff["loot"]) * times)
         p.stats.loot += amount
         self.effects.append(Effect("loot", enemy.x, enemy.y, target=p.hero,
                                    value=max(1, round(amount))))
@@ -889,14 +937,14 @@ class GameScene(Scene):
     @staticmethod
     def _meter(hero) -> tuple | None:
         """The HUD's extra meter row while a boss has one on you (M24.1 rads,
-        M24.2 chill): (label, 0..1 full, alarm)."""
+        M24.2 chill), or the mount's wait (P6): (label, 0..1 full, alarm)."""
         if hero.rads > 0 or hero.irradiated > 0:
             return ("RAD", hero.rads / config.RADS_FULL, hero.irradiated > 0)
         if hero.chill > 0 or hero.encased > 0:
             return ("CHL", hero.chill / config.CHILL_FULL, hero.encased > 0)
         if hero.shrunk > 0:                   # (M25.1: tiny, until a growcap or this runs out)
             return ("TNY", hero.shrunk / config.SHRINK[0], True)
-        return None
+        return mount.meter(hero)              # (P6: the whistle, or the wait after a fall)
 
     def _draw(self, text: TextRenderer) -> None:
         d = self.manager.display
@@ -986,9 +1034,15 @@ class GameScene(Scene):
                 center(text, d.rows - 3, f"  E / A: talk to {who}  ",
                        palette.HUB_PROMPT, bg=palette.HUD_PANEL)
         if self.app.dev and not self.map_open:
-            text.put(0, d.rows - 1, " DEV  L: level up  F6: to quest giver  F7: finish hunt  "
-                                    "F8: to lair ", palette.DEV_TAG, palette.HUD_PANEL)
+            dq = self.quests.dev_quest()
+            name = f"{dq.biome.upper()} {dq.spec.camp_name or dq.spec.giver.upper()}" if dq else "-"
+            text.put(0, d.rows - 1, f" DEV  L: level up  F4: all targets "
+                                    f"{'on' if self.dev_targets else 'off'}  F5: quest [{name}]  "
+                                    "F6: giver  F7: finish  F8: lair  F9: target ",
+                     palette.DEV_TAG, palette.HUD_PANEL)
         if self.map_open:
+            if self.app.dev and self.dev_targets:     # (P2, F4: every quest's targets)
+                pins = self.quests.pins((me.hero.x, me.hero.y), every_target=True)
             self.big_map.draw(text, self.sprites, cam.view_rows,
                               (me.hero.x, me.hero.y), me.hero.aim_angle, others, pins,
                               self.quests.log())

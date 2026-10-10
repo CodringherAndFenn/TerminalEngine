@@ -259,13 +259,21 @@ def hero_stats(taken: list[tuple[str, str]], meta=()) -> HeroStats:
     return apply_mods(HeroStats(), steps)
 
 
-def build_loadout(hero_key: str, taken, meta=()) -> Loadout:
+def level_speed(level: int) -> float:
+    """P3: the move speed bonus a hero's level gives (a fraction)."""
+    return min(config.LEVEL_SPEED_CAP, config.LEVEL_SPEED * max(0, level - 1))
+
+
+def build_loadout(hero_key: str, taken, meta=(), level: int = 1) -> Loadout:
     """The hero's stats, body and weapon with the Guild's upgrades (`meta`,
-    see meta/guild.Guild.meta_steps) and every card in `taken` (a list of
-    (key, rarity); a Counter of keys is read as their first rarity)."""
+    see meta/guild.Guild.meta_steps), every card in `taken` (a list of
+    (key, rarity); a Counter of keys is read as their first rarity) and
+    the speed their `level` gives (P3)."""
     if isinstance(taken, Counter):
         taken = [(k, rarities_of(config.CARDS[k])[0]) for k in sorted(taken)
                  for _ in range(taken[k])]
+    if level_speed(level):
+        meta = list(meta) + [("move", "add", level_speed(level))]
     stats = hero_stats(taken, meta)
     body = config.HEROES[hero_key]
     weapon = config.WEAPONS[body.weapon]

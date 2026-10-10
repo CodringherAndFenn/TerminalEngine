@@ -99,13 +99,6 @@ class HeroCardRev2Test(unittest.TestCase):
         expected = sum(8 * (1 + 0.2 * k) for k in range(n))
         self.assertAlmostEqual(5000 - d.hp, expected)
 
-    def test_volley_every_4th(self):
-        m, s = game("huntress")
-        take(s, ("volley", "epic"))
-        got = [s.rules.attack_mods(s.me)["extra_pellets"] for _ in range(8)]
-        self.assertEqual(got, [0, 0, 0, 4, 0, 0, 0, 4])
-        pygame.mouse.set_visible(True)
-
     def test_crescendo_and_lullaby(self):
         h = carded("bard", ("crescendo", "common"), ("lullaby", "rare"))
         h.hp = 50
@@ -467,7 +460,7 @@ class GuildRev2Test(unittest.TestCase):
             g = Guild.load(path)
         refund = (80 + 128) + 1500 + 60 + (100 + 160)
         self.assertEqual(g.loot, 10 + refund)
-        self.assertEqual((g.guild, g.heroes, g.cards), ({}, {}, {"overload"}))
+        self.assertEqual((g.guild, g.heroes, g.cards), ({}, {}, {"phase_darts"}))   # (P4 rename)
 
     def test_pacts_and_pages(self):
         g = Guild(loot=10 ** 5)

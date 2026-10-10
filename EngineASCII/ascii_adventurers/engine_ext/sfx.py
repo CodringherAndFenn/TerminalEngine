@@ -55,7 +55,7 @@ VOLUME_JITTER = 0.1        # +-10% loudness per play
 MIX = {
     "bolt": 0.8, "spark": 0.75, "bow": 0.85, "chime": 0.7, "hex": 0.8, "orb": 0.7,
     "boulder": 1.0, "hit": 0.75, "break": 1.0, "fizzle": 0.2, "zap": 0.55,
-    "swing": 0.6, "axe": 0.6, "pulse": 0.8, "ui": 0.55,
+    "swing": 0.6, "axe": 0.6, "pulse": 0.8, "ui": 0.55, "whistle": 0.5,
 }
 
 
@@ -135,6 +135,17 @@ def _recipes(freq: int) -> dict[str, list[float]]:
         return env * (math.sin(2 * math.pi * 1568 * t) + 0.7 * math.sin(2 * math.pi * 2093 * t)
                       + 0.45 * math.sin(2 * math.pi * 2637 * t) + 0.2 * math.sin(2 * math.pi * 4186 * t))
 
+    # P6: calling the mount -- two quick whistled notes, the second higher.
+    wh1, wh2 = sweep(1500.0, 1900.0, 0.04), sweep(1900.0, 2500.0, 0.04)
+
+    def whistle(t, u):
+        if t < 0.12:
+            return math.sin(wh1(t)) * min(1.0, t / 0.01) * (1 - t / 0.12) ** 0.3
+        t2 = t - 0.16
+        if t2 < 0:
+            return 0.0
+        return math.sin(wh2(t2)) * min(1.0, t2 / 0.01) * math.exp(-t2 / 0.12)
+
     swoop = sweep(520.0, 150.0, 0.12)
 
     def hex_(t, u):
@@ -197,6 +208,7 @@ def _recipes(freq: int) -> dict[str, list[float]]:
         "axe": whirr,
         "pulse": _render(0.45, pulse, freq),
         "ui": _render(0.08, ui, freq),
+        "whistle": _render(0.42, whistle, freq),
     }
 
 

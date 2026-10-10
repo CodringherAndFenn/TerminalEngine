@@ -25,8 +25,8 @@ Roll cards (config.CARDS section 6.10):
   Backflip (huntress)  a fan of arrows toward the aim as the roll starts;
   Shoulder Charge (dwarf)  enemies the roll runs into are hit and shoved
                   along the roll, each once per roll;
-  Prism Dash (princess)  a trail like Scorched Trail, each patch a random
-                  status;
+  Pirouette (princess, P4)  a ring of her colors all round her as the
+                  roll starts;
   Drop the Beat (bard)  a free, stronger beat as the roll ends.
 
 Everything here runs inside the simulation step and stays deterministic
@@ -40,7 +40,7 @@ import math
 from .. import config
 from ..entities.effects import Effect
 from .collision import hull_hits_solid
-from .combat import _may_hurt, attack, fire, push, segment_circle_t, strike
+from .combat import _may_hurt, attack, fire, push, segment_circle_t, strike, volley
 from .statuses import inflict
 from .zones import Zone
 
@@ -116,7 +116,7 @@ def after_move(scene, p, was_rolling: bool, x0: float, y0: float) -> None:
     hero.roll_steps += 1
     if st is None:
         return
-    if st.has("scorched_trail") or st.has("prism_dash"):
+    if st.has("scorched_trail"):
         _trail(scene, p, math.hypot(hero.x - x0, hero.y - y0))
     if not hero.rolling:                         # it ended this step
         if st.has("slipstream"):
@@ -150,6 +150,13 @@ def start(scene, p, move_x: float, move_y: float) -> None:
                            spread_add=max(0.0, fan - hero.weapon.spec.spread_deg))
         if st.has("blink"):
             sounds += _blink(scene, p)
+        spec = hero.weapon.spec
+        if st.has("pirouette") and spec.shell is not None and spec.shell.look == "prism":
+            # Pirouette (P4): a ring of her colors, in turn, all round her.
+            n, mult = config.PIROUETTE
+            sounds += volley(hero, scene.world, scene.projectiles, scene.effects,
+                             hero.aim_angle, n, 360.0 * (n - 1) / n, spec.shell, spec.tags,
+                             mult=mult)
     if p.local:
         scene._sounds.extend(sounds)
 
@@ -207,24 +214,17 @@ def _during(scene, p) -> None:
 
 
 def _trail(scene, p, moved: float) -> None:
-    """Scorched Trail / Prism Dash: a patch every TRAIL_SPACING tiles
-    rolled (`moved`: this step's distance), the first one straight away."""
+    """Scorched Trail: a burning patch every TRAIL_SPACING tiles rolled
+    (`moved`: this step's distance), the first one straight away."""
     hero = p.hero
     st = hero.stats
     hero.roll_trail -= moved
     if hero.roll_trail > 1e-9 and hero.roll_steps > 1:
         return
     hero.roll_trail = config.TRAIL_SPACING
-    kinds = []
-    if st.has("scorched_trail"):
-        kinds.append("burn")
-    if st.has("prism_dash"):
-        options = config.PRISM_DASH_STATUSES
-        kinds.append(options[int(hero.rng.random() * len(options)) % len(options)])
-    for status in kinds:
-        scene.zones.append(Zone("trail", hero.x, hero.y, config.TRAIL_RADIUS,
-                                config.TRAIL_LIFE * hero.stats.duration_scale, config.TRAIL_EVERY,
-                                0.0, hero, (config.STATUSES[status].tag,), status))
+    scene.zones.append(Zone("trail", hero.x, hero.y, config.TRAIL_RADIUS,
+                            config.TRAIL_LIFE * st.duration_scale, config.TRAIL_EVERY,
+                            0.0, hero, (config.STATUSES["burn"].tag,), "burn"))
 
 
 def close_calls(players, projectiles, dt: float) -> None:

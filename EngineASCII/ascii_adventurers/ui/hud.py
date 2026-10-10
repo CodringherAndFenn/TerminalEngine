@@ -133,7 +133,7 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
         _roll_meter(text, roll_row, *roll_key)
     if meter_key is not None:
         label, cells, alarm = meter_key
-        colors = palette.CHILL_BAR if label == "CHL" else palette.RADS_BAR
+        colors = {"CHL": palette.CHILL_BAR, "MNT": palette.MOUNT_BAR}.get(label, palette.RADS_BAR)
         col = colors[2] if alarm else colors[1] if cells > BAR * 0.75 else colors[0]
         text.put(1, meter_row, label, palette.HUD_LABEL, palette.HUD_PANEL)
         text.put(5, meter_row, "▄" * cells, col, palette.HUD_PANEL)

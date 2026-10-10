@@ -146,21 +146,6 @@ class HeroCardTest(_GameCase):
         self.assertIn("multishot", pool)               # wand bolts
         self.assertNotIn("cross_fire", pool)           # but the beat doesn't shoot
 
-    def test_double_rainbow(self):
-        s, shots = self.attack("princess", ("double_rainbow", "rare"),
-                               times=config.DOUBLE_RAINBOW[0])
-        late = [p for p in shots if p.hold > 0]
-        self.assertEqual(len(late), 5)
-        self.assertEqual(len(shots), 5 * config.DOUBLE_RAINBOW[0] + 5)
-
-    def test_twin_axes(self):
-        s, shots = self.attack("dwarf", ("twin_axes", "rare"), times=config.TWIN_AXES[0],
-                               clear=True)
-        last = shots[-2:]
-        self.assertEqual(len(shots), config.TWIN_AXES[0] + 1)
-        self.assertGreaterEqual(abs(math.degrees(last[0].angle - last[1].angle)),
-                                config.TWIN_AXES[1] - 1e-6)
-
     def test_split_arrow_is_her_spell(self):
         c = config.CARDS["split_arrow"]
         self.assertEqual(c.heroes, ("huntress",))

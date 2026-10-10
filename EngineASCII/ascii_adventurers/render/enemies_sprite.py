@@ -40,6 +40,7 @@ from .bosses import draw_froggy
 from .characters import draw_body, draw_character, walk_frame
 from .leeches import draw_leech_creature, draw_leech_part, draw_swarm
 from .mosquito import draw_mosquito, draw_proboscia
+from .plains import draw_plains, draw_plains_tells, is_plains
 from .sprites import SpriteBank, quad
 
 
@@ -223,6 +224,9 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
     if isinstance(e, Glamour):
         draw_glamour(text, bank, camera, e)
         return
+    if is_plains(e):                           # P7: the plains' new enemies
+        draw_plains(text, bank, camera, e)
+        return
     key = getattr(e, "kind_key", "")
     if key == "rot_moth":
         draw_moth(text, camera, e)
@@ -274,6 +278,8 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
         if isinstance(e, Wisp):
             draw_searchlight(text, camera, e)
         draw_body(bank, camera, e)
+        if e.kind_key in ("shieldbearer", "slinger"):      # (P7: the bash's "!", elite star)
+            draw_plains_tells(text, camera, e)
     elif isinstance(e, DustDevil):
         spin = e.spin * (1.0 if e.hurt_flash <= 0 else 0.5)
         sprite = bank.rotated(("devil",), spin, 24, _paint_devil, 20)

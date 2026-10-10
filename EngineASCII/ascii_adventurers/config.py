@@ -163,6 +163,17 @@ WEAPONS = {
         blurb="a wide swing hitting everything in front; chops trees",
         tags=("physical",),
     ),
+    # P7: the bandit slinger's sling (a quick burst of three stones) and the
+    # shieldbearer's shield bash.
+    "sling": WeaponSpec(
+        name="sling", fire_interval=2.4, burst=3, burst_gap=0.12,
+        shell=ShellSpec(speed=20.0, damage=5, max_range=18.0, damages_terrain=False,
+                        look="pebble", sound="bow"),
+    ),
+    "shield_bash": WeaponSpec(
+        name="shield bash", kind="melee", fire_interval=2.6, damage=22, reach=1.9, arc_deg=110.0,
+        tags=("physical",),
+    ),
     "lute": WeaponSpec(
         name="lute", kind="pulse", fire_interval=1.2, damage=16, reach=8, auto=True,
         blurb="plays on its own: every beat hurts everything around",
@@ -260,6 +271,17 @@ BODIES = {
         name="warlock", weapon="hex", sprite="warlock", max_speed=5.0,
         accel=16.0, brake=30.0, size_px=24, aim_turn_speed=math.radians(70),
     ),
+    # P7
+    "bandit": CharacterSpec(
+        name="bandit slinger", weapon="sling", sprite="bandit", max_speed=5.2,
+        accel=20.0, brake=30.0, size_px=24, aim_turn_speed=math.radians(150),
+    ),
+    "shieldbearer": CharacterSpec(
+        name="shieldbearer", weapon="shield_bash", sprite="shieldbearer", max_speed=2.6,
+        accel=10.0, brake=20.0, size_px=34, sprite_scale=4, hold_px=20,
+        aim_turn_speed=math.radians(90),
+        front_armor=0.0,          # the shield: nothing gets through from the front
+    ),
     "ogre": CharacterSpec(
         name="ogre", weapon="boulder", sprite="ogre", max_speed=3.2,
         accel=8.0, brake=16.0, size_px=40, sprite_scale=4, hold_px=26,
@@ -331,6 +353,91 @@ ENEMIES = {
         name="fallen warrior", kind="warrior", max_hp=50, sight=14,
         biomes=("plains", "forest"), weight=3, speed=4.2,
         damage=18, attack_radius=1.7, windup=0.45, cooldown=1.1, size_px=24, xp=6,
+    ),
+    # --- P7: the plains (design/BOSSES.md 24.5; ai/plains.py) --------------------------
+    # Simple chasers (the user: "enemies that just go to the player without
+    # complicated AI behaviour").
+    "field_rat": EnemySpec(
+        name="field rat", kind="chaser", sprite="field_rat", scale=2, group=(4, 6),
+        max_hp=12, sight=14, biomes=("plains",), weight=3, speed=6.0,
+        damage=4, attack_radius=0.8, windup=0.25, cooldown=0.9, size_px=12, xp=1,
+    ),
+    "farmhand": EnemySpec(
+        name="shambling farmhand", kind="chaser", sprite="farmhand",
+        max_hp=70, sight=12, biomes=("plains",), weight=3, speed=2.6,
+        damage=12, attack_radius=1.4, windup=0.6, cooldown=1.5, size_px=22, xp=5,
+    ),
+    "goose": EnemySpec(
+        name="angry goose", kind="chaser", sprite="goose", scale=2, group=(3, 3),
+        max_hp=18, sight=14, biomes=("plains",), weight=2, speed=7.0,
+        damage=4, attack_radius=0.9, windup=0.2, cooldown=0.8, size_px=14, xp=2,
+    ),
+    # Beasts.
+    "hound": EnemySpec(
+        name="wild hound", kind="hound", sprite="hound", group=(3, 3),
+        max_hp=30, sight=16, biomes=("plains",), weight=2, speed=7.5,
+        damage=8, attack_radius=1.0, windup=0.25, cooldown=1.2, size_px=18, xp=3,
+    ),
+    "hawk": EnemySpec(
+        name="hawk", kind="hawk", sprite="hawk",
+        max_hp=30, sight=18, biomes=("plains",), weight=2, speed=7.0,
+        damage=12, attack_radius=1.0, windup=0.8, cooldown=1.0, size_px=20, xp=5,
+    ),
+    "molehill": EnemySpec(
+        name="molehill", kind="molehill", sprite="molehill",
+        max_hp=90, sight=14, biomes=("plains",), weight=1, speed=0.0,
+        damage=0, size_px=26, xp=6,
+    ),
+    "mole_rat": EnemySpec(
+        name="mole rat", kind="chaser", sprite="mole_rat", scale=2,
+        max_hp=10, sight=16, biomes=(), speed=6.5,
+        damage=4, attack_radius=0.8, windup=0.25, cooldown=1.0, size_px=12, xp=1,
+    ),
+    "bull": EnemySpec(
+        name="rampaging bull", kind="bull", sprite="bull", scale=4, elite=True,
+        max_hp=320, sight=18, biomes=("plains",), weight=1, speed=3.5,
+        damage=32, attack_radius=11.0,   # charges from up to this far away
+        windup=1.0, cooldown=3.0, size_px=40, xp=20,
+    ),
+    # Bandits and folk (the slinger and the shieldbearer are Characters).
+    "slinger": EnemySpec(
+        name="bandit slinger", kind="archer", body="bandit", max_hp=35, sight=16,
+        biomes=("plains",), weight=3, preferred_range=(6.0, 10.0), xp=4,
+    ),
+    "lancer": EnemySpec(
+        name="lancer", kind="lancer", sprite="bandit",
+        max_hp=90, sight=18, biomes=("plains",), weight=2, speed=12.0,
+        damage=18, attack_radius=1.0, windup=0.6, cooldown=0.8, size_px=30, xp=9,
+    ),
+    "shieldbearer": EnemySpec(
+        name="shieldbearer", kind="shieldbearer", body="shieldbearer", elite=True,
+        max_hp=240, sight=14, biomes=("plains",), weight=1, xp=16,
+    ),
+    "priest": EnemySpec(
+        name="field priest", kind="priest", sprite="priest",
+        max_hp=45, sight=16, biomes=("plains",), weight=1, speed=3.5,
+        damage=0, size_px=22, xp=7,
+    ),
+    # Haunted farmland and odd ones.
+    "straw_golem": EnemySpec(
+        name="straw golem", kind="straw_golem", sprite="straw_golem", scale=4,
+        max_hp=160, sight=12, biomes=("plains",), weight=2, speed=2.2,
+        damage=24, attack_radius=2.0, windup=0.9, cooldown=2.0, size_px=34, xp=10,
+    ),
+    "scarecrow": EnemySpec(
+        name="scarecrow", kind="scarecrow", sprite="scarecrow",
+        max_hp=80, sight=16, biomes=("plains",), weight=2, speed=1.2,
+        damage=0, size_px=22, xp=7,
+    ),
+    "crow": EnemySpec(
+        name="crow", kind="crow", sprite="crow", scale=2,
+        max_hp=8, sight=24, biomes=(), speed=6.5,
+        damage=5, attack_radius=0.8, windup=0.2, cooldown=1.0, size_px=12, xp=0,
+    ),
+    "drummer": EnemySpec(
+        name="war drummer", kind="drummer", sprite="drummer",
+        max_hp=50, sight=16, biomes=("plains",), weight=1, speed=4.0,
+        damage=0, size_px=22, xp=7,
     ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
@@ -523,6 +630,41 @@ ENEMIES = {
     ),
 }
 
+# P7 enemy behaviour (ai/plains.py; design/BOSSES.md 24.5).
+HOUND_ORBIT = 3.5            # tiles a hound circles its target at...
+HOUND_WAIT = (1.0, 2.5)      # ...s between its darts (only one of a pack darts at a time)...
+HOUND_DASH = 1.8             # ...darting this much faster...
+HOUND_DASH_TIME = 1.0        # ...for at most this long
+HAWK_ORBIT = 7.0             # tiles a hawk circles at
+HAWK_CIRCLE = (2.5, 4.5)     # s circling between dives (it lines up for the spec's windup)
+HAWK_DIVE_SPEED = 18.0       # tiles/s
+HAWK_DIVE_LENGTH = 13.0      # tiles a dive covers
+HAWK_CLIMB = 1.0             # s climbing away after
+MOLEHILL = (3.5, 4, 14.0)    # a mole rat every this many s, at most this many about within this far
+BULL_CHARGE_SPEED = 15.0     # tiles/s
+BULL_CHARGE = 14.0           # tiles each charge runs
+BULL_PASSES = 3              # charges before it rests
+BULL_TURN = 0.6              # s wheeling round between charges
+BULL_DAZE = 1.6              # s dazed after hitting something unbreakable
+BULL_TRAMPLE = 999           # what it does to a breakable tile it runs into (flattened)
+LANCER_START = 10.0          # tiles from its target it wheels out to...
+LANCER_WHEEL = 4.0           # ...for at most this long, then turns in anyway
+LANCER_OVERRUN = 6.0         # tiles it gallops on past the target's spot
+LANCER_REACH = 1.6           # tiles ahead of it the lance tip hits
+PRIEST = (2.5, 9.0, 0.20)    # heals every this many s, within this far, this share of max HP
+PRIEST_RANGE = (8.0, 12.0)   # tiles it keeps from the heroes
+GOLEM_FIRE = (5, 5.0, 0.9, 2.2)   # burning patches, s they burn, their radius, how far they spread
+SCARECROW = (6.0, 3, 6.0, 6) # crows every this many s, this many, keeping this far, at most this many about
+CROW_LIFE = 12.0             # s a crow stays before it flaps off
+DRUM_RADIUS = 7.0            # tiles the drummer's ring reaches...
+DRUM_TIME = 0.4              # ...each beat lasting this long on whoever is in it...
+DRUM_HASTE = 0.30            # ...+ this much faster (move and attack)...
+DRUM_DAMAGE = 0.25           # ...+ this much damage
+DRUM_KEEP = 9.0              # tiles it keeps from the heroes
+SHIELD_WINDUP = 0.8          # s the shieldbearer raises its shield before a bash...
+SHIELD_SHOVE = 2.0           # ...which shoves who it hits this far...
+SHIELD_OPEN = 1.4            # ...then it stands open (its front unguarded) this long
+
 # M12 enemy behaviour.
 DEVIL_ORBIT = 3.5            # tiles: how close a dust devil circles you
 DEVIL_SPIN_SPEED = 5.0       # radians/s it turns (the spiral of its flings follows)
@@ -548,6 +690,36 @@ BOAR_WALL_DAMAGE = 40        # what the slam does to a tree or wall
 LEVEL_XP_BASE = 12
 LEVEL_XP_GROWTH = 1.35
 MAX_LEVEL = 100
+# P3 (2026-10-10, user: "movement speed needs to grow with level a bit"):
+# every level past the first adds LEVEL_SPEED to the hero's move speed,
+# up to LEVEL_SPEED_CAP (reached at level 21). It adds to Swift Boots and
+# the Cobbler like any "move" bonus. Level 12 (a ~15 min run): +11%.
+LEVEL_SPEED = 0.01
+LEVEL_SPEED_CAP = 0.20
+
+# Difficulty levels (P5, 2026-10-10; user: "a completely separate difficulty
+# option, kind of like diablo torment levels, where you can choose how hard
+# the map starts", additive to the other balancing). Picked on the hero
+# select. Level 0 is today's game; level n multiplies every enemy's (and
+# boss's) max HP by DIFFICULTY_HP ** n and its damage by DIFFICULTY_DAMAGE
+# ** n (compounding: the user's "steep" pick), and adds DIFFICULTY_ENEMIES
+# x n to how many spawn and DIFFICULTY_LOOT x n to the loot (added). All of
+# it is on top of player levels, pacts, Beacon and Bounty. Beating any boss
+# on a level opens the next (meta/guild.Guild.difficulty_open). Names: the
+# user's.
+#        HP     dmg    enemies  loot
+#   0    x1     x1     x1       +0%     Wanderer
+#   1    x1.3   x1.15  x1.2     +40%    Knight
+#   3    x2.2   x1.5   x1.6     +120%   Hero of Legend I
+#   5    x3.7   x2.0   x2.0     +200%   Hero of Legend III
+#  10    x13.8  x4.0   x3.0     +400%   Hero of Legend VIII
+DIFFICULTIES = ("Wanderer", "Knight", "Folk Hero",
+                *(f"Hero of Legend {r}" for r in ("I", "II", "III", "IV", "V", "VI", "VII",
+                                                  "VIII")))
+DIFFICULTY_HP = 1.3
+DIFFICULTY_DAMAGE = 1.15
+DIFFICULTY_ENEMIES = 0.20
+DIFFICULTY_LOOT = 0.40
 
 # Enemies get tougher as the players level up: an enemy waking up gets
 # +ENEMY_HP_PER_LEVEL max HP and +ENEMY_DAMAGE_PER_LEVEL damage for every
@@ -561,7 +733,7 @@ ENEMY_DAMAGE_PER_LEVEL = 0.015  # (was 0.02)
 # A kill drops a gem worth the enemy's `xp` where it fell (kills by other
 # monsters drop nothing). A hero whose pickup radius reaches a gem pulls it
 # in: it flies to them, speeding up, and is collected on touch.
-PICKUP_RADIUS = 1.5          # tiles, before Magnet cards
+PICKUP_RADIUS = 3.75         # tiles, before Magnet cards (P3, 2026-10-10: was 1.5; user: +150%)
 GEM_PULL_SPEED = (10.0, 32.0)   # tiles/s a pulled gem flies at: start, top
 GEM_PULL_ACCEL = 60.0        # tiles/s^2
 GEM_CATCH_RADIUS = 0.5       # collected this close to the hero
@@ -619,11 +791,11 @@ ROLL_DUST_EVERY = 2          # simulation steps between dust puffs behind a roll
 RIPOSTE_WINDOW = 1.5         # Riposte: the first attack this long after a roll start always crits
 SLIPSTREAM = (0.30, 2.0)     # Slipstream: +move speed, for this many s after a roll
 CLOSE_CALL = 0.1             # Close Call: s of cooldown back per enemy shot rolled through
-TRAIL_SPACING = 0.8          # Scorched Trail / Prism Dash: tiles between trail patches...
+TRAIL_SPACING = 0.8          # Scorched Trail: tiles between trail patches...
 TRAIL_RADIUS = 0.9           # ...each this big...
 TRAIL_LIFE = 2.5             # ...lasting this long...
 TRAIL_EVERY = 0.5            # ...applying its status this often
-PRISM_DASH_STATUSES = ("burn", "chill", "poison", "shock")   # one at random per patch
+PIROUETTE = (10, 1.0)        # Pirouette (P4): shots in the ring (colors in turn), x damage each
 BLINK = (5.0, 2.5, 20.0)     # Blink: teleport distance, shock nova radius, nova damage
 BLINK_STEP = 0.25            # tiles: the teleport is checked against walls this finely
 BACKFLIP = (5, 40.0, 0.6)    # Backflip: arrows, fan degrees, x damage each
@@ -633,12 +805,10 @@ DROP_THE_BEAT = 1.5          # Drop the Beat: x damage of the free beat at the e
 # Hero cards (catalog 6.2) and the rules they bring.
 POINT_BLANK_RANGE = 4.0      # tiles (Point Blank)
 SUPERCELL_BONUS = 0.25       # chain jumps vs shocked enemies (Supercell)
-OVERLOAD_EVERY = 5           # every Nth attack is overloaded...
-OVERLOAD_MULT = 3.0          # ...for this much damage (M20: no more extra jumps)
 # Arcane missile cards (M20).
 SEEKER = 2.0                 # Seeker: darts turn this much faster (and retarget)
 RESONANCE = (1.0, 0.15, 4)   # Resonance: window s, +damage per dart in it, most darts counted
-MANA_BURST = (1.0, 0.5)      # Mana Burst: radius, x the dart's damage to all others in it
+IMPLOSION = (2.5, 0.8)       # Implosion (P4): radius, tiles each enemy in it is dragged in
 ARCANE_STORM = (3, 8.0)      # Arcane Storm: new darts per cast at most, how far they look
 ORBIT_REACH = 12.0           # Orbiting Darts: a missed dart looks this far round you
 MARK_INTERVAL = 4.0          # Hunter's Mark picks a new target this often
@@ -648,9 +818,21 @@ SPECTRUM_CHANCE = 0.20       # Spectrum: chance a color applies its status
 # Spectrum: rainbow pellet color (palette.RAINBOW_SHOTS order) -> status.
 SPECTRUM_STATUS = ("burn", None, "shock", "poison", "chill")
 RICOCHET_BOUNCES = 2         # Ricochet: wall bounces before an axe turns home
-VOLLEY_EVERY = 4             # Volley: every Nth shot...
-VOLLEY_ARROWS = 5            # ...is this many arrows...
-VOLLEY_SPREAD = 30.0         # ...fanned over this many degrees
+# Arrow Rain (P4): every ARROW_RAIN[0]th shot also lobs ARROW_RAIN[1] arrows
+# (+1 per extra projectile) at random spots within ARROW_RAIN[2] tiles of the
+# aim point; each lands for ARROW_RAIN[3] x the bow's damage on everything
+# within ARROW_RAIN_HIT tiles.
+ARROW_RAIN = (5, 6, 3.0, 0.7)
+ARROW_RAIN_HIT = 0.7
+# Hang Time (P4): an axe hovers at the end of its throw HANG_TIME[0] s (+
+# HANG_TIME[1] per copy past the first), hitting everything it touches again
+# every HANG_TIME[2] s.
+HANG_TIME = (0.4, 0.2, 0.2)
+# Tether (P4): every TETHER[0] s, everything within TETHER[1] tiles of the
+# line from the dwarf to each of his axes in flight takes TETHER[2] x the
+# axe's damage.
+TETHER = (0.3, 0.35, 0.25)
+SPLITTING_AXE = (0.6, 1.2)   # Splitting Axe (P4): x damage of each half, tiles they start apart
 CRESCENDO_STEP = 0.10        # Crescendo: per beat in a row that hits
 CRESCENDO_MAX = 5
 LULLABY_HEAL = (1, 5)        # Lullaby: HP per enemy a beat hits, at most this many
@@ -687,7 +869,7 @@ ECHO_ANGLE = 10.0            # ...turned this many degrees off the aim (left and
 
 # --- Multiple projectiles (M19) -------------------------------------------------------
 # Every projectile beyond a weapon's own adds at least MIN_PELLET_GAP degrees
-# to its fan (Multishot, Quiver, Volley, Twin Axes...), so extra shots always
+# to its fan (Multishot, Quiver...), so extra shots always
 # fan out visibly instead of flying as one line. A weapon's own fan (the
 # rainbow's 5 colors over 34 degrees) is left as it is.
 MIN_PELLET_GAP = 12.0
@@ -696,8 +878,7 @@ STARBURST = (10, 8)          # Starburst: every Nth attack, this many single sho
 REAR_GUARD = 0.6             # Rear Guard: x damage of the shot fired behind you
 SPIRAL_STEP = 37.0           # Spiral: degrees the extra shot turns further each attack
 TWIN_LANES = (0.5, 0.65)     # Twin Lanes: tiles between the two lanes, x damage of each
-DOUBLE_RAINBOW = (3, 0.08)   # Double Rainbow: every Nth shot, a 2nd fan this many s later
-TWIN_AXES = (3, 30.0)        # Twin Axes: every Nth throw is 2 axes this many degrees apart
+CONVERGE_MIN = 3.0           # Converge (P4): tiles; the colors cross no nearer than this
 SHEET_MUSIC = 3              # Sheet Music: notes flung per beat (+1 per Multishot)...
 SHEET_MUSIC_DAMAGE = 9.0     # ...each this much (hero buckets apply)...
 SHEET_MUSIC_REACH = 12.0     # ...aimed at enemies this close (else spread all round)
@@ -869,6 +1050,11 @@ SPELL_SHELLS = {
                       look="ember", sound="spark"),
     "turret": ShellSpec(speed=26.0, damage=0, max_range=12.0, damages_terrain=False,
                         look="bone", sound="bolt"),
+    # Arrow Rain's arrows (P4): lobbed over everything, landing on whatever
+    # is within ARROW_RAIN_HIT tiles (damage from the bow, x ARROW_RAIN[3]).
+    "rain_arrow": ShellSpec(speed=30.0, damage=0, max_range=40.0, damages_terrain=False,
+                            look="rain_arrow", sound="bow", lob=True,
+                            blast_radius=ARROW_RAIN_HIT),
 }
 
 # Cards (design/CARDS.md rev 2). See specs.CardSpec for the fields and
@@ -961,9 +1147,11 @@ CARDS = {
                           (("supercell", "flag", 1), ("shock", "source", 1)),
                           rarity="uncommon", max_stacks=1, heroes=("wizard",),
                           needs=("chain_lightning",), tags=("lightning",), code="W3"),
-    "overload": CardSpec("Overload", "every 5th cast: x3 damage",
-                         (("overload", "flag", 1),), rarity="rare", max_stacks=1,
-                         heroes=("wizard",), tags=("arcane",), unlock="L:2000", code="W4"),
+    # P4 (2026-10-10): Phase Darts took Overload's slot (W4; Overload did what
+    # Echo does). A save that bought Overload gets it (RENAMED_CARDS).
+    "phase_darts": CardSpec("Phase Darts", "darts fly through walls and trees",
+                            (("phase_darts", "flag", 1),), rarity="rare", max_stacks=1,
+                            heroes=("wizard",), tags=("arcane",), unlock="L:2000", code="W4"),
     # (Was the wizard's capstone; with lightning a spell it's an epic upgrade.)
     "ball_lightning": CardSpec("Ball Lightning",
                                "bolts crackle where they hit for 2 s, hurting all around",
@@ -977,9 +1165,10 @@ CARDS = {
     "resonance": CardSpec("Resonance", "darts on one enemy within 1 s: +15% each, up to +60%",
                           (("resonance", "flag", 1),), rarity="uncommon", max_stacks=1,
                           heroes=("wizard",), tags=("arcane",), code="W9"),
-    "mana_burst": CardSpec("Mana Burst", "darts burst on hit: 50% to all within 1 tile",
-                           (("mana_burst", "flag", 1),), rarity="rare", max_stacks=1,
-                           heroes=("wizard",), tags=("arcane", "area"), code="W10"),
+    # P4: Implosion took Mana Burst's slot (W10; it was Volatile's double).
+    "implosion": CardSpec("Implosion", "a dart's hit drags enemies within 2.5 tiles toward it",
+                          (("implosion", "flag", 1),), rarity="rare", max_stacks=1,
+                          heroes=("wizard",), tags=("arcane", "area"), code="W10"),
     "arcane_storm": CardSpec("Arcane Storm", "a dart that kills fires a new one (3 per cast)",
                              (("arcane_storm", "flag", 1),), heroes=("wizard",),
                              tags=("arcane",), code="W11", **_CAP),
@@ -990,22 +1179,25 @@ CARDS = {
     "ricochet": CardSpec("Ricochet", "axes bounce off walls and fly on (2 bounces)",
                          (("ricochet", "flag", 1),), rarity="rare", max_stacks=1,
                          heroes=("dwarf",), tags=("projectile",), code="D1"),
-    "heavy_axe": CardSpec("Heavy Axe", "x1.35 damage, attacks 10% slower",
-                          (("damage_mult", "mul", 1.35), ("interval_mult", "mul", 1.1)),
-                          rarity="rare", heroes=("dwarf",), tags=("physical",), code="D2"),
+    # P4: Hang Time took Heavy Axe's slot (D2; it was Glass Cannon's double).
+    "hang_time": CardSpec("Hang Time", "axes hover at the end of their throw, hitting again",
+                          (("hang_time", "add", 1),), rarity="rare",
+                          heroes=("dwarf",), tags=("physical", "area"), code="D2"),
     "homeward_fury": CardSpec("Homeward Fury", "axes deal +50% on the way back",
                               (("homeward", "add", 0.5),), max_stacks=2, heroes=("dwarf",),
                               code="D3"),
-    "cleave": CardSpec("Cleave", "axes make enemies bleed",
-                       (("cleave", "flag", 1), ("bleed", "source", 1)), rarity="uncommon",
-                       max_stacks=1, heroes=("dwarf",), tags=("physical",), code="D4"),
+    # P4: Tether took Cleave's slot (D4; it was a stronger Serrated).
+    "tether": CardSpec("Tether", "a chain to each axe in flight cuts all it crosses",
+                       (("tether", "flag", 1),), rarity="uncommon",
+                       max_stacks=1, heroes=("dwarf",), tags=("physical", "area"), code="D4"),
     "cyclone": CardSpec("Cyclone", "a caught axe flies straight back out at the nearest enemy",
                         (("cyclone", "flag", 1),), heroes=("dwarf",), tags=("physical",),
                         code="D5", **_CAP),
     # --- Huntress ---
-    "volley": CardSpec("Volley", "every 4th shot looses 5 arrows in a fan",
-                       (("volley", "flag", 1),), rarity="epic", max_stacks=1,
-                       heroes=("huntress",), tags=("projectile",), code="H1"),
+    # P4: Arrow Rain took Volley's slot (H1; Volley was Cross Fire's double).
+    "arrow_rain": CardSpec("Arrow Rain", "every 5th shot also rains 6 arrows where you aim",
+                           (("arrow_rain", "flag", 1),), rarity="epic", max_stacks=1,
+                           heroes=("huntress",), tags=("projectile", "area"), code="H1"),
     "broadhead": CardSpec("Broadhead", "+15% damage for each enemy the arrow has passed",
                           (("broadhead", "add", 0.15),), rarity="uncommon",
                           heroes=("huntress",), tags=("physical",), code="H2"),
@@ -1219,11 +1411,10 @@ CARDS = {
     "backflip": CardSpec("Backflip", "rolling looses 5 arrows at your aim",
                          (("backflip", "flag", 1),), rarity="uncommon", max_stacks=1,
                          heroes=("huntress",), tags=("roll", "projectile"), code="H6"),
-    "prism_dash": CardSpec("Prism Dash", "rolls leave a rainbow: each patch a random status",
-                           (("prism_dash", "flag", 1),
-                            *((s, "source", 1) for s in PRISM_DASH_STATUSES)),
-                           rarity="uncommon", max_stacks=1, heroes=("princess",),
-                           tags=("roll",), code="P6"),
+    # P4: Pirouette took Prism Dash's slot (P6; it was Scorched Trail's double).
+    "pirouette": CardSpec("Pirouette", "rolling spins a ring of all your colors outward",
+                          (("pirouette", "flag", 1),), rarity="uncommon", max_stacks=1,
+                          heroes=("princess",), tags=("roll", "projectile"), code="P6"),
     "drop_the_beat": CardSpec("Drop the Beat", "a free x1.5 beat as each roll ends",
                               (("drop_the_beat", "flag", 1),), rarity="uncommon", max_stacks=1,
                               heroes=("bard",), tags=("roll", "area"), code="B6"),
@@ -1249,12 +1440,14 @@ CARDS = {
                             (("sheet_music", "flag", 1),), rarity="uncommon", max_stacks=1,
                             heroes=("bard",), tags=("projectile", "arcane"), code="B7"),
     "split_arrow": replace(_spell_card("split_arrow", "H7"), heroes=("huntress",)),
-    "double_rainbow": CardSpec("Double Rainbow", "every 3rd shot: a second fan right behind",
-                               (("double_rainbow", "flag", 1),), rarity="rare", max_stacks=1,
-                               heroes=("princess",), tags=("projectile",), code="P7"),
-    "twin_axes": CardSpec("Twin Axes", "every 3rd throw is two axes in a V",
-                          (("twin_axes", "flag", 1),), rarity="rare", max_stacks=1,
-                          heroes=("dwarf",), tags=("projectile", "physical"), code="D7"),
+    # P4: Converge and Splitting Axe took Double Rainbow's and Twin Axes'
+    # slots (P7, D7; they were Echo's and Twin Lanes' doubles).
+    "converge": CardSpec("Converge", "your colors curve in and cross where you aim",
+                         (("converge", "flag", 1),), rarity="rare", max_stacks=1,
+                         heroes=("princess",), tags=("projectile",), code="P7"),
+    "splitting_axe": CardSpec("Splitting Axe", "an axe splits in two as it turns for home",
+                              (("splitting_axe", "flag", 1),), rarity="rare", max_stacks=1,
+                              heroes=("dwarf",), tags=("projectile", "physical"), code="D7"),
 }
 
 # Spells whose things last a while, so Lingering (+duration) does something
@@ -1268,17 +1461,18 @@ DURATION_SPELLS = ("poison_flask", "healing_totem", "bone_turret")
 ARCHETYPE_MIN = 2
 ARCHETYPE_SLOTS = 1
 ARCHETYPES = {
-    "crit": ("G06", "G07", "H4", "W4", "C05", "H3", "K01", "H5", "V03"),
+    "crit": ("G06", "G07", "H4", "C05", "H3", "K01", "H5", "V03"),
     "burn": ("T01", "S02", "S10", "P3", "T02", "G18", "T10", "T13", "K02", "V06"),
     "poison": ("T03", "S06", "P3", "T04", "G18", "T10", "T14", "K02"),
     "frost": ("T05", "S03", "B4", "P3", "T06", "G09", "T13"),
     "shock": ("W3", "T07", "S07", "W1", "W2", "W5", "W7", "T14", "W6"),
     "missiles": ("W4", "W8", "W9", "W10", "W11", "W12", "G20", "T11"),
-    "bleed": ("D4", "T08", "T09", "G18", "D5", "K02"),
+    "bleed": ("T08", "T09", "G18", "D5", "K02"),
     "volley": ("G20", "D1", "H1", "P1", "X03", "R06", "C06", "G02", "P5", "D5", "H6",
-               "M01", "M02", "M03", "M04", "M05", "B7", "H7", "P7", "D7"),
-    "sniper": ("D2", "H2", "C07", "H3", "G07", "G17", "H5"),
-    "area": ("R01", "S05", "R02", "G08", "B3", "X06", "B5", "W5", "B1", "B6", "W10"),
+               "M01", "M02", "M03", "M04", "M05", "B7", "H7", "P7", "D7", "P6"),
+    "sniper": ("H2", "C07", "H3", "G07", "G17", "H5"),
+    "area": ("R01", "S05", "R02", "G08", "B3", "X06", "B5", "W5", "B1", "B6", "W10",
+             "D2", "D4", "H1"),
     "summoner": ("S04", "S11", "S08", "G19", "G09", "K04"),
     "tank": ("G10", "G03", "S12", "X02", "C03", "R03", "S09", "K05", "K03", "D6"),
     "speed": ("G04", "G11", "C04", "C05", "C01", "K06", "V04"),
@@ -1317,6 +1511,9 @@ GUILD_UPGRADES = {
                             base_cost=150, growth=1.25),
     "treasure_map": UpgradeSpec("Treasure Map", "+4% loot", (("loot", "add", 0.04),),
                                 max_level=15, base_cost=200, growth=1.2),
+    "stable": UpgradeSpec("Stable", "+5% riding speed; mount back 1 s sooner after a fall",
+                          (("mount_speed", "add", 0.05), ("mount_cooldown", "add", 1.0)),
+                          max_level=5, base_cost=250, growth=1.3),           # (P6)
     "lodestone": UpgradeSpec("Lodestone", "+10% pickup radius", (("pickup", "add", 0.10),),
                              max_level=10, base_cost=100, growth=1.25),
     "lucky_shrine": UpgradeSpec("Lucky Shrine", "+2 luck", (("luck", "add", 2),), max_level=15,
@@ -1341,6 +1538,9 @@ SECOND_CHANCE_HP = 0.30
 _BIG = dict(max_level=2, base_cost=1200, growth=2.0)     # the "+1 of my weapon's thing"
 # Hero upgrades that were removed: (base cost, growth, max level) per key, so
 # a save's levels in them are refunded once (meta/guild.Guild.load).
+# Cards bought in the archive that were replaced by a card of the same
+# price (P4, 2026-10-10): a save that bought the old one gets the new one.
+RENAMED_CARDS = {"overload": "phase_darts"}
 RETIRED_UPGRADES = {"wizard": {"forked_bolt": (1200, 2.0, 2), "long_arc": (150, 1.3, 5),
                                "grounding": (150, 1.3, 5)}}
 _LADDER = dict(max_level=5, base_cost=150, growth=1.3)
@@ -1435,6 +1635,23 @@ BESTIARY = {
     "toad": (600, "Hops between rests and spits a fan of acid."),
     "spitter": (800, "Rooted; fires a ring of spores that turns each volley."),
     "boar": (1000, "Scrapes the ground, then charges in a line. Dodge: it stuns itself on walls."),
+    # P7: the plains
+    "field_rat": (300, "Comes in a pack, runs straight at you and nibbles. One hit each."),
+    "farmhand": (500, "Slow, tough, walks straight at you with a pitchfork."),
+    "goose": (400, "A honking gaggle of three. Fast, weak, very annoying."),
+    "hound": (800, "Hunts in threes: they circle and dart in to bite one at a time."),
+    "hawk": (800, "Circles over everything, lines up and dives. Step off the line."),
+    "molehill": (700, "Sends out mole rats until you break it."),
+    "mole_rat": (300, "Pops out of a molehill and nips."),
+    "bull": (1500, "Charges through anything that breaks, again and again. Walls stop it."),
+    "slinger": (500, "Keeps its distance and slings three stones at a time."),
+    "lancer": (1000, "Rides wide, lowers the lance and gallops through. Sidestep the line."),
+    "shieldbearer": (1500, "Nothing gets past the shield from the front. After a bash it's open."),
+    "priest": (900, "Heals the most hurt enemy near it. Take it down first."),
+    "straw_golem": (900, "Swings hard and slow; dies in a burst of burning straw."),
+    "scarecrow": (800, "Shuffles along and lets loose crows."),
+    "crow": (300, "The scarecrow's. Pecks, then flaps off after a while."),
+    "drummer": (900, "Everyone in its ring is faster and hits harder. Runs from you."),
     # M17: filled in by beating the swamp's boss (or bought).
     "psy_frog": (1500, "They hide out across the swamp. Keeps away, spits weaving globs."),
     "froggy": (5000, "Dives between pools, lashes its tongue, belly-flops. Hit it while it's dazed."),
@@ -1582,6 +1799,24 @@ OGRE_CRUSH_DPS = 30
 # Walk animation: steps per tile walked (each step is one frame of the
 # 4-frame cycle in render/characters.py).
 WALK_STEPS_PER_TILE = 2.5
+# Mounts (P6, render/mounts.py): a riding hero shows its top MOUNT_RIDER_ROWS
+# art rows; four-legged mounts change step every 1 / MOUNT_STEPS_PER_TILE
+# tiles; a floating carpet bobs (radians/s, art pixels).
+MOUNT_RIDER_ROWS = 11
+# Riding (P6, systems/mount.py; user's picks: called every run, travel only,
+# +75%, one look per hero). Q / gamepad Y whistles: MOUNT_CALL_TIME s later
+# you're riding, MOUNT_SPEED faster. A hit throws you off, and it can't be
+# called again for MOUNT_THROWN s (the Stable takes off up to the
+# difference with MOUNT_MIN_COOLDOWN).
+MOUNTS_ON = True              # False: no riding at all (the whole feature is off)
+HERO_MOUNTS = {"wizard": "carpet", "dwarf": "ram", "bard": "donkey", "princess": "pony",
+               "huntress": "stag"}
+MOUNT_SPEED = 0.75
+MOUNT_CALL_TIME = 1.0
+MOUNT_THROWN = 10.0
+MOUNT_MIN_COOLDOWN = 5.0
+MOUNT_STEPS_PER_TILE = 1.6
+MOUNT_FLOAT_BOB = (3.0, 2)
 
 # --- Terrain durability --------------------------------------------------------------
 # Hit points per destructible tile type (shot damage is in WEAPONS above).
@@ -1672,18 +1907,23 @@ TERRAIN_PREFETCH_BLOCKS = 2
 # amount so the biome ring kept its width:
 #   plains radius 510 -> 510 * sqrt(2) = 721;   ring width 2550 - 510 = 2040;
 #   island radius 721 + 2040 = 2761;   plains fraction 721 / 2761 = 0.2612.
-WORLD_RADIUS = 2761
+# P1 (2026-10-10, user: "the map is too big") cut the radius by 20%:
+#   2761 * 0.8 = 2209 (area -36%); centre to coast ~4.3 min. The plains keep
+#   their fraction, so every biome shrinks by the same share, and the noise
+#   sizes below (COAST_SCALE, PLAINS_EDGE_SCALE, BIOME_WARP_SCALE) shrank by
+#   the same 0.8, so it's the same-shaped island, smaller.
+WORLD_RADIUS = 2209
 # The coastline wanders in and out by up to this fraction of WORLD_RADIUS
 # (fBm noise; COAST_SCALE is the size of its biggest bays and capes, and
 # COAST_OCTAVES adds ever smaller wiggles down to ~COAST_SCALE / 2**(n-1)).
 COAST_AMPLITUDE = 0.2
-COAST_SCALE = 2400
+COAST_SCALE = 1920
 COAST_OCTAVES = 6
 # The central plains reach this fraction of WORLD_RADIUS, their edge
 # wandering by PLAINS_EDGE_AMPLITUDE (fraction of the plains radius).
 PLAINS_RADIUS_FRACTION = 0.2612
 PLAINS_EDGE_AMPLITUDE = 0.2
-PLAINS_EDGE_SCALE = 900
+PLAINS_EDGE_SCALE = 720
 # The ring: one equal slice per biome, in this order clockwise from east
 # when the layout is fixed. BIOME_RING_SHUFFLE deals the biomes into the
 # slices in a random (seeded) order each run; BIOME_RING_ROTATE turns the
@@ -1695,7 +1935,7 @@ BIOME_RING_ROTATE = True
 # smooth noise field BIOME_WARP_SCALE tiles across, so they curve instead of
 # being straight spokes.
 BIOME_WARP = 0.3
-BIOME_WARP_SCALE = 1600
+BIOME_WARP_SCALE = 1280
 # All borders (coast, plains edge, slices) also meander by up to
 # BORDER_WOBBLE tiles following a smooth noise field BORDER_WOBBLE_SCALE
 # tiles across (headlands, inlets, tongues of one biome into the next), and
@@ -1758,7 +1998,8 @@ RUINS_RUBBLE_CHANCE = 0.12
 #
 # Every quest is in every run (M22.5): each biome has several, keyed by
 # name, each with its own giver, camp and lair at random spots in the biome
-# (unpinned: you find them). The quests are hidden: their targets are out
+# (P2: the givers are pinned from the start; the lairs once their boss
+# wakes). The quests are hidden: their targets are out
 # from the start and any player can finish one without its giver. Talking
 # to the giver gives hints and a counter on the HUD. Finishing a quest wakes
 # its boss at its lair (pinned from then on). A boss beaten in each of the
@@ -2062,23 +2303,26 @@ QUEST_SITE_TRIES = 600
 QUEST_SITE_GAP = 60
 
 # A quest's targets (the psychedelic frogs) are scattered over the whole
-# biome (world/landmarks._scatter), not left at the camp: QUEST_SPOT_EXTRA
-# more than the quest needs (any `count` of them will do), at least
+# biome (world/landmarks._scatter), not left at the camp: QUEST_SPOT_FACTOR
+# times as many as the quest needs (any `count` of them will do; P2,
+# 2026-10-10, was count + 3: the user wants 3-4x, so 5 -> 20), at least
 # QUEST_SPOT_SEPARATION tiles apart (less if the biome is too small) and
 # QUEST_SPOT_CAMP_GAP from the giver, at least QUEST_SPOT_EDGE tiles inside
 # the biome, each in a mud clearing of radius QUEST_SPOT_CLEARING tiles.
 # Picked from QUEST_SPOT_CANDIDATES random points. (One screen: ~86 x 30.)
-QUEST_SPOT_EXTRA = 3
-QUEST_SPOT_SEPARATION = 350
+QUEST_SPOT_FACTOR = 4
+QUEST_SPOT_SEPARATION = 220
 QUEST_SPOT_CAMP_GAP = 200
 QUEST_SPOT_EDGE = 16
 QUEST_SPOT_CLEARING = 4
-QUEST_SPOT_CANDIDATES = 400
+QUEST_SPOT_CANDIDATES = 1000
 # ...and at least this far from another quest's spots.
 QUEST_SPOT_OTHERS = 60
-# A living target shows on the maps only within this many tiles of you
-# (the minimap then points the way in).
-QUEST_TARGET_PIN_RADIUS = 160
+# A taken quest's living target shows on the maps (minimap and big map)
+# only within this many tiles of you -- its "general area" -- and the
+# minimap then points the way in. (P2 follow-up, user: "be generous";
+# was 160, about 30 s of walking now.)
+QUEST_TARGET_PIN_RADIUS = 250
 # "light" quests (M22.2, systems/quests.py): a brazier catches after
 # BRAZIER_LIGHT_TIME s with a hero within BRAZIER_RADIUS tiles of it; with
 # nobody there its heat falls back BRAZIER_COOL x as fast. As its heat

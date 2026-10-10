@@ -44,12 +44,12 @@ class StrikeTest(unittest.TestCase):
         self.assertEqual(d.hp, 480)
 
     def test_buckets(self):
-        h = carded("dwarf", ("sharpened", "common"), ("sharpened", "rare"), ("heavy_axe", "rare"))
+        h = carded("dwarf", ("sharpened", "common"), ("sharpened", "rare"), ("glass_cannon", "rare"))
         h.stats.tag_damage["physical"] = 0.5
         d = Dummy(12, 10.5)
         dealt = combat.strike(d, 100, h, 0.0, [], tags=("physical",), extra=0.1, mult=2.0)
-        # (1 + A) x (1 + T) x M: A = 0.10 + 0.22 + 0.10 extra, T = 0.5, M = 1.35 x 2.
-        self.assertAlmostEqual(dealt, 100 * 1.42 * 1.5 * 1.35 * 2.0)
+        # (1 + A) x (1 + T) x M: A = 0.10 + 0.22 + 0.10 extra, T = 0.5, M = 1.4 x 2.
+        self.assertAlmostEqual(dealt, 100 * 1.42 * 1.5 * 1.4 * 2.0)
 
     def test_crits(self):
         h = carded("wizard", ("brutal", "common"))
@@ -211,14 +211,6 @@ class HeroCardTest(unittest.TestCase):
         jumped = 20 * config.WEAPONS["shock_bolt"].shell.chain_falloff
         self.assertAlmostEqual(500 - far.hp, jumped * 1.25 * 1.15, delta=0.01)
 
-    def test_cleave_bleeds(self):
-        h = carded("dwarf", ("cleave", "uncommon"))
-        d = Dummy(13, 10.5)
-        shots = []
-        combat.fire(h, open_map(), shots, [])
-        self.fly(shots, [h, d])
-        self.assertTrue(d.status.has("bleed"))
-
     def test_spectrum(self):
         h = carded("princess", ("spectrum", "rare"))
         world = open_map()
@@ -239,18 +231,6 @@ class HeroCardTest(unittest.TestCase):
         self.fly(shots, [h, a, b])
         self.assertAlmostEqual(500 - a.hp, 16)
         self.assertAlmostEqual(500 - b.hp, 16 * 1.15)
-
-    def test_overload_in_game(self):
-        from ascii_adventurers.tests.test_players import make_manager, start_game
-        s = start_game(make_manager(), seed=31, hero="wizard")
-        s.me.progress.take("overload", "rare")
-        s._apply_loadout(s.me)
-        got = [s.rules.attack_mods(s.me) for _ in range(config.OVERLOAD_EVERY * 2)]
-        boosted = [g for g in got if g["mult"] > 1]
-        self.assertEqual(len(boosted), 2)
-        self.assertEqual((boosted[0]["mult"], boosted[0]["extra_chain"]),
-                         (config.OVERLOAD_MULT, 0))              # no jumps since M20
-        pygame.mouse.set_visible(True)
 
     def test_dissonance_pushes_and_chills(self):
         from ascii_adventurers.ai import make_enemy

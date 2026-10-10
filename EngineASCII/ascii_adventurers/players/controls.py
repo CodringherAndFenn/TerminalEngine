@@ -54,6 +54,7 @@ class PlayerInput:
     pick: int | str | tuple | None = None
     interact: bool = False       # talk to whoever is near (E / gamepad A), this step
     roll: bool = False           # dodge roll (Shift / gamepad B or LB), this step
+    mount: bool = False          # call / leave the mount (Q / gamepad Y), this step (P6)
 
 
 class Controls:
@@ -65,6 +66,7 @@ class Controls:
         self._pick: int | None = None
         self._interact = False
         self._roll = False
+        self._mount = False
 
     def queue_pick(self, action) -> None:
         """A card choice made in the picker (see PlayerInput.pick); handed
@@ -90,6 +92,14 @@ class Controls:
 
     def take_roll(self) -> bool:
         pressed, self._roll = self._roll, False
+        return pressed
+
+    def queue_mount(self) -> None:
+        """The mount key was pressed (P6); handed over with the next step's input."""
+        self._mount = True
+
+    def take_mount(self) -> bool:
+        pressed, self._mount = self._mount, False
         return pressed
 
     def block_fire(self) -> None:

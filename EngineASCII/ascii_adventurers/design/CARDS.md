@@ -13,7 +13,7 @@ Build model (your choice): each hero has **one signature weapon**, plus up to **
 1. **Each plain stat is sold by exactly one card**: the generic card for it (section 6.1). "+armor" is only Thick Hide, "+attack speed" only Quick Hands, "+projectile" only Multishot, "+pierce" only Piercing, "+status chance" only Affliction.
 2. **Hero cards change how that hero's weapon works**, never a plain stat (no more "beats reach 25% farther" next to Long Reach).
 3. **Trade-offs, conditionals, scaling and triggers** may touch a stat only through their own condition or rule, and no two do the same thing.
-4. **Every "×N damage"** has its own condition or cost (Heavy Axe: slower; Glass Cannon: less HP).
+4. **Every "×N damage"** has its own condition or cost (Glass Cannon: less HP; Heavy Axe was one until P4).
 5. Cards *may* overlap with the Guild Hall: the hall makes heroes start stronger over time; cards shape the run.
 
 ## 1. Stat layer
@@ -168,20 +168,20 @@ A spell card is an **enabler**. Its first pick grants the spell; picking it agai
 | W1 | wizard | Storm Caller | lightning jumps to +1 enemy (M20: needs Chain Lightning) | rare | P shock | start |
 | W2 | wizard | Conductor | jumps reach 30% farther and fade less (needs Chain Lightning) | common | P shock | start |
 | W3 | wizard | Supercell | bolts shock; jumps prefer shocked enemies and deal +25% to them (needs Chain Lightning) | uncommon | E shock | start |
-| W4 | wizard | Overload | every 5th cast: ×3 damage (M20: no more extra jumps) | rare | P missiles | L:2000 |
+| W4 | wizard | Phase Darts (P4; was Overload) | darts fly through walls and trees | rare | P missiles | L:2000 |
 | W5 | wizard | Ball Lightning | Chain Lightning's bolts crackle where they hit for 2 s (M20: epic, no longer his capstone) | epic | P shock/area | L:6000 |
 | W7 | wizard | Chain Lightning 🆕 | **his spell** (uses a slot, levels I-V): every 1.5 s a bolt (20) at the nearest enemy, jumping to 2 more; II +30% damage, III 25% faster, IV +1 jump, V +40% damage and 20% faster | uncommon | E shock | start |
 | W8 | wizard | Seeker 🆕 | darts turn twice as fast and find a new target when theirs dies | common | P missiles | start |
 | W9 | wizard | Resonance 🆕 | each earlier dart on the same enemy within 1 s: +15% (up to +60%) | uncommon | P missiles | start |
-| W10 | wizard | Mana Burst 🆕 | darts burst on hit: 50% of the dart to everything else within 1 tile | rare | P missiles/area | start |
+| W10 | wizard | Implosion (P4; was Mana Burst) | a dart's hit drags every enemy within 2.5 tiles 0.8 tiles toward it (not bosses or things that never move) | rare | P missiles/area | start |
 | W11 | wizard | Arcane Storm 🆕 | a dart that kills fires a new one at the next enemy within 8 tiles, 3 per cast | legendary | C missiles | L:6000 |
 | W12 | wizard | Orbiting Darts 🆕 | a dart that reaches the end of its flight without a hit swings round toward the enemy nearest you (12 tiles) and tries again, once | rare | P missiles/volley | start |
 | D1 | dwarf | Ricochet | axes bounce off walls and fly on (up to 2 bounces) instead of turning back | rare | P volley | start |
-| D2 | dwarf | Heavy Axe | ×1.35 damage, attacks 10% slower | rare | P sniper | start |
+| D2 | dwarf | Hang Time (P4; was Heavy Axe) | where its throw ends (full range, or a wall it doesn't Ricochet off) an axe hovers 0.4 s (+0.2 s per copy, up to 3), hitting everything it touches again every 0.2 s | rare | P area | start |
 | D3 | dwarf | Homeward Fury | axes deal +50% on the way back | common | P | start |
-| D4 | dwarf | Cleave | axes make enemies bleed | uncommon | E bleed | start |
+| D4 | dwarf | Tether (P4; was Cleave) | a chain links the dwarf to each axe in flight: every 0.3 s, everything within 0.35 tiles of it takes 25% of the axe's damage | uncommon | P area | start |
 | D5 | dwarf | Cyclone | a caught axe is thrown again at once at the nearest enemy (once per throw) | legendary | C volley/bleed | L:6000 |
-| H1 | huntress | Volley | every 4th shot looses 5 arrows in a fan | epic | P volley | start |
+| H1 | huntress | Arrow Rain (P4; was Volley) | every 5th shot also lobs 6 arrows (+1 per extra projectile) that come down at random spots within 3 tiles of your aim, 70% of an arrow each, on everything within 0.7 tiles | epic | P volley/area | start |
 | H2 | huntress | Broadhead | +15% damage for each enemy the arrow has already passed | uncommon | P sniper | start |
 | H3 | huntress | Hunter's Mark | every 4 s, mark the toughest enemy in view: ×2 damage from you | rare | P sniper/crit | L:2000 |
 | H4 | huntress | Steady Aim | +25% crit chance while standing still | uncommon | P crit | start |
@@ -306,7 +306,7 @@ The roll: ~4 tiles in 0.25 s toward where you walk (your aim if standing still),
 | W6 | Blink (wizard) | the roll is a teleport (5 tiles, never through walls) ending in a shock nova (20, 2.5 tiles) | uncommon | roll, shock |
 | D6 | Shoulder Charge (dwarf) | enemies the roll runs into take 25 and are shoved 2.5 tiles along it | uncommon | roll, tank |
 | H6 | Backflip (huntress) | starting a roll looses 5 arrows (×0.6) in a 40° fan at your aim | uncommon | roll, volley |
-| P6 | Prism Dash (princess) | a trail like Scorched Trail, each patch a random burn / chill / poison / shock | uncommon | roll, statuses |
+| P6 | Pirouette (princess; P4, was Prism Dash) | starting a roll spins a ring of 10 shots all round her, her colors in turn | uncommon | roll, volley |
 | B6 | Drop the Beat (bard) | a free ×1.5 beat as each roll ends | uncommon | roll, area |
 
 Dropped from the M18 proposal (your call): Long Roll, Afterimage.
@@ -324,8 +324,8 @@ Pattern cards need an attack that shoots: every hero but the bard, and the bard 
 | M05 | Twin Lanes | every shot flies as two, half a tile apart (65% each) | rare | volley |
 | B7 | Sheet Music (bard) | each beat flings 3 notes (9 each) at the nearest enemies in sight; +1 note per Multishot; with nobody near they spread all round | uncommon | volley |
 | H7 | Split Arrow (huntress) | **her power: a spell, uses a slot, levels I-V.** I: an arrow's first hit splits it into a 3-arrow fan (50% each, 40°); II +1 arrow; III +30% split damage; IV splits on every enemy it passes; V +2 arrows, wider fan. Split arrows don't split again | uncommon | volley, sniper |
-| P7 | Double Rainbow (princess) | every 3rd shot, a second fan 0.08 s behind, turned half a color | rare | volley |
-| D7 | Twin Axes (dwarf) | every 3rd throw is two axes in a V (30° apart); both come home | rare | volley |
+| P7 | Converge (princess; P4, was Double Rainbow) | her fan's colors curve in and cross at the aim point (at least 3 tiles out, within reach), then spread again | rare | volley |
+| D7 | Splitting Axe (dwarf; P4, was Twin Axes) | as an axe turns for home it splits into two halves (60% each), 1.2 tiles apart, that come back either side of its path | rare | volley |
 
 Dropped (your call): Barrage. Multishot is the one plain "+1 projectile" card. The wizard's projectile cards come with his new weapon (M20).
 
@@ -477,3 +477,25 @@ Unchanged on purpose: W1 Storm Caller (+1 jump) and W2 Conductor are the only ca
 - **Overload** keeps "every 5th cast ×3 damage" but no longer adds jumps.
 - **Trainer (Guild Hall):** Forked Bolt, Long Arc and Grounding became Extra Dart (+1 dart, 2 levels), Swift Darts (+6% dart speed) and Tracking (+10% turn rate). Capacitor stays. Levels bought in the old three are refunded at their price, once, the first time the game loads the save (`config.RETIRED_UPGRADES`).
 - **Archetypes:** a new "missiles" archetype (W4, W8-W12, Multishot, Arcane Mastery); Chain Lightning joined "shock".
+
+## 17. P4 changes (2026-10-10): no more doubles
+
+The user: "remove some of the cards that do the same thing but one is general and one is [a hero] card, doubles are stupid". Eight hero cards that did what a general card already does were cut. The general card stays, so every hero still has the effect. Each cut card's slot (code, rarity, tags, unlock) went to a new card only that hero could have, built on their weapon's quirk. All picked by the user from a draft.
+
+| Code | Cut | Its double | Replacement |
+|------|-----|-----------|-------------|
+| D2 | Heavy Axe (×1.35, 10% slower) | Glass Cannon, Sharpened | **Hang Time**: the axe hovers where its throw ends, hitting again |
+| D4 | Cleave (axes bleed) | Serrated | **Tether**: a chain to each axe in flight cuts what it crosses |
+| D7 | Twin Axes (every 3rd throw, 2 axes) | Twin Lanes, Multishot | **Splitting Axe**: the axe comes home as two halves |
+| P6 | Prism Dash (rainbow trail of statuses) | Scorched Trail | **Pirouette**: a roll spins a ring of 10 colored shots |
+| P7 | Double Rainbow (every 3rd shot, a 2nd fan) | Echo | **Converge**: the fan curves in to cross at the aim |
+| H1 | Volley (every 4th shot, 5 arrows) | Cross Fire, Starburst | **Arrow Rain**: every 5th shot, 6 arrows rain on the aim |
+| W4 | Overload (every 5th cast ×3) | Echo | **Phase Darts**: darts fly through walls and trees |
+| W10 | Mana Burst (a burst round each hit) | Volatile, Broad Strokes | **Implosion**: hits drag nearby enemies in |
+
+Offered for cutting and kept (the user's call): Spectrum, Lullaby, Ball Lightning, Supercell. They overlap a general card only partly. Rejected replacement: Quick Catch for D4 ("each caught axe: next throw 30% sooner").
+
+- Save files: a bought Overload becomes Phase Darts, which has the same 2000-loot price (`config.RENAMED_CARDS`, `meta/guild.Guild.load`).
+- Archetypes follow the new cards: W4 left Crit, D4 left Bleed, D2 left Sniper; D2, D4, H1 and W10 are in Area; P6 joined Volley.
+- Numbers: `config.HANG_TIME`, `TETHER`, `SPLITTING_AXE`, `PIROUETTE`, `CONVERGE_MIN`, `ARROW_RAIN` (+ `ARROW_RAIN_HIT`, `SPELL_SHELLS["rain_arrow"]`), `IMPLOSION`. Code: `systems/combat.py` (`_hang`/`_hover`, `_tether`, `_split_axe`, `_converge`/`_bend`, `_phases`, the rain landing in `_fly_lobbed`, Implosion in `_dart_hit`), `systems/run_rules._arrow_rain`, `systems/roll.start` (Pirouette). Drawing: `render/ascii_fx.py` (the chain, a hovering axe's spin, falling arrows, the "implode" ring).
+- Tests: `tests/test_p4.py`. The old tests of the cut cards are gone; tests that used Heavy Axe as their "×N" example use Glass Cannon now.

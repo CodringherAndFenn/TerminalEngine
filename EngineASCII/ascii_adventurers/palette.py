@@ -100,6 +100,11 @@ SPRITE_COLORS = {
     "v": (140, 70, 170), "V": (96, 44, 120),         # violet
     "e": (150, 132, 96), "E": (110, 95, 66),         # ogre hide
     "a": (214, 112, 52), "A": (150, 72, 32),         # dwarf's ginger beard
+    # P7 (the plains' new enemies)
+    "n": (128, 94, 62), "N": (84, 60, 40),           # brown fur, dirt
+    "u": (150, 168, 120), "U": (98, 112, 78),        # undead skin
+    "c": (64, 62, 74), "C": (38, 36, 46),            # crow / charcoal black
+    "l": (226, 196, 110), "L": (170, 140, 64),       # straw
 }
 # Creature sprites (warrior, worm) flash this for a moment when hit.
 HIT_FLASH = (255, 235, 220)
@@ -424,6 +429,17 @@ PIN_QUEST = ((255, 220, 90), (60, 40, 0))
 PIN_LAIR = ((255, 90, 70), (60, 10, 0))
 PIN_TARGET = ((225, 120, 255), (45, 10, 60))
 PIN_DONE = ((150, 150, 150), (40, 40, 40))
+# Quest givers (P2, user-picked): a ROUND pin in its biome's colour, always
+# on the maps. Not the terrain colours (forest and mushroom are both purple
+# there, the ruins grey like PIN_DONE). Plains: the old gold PIN_QUEST.
+PIN_GIVER = {
+    "swamp": ((150, 220, 60), (30, 50, 10)),       # lime
+    "desert": ((255, 170, 40), (70, 40, 0)),       # amber
+    "ruins": ((120, 200, 255), (20, 45, 70)),      # ice blue
+    "forest": ((90, 255, 170), (10, 60, 35)),      # ghost mint
+    "mushroom": ((255, 100, 200), (70, 15, 50)),   # hot pink
+    "plains": PIN_QUEST,
+}
 # A fight's fixtures on the maps (M24.1, the Fallout King's vault).
 PIN_SHOWER = ((120, 220, 255), (20, 50, 70))
 PIN_DRY = ((90, 100, 110), (30, 30, 34))
@@ -630,6 +646,13 @@ ICE_SHEET = ((200, 240, 255), (130, 190, 230))
 PENGUIN = {"body": (30, 34, 44), "belly": (240, 244, 250), "beak": (255, 170, 40)}
 SNOWBALL = ((245, 250, 255), (190, 210, 230))
 CHILL_BAR = ((150, 220, 255), (255, 255, 255), (120, 160, 255))   # low, high, encased
+MOUNT_BAR = ((190, 150, 95), (240, 205, 130), (240, 205, 130))    # P6: the mount's wait
+# P7: the plains' new enemies (render/plains.py).
+PLAINS_TELL = ((255, 80, 60), (230, 120, 80))     # the "!" over a wind-up; a charge line
+DRUM_RING = ((255, 200, 120), (170, 120, 70))     # the war drummer's ring: on the beat, between
+ELITE_STAR = (255, 210, 80)                       # over an elite
+HEAL_BEAM = ((140, 255, 140), (80, 190, 90))      # the field priest's heal
+SHOT_PEBBLE = ((200, 196, 186), ((140, 136, 128), (100, 98, 92)))   # the bandit's sling
 WRAITH = ((190, 230, 255), (110, 160, 210))
 SHOT_SHARD = ((220, 245, 255), ((150, 210, 240), (100, 150, 200)))
 SHOT_SPIKE = ((200, 240, 255), ((140, 190, 230), (90, 130, 180)))

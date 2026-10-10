@@ -58,6 +58,7 @@ class Player:
     spells: dict = field(default_factory=dict)  # spell key -> systems/spells.SpellState
     mark_timer: float = 0.0           # Hunter's Mark: seconds to the next mark
     meta: list = field(default_factory=list)    # Guild upgrades, as card steps (meta/guild.py)
+    loadout_level: int = 1            # the level the hero's loadout was built for (P3 speed)
     unlocked: set | None = None       # cards this player may be offered (None: all)
     # Card / guild state of the run (systems/run_rules.py)
     frenzy: float = 0.0               # Frenzy: seconds of double attack speed left

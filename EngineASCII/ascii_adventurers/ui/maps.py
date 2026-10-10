@@ -136,15 +136,27 @@ _PIN_COLORS = {"quest": palette.PIN_QUEST, "lair": palette.PIN_LAIR,
                "crown": palette.PIN_CROWN,
                "lever": palette.PIN_LEVER, "sun": palette.PIN_SUN,              # M24.3
                "coffin": palette.PIN_COFFIN, "bear": palette.PIN_BEAR,
-               "growcap": palette.PIN_GROWCAP, "seed": palette.PIN_SEED}       # M25.1
+               "growcap": palette.PIN_GROWCAP, "seed": palette.PIN_SEED,       # M25.1
+               "giver_done": palette.PIN_DONE}                                # P2
+_PIN_COLORS.update({f"giver_{biome}": c for biome, c in palette.PIN_GIVER.items()})
+
+
+def is_giver(kind: str) -> bool:
+    return kind.startswith("giver_")
 
 
 def _paint_pin(kind: str):
-    """A map pin (M17): a diamond, gold for a quest giver, red for a boss's
-    lair, violet for a quest target, grey once done."""
+    """A map pin (M17): a diamond, red for a boss's lair, violet for a
+    quest target, grey once done. A quest giver's pin is round, in its
+    biome's colour (P2)."""
     fill, edge = _PIN_COLORS[kind]
 
     def paint(surf, to_px):
+        if is_giver(kind):
+            c = to_px(0, 0)
+            for color, r in ((edge, 8), (fill, 6)):
+                pygame.draw.circle(surf, color, c, abs(to_px(r, 0)[0] - c[0]))
+            return
         for color, r in ((edge, 7), (fill, 5)):
             pts = [to_px(0, -r), to_px(r, 0), to_px(0, r), to_px(-r, 0)]
             pygame.draw.polygon(surf, color, pts)
@@ -152,7 +164,7 @@ def _paint_pin(kind: str):
 
 
 def draw_pin(bank: SpriteBank, kind: str, x: float, y: float) -> None:
-    bank.draw(bank.static(f"map_pin_{kind}", _paint_pin(kind), 8), x, y)
+    bank.draw(bank.static(f"map_pin_{kind}", _paint_pin(kind), 9), x, y)
 
 
 # --- Minimap ------------------------------------------------------------------------
@@ -243,6 +255,10 @@ class Minimap:
                 draw_mate(bank, color, px, py)
         for ox, oy, kind, _ in pins:
             px, py = mx + (ox - x) / k * pw, my + (oy - y) / k * ph
+            if is_giver(kind):      # (always pinned, P2: only when in the box, or
+                if inner.x + 4 <= px < inner.right - 4 and inner.y + 4 <= py < inner.bottom - 4:
+                    draw_pin(bank, kind, px, py)    # the edge would fill up with them)
+                continue
             # Off the box: slide it in along the line from the centre.
             dx, dy = px - mx, py - my
             lim_x, lim_y = inner.width / 2 - 6, inner.height / 2 - 6
@@ -410,19 +426,37 @@ class BigMap:
                  title)
 
         # Biome names (only where the whole name fits inside the frame).
+        # `used`: cells already labelled, so no two labels overlap (P2: with
+        # every giver pinned, names ran into each other).
+        used: set[tuple[int, int]] = set()
+
+        def room(col: int, row: int, n: int) -> bool:
+            return (1 <= col and col + n <= w + 1 and 1 <= row <= rows
+                    and not any((c, row) in used for c in range(col - 1, col + n + 1)))
+
         for name, x, y in self._labels:
             px, py = self._world_to_canvas(x, y, cw, ch)
             col, row = round(px / cw - len(name) / 2), int(py // ch)
-            if 1 <= col and col + len(name) <= w + 1 and 1 <= row <= rows:
+            if room(col, row, len(name)):
                 text.put(col, row, name, palette.MAP_LABEL, None)
+                used.update((c, row) for c in range(col, col + len(name)))
 
-        for ox, oy, kind, label in pins:
+        # Each pin's label goes under it, else over it, else it's left out.
+        # The pins go on top of every label.
+        shown = []
+        first = {"lair": 1, "done": 1, "target": 3}    # (givers 0, the rest 2)
+        for ox, oy, kind, label in sorted(pins, key=lambda p: 0 if is_giver(p[2])
+                                          else first.get(p[2], 2)):
             px, py = self._world_to_canvas(ox, oy, cw, ch)
             if cw <= px < (w + 1) * cw and ch <= py < (rows + 1) * ch:
-                draw_pin(bank, kind, px, py)
-                col, row = round(px / cw - len(label) / 2), int(py // ch) + 1
-                if 1 <= col and col + len(label) <= w + 1 and 1 <= row <= rows:
+                shown.append((kind, px, py))
+                col, row = round(px / cw - len(label) / 2), int(py // ch)
+                row = next((r for r in (row + 1, row - 1) if room(col, r, len(label))), None)
+                if label and row is not None:
                     text.put(col, row, label, _PIN_COLORS[kind][0], palette.HUD_PANEL)
+                    used.update((c, row) for c in range(col, col + len(label)))
+        for kind, px, py in shown:
+            draw_pin(bank, kind, px, py)
         if quests:
             width = max(len(f"{a:7} {b}") for a, b, _ in quests) + 2
             text.put(2, 2, " QUESTS".ljust(width), palette.QUEST_TITLE, palette.HUD_PANEL)

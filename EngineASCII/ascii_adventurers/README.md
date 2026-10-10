@@ -139,7 +139,7 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   still stop you. One charge comes back every 5 s (the HUD's ROLL bar).
   Eleven roll cards: Quick Recovery, Extra Roll, Riposte, Slipstream,
   Close Call, Scorched Trail, and one per hero (wizard Blink, dwarf
-  Shoulder Charge, huntress Backflip, princess Prism Dash, bard Drop the
+  Shoulder Charge, huntress Backflip, princess Prism Dash (Pirouette since P4), bard Drop the
   Beat). The old passive "dodge" stat is now **evasion**. Lingering only
   comes up once something of yours lasts. Three "lasts longer" spell
   levels became real ones (2 flasks, a chilling totem, piercing turret
@@ -152,13 +152,13 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   New cards: Cross Fire, Starburst, Rear Guard, Spiral, Twin Lanes, plus
   Sheet Music (the bard's beats fling notes, so the patterns work for him
   too), Split Arrow (the huntress's power, levels I-V like a spell),
-  Double Rainbow (princess) and Twin Axes (dwarf). See `design/CARDS.md`
+  Double Rainbow (princess) and Twin Axes (dwarf) (P4 replaced both). See `design/CARDS.md`
   sections 6.11 and 15.
 
 - the wizard's arcane missiles (M20): 3 darts that fan out, then home on
   the enemy nearest your reticle. His old shock bolt is now his spell,
   Chain Lightning, and the lightning cards upgrade it. New cards: Seeker,
-  Resonance, Mana Burst, Orbiting Darts and the capstone Arcane Storm. The
+  Resonance, Mana Burst (Implosion since P4), Orbiting Darts and the capstone Arcane Storm. The
   trainer's lightning upgrades became missile ones, and anything you'd
   bought in them is refunded (`design/CARDS.md` section 16).
 
@@ -195,7 +195,8 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
 
 - every boss in every run (M22.5): all three swamp bosses are out there
   each run, their givers' camps and arenas at random spots in the swamp.
-  The quests are hidden: nothing is pinned until a boss wakes, and doing a
+  The quests are hidden: nothing is pinned until a boss wakes (since P2 the
+  givers are pinned from the start), and doing a
   quest's job without ever meeting its giver wakes the boss too. A giver
   explains their quest and puts a counter for it on the HUD. One beaten
   boss per biome counts toward Glory; the others are bonus loot and
@@ -323,8 +324,73 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   bramble cage, rot moths, dive-bombs, flung wisps and nettle rain
   (`design/BOSSES.md` section 23).
 
-Next up (agreed order, `design/BOSSES.md` section 8): the haunted forest's
-other two bosses (the mad murderer squirrel, the mimic tree), then the
+- Playtest pass, P1 + P2 (`design/BOSSES.md` section 24):
+  - a smaller island: the radius is 20% shorter (2761 -> 2209 tiles, ~36%
+    less land; ~4.3 min from the centre to the coast). Same shape, every
+    biome smaller by the same share;
+  - 4x the quest targets: every quest that needs a number of things puts
+    out four times that many (5 golden scarabs needed -> 20 out there;
+    any 5 do);
+  - every quest giver is on the map from the start: a round pin in its
+    biome's colour (swamp lime, desert amber, ruins ice blue, forest mint,
+    mushroom pink), named on the big map, grey once its boss is beaten.
+    The minimap shows a giver when it's inside the box. Arenas are still
+    pinned when their boss wakes. Map labels no longer overlap;
+  - a taken quest's targets show on the minimap and the big map once
+    you're in their general area: within 250 tiles of you (was 160).
+- Playtest pass, P3 (`design/BOSSES.md` section 24.2): XP gems are pulled
+  in from 3.75 tiles (was 1.5; Magnet cards and the Lodestone still add
+  their % on top), and every level past the first adds 1% move speed, up
+  to +20% at level 21 (it adds to Swift Boots and the Cobbler).
+- Playtest pass, P4 (`design/CARDS.md` section 17): no more doubles. Eight
+  hero cards that did what a general card does are gone, each replaced by
+  one only that hero could have:
+  - dwarf: Hang Time (an axe hovers where its throw ends, hitting again),
+    Tether (a chain to each axe in flight cuts what it crosses),
+    Splitting Axe (the axe comes home as two halves);
+  - princess: Converge (her colors curve in and cross at your aim),
+    Pirouette (a roll spins a ring of 10 colored shots);
+  - huntress: Arrow Rain (every 5th shot, 6 arrows rain where you aim);
+  - wizard: Phase Darts (darts fly through walls and trees; a save that
+    bought Overload gets it), Implosion (a dart's hit drags enemies in).
+- Playtest pass, P5 (`design/BOSSES.md` section 24.3): difficulty levels,
+  picked on the hero select under the heroes: Wanderer (the game as it
+  was), Knight, Folk Hero, then Hero of Legend I-VIII. Each level makes
+  every enemy and boss x1.3 tougher and x1.15 harder-hitting (compounding:
+  x13.8 HP and x4 damage at the top), adds 20% more enemies and 40% more
+  loot (x3 enemies, +400% loot at the top). It all comes on top of player
+  levels, pacts, Beacon and Bounty. Beating any boss on a level opens the
+  next (saved with the guild); `--dev` has them all open. The pause menu
+  and the game-over screen show the run's level.
+- Playtest pass, P6 (`design/BOSSES.md` section 24.4): mounts. Q (gamepad
+  Y) whistles for your hero's own mount: the wizard's flying carpet, the
+  dwarf's war ram, the bard's donkey, the princess's white pony, the
+  huntress's stag. A second later you ride, 75% faster. It's for travel:
+  attacking or rolling hops you off (the attack or roll still happens),
+  the bard's lute stays quiet in the saddle, a hit throws you off (10 s
+  before it comes back; the HUD's MNT bar shows the wait), Q again hops
+  off, and there's no riding in a boss arena. The guild's Stable makes it
+  faster and back sooner. `config.MOUNTS_ON = False` switches it all off.
+- Playtest pass, P7 (`design/BOSSES.md` section 24.5): the plains go from
+  5 enemy kinds to 19, all drawn like the heroes, every attack with a tell
+  (a red "!" over a wind-up, a dotted line before a charge):
+  - simple chasers: field rats (packs of 4-6), shambling farmhands, angry
+    geese (gaggles of 3);
+  - wild hounds (packs of 3, they circle and take turns darting in), the
+    hawk (circles over everything, lines up, dives), the molehill (sends
+    out mole rats until you break it), the rampaging bull (elite: charges
+    through anything that breaks, again and again);
+  - the bandit slinger (bursts of 3 stones), the lancer (a bandit on
+    horseback who gallops through you), the shieldbearer (elite: nothing
+    gets past the shield from the front; open after a bash), the field
+    priest (heals the most hurt enemy near it);
+  - the straw golem (dies in burning straw), the scarecrow (lets loose
+    crows), the war drummer (everyone in its ring is faster and hits
+    harder).
+
+Next up (agreed order, `design/BOSSES.md` section 8): the rest of the
+playtest pass (P8-P12: the other biomes' new enemies), then
+the haunted forest's other two bosses (the mad murderer squirrel, the mimic tree), then the
 mushroom bosses one at a time, M27 the plains boss and the victory, and
 M28 an art spec so custom pixel art can replace the drawn sprites.
 
@@ -349,10 +415,15 @@ meet; `run.py --dev --boss leech_swarm` (or `froggy`, `proboscia`, `khepri`, `ol
 the dev keys below at that boss's quest; F10 in game switches the view between players, and other players
 show as coloured dots on the minimap and big map.
 Developer mode: `run.py --dev` fills the guild purse (999,999 loot) and
-in a run L levels you up on the spot (one card pick per press); F6 jumps
-next to the dev quest's giver (the `--boss` one, else the first quest not
-beaten), F7 finishes that quest (its boss wakes), F8 jumps outside its
-boss's lair (walk in to start the fight). After a
+in a run L levels you up on the spot (one card pick per press). The dev
+keys act on the "dev quest", named on the DEV bar at the bottom: at first
+the `--boss` one, else the first quest not beaten; F5 picks the next quest
+(through all of them, then round again). F6 jumps next to its giver, F7
+finishes it (its boss wakes), F8 jumps outside its boss's lair (walk in to
+start the fight), F9 jumps to its nearest target still to do. F4 (also with
+the big map open) switches on the big map's every-target view: every
+quest's targets, anywhere (only the dev quest's are labelled). It's off at
+first, so dev play's maps look like a normal run's. After a
 boss falls, dev mode prints how long the fight took to the console. Nothing
 bought and no records are saved in dev mode, so your real save stays as
 it was.
@@ -380,6 +451,7 @@ east out of the starting compound's gate to reach its shooting range.
 | Left click     | attack (hold to keep attacking; the bard plays by himself) |
 | Mouse          | aim (true angle; the amber ring is the exact aim point, brackets mark the tile under it); you face the mouse |
 | E              | talk to a quest giver standing next to you (gamepad: A)  |
+| Q              | whistle for your mount / hop off (gamepad: Y)            |
 | M              | big map (pauses): wheel zoom, drag or WASD pan, C centre on you, M/ESC close; lists your quests |
 | ESC            | pause menu: resume, settings, abandon run, quit          |
 | R              | after you fall: go again (same hero, same seed if you chose one) |

@@ -180,15 +180,6 @@ class RollCardTest(unittest.TestCase):
         self.assertGreaterEqual(len(trail), 4)
         self.assertTrue(d.status is not None and d.status.has("burn"))
 
-    def test_prism_dash_mixes_statuses(self):
-        h = carded("princess", ("prism_dash", "uncommon"))
-        sc = _Scene(h)
-        for _ in range(4):
-            h.roll_charges = 1
-            sc.run(0.3, first=press(1, 0))
-            h.x = 10.5
-        self.assertGreater(len({z.inflicts for z in sc.zones}), 1)
-
     def test_blink_teleports_but_not_through_walls(self):
         h = carded("wizard", ("blink", "uncommon"))
         d = Dummy(15.5, 10.5)
@@ -230,7 +221,7 @@ class RollCardTest(unittest.TestCase):
 
     def test_hero_roll_cards_are_their_own(self):
         for hero, k in (("wizard", "blink"), ("dwarf", "shoulder_charge"),
-                        ("huntress", "backflip"), ("princess", "prism_dash"),
+                        ("huntress", "backflip"), ("princess", "pirouette"),
                         ("bard", "drop_the_beat")):
             w = config.WEAPONS[config.HEROES[hero].weapon]
             self.assertIn(k, cards.eligible(hero, w, Counter()))

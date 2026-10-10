@@ -232,8 +232,9 @@ def volley(shooter: Character, world, projectiles: list[Projectile], effects: li
     """`n` shots of `shell` fanned evenly over `spread_deg` around `angle`,
     from the shooter's hand (or `origin`). The weapon's own fire and the
     pattern cards (systems/run_rules.patterns) both come through here.
-    Twin Lanes (a card) turns each shot into two side by side. `hold`: the
-    shots wait this long before flying (Double Rainbow)."""
+    Twin Lanes (a card) turns each shot into two side by side; Converge
+    (P4) bends the princess's fan to cross at the aim point. `hold`: the
+    shots wait this long before flying."""
     mx, my = origin if origin is not None else shot_origin(shooter)
     effects.append(Effect("muzzle", mx, my, angle))
     dmg = shell.damage if damage is None else damage
@@ -263,6 +264,7 @@ def volley(shooter: Character, world, projectiles: list[Projectile], effects: li
         else:
             reach = math.hypot(aim[0] - mx, aim[1] - my) if aim is not None else shell.max_range / 2
             seek_point = (mx + math.cos(angle) * reach, my + math.sin(angle) * reach)
+    meet = _converge_distance(shooter, shell, angle, n, spread_deg, mx, my)
     for i in range(n):
         a = angle + (spread * (i / (n - 1) - 0.5) if n > 1 else 0.0)
         for side in lanes:
@@ -278,8 +280,37 @@ def volley(shooter: Character, world, projectiles: list[Projectile], effects: li
             p.group = group
             p.hold = hold
             p.seek_point = seek_point
+            if meet is not None:
+                _converge(p, wrap_angle(a - angle), meet)
             projectiles.append(p)
     return [shell.sound]
+
+
+def _converge_distance(shooter, shell, angle: float, n: int, spread_deg: float,
+                       mx: float, my: float):
+    """Converge (P4): how far off the princess's colors should cross -- at
+    her aim point (at least CONVERGE_MIN, within reach) -- or None: not her
+    fan, a ring (Pirouette), or not fired toward the aim (Cross Fire's side
+    shots...)."""
+    stats = getattr(shooter, "stats", None)
+    aim = getattr(shooter, "aim_point", None)
+    if (stats is None or not stats.has("converge") or shell.look != "prism" or n < 2
+            or spread_deg >= 180.0 or aim is None
+            or abs(wrap_angle(angle - shooter.aim_angle)) > math.radians(30)):
+        return None
+    d = math.hypot(aim[0] - mx, aim[1] - my)
+    return max(config.CONVERGE_MIN, min(d, shell.max_range * 0.9))
+
+
+def _converge(p: Projectile, off: float, dist: float) -> None:
+    """Bend a shot `off` radians off the middle of its fan along the arc
+    of the circle that meets the middle line `dist` tiles out: such an arc
+    turns 2*off in all, at 2*sin(off)/dist radians per tile flown. Then it
+    flies on straight, spreading out again past the crossing."""
+    if abs(off) < 1e-6:
+        return
+    p.curve = -2.0 * math.sin(off) / dist
+    p.curve_left = 2.0 * abs(off)
 
 
 def _may_hurt(source: Actor | None, target: Actor) -> bool:
@@ -520,6 +551,11 @@ def update_projectiles(
         if p.spec.lob:
             events += _fly_lobbed(p, world, effects, dt, actors)
             continue
+        if p.spec.returns:
+            _tether(p, actors, effects, dt)
+        if p.hang > 0:
+            events += _hover(p, grid, world, effects, dt, actors, spawned, zones)
+            continue
         if p.returning:
             events += _fly_back(p, grid, world, effects, dt, actors, spawned, zones)
             continue
@@ -531,6 +567,8 @@ def update_projectiles(
         if p.seek_turn > 0:
             _home(p, actors, dt)
         step = p.spec.speed * dt * p.time_scale
+        if p.curve:
+            _bend(p, step)
         remaining = p.max_range - p.travelled
         last_leg = step >= remaining
         if last_leg:
@@ -538,6 +576,8 @@ def update_projectiles(
         dx, dy = p.dir_x * step, p.dir_y * step
 
         tile_hit = first_hit(world.tile_at, p.x, p.y, p.x + dx, p.y + dy)
+        if tile_hit is not None and p.seek_turn > 0 and _phases(p):
+            tile_hit = None                   # Phase Darts: through walls and trees
         best_t = tile_hit.t if tile_hit is not None else math.inf
         best_t, victim = _first_actor(grid, p, dx, dy, best_t)
 
@@ -566,8 +606,8 @@ def update_projectiles(
                 p.travelled += step * tile_hit.t
                 p.x = tile_hit.x - p.dir_x * 0.05
                 p.y = tile_hit.y - p.dir_y * 0.05
-                if not _ricochet(p, tile_hit):
-                    _turn_back(p)
+                if not _ricochet(p, tile_hit) and not _hang(p):
+                    _turn_back(p, spawned)
                 continue
             p.alive = False
             continue
@@ -578,7 +618,8 @@ def update_projectiles(
             continue
         if last_leg:
             if p.spec.returns:
-                _turn_back(p)
+                if not _hang(p):
+                    _turn_back(p, spawned)
                 continue
             if _orbit_again(p, actors):
                 continue
@@ -656,6 +697,24 @@ def _weave(p: Projectile) -> None:
     a = p.base_angle + p.spec.wobble * math.sin(p.travelled / p.spec.wobble_tiles * math.tau)
     p.angle = a
     p.dir_x, p.dir_y = math.cos(a), math.sin(a)
+
+
+def _bend(p: Projectile, step: float) -> None:
+    """Converge: turn by the shot's curve for this step's tiles, until its
+    turn is used up."""
+    turn = p.curve * step
+    if abs(turn) >= p.curve_left:
+        turn = math.copysign(p.curve_left, turn)
+        p.curve = 0.0
+    p.curve_left -= abs(turn)
+    p.angle += turn
+    p.dir_x, p.dir_y = math.cos(p.angle), math.sin(p.angle)
+
+
+def _phases(p: Projectile) -> bool:
+    """Phase Darts (P4): the wizard's darts fly through walls and trees."""
+    stats = _stats_of(p)
+    return stats is not None and not p.summon and stats.has("phase_darts")
 
 
 def _stats_of(p: Projectile):
@@ -746,7 +805,7 @@ def _hit_actor(p: Projectile, victim: Actor, hx: float, hy: float, world,
     if hook is not None and dealt:
         hook(victim, dealt)
     if dart:
-        _dart_hit(p, victim, hx, hy, owner, stats, actors, effects, spawned)
+        _dart_hit(p, victim, hx, hy, owner, stats, world, actors, effects, spawned)
     effects.append(Effect("impact", hx, hy, p.angle))
     if p.inflicts is not None and victim.alive:
         inflict(victim, p.inflicts[0], owner, p.inflicts[1])
@@ -767,8 +826,6 @@ def _card_effects(p: Projectile, victim: Actor, owner: Actor, stats) -> None:
     """Hero cards that make a shot's hit inflict a status."""
     if stats.has("supercell") and p.spec.chain:
         inflict(victim, "shock", owner)              # the wizard's bolts shock
-    if stats.has("cleave") and p.spec.returns:
-        inflict(victim, "bleed", owner)              # the dwarf's axes bleed
     if stats.has("spectrum") and p.spec.look == "prism":
         name = config.SPECTRUM_STATUS[p.variant % len(config.SPECTRUM_STATUS)]
         if name is not None and owner.rng.random() < config.SPECTRUM_CHANCE:
@@ -812,20 +869,22 @@ def _resonance(victim: Actor, owner) -> float:
     return per * count
 
 
-def _dart_hit(p: Projectile, victim: Actor, hx: float, hy: float, owner, stats, actors,
-              effects: list[Effect], spawned: list | None) -> None:
-    """The wizard's dart cards, once a dart has hit: Mana Burst (a burst
-    round the hit, everyone but the victim) and Arcane Storm (a kill sends
-    a new dart at the next enemy, ARCANE_STORM[0] per cast)."""
-    if stats.has("mana_burst"):
-        radius, share = config.MANA_BURST
-        effects.append(Effect("rune_burst", hx, hy, size=radius))
+def _dart_hit(p: Projectile, victim: Actor, hx: float, hy: float, owner, stats, world,
+              actors, effects: list[Effect], spawned: list | None) -> None:
+    """The wizard's dart cards, once a dart has hit: Implosion (P4: enemies
+    round the hit are dragged toward it; bosses and things that never move
+    stay put, see push) and Arcane Storm (a kill sends a new dart at the
+    next enemy, ARCANE_STORM[0] per cast)."""
+    if stats.has("implosion"):
+        radius, pull = config.IMPLOSION
+        effects.append(Effect("implode", hx, hy, size=radius))
         for a in actors:
-            if a is victim or not a.hittable or not _may_hurt(owner, a):
+            if not a.hittable or not _may_hurt(owner, a):
                 continue
-            if math.hypot(a.x - hx, a.y - hy) <= radius + a.hit_radius:
-                strike(a, p.damage * share, owner, math.atan2(a.y - hy, a.x - hx), effects,
-                       p.tags, mult=p.mult, on_hit=False)
+            d = math.hypot(a.x - hx, a.y - hy)
+            if 0.3 < d <= radius + a.hit_radius:
+                step = min(pull, d - 0.3)       # (never past the middle)
+                push(a, world, (hx - a.x) / d * step, (hy - a.y) / d * step)
     if stats.has("arcane_storm") and not victim.alive and spawned is not None \
             and p.group is not None:
         most, reach = config.ARCANE_STORM
@@ -861,10 +920,105 @@ def _split_arrow(p: Projectile, victim: Actor, hx: float, hy: float, stats,
         spawned.append(c)
 
 
-def _turn_back(p: Projectile) -> None:
-    """A boomerang at the end of its throw: everything may be hit again."""
+def _turn_back(p: Projectile, spawned: list | None = None) -> None:
+    """A boomerang at the end of its throw: everything may be hit again.
+    Splitting Axe (P4): it comes home as two halves instead."""
     p.returning = True
     p.hit.clear()
+    stats = _stats_of(p)
+    if (stats is not None and stats.has("splitting_axe") and not p.halved and not p.summon
+            and spawned is not None):
+        _split_axe(p, spawned)
+
+
+def _split_axe(p: Projectile, spawned: list) -> None:
+    """Splitting Axe: two halves (SPLITTING_AXE[0] of the damage each)
+    start SPLITTING_AXE[1] tiles apart across the way home and both home on
+    the dwarf, so they come back either side of the axe's path and meet in
+    his hand. The first half may still Cyclone; neither splits again."""
+    share, gap = config.SPLITTING_AXE
+    owner = p.owner
+    home = math.atan2(owner.y - p.y, owner.x - p.x) if owner is not None else p.angle + math.pi
+    nx, ny = -math.sin(home), math.cos(home)
+    for k, side in enumerate((-0.5, 0.5)):
+        c = _child(p, p.x + nx * side * gap, p.y + ny * side * gap, home, share)
+        c.returning = True
+        c.hit = set()
+        c.travelled = p.travelled
+        c.max_range = p.max_range
+        c.bounces = p.bounces
+        c.halved = True
+        c.child = k == 1
+        spawned.append(c)
+    p.alive = False
+
+
+def _hang(p: Projectile) -> bool:
+    """Hang Time (P4): where its throw ends -- at full range, or at a wall
+    it doesn't Ricochet off -- an axe hovers HANG_TIME[0] s, + HANG_TIME[1]
+    per copy past the first, before it turns home (once per throw).
+    Returns whether it hangs."""
+    stats = _stats_of(p)
+    if p.hung or p.summon or stats is None or stats.hang_time <= 0:
+        return False
+    first, per, every = config.HANG_TIME
+    p.hang = first + per * (round(stats.hang_time) - 1)
+    p.hung = True
+    p.hang_tick = every              # (what it hit arriving isn't hit again at once)
+    return True
+
+
+def _hover(p: Projectile, grid: ActorGrid, world, effects: list[Effect], dt: float,
+           actors: list[Actor], spawned: list | None, zones: list | None) -> list[str]:
+    """A hanging axe spins where it is; every HANG_TIME[2] s everything it
+    touches is hit again. Then it turns home (and may split)."""
+    p.hang -= dt
+    p.spin += p.spec.speed * dt          # (drawing: it keeps spinning)
+    p.hang_tick -= dt
+    events: list[str] = []
+    if p.hang_tick <= 0:
+        p.hang_tick += config.HANG_TIME[2]
+        p.hit.clear()
+        reach = p.size + 0.4
+        for _, a in grid.near(p.x - reach, p.y - reach, p.x + reach, p.y + reach):
+            if not a.hittable or id(a) in p.hit or not _may_hurt(p.owner, a):
+                continue
+            if math.hypot(a.x - p.x, a.y - p.y) <= a.hit_radius + reach:
+                p.hit.add(id(a))
+                events += _hit_actor(p, a, p.x, p.y, world, actors, effects, spawned, zones)
+    if p.hang <= 0:
+        p.hang = 0.0
+        _turn_back(p, spawned)
+    return events
+
+
+def _tether(p: Projectile, actors: list[Actor], effects: list[Effect], dt: float) -> None:
+    """Tether (P4): every TETHER[0] s, everything within TETHER[1] tiles of
+    the chain -- the line from the dwarf to this axe -- takes TETHER[2] x
+    the axe's damage (no on-hit cards: it's the chain, not the axe)."""
+    owner = p.owner
+    stats = _stats_of(p)
+    if stats is None or p.summon or not stats.has("tether") or owner is None \
+            or not owner.alive:
+        return
+    p.tether_t -= dt
+    if p.tether_t > 0:
+        return
+    every, width, share = config.TETHER
+    p.tether_t += every
+    x0, y0 = owner.x, owner.y
+    dx, dy = p.x - x0, p.y - y0
+    length2 = dx * dx + dy * dy
+    if length2 < 1e-6:
+        return
+    angle = math.atan2(dy, dx)
+    for a in actors:
+        if not a.hittable or not _may_hurt(owner, a):
+            continue
+        t = max(0.0, min(1.0, ((a.x - x0) * dx + (a.y - y0) * dy) / length2))
+        if math.hypot(a.x - (x0 + dx * t), a.y - (y0 + dy * t)) <= width + a.hit_radius:
+            strike(a, p.damage * share, owner, angle, effects, p.tags, mult=p.mult,
+                   on_hit=False)
 
 
 def _fly_back(p: Projectile, grid: ActorGrid, world, effects: list[Effect], dt: float,
@@ -939,6 +1093,15 @@ def _fly_lobbed(p: Projectile, world, effects: list[Effect], dt: float,
     if p.travelled < p.flight - 1e-9:
         return []
     p.alive = False
+    if p.spec.look == "rain_arrow":                  # (P4: Arrow Rain)
+        effects.append(Effect("impact", p.x, p.y, p.angle))
+        hit = False
+        for a in actors:
+            if a.hittable and _may_hurt(p.owner, a) \
+                    and math.hypot(a.x - p.x, a.y - p.y) <= p.spec.blast_radius + a.hit_radius:
+                strike(a, p.damage, p.owner, p.angle, effects, p.tags, mult=p.mult)
+                hit = True
+        return [HIT] if hit else []
     return burst(p.x, p.y, p.spec.blast_radius, p.damage, p.owner, actors, world, effects,
                  p.spec.damages_terrain)
 

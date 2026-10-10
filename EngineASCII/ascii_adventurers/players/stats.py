@@ -97,6 +97,9 @@ class HeroStats:
     wildfire: float = 0.0            # Wildfire: bucket A vs burning enemies
     capacitor: float = 0.0           # Capacitor: bucket A on the first bolt after a pause
     return_speed: float = 0.0        # Quick Catch: axes fly home faster
+    hang_time: float = 0.0           # Hang Time (P4): copies taken
+    mount_speed: float = 0.0         # the Stable (P6): + riding speed
+    mount_cooldown: float = 0.0      # the Stable: s off the wait after a fall
     quiver: float = 0.0              # Quiver: levels
     shot_size: float = 0.0           # Bright Colors
     royal_decree: float = 0.0        # Royal Decree: levels

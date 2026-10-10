@@ -705,6 +705,10 @@ class LeechSwarm(Boss):
         super().scale_to_level(level)
         self._share()
 
+    def toughen(self, mult: float) -> None:
+        super().toughen(mult)
+        self._share()
+
     def scale_for(self, players: int) -> None:
         super().scale_for(players)
         self._share()

@@ -707,7 +707,12 @@ def body_scale(c) -> int:
 
 
 def draw_body(bank: SpriteBank, camera, c) -> None:
-    """Draw a Character (the hero or a shooting enemy) at its world spot."""
+    """Draw a Character (the hero or a shooting enemy) at its world spot --
+    on its mount while it rides (P6, render/mounts.py)."""
+    if getattr(c, "mount", ""):
+        from .mounts import draw_mounted
+        draw_mounted(bank, camera, c, getattr(c, "time", 0.0))
+        return
     x, y = camera.world_to_px(c.x, c.y)
     draw_character(bank, x, y, c.spec.sprite, body_scale(c), c.facing_left,
                    walk_frame(c), c.hurt_flash > 0)

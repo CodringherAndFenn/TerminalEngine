@@ -112,6 +112,8 @@ SHOT_LOOKS = {
     # drawn by _draw_lobbed in their own green).
     "spit": ("o", (",", "."), palette.SHOT_SPIT),
     "lob_spit": ("@", (None, None), None),
+    "rain_arrow": ("'", (None, None), palette.SHOT_LONGARROW),   # P4 Arrow Rain (lobbed)
+    "pebble": ("o", (".", None), palette.SHOT_PEBBLE),            # P7 the bandit's sling
     # M23.3: the Magus's spinning sand blades, and his hourglass's time shots.
     "blade": ("x", ("+", "."), palette.SHOT_BLADE),
     "time": ("o", ("'", "."), palette.SHOT_TIME),
@@ -146,6 +148,12 @@ def _draw_lobbed(batch, camera: Camera, p: Projectile) -> None:
     gx, gy = camera.world_to_px(p.x, p.y)
     batch.put_c(gx, gy, ".", palette.BOMB_SHADOW)
     height = 4 * BOMB_ARC_PX * f * (1 - f)
+    if p.spec.look == "rain_arrow":              # (P4: an arrow up and down, its spot marked)
+        head, trail = palette.SHOT_LONGARROW
+        batch.put_c(gx, gy - height, "'" if f < 0.5 else "|", head)
+        tx, ty = camera.world_to_px(*p.target)
+        batch.put_c(tx, ty, "x", trail[1])
+        return
     spit = p.spec.look == "lob_spit"          # (M23.2: a loogie, not a bomb)
     batch.put_c(gx, gy - height, "@", palette.SHOT_LOB_SPIT[0] if spit else palette.BOMB)
     batch.put_c(gx + 4, gy - height - 10, "," if spit else "'",
@@ -182,9 +190,26 @@ def draw_projectiles(text: TextRenderer, camera: Camera, projectiles: list[Proje
                 batch.put_c(x, y, trail[k] or _LINE[octant], trail_cols[k])
         x, y = camera.world_to_px(p.x, p.y)
         if p.spec.look == "axe":
-            head = AXE_SPIN[int(p.travelled / AXE_SPIN_TILES) % len(AXE_SPIN)]
+            head = AXE_SPIN[int((p.travelled + p.spin) / AXE_SPIN_TILES) % len(AXE_SPIN)]
+            stats = getattr(p.owner, "stats", None)
+            if stats is not None and stats.has("tether"):
+                _chain(batch, camera, p, trail_cols[1])
         batch.put_c(x, y, head or _HEAD[octant], head_col)
     batch.flush()
+
+
+TETHER_LINK_TILES = 0.7   # Tether (P4): tiles between the chain's links
+
+
+def _chain(batch, camera: Camera, p: Projectile, color: tuple) -> None:
+    """Tether: a line of links from the dwarf to his axe."""
+    ox, oy = p.owner.x, p.owner.y
+    length = math.hypot(p.x - ox, p.y - oy)
+    n = int(length / TETHER_LINK_TILES)
+    glyph = _LINE[_octant(math.atan2(p.y - oy, p.x - ox))]
+    for k in range(1, n):
+        x, y = camera.world_to_px(ox + (p.x - ox) * k / n, oy + (p.y - oy) * k / n)
+        batch.put_c(x, y, glyph if k % 2 else "o", color)
 
 
 # --- Effects -------------------------------------------------------------------------------
@@ -270,6 +295,12 @@ def _frame(e: Effect) -> list:
         col = palette.ROLL_DUST[0 if p < 0.5 else 1]
         return ([(-5, 0, "o", col), (5, 2, ".", col), (0, -3, ",", col)] if p < 0.5
                 else [(-7, 2, ".", col), (7, 0, ".", col)])
+    if e.kind == "implode":                     # (P4: closes in, the reverse of a burst)
+        r = e.size * (1.0 - 0.8 * p)
+        col = palette.RUNE[min(1, int(p * 2))]
+        return [(math.cos(k * math.tau / 12) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / 12) * r * config.TILE_PX_H,
+                 ">" if k % 2 else ".", col) for k in range(12)]
     if e.kind == "blink":
         r = max(0.6, e.size) * (0.3 + 0.7 * p)
         col = palette.BLINK[min(1, int(p * 2))]
@@ -299,6 +330,14 @@ def draw_effects(text: TextRenderer, camera: Camera, world, effects: list[Effect
         x, y = camera.world_to_px(e.x, e.y)
         if e.kind == "arc":
             _lightning(batch, e, (x, y), camera.world_to_px(e.x2, e.y2))
+            continue
+        if e.kind == "heal_beam":                   # (P7: dotted green, a "+" on the healed)
+            tx, ty = camera.world_to_px(e.x2, e.y2)
+            col = palette.HEAL_BEAM[0 if e.progress < 0.5 else 1]
+            n = max(2, int(math.hypot(tx - x, ty - y) / 12))
+            for k in range(1, n):
+                batch.put_c(x + (tx - x) * k / n, y + (ty - y) * k / n, ".", col)
+            batch.put_c(tx, ty - 20 - 10 * e.progress, "+", col)
             continue
         if e.kind == "levelup":
             batch.put_c(x, y - 34 - 22 * e.progress, "LEVEL UP!", palette.LEVEL_UP)

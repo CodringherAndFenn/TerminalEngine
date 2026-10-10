@@ -119,7 +119,8 @@ class GameOverPanel(_Box):
         draw_box(text, left, top, width, height, colors.RED, "YOU HAVE FALLEN", colors.RED)
         s, rec = self.stats, self.records
         island = f"island {s.seed}" if s.seed is not None else "test map"
-        center(text, top + 2, f"{s.hero.upper()} on {island}", colors.AMBER, left, width)
+        center(text, top + 2, f"{s.hero.upper()} on {island}, {config.DIFFICULTIES[s.difficulty]}",
+               colors.AMBER, left, width)
         biomes = ", ".join(_BIOME_TITLES.get(b, b) for b in s.biomes) if s.biomes else "-"
         self._row(text, top + 4, left, "Time survived", format_time(s.time), "longest_time")
         self._row(text, top + 5, left, "Enemies defeated", str(s.total_kills), "most_kills")

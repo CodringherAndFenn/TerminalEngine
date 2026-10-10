@@ -255,8 +255,13 @@ def quest_marks(layout, quest: str) -> tuple[Landmark | None, Landmark | None]:
     return camp, lair
 
 
+def spot_count(quest) -> int:
+    """How many target spots a quest gets (P2: QUEST_SPOT_FACTOR x its count)."""
+    return quest.count * config.QUEST_SPOT_FACTOR
+
+
 def _scatter(layout, quest, camp, marks, others, rng: random.Random) -> list[tuple[float, float]]:
-    """Where a quest's targets live: quest.count + QUEST_SPOT_EXTRA spots
+    """Where a quest's targets live: quest.count * QUEST_SPOT_FACTOR spots
     spread over the whole of its biome, so finding enough means travelling
     it (any `count` of them finish the hunt).
 
@@ -279,22 +284,34 @@ def _scatter(layout, quest, camp, marks, others, rng: random.Random) -> list[tup
         r = math.sqrt(rng.uniform(r0 * r0, r1 * r1))
         cands.append((math.floor(math.cos(a) * r) + 0.5, math.floor(math.sin(a) * r) + 0.5))
     e = config.QUEST_SPOT_EDGE
-    ok = _fits_many(layout, biome_id, cands, e, e)
-    cands = [c for c, good in zip(cands, ok) if good
-             and math.hypot(c[0] - camp.cx, c[1] - camp.cy) >= config.QUEST_SPOT_CAMP_GAP
-             and not any(m.contains(*c, e) for m in marks if m.kind != "spot")
-             and all(math.hypot(c[0] - x, c[1] - y) >= config.QUEST_SPOT_OTHERS
-                     for x, y in others)]
+    # (numpy from here on: P2's 4x targets made the plain loops ~1 s.)
+    c = np.asarray(cands, dtype=np.float64)
+    keep = _fits_many(layout, biome_id, cands, e, e)
+    keep &= np.hypot(c[:, 0] - camp.cx, c[:, 1] - camp.cy) >= config.QUEST_SPOT_CAMP_GAP
+    for m in marks:
+        if m.kind != "spot":
+            keep &= ~((m.x0 - e <= c[:, 0]) & (c[:, 0] < m.x0 + m.w + e)
+                      & (m.y0 - e <= c[:, 1]) & (c[:, 1] < m.y0 + m.h + e))
+    if others:
+        o = np.asarray(others, dtype=np.float64)
+        near = np.hypot(c[:, None, 0] - o[None, :, 0], c[:, None, 1] - o[None, :, 1])
+        keep &= (near >= config.QUEST_SPOT_OTHERS).all(axis=1)
+    c = c[keep]
+    want = spot_count(quest)
     sep = config.QUEST_SPOT_SEPARATION
     while True:
-        spots = []
-        for c in cands:
-            if all(math.hypot(c[0] - x, c[1] - y) >= sep for x, y in spots):
-                spots.append(c)
-                if len(spots) == quest.count + config.QUEST_SPOT_EXTRA:
-                    return spots
-        if sep < 1:
-            return spots                        # (no room at all: fewer targets)
+        taken: list[int] = []
+        room = np.ones(len(c), dtype=bool)          # not taken, and `sep` from every one taken
+        while len(taken) < want:
+            free = np.flatnonzero(room)
+            if not free.size:
+                break
+            i = int(free[0])                        # the first in order that has room
+            taken.append(i)
+            room &= np.hypot(c[:, 0] - c[i, 0], c[:, 1] - c[i, 1]) >= sep
+            room[i] = False
+        if len(taken) == want or sep < 1:           # (sep < 1: no room at all, fewer)
+            return [(float(c[i, 0]), float(c[i, 1])) for i in taken]
         sep *= 0.8
 
 

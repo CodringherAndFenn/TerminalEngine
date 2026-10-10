@@ -70,7 +70,9 @@ class HiddenQuestTest(unittest.TestCase):
         q = s.quests
         self.assertTrue(set(SWAMP) <= set(q.states))         # (and the other biomes')
         self.assertTrue(all(st.stage == "hunt" and not st.taken for st in q.states.values()))
-        self.assertEqual(q.pins(), [])                      # givers and lairs are found
+        # Lairs are found; givers are pinned from the start (P2).
+        self.assertTrue(all(k.startswith("giver_") for _, _, k, _ in q.pins()))
+        self.assertEqual(len(q.pins()), len(q.states))
         self.assertEqual([label for label, _, _ in q.log()], ["GLORY"])
         # Hunt quests' targets are out already, without anyone talking.
         for key in ("bad_trip", "leech_doctor"):

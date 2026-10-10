@@ -48,8 +48,10 @@ class AIContext:
     effects: list
     events: list = field(default_factory=list)   # sound events to play
     # Enemies an enemy brings into the world (key, x, y), e.g. leechlings out
-    # of a popped bloated leech; the game wakes them after the deaths (M22).
+    # of a popped bloated leech; the game wakes them after the deaths (M22),
+    # and after the enemies' turn (P7: a molehill's rats, a scarecrow's crows).
     spawned: list = field(default_factory=list)
+    zones: list | None = None     # the game's ground zones (P7: a straw golem's fire)
 
     def __post_init__(self) -> None:
         if not isinstance(self.players, (list, tuple)):
@@ -94,6 +96,11 @@ class Brain:
         self.hp = float(self.max_hp)
         self.damage_mult = config.ENEMY_DAMAGE_MULTIPLIER * (
             1 + config.ENEMY_DAMAGE_PER_LEVEL * (level - 1))
+
+    def toughen(self, mult: float) -> None:
+        """x max HP (the run's difficulty, P5), at full health."""
+        self.max_hp = round(self.max_hp * mult)
+        self.hp = float(self.max_hp)
 
     # --- Senses ---------------------------------------------------------------------
 

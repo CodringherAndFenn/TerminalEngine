@@ -7,11 +7,11 @@ step; everything here stays deterministic (randomness comes from each
 hero's seeded dice, time from the hero's run clock).
 
   attack_mods   before an attack: cards that act on every Nth attack
-                (Overload, Volley, Quiver, Grand Finale, Syncopation, Echo,
-                Twin Axes) or on timing (Capacitor, Opening Act, Riposte);
+                (Quiver, Grand Finale, Syncopation, Echo) or on timing
+                (Capacitor, Opening Act, Riposte);
   patterns      after an attack: the extra shots of the projectile pattern
-                cards (Cross Fire, Starburst, Rear Guard, Spiral, Double
-                Rainbow) and Sheet Music's notes;
+                cards (Cross Fire, Starburst, Rear Guard, Spiral, Arrow
+                Rain) and Sheet Music's notes;
   tick          every step, per living player: run clock, shield refill,
                 Bloodlust / Frenzy timers, Retaliation, Echo's late attack;
   on_kill       a player's kill: Bloodlust, Frenzy, Soul Harvest, Bounty,
@@ -30,7 +30,8 @@ import math
 from .. import config
 from ..entities.effects import Effect
 from . import statuses
-from .combat import _may_hurt, push, strike, volley
+from ..entities.projectile import Projectile
+from .combat import _may_hurt, push, shot_origin, strike, volley
 from .raycast import first_hit
 from .statuses import inflict
 
@@ -78,19 +79,11 @@ class RunRules:
         if st is None:
             return kw
         flags = st.flags
-        if "overload" in flags and n % config.OVERLOAD_EVERY == 0:
-            kw["mult"] *= config.OVERLOAD_MULT
-        if "volley" in flags and n % config.VOLLEY_EVERY == 0:
-            kw["extra_pellets"] += max(0, config.VOLLEY_ARROWS - hero.weapon.spec.pellets)
-            kw["spread_add"] += config.VOLLEY_SPREAD
         if st.quiver:
             every = max(2, config.QUIVER_EVERY - (round(st.quiver) - 1))
             if n % every == 0:
                 kw["extra_pellets"] += 1
                 kw["spread_add"] += 4.0
-        if "twin_axes" in flags and n % config.TWIN_AXES[0] == 0:
-            kw["extra_pellets"] += 1
-            kw["spread_add"] += config.TWIN_AXES[1]
         if "grand_finale" in flags and n % config.GRAND_FINALE[0] == 0:
             kw["mult"] *= config.GRAND_FINALE[1]
             kw["reach_mult"] *= config.GRAND_FINALE[2]
@@ -138,11 +131,11 @@ class RunRules:
         n = hero.attacks
         sounds: list[str] = []
 
-        def shoot(angle, count=1, fan=0.0, mult=1.0, hold=0.0):
+        def shoot(angle, count=1, fan=0.0, mult=1.0):
             sounds.extend(volley(hero, scene.world, scene.projectiles, scene.effects, angle,
                                  count, fan, shell, tags, damage, mult=kw["mult"] * mult,
                                  extra_chain=kw["extra_chain"],
-                                 sure_crit=kw.get("sure_crit", False), hold=hold,
+                                 sure_crit=kw.get("sure_crit", False),
                                  origin=origin))
 
         if notes:
@@ -167,10 +160,36 @@ class RunRules:
         if "spiral" in flags:
             hero.spiral += 1
             shoot(aim + math.radians(config.SPIRAL_STEP) * hero.spiral)
-        if "double_rainbow" in flags and n % config.DOUBLE_RAINBOW[0] == 0 and pellets > 1:
-            half = math.radians(spread) / (pellets - 1) / 2       # half a color over
-            shoot(aim + half, pellets, spread, hold=config.DOUBLE_RAINBOW[1])
+        if "arrow_rain" in flags and not notes and n % config.ARROW_RAIN[0] == 0:
+            sounds += self._arrow_rain(hero, kw)
         return list(dict.fromkeys(sounds))
+
+    def _arrow_rain(self, hero, kw: dict) -> list[str]:
+        """Arrow Rain (P4): ARROW_RAIN[1] arrows (+1 per extra projectile)
+        lobbed up from the bow, each coming down at a random spot within
+        ARROW_RAIN[2] tiles of the aim point (no farther than the bow
+        reaches), a little apart in time."""
+        every, count, radius, share = config.ARROW_RAIN
+        shell = hero.weapon.spec.shell
+        rain = config.SPELL_SHELLS["rain_arrow"]
+        aim = getattr(hero, "aim_point", None) or (
+            hero.x + math.cos(hero.aim_angle) * shell.max_range / 2,
+            hero.y + math.sin(hero.aim_angle) * shell.max_range / 2)
+        mx, my = shot_origin(hero)
+        rng = hero.rng
+        for _ in range(count + round(hero.stats.pellets)):
+            r, a = radius * math.sqrt(rng.random()), math.tau * rng.random()
+            tx, ty = aim[0] + math.cos(a) * r, aim[1] + math.sin(a) * r
+            angle = math.atan2(ty - my, tx - mx)
+            arrow = Projectile(mx, my, angle, rain, owner=hero, damage=shell.damage * share)
+            arrow.flight = max(0.5, min(math.hypot(tx - mx, ty - my), shell.max_range))
+            arrow.target = (mx + math.cos(angle) * arrow.flight,
+                            my + math.sin(angle) * arrow.flight)
+            arrow.tags = hero.weapon.spec.tags
+            arrow.mult = kw["mult"]
+            arrow.time_scale = 0.8 + 0.4 * rng.random()     # (they come down one by one)
+            self.scene.projectiles.append(arrow)
+        return [rain.sound]
 
     def _note_targets(self, hero) -> list:
         """Enemies Sheet Music aims at: in sight within reach, nearest first."""
@@ -377,7 +396,17 @@ class RunRules:
                     inflict(a, "poison", source, stacks)
 
 
-# --- Pacts ------------------------------------------------------------------------------
+# --- Pacts and difficulty ----------------------------------------------------------------
+
+
+def difficulty_totals(level: int) -> dict:
+    """What difficulty `level` (P5, an index into config.DIFFICULTIES) does:
+    x enemy max HP and x damage (compounding per level), and + fractions of
+    enemies and loot (adding up per level)."""
+    n = max(0, min(len(config.DIFFICULTIES) - 1, level))
+    return {"name": config.DIFFICULTIES[n], "hp": config.DIFFICULTY_HP ** n,
+            "damage": config.DIFFICULTY_DAMAGE ** n, "enemies": config.DIFFICULTY_ENEMIES * n,
+            "loot": config.DIFFICULTY_LOOT * n}
 
 
 def pact_totals(keys) -> dict:

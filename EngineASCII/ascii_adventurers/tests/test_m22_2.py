@@ -22,6 +22,7 @@ from ascii_adventurers.tests.test_m17 import step, teleport
 from ascii_adventurers.tests.test_weapons import open_map
 from ascii_adventurers.world import tiles
 from ascii_adventurers.world.chunked import ChunkedWorld
+from ascii_adventurers.world import landmarks
 from ascii_adventurers.world.landmarks import quest_marks
 
 DT = 1 / 60
@@ -56,7 +57,7 @@ class PoolTest(unittest.TestCase):
         self.assertIn(tiles.STAGNANT, flat)
         self.assertNotIn(tiles.POND, flat)
         self.assertEqual(len(camp.spots),
-                         config.QUESTS["smoke_keeper"].count + config.QUEST_SPOT_EXTRA)
+                         landmarks.spot_count(config.QUESTS["smoke_keeper"]))
         x, y = camp.spots[0]
         w.ensure_ready(int(x) - 4, int(y) - 4, int(x) + 4, int(y) + 4)
         self.assertIs(w.tile_at(math.floor(x), math.floor(y)), tiles.BRAZIER)

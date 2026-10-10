@@ -40,6 +40,7 @@ Each line is the **only** place in the hall that sells its effect. A level costs
 | Old Maps | +3% XP | 10 | +30% | 150 → 1,118 | 4,988 |
 | Treasure Map | +4% loot | 15 | +60% | 200 → 2,568 | 14,408 |
 | Lodestone | +10% pickup radius | 10 | +100% | 100 → 745 | 3,324 |
+| Stable (P6) | +5% riding speed, mount back 1 s sooner after a fall | 5 | +25%, 5 s | 250 → 714 | 2,261 |
 | Lucky Shrine | +2 luck | 15 | +30 | 200 → 2,568 | 14,408 |
 | Fortune Teller | +1 reroll a run | 5 | 8 rerolls | 400 → 4,199 | 8,948 |
 | Exile Ledger | +1 banish a run | 5 | 5 banishes | 600 → 6,299 | 13,422 |
@@ -95,7 +96,7 @@ Every catalog card marked `L:`, the ~32 "payoff/capstone" cards (see `CARDS.md`)
 
 | Card kind | Old price | New price |
 |---|---|---|
-| hero payoffs (Overload, Hunter's Mark...) | 250-400 | 1,500-2,500 |
+| hero payoffs (Phase Darts, Hunter's Mark...) | 250-400 | 1,500-2,500 |
 | tag payoffs, combos (Virulence, Thermal Shock...) | 300-600 | 2,000-4,000 |
 | capstones (legendary) | 1,000 | 6,000 |
 

@@ -7,7 +7,7 @@ Status: **rev 1 — the framework and the swamp are BUILT in M17 (2026-10-01).**
 ## 1. Run structure (what quests are for)
 
 1. **Every boss exists in every run (user, 2026-10-05).** Each ring biome has three bosses (section 11), and **all three** are in it every run, each in its own arena (lair). The seed places each arena **at a random spot in its biome**, so boss locations change from run to run. (Until 2026-10-05 the seed picked one boss per biome per run; that's retired.)
-   - **Quests are hidden (user, 2026-10-05).** Nothing is pinned or listed until a boss wakes: not the givers' camps (they're anywhere in the biome too), not the arenas, not the quests.
+   - **Quests are hidden (user, 2026-10-05).** Nothing is pinned or listed until a boss wakes: not the givers' camps (they're anywhere in the biome too), not the arenas, not the quests. **Changed in P2 (2026-10-10): the givers are pinned from the start** (section 24).
    - **NPCs still give the quests, as hints.** Talking to a giver tells you what to do (speech lines) and *takes* the quest: it gets a small counter on the HUD (`SWAMP Frogs 2/5`; the HUD can be hidden from the settings later), and its targets get a pin once you're near one. The arena is still only pinned when the boss wakes.
    - **Freedom: the NPC is optional.** Players who find the quest targets themselves and complete the quest (kill the frogs, light the braziers...) trigger the boss without ever talking to its giver. The boss wakes at its arena as usual. Walking into an arena whose boss isn't awake yet does nothing special; the quest is the key, and the NPC is just the guide to it.
 2. Beating **one boss in each of the 5 ring biomes** unlocks the **plains boss** (user, 2026-10-05). The other bosses are optional: extra loot, card offers and their own achievements. The Glory quest line counts biomes, e.g. `Defeat a guardian in each land (2/5)`, and a biome counts once whichever of its bosses falls.
@@ -43,7 +43,7 @@ Strength is budgeted with the numbers in section 5.4, not by feel, so tiers stay
 
 - **No ambush targets** (standing rule): quest enemies must be visible and shootable from range, like every other enemy.
 - **Quests are hidden, and the NPC is optional (user, 2026-10-05; built in M22.5).** Every quest's targets are out from the start of the run and every kill or brazier counts, quest taken or not, silently. Finishing a quest wakes its boss: "SOMETHING STIRS..." and the arena is pinned. Talking to the giver takes the quest: their lines explain it, the HUD shows its counter, and its targets are pinned once you're within QUEST_TARGET_PIN_RADIUS of one.
-- **Nothing is pinned from the start** (M22.5): givers' camps and arenas sit at random spots in their biome and are found by exploring (the minimap shows them once seen). An arena gets its pin when its boss wakes.
+- **Nothing is pinned from the start** (M22.5; **P2 pins the givers from the start**, section 24): givers' camps and arenas sit at random spots in their biome and are found by exploring (the minimap shows them once seen). An arena gets its pin when its boss wakes.
 - Quest targets are **findable**: they're scattered over the biome, each in a clearing. A future Archivist "Charts" shelf could reveal more (e.g. the targets themselves).
 - Progress is **per run** and shared by all players in co-op.
 - When a quest completes, the boss is summoned **at its lair** (a landmark), not on top of the player — the player chooses when to walk in.
@@ -222,6 +222,7 @@ Suggested angles only (to keep playstyles different — change freely):
 | M24.4 (built) | Art pass: the Snow King repainted as the Frost Hermit, Fragile/wolf/crying repainted, Mr. Buttons drawn and riding on his carrier's head (section 21) |
 | M24.5 (built) | Boss movement: the Snow King glides round his hall and Fragile circles you, between moves and (slower) during most of them (section 22) |
 | M25.1 (built) | Forest: **Nettle, the Blighted**, the corrupted pixie, and the hedge witch's "cleanse" quest; the withered glade (section 23) |
+| P1-P12 | **Playtest pass** (user, 2026-10-10; section 24; **P1-P7 built**). Comes before the squirrel, so new bosses are tuned against the final balance. P1 island -20%, P2 quest findability, P3 hero pace, P4 card dedupe, P5 difficulty levels, P6 mounts, P7-P12 enemy variety x5 (one biome each) |
 | M25.2-3 | Forest: **mad murderer squirrel**, **mimic tree** |
 | M26.1-3 | Mushroom: **Mycelium** (three variants: amanita muscaria + two more) |
 | M27 | Plains boss (not designed yet) + Adventurer's Glory + "end run" victory (+ water movement) |
@@ -931,3 +932,108 @@ Tests: `tests/test_m24_4.py`. No changes to how anything plays.
 - During a dive's tell she kept circling, so the dash missed the line she'd shown you. She now holds still on the line.
 - The base boss's shove pushed a hero ahead of her dive, so it never hit. She flies, so she doesn't shove.
 - The tiny damage cut covers every hit, not only those of heroes with card stats.
+
+## 24. Playtest pass P1-P12 (user, 2026-10-10; P1 + P2 built, see 24.1; P3, see 24.2; P4, see CARDS.md 17; P5, see 24.3; P6, see 24.4; P7, see 24.5)
+
+From the user's playtest (with every Guild hall upgrade bought, the game was too easy). It comes before M25.2. Each P milestone is drafted with the user first, like the bosses.
+
+| # | Milestone | What the user asked for | Decided / to draft |
+|---|-----------|-------------------------|--------------------|
+| P1 | **Smaller island** | "the map is too big, cut back like 20%" | **20% off the radius** (user's pick): `WORLD_RADIUS` 2761 -> ~2209 (area -36%; centre-to-coast walk 5.4 -> ~4.3 min at 8.5 tiles/s). `PLAINS_RADIUS_FRACTION` stays, so every biome shrinks by the same share. Refit what's measured in tiles to fit the smaller biomes (`QUEST_SITE_GAP`, `QUEST_SPOT_SEPARATION`, coast scale, minimap/big-map zoom). Do it with P2: the extra quest targets need room. |
+| P2 | **Quest findability** | 3-4x the golden scarabs, "same for all quests that have a set number of things I should find"; giver markers always on the map, colour-coded per area; in dev mode it was hard to find more givers and their quests | **Targets:** every counted quest places ~3-4x its `count` (today it's `count + QUEST_SPOT_EXTRA` = +3, e.g. 8 scarabs for 5). That's a multiplier instead of +3; any `count` of them still finishes it. Covers frogs, leeches, braziers, scarabs, cargo, seals, beacons, captives, Mr. Buttons pieces, shrines (the draft confirms each). **Markers:** **givers only** (user's pick) are pinned on the minimap and big map **from the start of the run**, in their biome's colour. Arenas are still pinned when the boss wakes, and targets once you're near them after taking the quest. This reverses M22.5's "nothing is pinned from the start" for givers (sections 1 and 3.2). **Dev mode:** a key that jumps to the next giver / quest target, and all targets pinned (to draft). |
+| P3 | **Hero pace** | pickup radius +150%; movement speed grows a bit with level | `PICKUP_RADIUS` 1.5 -> **3.75 tiles** (x2.5, user's pick); Magnet cards still add their % on top. Speed per level: a small % per level with a cap (numbers to draft; it stacks with speed cards). |
+| P4 | **Card dedupe** | remove cards where a general card and a hero card do the same thing ("doubles are stupid") | Go through `CARDS.md` / `config.CARDS` and list every general/hero pair with the same effect. Draft which one stays (multi-select). |
+| P5 | **Difficulty levels** | a separate difficulty option like Diablo's Torment levels: choose how hard the map starts; additive to the other balancing (spawn rate etc.) | Picked at hero select (next to the seed). Each level raises the starting point of the existing scaling (biome difficulty, spawn rate, pacts) and doesn't replace it. To draft: how many levels, what each scales (enemy HP, damage, count, elites, boss HP), the reward per level (loot/XP), how levels unlock, and records per level. |
+| P6 | **Mounts** | "a possible mount mechanic might have to be added" | To draft: how you get one (Guild hall, find, summon), speed, what happens on a hit (dismount?), whether you can fight mounted, a cooldown, co-op. P1 and P3 are tested first, since they also cut travel time. |
+| P7-P12 | **Enemy variety x5** | "like 5x the amount of enemy variety" | 12 regular enemies today -> ~60: **~8 new per biome**, one biome per milestone (plains, haunted forest, desert, ruins, swamp, mushroom). Each is drafted first (look, attack, biome fit). The no-ambush rule (3.2) holds. Quest-only and boss adds don't count toward the 60. |
+
+### 24.1 Built: P1 + P2 (2026-10-10)
+
+User picks: 20% off the radius; **4x** targets; **round giver pins in their own colours**; dev **F5 cycles + F9 target**.
+
+- **P1, the island.** `WORLD_RADIUS` 2761 -> 2209, and `COAST_SCALE` 2400 -> 1920, `PLAINS_EDGE_SCALE` 900 -> 720 and `BIOME_WARP_SCALE` 1600 -> 1280, all x0.8, so it's the same-shaped island, smaller. `PLAINS_RADIUS_FRACTION` is unchanged. The big map refits itself (it zooms to `max_land_radius`).
+- **P2, targets.** `QUEST_SPOT_EXTRA` (+3) became `QUEST_SPOT_FACTOR` = 4 (`landmarks.spot_count`): frogs, leeches, scarabs and cargo 5 -> 20; braziers, seals, beacons, captives, Mr. Buttons pieces and shrines 4 -> 16. Any `count` of them finishes the quest. To fit them, `QUEST_SPOT_SEPARATION` went 350 -> 220 (the spots of one quest stay at least ~175 tiles apart; ~220 on most seeds) and `QUEST_SPOT_CANDIDATES` 400 -> 1000. All 10 quests got their full 16/20 on 8 seeds tested. `_scatter`'s filters now run in numpy: run-start landmark placement costs ~+50 ms over before (~720 vs ~670 ms measured on the same machine under load).
+- **P2, giver pins.** `Quests.pins` returns every giver as `giver_<biome>` (at the NPC, so a walking escort giver's pin follows her), labelled with the camp's name; `giver_done` (grey) once the boss is beaten. `palette.PIN_GIVER`: swamp lime, desert amber, ruins ice blue, forest ghost mint, mushroom hot pink (plains: the old gold). They're round (`ui/maps._paint_pin`), 16 px, so the shape alone tells them from the diamonds. The minimap shows a giver only inside its box: sliding 10 givers to its edge would bury the target arrows. Big map labels never overlap now: biome names first, then givers, lairs, the rest, targets last. Each label goes under its pin, else over it, else it's left out; the pins are drawn on top of every label.
+- **P2, dev keys.** F5 cycles the dev quest (`Quests.dev_key`, `dev_cycle`; it beats `--boss`), shown on the DEV bar as e.g. `[DESERT SCARAB COLLECTOR]`. F9 jumps to its nearest target still to do (`dev_spot("target")`, via `Quests.open_targets`: a hunt's living quarry, otherwise the spots not done). F4 (user's follow-up) toggles the big map's every-target view (`GameScene.dev_targets`, off at first, works with the map open too): every quest's targets (`pins(every_target=True)`); only the dev quest's and taken quests' are labelled.
+- **P2 follow-up (user): the general area.** A taken quest's targets show on the minimap and the big map only within `QUEST_TARGET_PIN_RADIUS` = **250** tiles of you (was 160; "be generous", ~30 s of walking). That's more than the 200-tile `QUEST_SPOT_CAMP_GAP`, so a target can already show from its giver's camp.
+- Tests: `tests/test_p2.py`. test_m17's "no target pins from the camp" check is now a radius check. The two "nothing pinned at the start" checks (test_m17, test_m22_5) now expect only giver pins.
+
+### 24.2 Built: P3, hero pace (2026-10-10)
+
+User picks: **+1% move speed per level, capped at +20%**; **keep Magnet as it is**.
+
+- `PICKUP_RADIUS` 1.5 -> **3.75** tiles (x2.5). Magnet (+20-80% per copy, 5 copies) and the Lodestone (+10%/level, 10 levels) still multiply the base: a maxed magnet build reaches ~22 tiles (was ~9). That's the survivorlike "vacuum", by choice.
+- Speed per level: `LEVEL_SPEED` = 0.01 per level past the first, up to `LEVEL_SPEED_CAP` = 0.20 (level 21). `players/cards.level_speed(level)`; `build_loadout(..., level=)` adds it as one more "move" step, so it adds to Swift Boots (+5-20%), the Cobbler (+1%/level) and the -15% of a cursed card. Level 12 (about a 15 min run): +11%, wizard 8.5 -> 9.4 tiles/s.
+- It applies on the step after the level is gained, card picked or not: `GameScene._cards` rebuilds the loadout when `progress.level` differs from `Player.loadout_level`. That covers dev L, Mr. Buttons' 5 levels and a full offer too.
+- Tests: `tests/test_p3.py`.
+
+### 24.3 Built: P5, difficulty levels (2026-10-10)
+
+User picks: **10 levels above today's game, unlocked one at a time**; scales **enemy HP, enemy damage, more enemies ("even more": +20% a level), bosses too**; the **steep** numbers; the user's own names.
+
+| Level | Name | Enemy & boss HP | Damage | Enemies | Loot |
+|-------|------|-----------------|--------|---------|------|
+| 0 | Wanderer (the game as it was) | x1 | x1 | x1 | +0% |
+| 1 | Knight | x1.3 | x1.15 | x1.2 | +40% |
+| 2 | Folk Hero | x1.69 | x1.32 | x1.4 | +80% |
+| 3-10 | Hero of Legend I-VIII | x1.3^n (I: x2.2, VIII: x13.8) | x1.15^n (I: x1.52, VIII: x4.05) | x(1 + 0.2n) (VIII: x3) | +40% x n (VIII: +400%) |
+
+- `config.DIFFICULTIES` (names), `DIFFICULTY_HP` / `_DAMAGE` (compounding), `_ENEMIES` / `_LOOT` (added); `systems/run_rules.difficulty_totals(level)`.
+- It's on top of everything else: player level, pacts, Beacon, Bounty. The spawner multiplies a waking enemy's max HP (`Brain.toughen`; a swarm re-shares its health over its leeches) and its damage (`Spawner.hp_mult` / `damage_mult`). Bosses come through the same `wake`, so they and their adds scale too. The density multiplies by (1 + 0.2n). Kill loot and boss loot both get +40% x n.
+- Picked on the hero select (an `OptionSelector` under the heroes). A line under it shows the level's numbers, and on the highest open level how the next one opens. The pick is remembered (`GameSettings.difficulty`). Only opened levels are listed; `--dev` lists all of them.
+- Unlock: beating any boss on level n opens n+1 (`Guild.difficulty_open`, `open_difficulty`, saved in guild.json), with a "DIFFICULTY KNIGHT UNLOCKED" toast. Nothing is saved in dev mode, as always.
+- Shown: the pause menu's line (after the seed) and the game-over header ("WIZARD on island 412, Knight"). `RunStats.difficulty`. Restart keeps it.
+- Records are still shared by all levels (not split per level).
+- Tests: `tests/test_p5.py`.
+
+### 24.4 Built: P6, mounts (2026-10-10)
+
+User picks: **called every run** ("but if I won't like the look of it we might drop the idea; the mounts have to work with the style of the game first and foremost"); **travel only**; **+75%**; **one per hero**.
+
+- **Look** (`render/mounts.py`): drawn exactly like the heroes. Letter-art pixels from `palette.SPRITE_COLORS`, 22 wide, outlined, scale 3. The rider's top 11 rows sit in the saddle and the mount is drawn over them, so its back and neck come in front.
+  - Four-legged mounts gallop in two frames by distance ridden (stride / gathered; standing: gathered), and the rider bobs a pixel.
+  - The carpet floats over a shadow that stays put while it bobs.
+  - A mount faces the way it's going, not the aim (`hero.mount_left`).
+  - The mounts: wizard, a red-and-gold tasselled flying carpet; dwarf, a woolly war ram with gold curled horns; bard, a grey donkey with saddlebags; princess, a white pony with a pink mane and tail; huntress, a tan stag with antlers.
+- **Rules** (`systems/mount.py`, run each step before the roll):
+  - Q / gamepad Y whistles (a two-note sound); `MOUNT_CALL_TIME` = 1 s later you ride. Attacking, rolling or a hit meanwhile calls it off.
+  - Riding: x(1 + `MOUNT_SPEED` 0.75 + the Stable) on top of every other speed (`Character.mount_mult`).
+  - Attacking or rolling hops off and still attacks or rolls. Auto weapons (the bard's lute) stay quiet while riding. Spells keep going.
+  - Any hit throws you off: "THROWN!", and `MOUNT_THROWN` = 10 s before it can be called again (a hit is seen as `since_hit` dropping). Q again hops off with no wait.
+  - Entering a boss arena (any lair's floor) hops you off, and it can't be called there.
+- **HUD:** the meter row shows "MNT" filling during the whistle and during the wait after a throw (`mount.meter`; a boss's meter wins).
+- **Guild:** the **Stable** (`GUILD_UPGRADES["stable"]`, 5 levels, 250 loot x1.3): +5% riding speed and 1 s less wait per level (the wait never drops under `MOUNT_MIN_COOLDOWN` = 5 s).
+- **Switch:** `config.MOUNTS_ON = False` turns the feature off (no calling, no riding). The code lives in `systems/mount.py` and `render/mounts.py` and a few hooks: Character fields + `move`, the Q / Y key, the step call, the HUD meter, `draw_body`, the Stable.
+- Tests: `tests/test_p6.py`.
+
+### 24.5 Built: P7, the plains' new enemies (2026-10-10)
+
+User picks: 11 of the 12 drafted (all but the bandit trapper), plus 3 simple chasers ("need some enemies that just go to the player without complicated AI behaviour"). Toughness **mixed**: the elites are the **bull** and the **shieldbearer**. Built **all at once**. The plains go from 5 kinds to 19 (+ 2 that are only sent out: mole rats, crows).
+
+| Enemy | HP | Behaviour |
+|-------|----|-----------|
+| field rat | 12 | packs of 4-6; straight at you, a quick bite |
+| shambling farmhand | 70 | slow, straight at you, pitchfork |
+| angry goose | 18 | gaggles of 3; fast, straight at you, pecks |
+| wild hound | 30 | packs of 3; circle at 3.5 tiles, darting in to bite **one at a time** (`Hound._turns`, per target) |
+| hawk | 30 | flies over everything; circles at 7 tiles, lines up 0.8 s (the line shows), dives 13 tiles at 18 tiles/s hitting the first body it meets, climbs away |
+| molehill | 90 | never moves; a mole rat (10 HP) every 3.5 s while it sees a hero, at most 4 about |
+| rampaging bull (elite) | 320 | scrapes 1 s, charges 14 tiles at 15 tiles/s, 3 passes, then rests; tramples anything breakable along its whole front (`_trample`); dazed only by what doesn't break; gores and shoves |
+| bandit slinger | 35 | the goblin archer's tactics with a sling: bursts of 3 stones (5 each) |
+| lancer | 90 | a bandit on a brown horse (the mount code, `MOUNTS["horse"]`): wheels out 10 tiles, lowers the lance 0.6 s (the line shows), gallops through and 6 tiles past, the lance tip hitting once per run |
+| shieldbearer (elite) | 240 | a Character with `front_armor` 0: hits from the front do nothing, and shots stop on its shield (cover for those behind); walks you down, raises the shield 0.8 s once it faces you, bashes (22, a 2-tile shove), then stands **open** 1.4 s ("open" shows) |
+| field priest | 45 | no attack; keeps 8-12 tiles away; every 2.5 s heals the most hurt enemy it can see within 9 tiles by 20% (a green beam) |
+| straw golem | 160 | slow, 0.9 s wind-up, a heavy swing (24); dies in 5 burning patches (zones, 5 s) |
+| scarecrow | 80 | shuffles to 6 tiles; every 6 s lets loose 3 crows (8 HP, fly over walls, peck, leave after 12 s; at most 6 about) |
+| war drummer | 50 | no attack; keeps 9 tiles away, stays with its allies; everyone in its 7-tile ring (not bosses) +30% faster and +25% damage while in it (`tick_drum`, given back exactly) |
+
+- **Code:** `ai/plains.py` holds the creatures and the shieldbearer. Most share `PlainsCreature`: it counts the distance walked for the walk frames, tracks a wind-up `tell`, and flies over everything if `flies`. The slinger is an `Archer` with the `bandit` body and the `sling` weapon.
+- **Art:** `render/plains_art.py` holds the letter-art in the heroes' 14 x 18 style, with new palette letters n/N (brown fur), u/U (undead), c/C (crow black), l/L (straw). `render/plains.py` draws them: the red "!" over a wind-up, dotted lines before the bull's, lancer's and hawk's charges, the drummer's pulsing ring, a gold star over elites, the hawk's shadow, the lance.
+- **Spawning:** `EnemySpec` gained `sprite`, `scale`, `group` and `elite`. The spawner places a pack's other members within 2.5 tiles of the first, with ids `(cx, cy, PACK_ID + 16 k + j)`. Rosters of non-pack picks use the same dice as before, but the plains' rosters change, because the plains have new kinds to pick.
+- **Game:** enemies sent out during the enemies' turn (`ctx.spawned`) are woken right after it; before, that only happened after deaths. `AIContext.zones` was added (the golem's fire). The drummer's haste is added to an enemy's clock.
+- **Weights:** in the plains, the old kinds total 11 and the new ones 26. Plains density is unchanged.
+- **Cost:** about 1.4 ms of simulation and 2.1 ms of drawing per frame, with 68 of them fighting at once.
+- **Fixed along the way:**
+  - The shieldbearer could start its bash before facing you and miss. It now winds up only once it faces you, and keeps turning toward you while it does.
+  - The bull was dazed by a pine at its side, because only the tile straight ahead was checked. It now checks its whole front.
+- Tests: `tests/test_p7.py`.

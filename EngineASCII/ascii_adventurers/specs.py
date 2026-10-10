@@ -244,6 +244,13 @@ class EnemySpec:
     cooldown: float = 1.5           # creatures: time between attacks
     size_px: int = 16               # creatures: body size (collision + drawing)
     xp: int = 5                     # experience for the player who kills it
+    # P7: letter-art creatures (render/plains_art.py) -- the picture and its
+    # scale; how many spawn together (a pack: low, high); a rarer, tougher
+    # "elite".
+    sprite: str = ""
+    scale: int = 3
+    group: tuple[int, int] = (1, 1)
+    elite: bool = False
 
 
 @dataclass(frozen=True)

@@ -44,6 +44,8 @@ DURATIONS = {
     "rune_burst": 0.4,      # a Rune Trap going off
     # Milestone 18: the dodge roll
     "roll_dust": 0.35,      # dust kicked up behind a rolling hero
+    "heal_beam": 0.5,       # P7: the field priest healing an ally (x2, y2: the ally)
+    "implode": 0.3,         # Implosion (P4): a ring closing on a dart's hit (size: radius)
     "blink": 0.3,           # Blink's flash, where the wizard left and arrived (size: radius)
 }
 
@@ -58,7 +60,7 @@ class Effect:
     value: int = 0          # "number": the damage shown
     player: bool = False    # "number": the hero got hurt (drawn in red)
     tone: str = ""          # "number": "crit" or a status name (its color)
-    x2: float = 0.0         # "arc": the far end (world)
+    x2: float = 0.0         # "arc", "heal_beam": the far end (world)
     y2: float = 0.0
     size: float = 0.0       # "swing"/"pulse": reach in tiles ("swing": arc degrees in value)
     target: object = None   # "loot": the hero it flies to

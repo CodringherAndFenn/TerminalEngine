@@ -78,7 +78,7 @@ class GuildTest(unittest.TestCase):
             g.heroes = {"bard": {"soothing_strings": 1}}
             g.pacts, g.active_pacts, g.pages = {"blood", "horde"}, {"blood"}, {"toad"}
             g.kills = {"toad": 7}
-            g.cards = {"overload"}
+            g.cards = {"phase_darts"}
             g.achievements = {"level_30"}
             self.assertTrue(g.save(path))
             self.assertEqual(Guild.load(path), g)
@@ -100,7 +100,7 @@ class GuildTest(unittest.TestCase):
             self.assertEqual(g.heroes, {"bard": {"soothing_strings": 2}})
             self.assertEqual((g.pacts, g.active_pacts), ({"glass"}, {"glass"}))
             self.assertEqual(g.kills, {"toad": 3})
-            self.assertEqual(g.cards, {"overload"})
+            self.assertEqual(g.cards, {"phase_darts"})     # (P4: Overload became Phase Darts)
             self.assertEqual(Guild.load(os.path.join(d, "missing.json")), Guild())
 
     def test_bank_run(self):

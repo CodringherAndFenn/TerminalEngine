@@ -34,6 +34,7 @@ class GameSettings:
     show_fps: bool = True
     hero: str = config.START_HERO        # last hero picked
     seed: int | None = None              # last custom seed (None: random)
+    difficulty: int = 0                  # last difficulty picked (P5; index into DIFFICULTIES)
 
     @classmethod
     def load(cls, path: Path | str = PATH) -> "GameSettings":
@@ -63,6 +64,8 @@ class GameSettings:
         seed = data.get("seed")
         if seed is None or (_is_int(seed) and 0 < seed < 10**9):
             s.seed = seed
+        if _is_int(data.get("difficulty")) and 0 <= data["difficulty"] < len(config.DIFFICULTIES):
+            s.difficulty = data["difficulty"]
         return s
 
     def save(self, path: Path | str = PATH) -> bool:

@@ -33,8 +33,8 @@ class Projectile:
         self.hit: set[int] = set()    # ids of actors already hit (pierce)
         self.variant = 0              # which of a spread's pellets (its color)
         self.tags: tuple[str, ...] = ()   # the weapon's damage tags (bucket T)
-        self.mult = 1.0               # per-shot damage multiplier (Overload)
-        self.extra_chain = 0          # per-shot extra lightning jumps (Overload)
+        self.mult = 1.0               # per-shot damage multiplier (Grand Finale, Twin Lanes...)
+        self.extra_chain = 0          # per-shot extra lightning jumps
         self.sure_crit = False        # its hit always crits (Riposte)
         # Homing (M20, spec.seek_turn): the world point it looks for a
         # target around, the target once picked (False: looked, found none),
@@ -57,6 +57,19 @@ class Projectile:
         self.summon = False
         self.inflicts: tuple[str, int] | None = None
         self.returning = False        # boomerangs: on the way back to the owner
+        # P4 cards. Hang Time: seconds left hovering at the end of the throw,
+        # whether it has hovered, the countdown to its next round of hits,
+        # and extra spin while it hovers (drawing). Tether: the countdown to
+        # the chain's next cut. Splitting Axe: already split. Converge: how
+        # fast it turns (rad per tile flown) and how much turn is left.
+        self.hang = 0.0
+        self.hung = False
+        self.hang_tick = 0.0
+        self.spin = 0.0
+        self.tether_t = 0.0
+        self.halved = False
+        self.curve = 0.0
+        self.curve_left = 0.0
         # M17 (bosses): the aim a weaving shot (spec.wobble) weaves around,
         # and seconds it waits in place before flying (harmless meanwhile:
         # a contracting ring shows where it'll close first). `tint` picks a

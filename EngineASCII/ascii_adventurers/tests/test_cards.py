@@ -107,7 +107,7 @@ class EligibilityTest(unittest.TestCase):
         dwarf = cards.eligible("dwarf", weapon_of("dwarf"), Counter())
         self.assertIn("ricochet", dwarf)
         self.assertNotIn("piercing", dwarf)           # axes pierce everything already
-        self.assertNotIn("volley", dwarf)             # the huntress's
+        self.assertNotIn("arrow_rain", dwarf)         # the huntress's
         self.assertIn("multishot", dwarf)             # rev 2: everyone who shoots
         self.assertNotIn("multishot", bard)
         wizard = cards.eligible("wizard", weapon_of("wizard"), Counter())
@@ -214,11 +214,11 @@ class StatsTest(unittest.TestCase):
             self.assertEqual(lo.stats.crit_chance, config.BASE_CRIT_CHANCE)
 
     def test_tiered_values_and_buckets(self):
-        st = stats_with(("sharpened", "common"), ("sharpened", "legendary"), ("heavy_axe", "rare"),
-                        ("heavy_axe", "rare"))
+        st = stats_with(("sharpened", "common"), ("sharpened", "legendary"),
+                        ("glass_cannon", "rare"), ("glass_cannon", "rare"))
         self.assertAlmostEqual(st.damage, 0.10 + 0.40)            # bucket A adds
-        self.assertAlmostEqual(st.damage_mult, 1.35 ** 2)         # "x" cards multiply
-        self.assertAlmostEqual(st.interval_mult, 1.1 ** 2)
+        self.assertAlmostEqual(st.damage_mult, 1.4 ** 2)          # "x" cards multiply
+        self.assertAlmostEqual(st.max_hp_mult, 0.7 ** 2)
 
     def test_order_does_not_matter(self):
         a = [("sharpened", "rare"), ("focus", "common"), ("prism", "rare"), ("iron_skin", "epic")]

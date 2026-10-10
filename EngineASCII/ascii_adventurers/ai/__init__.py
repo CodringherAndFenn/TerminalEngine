@@ -11,6 +11,9 @@ ai -- enemy behaviour.
                 the Fallout King (M24.1),
                 the Snow King (M24.2),
                 Fragile (M24.3), Nettle (M25.1)
+  plains.py     the plains' P7 enemies: chasers (rats, farmhands, geese,
+                mole rats, crows), hounds, hawk, molehill, bull, lancer,
+                shieldbearer, priest, straw golem, scarecrow, drummer
 
 make_enemy() builds one from its config.ENEMIES key.
 """
@@ -25,6 +28,8 @@ from .bosses import (FalloutKing, Fragile, Froggy, Glamour, Khepri, LeechSwarm, 
 from .creatures import (Boar, Burrower, Camel, DustDevil, FrostWraith, Ghoul, GoldenScarab,
                         Hourglass, IsotopeRod, Leech, Mosquito, Puffer, SandElemental, SandGolem, Scarab,
                         Sigil, ToxicBarrel, Warrior)
+from .plains import (Bull, Chaser, Crow, Drummer, Hawk, Hound, Lancer, Molehill, Priest,
+                     Scarecrow, Shieldbearer, StrawGolem)
 from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 
 KINDS = {
@@ -76,6 +81,19 @@ KINDS = {
     # M25.1
     "glamour": Glamour,
     "nettle": Nettle,
+    # P7: the plains
+    "chaser": Chaser,
+    "crow": Crow,
+    "hound": Hound,
+    "hawk": Hawk,
+    "molehill": Molehill,
+    "bull": Bull,
+    "lancer": Lancer,
+    "shieldbearer": Shieldbearer,
+    "priest": Priest,
+    "straw_golem": StrawGolem,
+    "scarecrow": Scarecrow,
+    "drummer": Drummer,
 }
 
 

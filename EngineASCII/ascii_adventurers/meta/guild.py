@@ -58,6 +58,7 @@ class Guild:
     achievements: set = field(default_factory=set)
     pacts: set = field(default_factory=set)         # pacts bought
     active_pacts: set = field(default_factory=set)  # ...and switched on
+    difficulty_open: int = 0         # P5: the highest difficulty level opened
     pages: set = field(default_factory=set)         # bestiary pages bought
     kills: dict = field(default_factory=dict)       # enemy key -> kills over all runs
     journal: dict = field(default_factory=dict)     # quest key -> {"wins", "best", "heroes"}
@@ -79,6 +80,7 @@ class Guild:
         g.heroes = {h: lv for h in config.HERO_UPGRADES
                     if (lv := _levels(heroes.get(h), config.HERO_UPGRADES[h]))}
         cards = data.get("cards") if isinstance(data.get("cards"), list) else []
+        cards = [config.RENAMED_CARDS.get(k, k) for k in cards if isinstance(k, str)]
         g.cards = {k for k in cards if k in config.CARDS}
         ach = data.get("achievements") if isinstance(data.get("achievements"), list) else []
         g.achievements = {a for a in ach if isinstance(a, str)}
@@ -90,6 +92,9 @@ class Guild:
                    if k in config.BESTIARY and isinstance(v, int) and not isinstance(v, bool)
                    and v > 0}
         g.journal = _journal(data.get("journal"))
+        top = data.get("difficulty_open")
+        if isinstance(top, int) and not isinstance(top, bool):
+            g.difficulty_open = max(0, min(len(config.DIFFICULTIES) - 1, top))
         if data and data.get("version") != VERSION:
             g.refund_rev1(data)
         return g
@@ -141,7 +146,8 @@ class Guild:
             "guild": self.guild, "heroes": self.heroes, "cards": sorted(self.cards),
             "achievements": sorted(self.achievements), "pacts": sorted(self.pacts),
             "active_pacts": sorted(self.active_pacts), "pages": sorted(self.pages),
-            "kills": self.kills, "journal": self.journal})
+            "kills": self.kills, "journal": self.journal,
+            "difficulty_open": self.difficulty_open})
 
     # --- Levels and prices --------------------------------------------------------------
 
@@ -176,6 +182,15 @@ class Guild:
         if unlock.startswith("A:"):
             return unlock[2:] in self.achievements
         return key in self.cards
+
+    def open_difficulty(self, beaten: int) -> bool:
+        """A boss fell on difficulty `beaten`: the next one opens (P5).
+        Returns whether that opened a new one."""
+        nxt = min(len(config.DIFFICULTIES) - 1, beaten + 1)
+        if nxt <= self.difficulty_open:
+            return False
+        self.difficulty_open = nxt
+        return True
 
     def buy_card(self, key: str) -> bool:
         price = card_price(key)

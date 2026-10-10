@@ -19,7 +19,7 @@ from ascii_adventurers.systems import combat, patterns
 from ascii_adventurers.systems.quests import QUEST_SID, Quests, quest_id
 from ascii_adventurers.systems.spawner import Spawner
 from ascii_adventurers.tests.test_weapons import Dummy, hero, open_map
-from ascii_adventurers.world import tiles
+from ascii_adventurers.world import landmarks, tiles
 from ascii_adventurers.world.chunked import ChunkedWorld
 
 SEEDS = (1, 2, 31, 999)
@@ -116,7 +116,7 @@ class LandmarkTest(unittest.TestCase):
             camp = w.layout.landmark("frog_camp")
             lair = w.layout.landmark("pond_lair")
             spots = camp.spots
-            self.assertEqual(len(spots), config.QUESTS["bad_trip"].count + config.QUEST_SPOT_EXTRA,
+            self.assertEqual(len(spots), landmarks.spot_count(config.QUESTS["bad_trip"]),
                              seed)
             for x, y in spots:
                 self.assertEqual(w.layout.biome_at(x, y).name, "swamp", seed)
@@ -325,7 +325,8 @@ class QuestFlowTest(unittest.TestCase):
         st = q.states["bad_trip"]
         self.assertEqual(st.stage, "hunt")                  # out from the start (M22.5)...
         self.assertFalse(st.taken)
-        self.assertEqual(q.pins(), [])                      # ...but hidden: nothing pinned
+        # ...hidden but for the givers (P2: always pinned, round, biome colour).
+        self.assertEqual({k for _, _, k, _ in q.pins()}, {f"giver_{x.biome}" for x in q.states.values()})
         self.assertEqual(len(q.log()), 1)                   # (only the main quest)
         # Talk: E queues it, the next step delivers it.
         teleport(s, st.npc.x, st.npc.y)
@@ -338,9 +339,13 @@ class QuestFlowTest(unittest.TestCase):
         bid = quest_id("bad_trip")
         self.assertTrue({(QUEST_SID, bid, i, 0) for i in range(len(st.camp.spots))}
                         <= s.spawner.fixed.keys())
-        # No frog pins from the camp; next to one, its pin shows. It
-        # appears, and each one that dies counts.
-        self.assertNotIn("target", [k for _, _, k, _ in q.pins((s.hero.x, s.hero.y))])
+        # Only frogs in your general area are pinned (since P2 that can
+        # include one from the camp: 250 tiles > the 200-tile camp gap);
+        # next to one, its pin shows. It appears, and each one that dies counts.
+        for px, py, k, _ in q.pins((s.hero.x, s.hero.y)):
+            if k == "target":
+                self.assertLessEqual(math.hypot(px - s.hero.x, py - s.hero.y),
+                                     config.QUEST_TARGET_PIN_RADIUS)
         teleport(s, *st.camp.spots[0])
         self.assertIn("target", [k for _, _, k, _ in q.pins((s.hero.x, s.hero.y))])
         step(s)

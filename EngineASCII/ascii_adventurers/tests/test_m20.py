@@ -76,13 +76,6 @@ class DartCardTest(unittest.TestCase):
         per = config.RESONANCE[1]
         self.assertAlmostEqual(5000 - d.hp, 9 * (1 + (1 + per) + (1 + 2 * per)))
 
-    def test_mana_burst(self):
-        h = carded("wizard", ("mana_burst", "rare"))
-        d, near = Dummy(22, 10.5, hp=5000), Dummy(22, 11.3, hp=5000)
-        near.hit_radius = 0.1                        # the darts fly past it
-        fly(cast(h, (22, 10.5)), [h, d, near], steps=90)
-        self.assertLess(near.hp, 5000)
-
     def test_arcane_storm_three_per_cast(self):
         h = carded("wizard", ("arcane_storm", "legendary"))
         first = Dummy(22, 10.5, hp=1)
@@ -100,11 +93,6 @@ class DartCardTest(unittest.TestCase):
         behind = Dummy(4, 10.5, hp=5000)
         fly(cast(h, (40, 10.5), open_map(w=80)), [h, behind], open_map(w=80), steps=200)
         self.assertEqual(behind.hp, 5000)
-
-    def test_overload_has_no_jumps_now(self):
-        self.assertFalse(hasattr(config, "OVERLOAD_CHAIN"))
-        self.assertEqual(config.CARDS["overload"].text, "every 5th cast: x3 damage")
-
 
 class ChainLightningTest(unittest.TestCase):
     run_spell = SpellRev2Test.run_spell

@@ -40,6 +40,9 @@ from ..world.rng import hash_coords
 from .collision import hull_hits_solid
 
 
+PACK_ID = 1000      # a pack's other members' roster ids start here (a chunk's own are < it)
+
+
 class Spawner:
     def __init__(self, world, seed: int) -> None:
         self.world = world
@@ -55,6 +58,9 @@ class Spawner:
         self.level_bonus = 0
         self.damage_bonus = 0.0
         self.haste = 0.0
+        # The run's difficulty level (P5): x max HP and x damage, bosses too.
+        self.hp_mult = 1.0
+        self.damage_mult = 1.0
 
     def roster(self, cx: int, cy: int) -> list[tuple[tuple, str, float, float]]:
         """[(spawn id, enemy key, x, y)] for one chunk. Deterministic."""
@@ -75,9 +81,29 @@ class Spawner:
                 break
             key = rng.choices([c[0] for c in choices], [c[1] for c in choices])[0]
             pos = self._place(key, cx, cy, rng)
-            if pos is not None:
-                out.append(((cx, cy, k), key, *pos))
+            if pos is None:
+                continue
+            out.append(((cx, cy, k), key, *pos))
+            # A pack (P7: rats, geese, hounds): the rest round the first, on
+            # free ground, each with its own id (cx, cy, PACK_ID + 16 k + j).
+            lo, hi = config.ENEMIES[key].group
+            if hi <= 1:
+                continue                     # (no extra dice: other rosters stay as they were)
+            for j in range(1, rng.randint(lo, hi)):
+                spot = self._near(key, *pos, rng)
+                if spot is not None:
+                    out.append(((cx, cy, PACK_ID + 16 * k + j), key, *spot))
         return out
+
+    def _near(self, key, x: float, y: float, rng) -> tuple[float, float] | None:
+        """A free spot within 2.5 tiles of (x, y) for one more of a pack."""
+        half = self._half_size(config.ENEMIES[key])
+        for _ in range(8):
+            a, r = rng.uniform(0, math.tau), rng.uniform(1.0, 2.5)
+            px, py = x + math.cos(a) * r, y + math.sin(a) * r
+            if not hull_hits_solid(self.world, px, py, 0.0, half, half):
+                return px, py
+        return None
 
     def _place(self, key, cx, cy, rng) -> tuple[float, float] | None:
         """A random spot in the chunk that suits this enemy (a few tries)."""
@@ -205,14 +231,16 @@ class Spawner:
 
     def wake(self, name: str, x: float, y: float, sid=None, rng: random.Random | None = None):
         """A new enemy of kind `name` at (x, y), as tough as the players'
-        level (and the pacts) make it. With a spawn id (a tuple of ints)
+        level (and the pacts, and the difficulty) make it. With a spawn id (a tuple of ints)
         it's tracked as awake and its dice come from that id; bosses' adds
         have none and bring their own dice."""
         if rng is None:
             rng = random.Random(hash_coords(self.seed, 0xA1, *sid))
         e = make_enemy(name, x, y, rng, sid)
         e.scale_to_level(self.level + self.level_bonus)
-        e.damage_mult *= 1 + self.damage_bonus
+        if self.hp_mult != 1.0 and hasattr(e, "toughen"):
+            e.toughen(self.hp_mult)
+        e.damage_mult *= (1 + self.damage_bonus) * self.damage_mult
         e.haste = self.haste
         if sid is not None:
             self.awake[sid] = e

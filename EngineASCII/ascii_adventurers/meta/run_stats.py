@@ -24,6 +24,7 @@ class RunStats:
     biomes: list[str] = field(default_factory=list)   # in the order found
     cards: list[str] = field(default_factory=list)    # card keys, in the order taken
     loot: float = 0.0                    # found this run (kept however it ends)
+    difficulty: int = 0                  # P5: the run's difficulty level
 
     @property
     def total_kills(self) -> int:

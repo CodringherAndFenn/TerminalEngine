@@ -31,7 +31,8 @@ a player takes one from its giver. Stages:
              M24.3: guarded pieces to carry back to the giver -- and then,
              sewn whole, Mr. Buttons the bear, carried into the fight and
              given back to Fragile after it);
-             the giver (unpinned: you find their camp) tells you what to
+             the giver (pinned from the start since P2, round, in its
+             biome's colour) tells you what to
              do; talking to them TAKES the quest (`taken`): it gets a
              counter in the quest log, and its living targets are pinned
              once you're near one;
@@ -176,6 +177,7 @@ class Quests:
                 s = self.states[key] = QuestState(key, spec, camp, lair, npc)
                 self._place_targets(s)
         self.banner: Banner | None = None
+        self.dev_key: str | None = None             # dev mode: the quest F5 picked
 
     # --- Queries --------------------------------------------------------------------
 
@@ -246,34 +248,37 @@ class Quests:
             out.append((s.biome.upper(), text, False))
         return out
 
-    def pins(self, near: tuple[float, float] | None = None) -> list[tuple[float, float, str, str]]:
-        """Map pins: (x, y, kind, label); kind "lair" | "target" | "done".
-        Givers and lairs are found, not pinned (M22.5); a lair is pinned
-        once its boss wakes. A taken quest's targets (still alive) are
-        pinned only within QUEST_TARGET_PIN_RADIUS tiles of `near` (the
-        viewing player; None: all of them): you roam the biome until you're
-        close, then the pin leads you in."""
+    def pins(self, near: tuple[float, float] | None = None,
+             every_target: bool = False) -> list[tuple[float, float, str, str]]:
+        """Map pins: (x, y, kind, label); kind "giver_<biome>" | "giver_done" |
+        "lair" | "target" | "done" | a fight's fixtures.
+        Every giver is pinned from the start (P2, 2026-10-10; M22.5 hid
+        them), round and in its biome's colour, labelled with its camp's
+        name; grey once its boss is beaten. A lair is pinned once its boss
+        wakes. A taken quest's targets (still to do) are pinned only within
+        QUEST_TARGET_PIN_RADIUS tiles of `near` (the viewing player; None:
+        all of them): you roam the biome until you're close, then the pin
+        leads you in. `every_target` (dev mode's big map): every quest's
+        targets, taken or not, wherever they are; only the dev quest's (F5)
+        and taken quests' are labelled, so the map stays readable."""
         out = []
-        sp = self.scene.spawner
+        dev = self.dev_quest() if every_target else None
         for s in self.states.values():
             giver_done = s.stage == "cleared"
-            if s.stage == "hunt" and s.taken:
-                qid = s.qid
-                light = s.spec.kind in ("light", "collect", "survive", "escort", "rescue",
-                                        "fetch", "cleanse")
+            out.append((s.npc.x, s.npc.y, "giver_done" if giver_done else f"giver_{s.biome}",
+                        s.spec.camp_name or s.spec.giver.upper()))
+            if s.stage == "hunt" and (s.taken or every_target):
                 label = {"light": "BRAZIER", "collect": "CARGO", "survive": "SEAL",
                          "escort": "BEACON", "rescue": "CAPTIVE",
                          "fetch": "PIECE", "cleanse": "SHRINE"}.get(s.spec.kind) \
                     or config.ENEMIES[s.spec.target].name.split()[-1].upper()
-                for i, (x, y) in enumerate(s.camp.spots):
-                    if near is not None and math.hypot(x - near[0], y - near[1]) \
-                            > config.QUEST_TARGET_PIN_RADIUS:
+                if every_target and not s.taken and s is not dev:
+                    label = ""
+                for _, x, y in self.open_targets(s):
+                    if near is not None and not every_target and math.hypot(
+                            x - near[0], y - near[1]) > config.QUEST_TARGET_PIN_RADIUS:
                         continue
-                    if light:
-                        if i not in s.lit:
-                            out.append((x, y, "target", label))
-                    elif sp is None or (QUEST_SID, qid, i, 0) not in sp.dead:
-                        out.append((x, y, "target", label))
+                    out.append((x, y, "target", label))
             if s.stage in ("awake", "fight", "cleared"):
                 out.append((s.lair.cx, s.lair.cy, "done" if giver_done else "lair", s.lair.name))
             for x, y, what in s.drops:          # (M24.3: dropped pieces / the bear)
@@ -282,6 +287,15 @@ class Quests:
             if marks is not None:
                 out.extend(marks())             # (M24.1: the fight's fixtures)
         return out
+
+    def open_targets(self, s: QuestState) -> list[tuple[int, float, float]]:
+        """A quest's targets still to do, as (spot, x, y): a hunt's living
+        quarry, the other kinds' spots not done yet (s.lit)."""
+        if s.spec.kind != "hunt":
+            return [(i, x, y) for i, (x, y) in enumerate(s.camp.spots) if i not in s.lit]
+        sp = self.scene.spawner
+        return [(i, x, y) for i, (x, y) in enumerate(s.camp.spots)
+                if sp is None or (QUEST_SID, s.qid, i, 0) not in sp.dead]
 
     # --- Simulation step -------------------------------------------------------------
 
@@ -866,11 +880,13 @@ class Quests:
                              else f"the {s.biome}'s guardian already fell: a bonus kill")
         scene._sounds.append("chime")
         guild = scene.app.guild
+        level = getattr(scene, "difficulty", 0)                # (P5: the difficulty's bonus)
+        loot = round(spec.loot * (1 + config.DIFFICULTY_LOOT * level))
         for p in scene.players:
             if p.ghost:
                 continue
-            p.stats.loot += spec.loot
-            scene.effects.append(Effect("loot", boss.x, boss.y, target=p.hero, value=spec.loot))
+            p.stats.loot += loot
+            scene.effects.append(Effect("loot", boss.x, boss.y, target=p.hero, value=loot))
             prog = p.progress
             prog.picks += 1
             rarities = config.RARITIES
@@ -881,6 +897,10 @@ class Quests:
             if p.hero.bestiary is not None:
                 p.hero.bestiary.update(spec.pages)
         guild.pages.update(spec.pages)
+        if guild.open_difficulty(level):                      # (P5: the next level opens)
+            name = config.DIFFICULTIES[guild.difficulty_open].upper()
+            scene.effects.append(Effect("toast", boss.x, boss.y - 3,
+                                        label=f"DIFFICULTY {name} UNLOCKED"))
         guild.record_quest(s.key, [p.stats.hero for p in scene.players if not p.ghost],
                            s.fight_time)
         scene.app.save_guild()
@@ -891,12 +911,25 @@ class Quests:
     # --- Developer mode ---------------------------------------------------------------
 
     def dev_quest(self) -> QuestState | None:
-        """Dev: the quest the dev keys act on -- config.QUEST_FOCUS (run.py
-        --boss), else the first one not beaten yet."""
-        s = self.states.get(config.QUEST_FOCUS) if config.QUEST_FOCUS else None
-        if s is not None:
-            return s
+        """Dev: the quest the dev keys act on -- the one F5 picked (dev_key),
+        else config.QUEST_FOCUS (run.py --boss), else the first one not
+        beaten yet."""
+        for key in (self.dev_key, config.QUEST_FOCUS):
+            s = self.states.get(key) if key else None
+            if s is not None:
+                return s
         return next((s for s in self.states.values() if s.stage != "cleared"), None)
+
+    def dev_cycle(self) -> QuestState | None:
+        """Dev (F5): the next quest, in config.QUESTS order, becomes the dev
+        quest (after the last, back to the first)."""
+        keys = list(self.states)
+        if not keys:
+            return None
+        s = self.dev_quest()
+        i = keys.index(s.key) if s is not None else -1
+        self.dev_key = keys[(i + 1) % len(keys)]
+        return self.states[self.dev_key]
 
     def dev_finish_hunt(self) -> bool:
         """Dev: the dev quest's hunt is done (its boss wakes)."""
@@ -931,13 +964,21 @@ class Quests:
         self.banner = Banner("SOMETHING STIRS...", "(dev) hunt finished")
         return True
 
-    def dev_spot(self, which: str) -> tuple[float, float] | None:
-        """Dev: somewhere to teleport -- next to the dev quest's giver, or
-        just outside its lair's gate."""
+    def dev_spot(self, which: str, near: tuple[float, float] = (0.0, 0.0)
+                 ) -> tuple[float, float] | None:
+        """Dev: somewhere to teleport -- next to the dev quest's giver, its
+        target still to do nearest `near` (P2), or just outside its lair's
+        gate."""
         s = self.dev_quest()
         if s is not None:
             if which == "giver":
                 return s.npc.x, s.npc.y         # (free_spot finds room beside them)
+            if which == "target":
+                left = self.open_targets(s) if s.stage == "hunt" else []
+                if not left:
+                    return None
+                _, x, y = min(left, key=lambda t: math.hypot(t[1] - near[0], t[2] - near[1]))
+                return x, y
             gx = sum(t[0] for t in s.lair.gate) / max(1, len(s.lair.gate))
             gy = sum(t[1] for t in s.lair.gate) / max(1, len(s.lair.gate))
             dx, dy = gx - s.lair.cx, gy - s.lair.cy

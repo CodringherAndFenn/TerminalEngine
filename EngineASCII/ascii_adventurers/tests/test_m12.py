@@ -60,9 +60,11 @@ class RosterTest(unittest.TestCase):
 
 class PlainsTest(unittest.TestCase):
     def test_plains_have_twice_the_area_and_the_ring_kept_its_width(self):
+        # M12's island (2761), then P1 (2026-10-10) shrank all of it by 0.8:
+        # the plains kept their share, so M12's proportions still hold.
         lay = IslandLayout(11)
-        self.assertAlmostEqual((lay.plains_radius / 510) ** 2, 2.0, delta=0.02)
-        self.assertAlmostEqual(lay.radius - lay.plains_radius, 2550 - 510, delta=3)
+        self.assertAlmostEqual((lay.plains_radius / (510 * 0.8)) ** 2, 2.0, delta=0.02)
+        self.assertAlmostEqual(lay.radius - lay.plains_radius, (2550 - 510) * 0.8, delta=3)
 
 
 class BombTest(unittest.TestCase):

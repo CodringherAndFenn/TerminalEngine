@@ -120,6 +120,15 @@ class Character(Actor):
         self.roll_trail = 0.0
         self.roll_steps = 0
         self.speed_mult = 1.0             # Slipstream
+        # P6 riding (systems/mount.py): the mount ridden ("" on foot), s left
+        # until a called one arrives, s before it can be called again, the
+        # speed it gives, and since_hit when last looked (a drop: a hit).
+        self.mount = ""
+        self.mount_call = 0.0
+        self.mount_cd = 0.0
+        self.mount_mult = 1.0
+        self.mount_seen = 0.0
+        self.mount_left = False           # the mount faces where it's going (left?)
         # M23.3: the Nameless Magus's time zones and quicksand (walking
         # only: a roll is never slowed). He sets it each step he's fighting.
         self.time_mult = 1.0
@@ -225,7 +234,7 @@ class Character(Actor):
             self.vx = self.vy = 0.0
             return
         n = math.hypot(ax, ay)
-        top = spec.max_speed * self.speed_mult * self.time_mult
+        top = spec.max_speed * self.speed_mult * self.time_mult * self.mount_mult
         if self.shrunk > 0:                   # (tiny: quicker on your feet, M25.1)
             top *= config.SHRINK[1]
         if n > 0:

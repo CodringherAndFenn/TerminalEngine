@@ -1,20 +1,23 @@
 """
-scenes/new_run.py -- before a run: pick a hero and (optionally) an island
-seed. Both are remembered for next time (save/settings.json).
+scenes/new_run.py -- before a run: pick a hero, the difficulty (P5: the
+levels opened so far) and (optionally) an island seed. All three are
+remembered for next time (save/settings.json).
 """
 
 from __future__ import annotations
 
 import pygame
 
-from engine import Button, TextRenderer, WidgetList, colors
+from engine import Button, OptionSelector, TextRenderer, WidgetList, colors
 
 from .. import config
 from ..ui.frame import center, draw_box
 from ..ui.widgets import CARD_H, CARD_W, HeroPicker, SeedField
+from ..systems.run_rules import difficulty_totals
 from .common import MenuScene, sprites_of
 
-HINT = "Left/Right: hero   Up/Down: move   type digits for a seed   Enter: start   Esc: back"
+HINT = ("Left/Right: hero / difficulty   Up/Down: move   type digits for a seed   "
+        "Enter: start   Esc: back")
 
 
 class NewRunScene(MenuScene):
@@ -39,18 +42,26 @@ class NewRunScene(MenuScene):
         w = 50
         c2 = (d.cols - w) // 2
         row = 5 + CARD_H + 2
-        seed = SeedField(c2, row, w, "Island seed", s.seed, on_activate=self._start)
-        widgets = [picker, seed,
-                   Button(c2, row + 3, w, "Start", self._start),
-                   Button(c2, row + 5, w, "Back", self._back)]
+        # Difficulty (P5): the levels opened so far (all of them in dev mode).
+        top = len(config.DIFFICULTIES) - 1 if self.app.dev else self.app.guild.difficulty_open
+        levels = list(range(top + 1))
+        difficulty = OptionSelector(c2, row, w, "Difficulty", levels,
+                                    index=min(s.difficulty, top),
+                                    formatter=lambda n: config.DIFFICULTIES[n],
+                                    on_change=self._on_hero)
+        difficulty.activate = self._start
+        seed = SeedField(c2, row + 3, w, "Island seed", s.seed, on_activate=self._start)
+        widgets = [picker, difficulty, seed,
+                   Button(c2, row + 6, w, "Start", self._start),
+                   Button(c2, row + 8, w, "Back", self._back)]
         index = self._ui.index if self._ui is not None else 0
         self._ui = WidgetList(widgets)
         self._ui.index = index
-        self._picker, self._seed = picker, seed
+        self._picker, self._seed, self._difficulty = picker, seed, difficulty
         self._shape = (d.cols, d.rows)
         return self._ui
 
-    def _on_hero(self, hero: str) -> None:
+    def _on_hero(self, _value) -> None:
         self.app.ui_sound()
 
     def _start(self) -> None:
@@ -58,9 +69,10 @@ class NewRunScene(MenuScene):
         s = self.app.settings
         s.hero = self._picker.value
         s.seed = self._seed.seed
+        s.difficulty = self._difficulty.value
         self.app.save_settings()
         self.app.ui_sound()
-        self.manager.switch_to(GameScene(hero=s.hero, seed=s.seed))
+        self.manager.switch_to(GameScene(hero=s.hero, seed=s.seed, difficulty=s.difficulty))
 
     def _back(self) -> None:
         from .title import TitleScene
@@ -92,6 +104,24 @@ class NewRunScene(MenuScene):
         weapon = config.WEAPONS[config.HEROES[self._picker.value].weapon]
         center(text, 3, f"{weapon.name.upper()}: {weapon.blurb}", colors.GREY, bg=None)
         box_w = 56
-        draw_box(text, (d.cols - box_w) // 2, 5 + CARD_H + 1, box_w, 9)
+        draw_box(text, (d.cols - box_w) // 2, 5 + CARD_H + 1, box_w, 12)
         ui.draw(text)
+        what, unlock = self._difficulty_lines()
+        center(text, 5 + CARD_H + 3, what, colors.GREY, bg=None)
+        if unlock:
+            center(text, 5 + CARD_H + 4, unlock, colors.AMBER_DIM, bg=None)
+
+    def _difficulty_lines(self) -> tuple[str, str]:
+        """Under the difficulty: what it does, and (on the highest one opened)
+        how the next one opens."""
+        n = self._difficulty.value
+        t = difficulty_totals(n)
+        what = ("the island as it always was" if n == 0 else
+                f"enemy HP x{t['hp']:.1f}  damage x{t['damage']:.2f}  "
+                f"enemies x{1 + t['enemies']:.1f}  loot +{t['loot'] * 100:.0f}%")
+        last = len(config.DIFFICULTIES) - 1
+        unlock = (f"beat a boss here to open {config.DIFFICULTIES[n + 1]}"
+                  if n == self.app.guild.difficulty_open and n < last and not self.app.dev
+                  else "")
+        return what, unlock
         center(text, d.rows - 2, HINT, colors.GREY, bg=None)
