@@ -1,0 +1,183 @@
+"""
+render/mushroom_art.py -- the mushroom biome's new enemies (P12), drawn like
+the heroes (see render/plains_art.py for the format). No red caps with white
+spots: that look is kept for the Mycelium bosses. Importing this adds them
+to render/characters.ART.
+"""
+
+from __future__ import annotations
+
+from .characters import ART
+from .plains_art import _pad
+
+MUSHROOM_ART = {
+    # --- Simple chasers --------------------------------------------------------------
+    "sporeling": [
+        "...kkkk",
+        "..kvVvVk",
+        ".kvvvvvvk",
+        "..kkwkwk",
+        "...kvvk",
+        "..k.kk.k",
+    ],
+    "fungus_gnat": [
+        "k.......k",
+        "kck...kck",
+        ".kck.kck",
+        "..kqqqk",
+        "...kqk",
+    ],
+    "shroomling": [
+        "...kkkkk",
+        ".kkjjJjjkk",
+        "kjjjJjjjJjk",
+        ".kkkkkkkkk",
+        "...kwkwk",
+        "...kwwwk",
+        "..kwk.kwk",
+        "..kk...kk",
+    ],
+    "mold_zombie": [
+        "...kkkkk",
+        "..kqQqqqk",
+        "..kqkqkqk",
+        "..kuuuuuk",
+        "...kUUUk",
+        "..kqqNqqk",
+        ".kuQqNqQuk",
+        ".kukqNqqkuk",
+        "..kkqqqqkk",
+        "...kNNNNk",
+        "...kqkkqk",
+        "...kNk.kNk",
+        "...kkk.kkk",
+    ],
+    # --- Fungal folk -----------------------------------------------------------------
+    "myconid": [
+        "...kkkkkk",
+        ".kkvvVvvVkk",
+        "kvVvvvVvvvVk",
+        ".kkkkkkkkkk",
+        "...kwwwwk",
+        "...kwkwwk...g",
+        "...kwwwwk..kgk",
+        "..kwwwwwwk..t",
+        ".kwkwwwwkwk.t",
+        "..kkwwwwkkt",
+        "...kwwwwk",
+        "...kwk.kwk",
+        "...kkk.kkk",
+    ],
+    "cordyceps": [
+        "......k",
+        ".....kNk",
+        ".....kNk",
+        "....kkNkk",
+        "...kuuuuk",
+        "...kukuuk",
+        "...kuuuuk",
+        "..kGGGGGGk..t",
+        ".kuGGGGGGukkt",
+        ".kkGGyGGGkkt",
+        "...kNNNNk",
+        "...kNkkNk",
+        "...kNk.kNk",
+        "...kkk.kkk",
+    ],
+    "fungal_brute": [
+        "..kkkkkkkk",
+        ".kjjJjjJjjk",
+        "kjJjjjjjJjjk",
+        "kkkkkkkkkkkk",
+        ".kqqqqqqqqk",
+        "kqqkqqqqkqqk",
+        "kqqqqqrrqqqk",
+        "kqQqqqqqqQqk",
+        ".kqqqQqqqqk",
+        "..kqqqqqqk",
+        "..kqqk.kqqk",
+        "..kQQk.kQQk",
+        "..kkkk.kkkk",
+    ],
+    "rootweaver": [
+        "....kkkk",
+        "...kNNNNk",
+        "..kNkNNkNk",
+        "..kNNNNNNk",
+        "...kNNNNk..k",
+        "..kgNNNNgkkNk",
+        ".kgkNNNNkgNk",
+        "kNk.kNNk.kk",
+        "....kNNk",
+        "...kNkkNk",
+        "..kNk..kNk",
+        ".kNk....kNk",
+        ".kk......kk",
+    ],
+    # --- Critters -------------------------------------------------------------------
+    "giant_snail": [
+        "...kkkkk",
+        ".kkaAaAakk.k.k",
+        "kaAkkkkAak.kk",
+        "kAakaakkAk.kek",
+        "kaAkaAkAaAkkek",
+        "keeeeeeeeeeeek",
+        ".kkkkkkkkkkkk",
+    ],
+    "pillbug": [
+        "....kkkkkk",
+        "..kkmMmMmMkk",
+        ".kMmMmMmMmMmk",
+        "kmMmMmMmMmMmkk",
+        ".kkkkkkkkkkkk",
+        ".k.k.k.k.k.k",
+    ],
+    "pillbug_ball": [
+        "...kkkkk",
+        "..kmMmMmk",
+        ".kMmMmMmMk",
+        ".kmMmMmMmk",
+        ".kMmMmMmMk",
+        "..kmMmMmk",
+        "...kkkkk",
+    ],
+    "mantis": [
+        "..k.......k",
+        "..kgk...kgk",
+        "...kgk.kgk",
+        "....kggk",
+        "...kgrgrk",
+        "....kggk",
+        "..kkkgGgkkk",
+        ".kgGgkgGkgGk",
+        "kgk.kgGgk.kgk",
+        "....kgGgk",
+        "....kgggk",
+        "...kgk.kgk",
+        "..kgk...kgk",
+        "..kk.....kk",
+    ],
+    # --- Growths ---------------------------------------------------------------------
+    "fairy_cap": [
+        "..kkkk",
+        ".kjjJjk",
+        "kjJjjJjk",
+        ".kkwwkk",
+        "...kwk",
+        "...kkk",
+    ],
+    "mold_core": [
+        "....kkkkk",
+        "..kkqQqQqkk",
+        ".kqQqkqQkqQk",
+        "kqQkqQoQqkQqk",
+        "kQqQqoooqQqQk",
+        "kqQkqQoQqkQqk",
+        ".kqQqkqQkqQk",
+        "..kkqQqQqkk",
+        "....kkkkk",
+    ],
+}
+
+for _name, _rows in MUSHROOM_ART.items():
+    ART[_name] = _pad(_rows)

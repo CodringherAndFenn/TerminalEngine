@@ -387,10 +387,91 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   - the straw golem (dies in burning straw), the scarecrow (lets loose
     crows), the war drummer (everyone in its ring is faster and hits
     harder).
+- Playtest pass, P8 (`design/BOSSES.md` section 24.6): the haunted forest
+  goes from 4 enemy kinds to 18, drawn like the heroes, every attack with a
+  tell:
+  - simple chasers: skeletons (they fall into a bone pile that pulls itself
+    back together once; break the pile), rotting woodsmen, spiderling
+    swarms, bats (wobbly, over everything);
+  - the banshee (breathes in, screams in a cone that pushes you back), the
+    phantom (drifts through trees, only solid when it glows), the grave
+    digger (the ground cracks where he's digging up a skeleton), the
+    headless knight (elite: three swings in a row; hit its floating head
+    to stagger it);
+  - the giant centipede (shoot it apart and each half crawls on), the
+    giant spider (spits webs that slow you);
+  - the ghost woodcutter (an axe that comes back), the cultist (skeletons
+    rise from its candle ring: shoot the candles), the witch's apprentice
+    (an orb that splits in four), the wendigo (elite: lunges in pairs, a
+    howl that slows you).
+- Playtest pass, P9 (`design/BOSSES.md` section 24.7): the desert goes from
+  5 enemy kinds to 20, drawn like the heroes, every attack with a tell:
+  - simple chasers: fire ant swarms, dried husks, sand imps (they hop),
+    desert jackals;
+  - the giant scorpion (elite: armoured in front; two pincer snaps, then a
+    long tail stab), vultures (circle until you're under half HP, then
+    dive), the basilisk (stares down a line: caught in it, you're stone
+    for a second), the rattlesnake (rattles when you're close, strikes,
+    slithers off);
+  - the mummy (elite: its bandages drag you in for a heavy blow; roll to
+    break free), the fire dancer (a cone of flame, burning patches), the
+    glass mage (shards that glance off walls), the dune raider (hit and
+    run);
+  - tumbleweeds (roll with the wind), the cactus golem (shoots spines back
+    every time you hit it), the djinn lamp (its vortex drags you in; close
+    up it zaps).
+  Also fixed: the plains' straw golem's burning straw now hurts heroes (it
+  only burned other enemies).
+- Playtest pass, P10 (`design/BOSSES.md` section 24.8): the ruins go from
+  5 enemy kinds to 19, drawn like the heroes, every attack with a tell:
+  - simple chasers: gnoll packs, stone imps, crawling hand swarms, lost
+    soldiers;
+  - the gargoyle (swoops when you come near, then sits as stone: nothing
+    hurts it), the clockwork sentry (winds its key, sweeps 5 bolts), the
+    colossus (elite: its stomp rolls a ring along the ground; roll through
+    it), the rubble crab (break its shell first; bare, it runs);
+  - the gem thief (runs off with your XP gems; kill it to get them back),
+    the crossbow sniper (a long aiming line, then a bolt through
+    everything), the flail brute (elite: a spinning flail whose ring
+    grows, then it flies);
+  - the rune mine (drifts at you, glows, blows), haunted blades (three
+    swords circling, thrusting one at a time), the bell ghost (its bell
+    wakes everything around and knocks you back).
+- Playtest pass, P11 (`design/BOSSES.md` section 24.9): the swamp goes from
+  3 enemy kinds to 15, drawn like the heroes, every attack with a tell:
+  - simple chasers: bog zombies, newt swarms, gator hatchling packs,
+    mudskippers (they hop);
+  - the bog crocodile (elite: lies with its eyes above the bog, lunges,
+    clamps on and drags you; roll to break free), the snapping turtle
+    (hides in its shell when hurt), the heron (stabs a line from 3 tiles,
+    flaps off if you close in);
+  - the swamp hag (curses the ground under you: step out of the puddle or
+    be rooted), lizardman javelineers (their javelins stick in the ground
+    as obstacles for a few seconds), marsh lights (three lights, one real:
+    shoot it and the others go out);
+  - the bloated corpse (bursts into a lingering toxic cloud), the sludge
+    (splits in two when it dies, and again).
+- Playtest pass, P12 (`design/BOSSES.md` section 24.10): the mushroom biome
+  goes from 3 enemy kinds to 16 (no red-and-white caps: those are the
+  Mycelium bosses'):
+  - simple chasers: sporeling swarms, fungus gnat clouds, shroomlings, mold
+    zombies;
+  - the myconid shaman (its pollen cloud heals the enemies in it), the
+    cordyceps hunter (spore darts; dead, two sporelings crawl out), the
+    fungal brute (elite: regrows unless you keep hitting it), the
+    rootweaver (a line of cracks races at you, roots burst along it);
+  - the giant snail (its shell takes half; its slime slows you), the
+    pillbug (rolls at you as a ball, barely hurt, then rests: hit it
+    then), the mantis (elite: leaps at you, then an X-slash);
+  - the fairy ring (step inside and sporelings rise; break three caps),
+    the mold core (spreads mold patches that hurt; break it and they
+    wither).
+  That ends the playtest pass's enemy variety: 12 kinds that spawn became
+  94 (the plains 19, the haunted forest 18, the desert 20, the ruins 19,
+  the swamp 15, the mushroom biome 16).
 
-Next up (agreed order, `design/BOSSES.md` section 8): the rest of the
-playtest pass (P8-P12: the other biomes' new enemies), then
-the haunted forest's other two bosses (the mad murderer squirrel, the mimic tree), then the
+Next up (agreed order, `design/BOSSES.md` section 8): the playtest pass is
+done, so: the haunted forest's other two bosses (the mad murderer squirrel, the mimic tree), then the
 mushroom bosses one at a time, M27 the plains boss and the victory, and
 M28 an art spec so custom pixel art can replace the drawn sprites.
 

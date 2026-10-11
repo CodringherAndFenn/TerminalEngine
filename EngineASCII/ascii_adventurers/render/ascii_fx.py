@@ -114,6 +114,22 @@ SHOT_LOOKS = {
     "lob_spit": ("@", (None, None), None),
     "rain_arrow": ("'", (None, None), palette.SHOT_LONGARROW),   # P4 Arrow Rain (lobbed)
     "pebble": ("o", (".", None), palette.SHOT_PEBBLE),            # P7 the bandit's sling
+    # P8: the ghost woodcutter's axe (head spins like the dwarf's), the
+    # apprentice's cursed orb and its bits, the giant spider's web blob.
+    "ghost_axe": (None, (".", "."), palette.SHOT_GHOST_AXE),
+    "curse_orb": ("@", ("o", "."), palette.SHOT_CURSE),
+    "curse_bit": ("*", (".", None), palette.SHOT_CURSE),
+    "web": ("#", (".", "."), palette.SHOT_WEB),
+    # P9: the glass mage's shards, the cactus golem's spines.
+    "glass": ("*", ("'", None), palette.SHOT_GLASS),
+    "spine": ("-", (".", None), palette.SHOT_SPINE),
+    # P10: the clockwork sentry's bolts, the crossbow sniper's heavy bolt.
+    "clock_bolt": ("*", (".", None), palette.SHOT_CLOCK_BOLT),
+    "heavy_bolt": (None, (None, None), palette.SHOT_HEAVY_BOLT),
+    # P11: the lizardman's javelin.
+    "javelin": (None, (None, None), palette.SHOT_JAVELIN),
+    # P12: the cordyceps hunter's spore dart.
+    "spore_dart": ("o", (".", None), palette.SHOT_SPORE_DART),
     # M23.3: the Magus's spinning sand blades, and his hourglass's time shots.
     "blade": ("x", ("+", "."), palette.SHOT_BLADE),
     "time": ("o", ("'", "."), palette.SHOT_TIME),
@@ -189,7 +205,7 @@ def draw_projectiles(text: TextRenderer, camera: Camera, projectiles: list[Proje
                 x, y = camera.world_to_px(p.x - p.dir_x * dist, p.y - p.dir_y * dist)
                 batch.put_c(x, y, trail[k] or _LINE[octant], trail_cols[k])
         x, y = camera.world_to_px(p.x, p.y)
-        if p.spec.look == "axe":
+        if p.spec.look in ("axe", "ghost_axe"):
             head = AXE_SPIN[int((p.travelled + p.spin) / AXE_SPIN_TILES) % len(AXE_SPIN)]
             stats = getattr(p.owner, "stats", None)
             if stats is not None and stats.has("tether"):
@@ -295,6 +311,32 @@ def _frame(e: Effect) -> list:
         col = palette.ROLL_DUST[0 if p < 0.5 else 1]
         return ([(-5, 0, "o", col), (5, 2, ".", col), (0, -3, ",", col)] if p < 0.5
                 else [(-7, 2, ".", col), (7, 0, ".", col)])
+    if e.kind == "scream":                      # (P8: arcs rolling out over the cone)
+        col = palette.SCREAM[min(1, int(p * 2))]
+        out = []
+        for ring in (0.35, 0.65, 0.95):
+            r = e.size * min(1.0, p * 1.4 + ring - 0.35)
+            for k in range(-3, 4):
+                a = e.angle + k * math.radians(9)
+                out.append((math.cos(a) * r * config.TILE_PX_W, math.sin(a) * r * config.TILE_PX_H,
+                            ")" if math.cos(a) >= 0 else "(", col))
+        return out
+    if e.kind == "stone":                       # (P9: stone crust round a hero)
+        return [(math.cos(k * math.tau / 10) * 14, math.sin(k * math.tau / 10) * 20,
+                 "#" if k % 2 else ":", palette.STONE) for k in range(10)]
+    if e.kind == "flames":                      # (P9: tongues of fire over the cone)
+        out = []
+        for k in range(14):
+            a = e.angle + math.radians((k * 37) % 50 - 25)
+            r = e.size * (0.25 + 0.75 * ((k * 0.13 + p) % 1.0))
+            out.append((math.cos(a) * r * config.TILE_PX_W, math.sin(a) * r * config.TILE_PX_H,
+                        "^" if k % 2 else "*", palette.FLAMES[k % 2]))
+        return out
+    if e.kind == "howl":                        # (P8: a ring growing out)
+        col = palette.HOWL[min(1, int(p * 2))]
+        r = e.size * p
+        return [(math.cos(k * math.tau / 20) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / 20) * r * config.TILE_PX_H, "~", col) for k in range(20)]
     if e.kind == "implode":                     # (P4: closes in, the reverse of a burst)
         r = e.size * (1.0 - 0.8 * p)
         col = palette.RUNE[min(1, int(p * 2))]
@@ -330,6 +372,14 @@ def draw_effects(text: TextRenderer, camera: Camera, world, effects: list[Effect
         x, y = camera.world_to_px(e.x, e.y)
         if e.kind == "arc":
             _lightning(batch, e, (x, y), camera.world_to_px(e.x2, e.y2))
+            continue
+        if e.kind == "gaze":                        # (P9: a stare / bandages along a line)
+            tx, ty = camera.world_to_px(e.x2, e.y2)
+            col = (palette.BANDAGE if e.value else palette.GAZE)[0 if e.progress < 0.5 else 1]
+            n = max(2, int(math.hypot(tx - x, ty - y) / 10))
+            for k in range(1, n + 1):
+                batch.put_c(x + (tx - x) * k / n, y + (ty - y) * k / n,
+                            "~" if e.value else "=", col)
             continue
         if e.kind == "heal_beam":                   # (P7: dotted green, a "+" on the healed)
             tx, ty = camera.world_to_px(e.x2, e.y2)

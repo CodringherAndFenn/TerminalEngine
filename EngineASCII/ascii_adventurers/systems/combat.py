@@ -33,6 +33,7 @@ Dissonance, Overload). Enemies' hits are plain take_damage.
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 
 from .. import config
 from ..entities.actor import Actor
@@ -601,6 +602,13 @@ def update_projectiles(
                 world, tile_hit, outgoing(p.owner, p.damage, p.tags) * p.mult,
                 p.spec.damages_terrain, p.angle, effects
             ))
+            if p.bounces < p.spec.bounces:    # (P9: glass shards glance off walls)
+                p.travelled += step * tile_hit.t
+                p.x = tile_hit.x - p.dir_x * 0.05
+                p.y = tile_hit.y - p.dir_y * 0.05
+                _reflect(p, tile_hit)
+                p.bounces += 1
+                continue
             if p.spec.returns:
                 # Bounces off the wall: on (Ricochet) or home.
                 p.travelled += step * tile_hit.t
@@ -626,8 +634,46 @@ def update_projectiles(
             effects.append(Effect("fizzle", p.x, p.y))
             events.append(FIZZLE)
             p.alive = False
+    _shot_ends([p for p in projectiles if not p.alive], spawned, zones, world, actors)
     projectiles[:] = [p for p in projectiles if p.alive] + spawned
     return events
+
+
+def _shot_ends(ended: list[Projectile], spawned: list[Projectile], zones, world=None,
+               actors=()) -> None:
+    """Shots that leave something where they stop, whatever stopped them
+    (P8): a giant spider's web blob leaves a sticky patch (a zone that
+    slows to WEB[2]); a witch's apprentice's cursed orb splits into
+    CURSE_SPLIT[0] smaller ones, all round. P11: a lizardman's javelin
+    sticks in the ground where it stops -- a solid tile for JAVELIN_STUCK s
+    (not on a body, not on what's already solid), then the ground again."""
+    for p in ended:
+        look = p.spec.look
+        if look == "javelin" and zones is not None and world is not None \
+                and hasattr(world, "set_tile"):
+            from ..world import tiles
+            from .zones import Zone
+            tx, ty = math.floor(p.x), math.floor(p.y)
+            old = world.tile_at(tx, ty)
+            if not old.solid and not any(math.hypot(a.x - tx - 0.5, a.y - ty - 0.5)
+                                         < a.hit_radius + 0.8 for a in actors):
+                world.set_tile(tx, ty, tiles.STUCK_JAVELIN)
+                zones.append(Zone("stake", tx + 0.5, ty + 0.5, 0.0, config.JAVELIN_STUCK, 999.0,
+                                  0.0, None, restore=(tx, ty, old)))
+            continue
+        if look == "web" and zones is not None:
+            from .zones import Zone
+            radius, life, slow = config.WEB
+            zones.append(Zone("web", p.x, p.y, radius, life, 0.1, 0.0, p.owner, slow=slow))
+        elif look == "curse_orb" and not p.child:
+            n, share, speed = config.CURSE_SPLIT
+            shell = replace(p.spec, look="curse_bit", speed=speed, max_range=6.0)
+            for k in range(n):
+                a = p.angle + math.pi / n + k * math.tau / n
+                c = Projectile(p.x - p.dir_x * 0.3, p.y - p.dir_y * 0.3, a, shell,
+                               owner=p.owner, damage=p.damage * share)
+                c.child = True
+                spawned.append(c)
 
 
 def _nearest_foe(x: float, y: float, radius: float, actors, owner, skip=None):
@@ -740,15 +786,21 @@ def _ricochet(p: Projectile, hit: RayHit) -> bool:
     stats = _stats_of(p)
     if stats is None or not stats.has("ricochet") or p.bounces >= config.RICOCHET_BOUNCES:
         return False
+    _reflect(p, hit)
+    p.bounces += 1
+    p.hit.clear()
+    return True
+
+
+def _reflect(p: Projectile, hit: RayHit) -> None:
+    """Turn a shot off the wall it hit: the face is the one the entry point
+    is closest to; the motion across that face flips."""
     fx, fy = hit.x - hit.tx, hit.y - hit.ty
     if min(fx, 1 - fx) < min(fy, 1 - fy):
         p.dir_x = -p.dir_x
     else:
         p.dir_y = -p.dir_y
     p.angle = math.atan2(p.dir_y, p.dir_x)
-    p.bounces += 1
-    p.hit.clear()
-    return True
 
 
 def _split(p: Projectile, spawned: list[Projectile]) -> bool:

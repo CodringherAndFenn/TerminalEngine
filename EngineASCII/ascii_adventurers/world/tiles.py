@@ -214,6 +214,13 @@ CONCRETE = TileType(
 MUD = TileType(
     "mud", ("  ", ", ", " .", "  "), palette.MUD_FG, palette.MUD_BG,
 )
+# P11: a lizardman's javelin stuck in the ground: in the way for a few s
+# (systems/combat._shot_ends plants it; the zone it leaves puts the ground
+# back, systems/zones.update_zones).
+STUCK_JAVELIN = TileType(
+    "stuck javelin", ("/ ", " /", "\\ ", " \\"), palette.JAVELIN_FG, palette.MUD_BG,
+    solid=True, blocks_shots=False, hp=12,
+)
 REEDS = TileType(
     "reeds", ("|'", "'|", "||", "|,"), palette.REED_FG, palette.MUD_BG,
 )

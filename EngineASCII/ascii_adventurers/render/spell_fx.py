@@ -84,6 +84,45 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 rr = z.radius * (0.35 + 0.65 * ((k * 7) % 5) / 4)
                 batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
                             "o" if k % 3 == 0 else ".", palette.POOL[k % 2])
+        elif z.kind == "curse":
+            # P11: a swamp hag's curse: a dark puddle growing to its edge.
+            grow = min(1.0, z.age / z.life)
+            col = palette.CURSE[0 if int(z.age * 10) % 2 else 1]
+            for k in range(10):
+                a = k * math.tau / 10
+                batch.put_c(x + math.cos(a) * z.radius * grow * tw,
+                            y + math.sin(a) * z.radius * grow * th, "~", col)
+            batch.put_c(x, y, "@", col)
+        elif z.kind == "gas":
+            # P11: a bloated corpse's cloud, drifting puffs.
+            col = palette.GAS[0 if z.age < z.life * 0.7 else 1]
+            for k in range(8):
+                a = k * math.tau / 8 + z.age * 0.6
+                rr = z.radius * (0.35 + 0.6 * ((k * 0.37) % 1.0))
+                batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
+                            "o" if k % 2 else ".", col)
+        elif z.kind in ("pollen", "slime", "mold"):
+            # P12: the myconid's healing pollen, a snail's slime, a core's mold.
+            cols = {"pollen": palette.POLLEN, "slime": palette.SLIME, "mold": palette.MOLD}[z.kind]
+            glyph = {"pollen": "*", "slime": "~", "mold": "%"}[z.kind]
+            col = cols[0 if z.age < z.life * 0.75 else 1]
+            n = 8 if z.kind == "pollen" else 5
+            for k in range(n):
+                a = k * math.tau / n + (z.age * 0.5 if z.kind == "pollen" else 0.0)
+                rr = z.radius * (0.3 + 0.65 * ((k * 0.41) % 1.0))
+                batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
+                            glyph if k % 2 else ".", col)
+        elif z.kind == "stake":
+            pass                               # (the javelin is the tile itself)
+        elif z.kind == "web":
+            # P8: a giant spider's sticky patch: strands across it, fading at the end.
+            col = palette.WEB[0 if z.age < z.life * 0.75 else 1]
+            for k in range(6):
+                a = k * math.tau / 6
+                for rr in (0.45, 0.9):
+                    batch.put_c(x + math.cos(a) * z.radius * rr * tw,
+                                y + math.sin(a) * z.radius * rr * th, "+" if rr < 0.5 else ".", col)
+            batch.put_c(x, y, "#", col)
         elif z.kind == "trail":
             # A roll's trail patch (M18): flickering, fading as it runs out.
             cols = palette.TRAIL.get(z.inflicts, palette.TRAIL["burn"])

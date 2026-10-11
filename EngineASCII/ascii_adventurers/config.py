@@ -174,6 +174,62 @@ WEAPONS = {
         name="shield bash", kind="melee", fire_interval=2.6, damage=22, reach=1.9, arc_deg=110.0,
         tags=("physical",),
     ),
+    # P8: the haunted forest. The ghost woodcutter's axe comes back to him;
+    # the apprentice's cursed orb splits in four when it hits anything
+    # (systems/combat._shot_ends); the giant spider's web blob leaves a
+    # sticky patch.
+    "ghost_axe": WeaponSpec(
+        name="ghost axe", fire_interval=2.6,
+        shell=ShellSpec(speed=13.0, damage=11, max_range=10.0, damages_terrain=False,
+                        look="ghost_axe", sound="axe", returns=True),
+    ),
+    "curse": WeaponSpec(
+        name="cursed orb", fire_interval=3.2,
+        shell=ShellSpec(speed=6.5, damage=10, max_range=16.0, damages_terrain=False,
+                        look="curse_orb", sound="hex"),
+    ),
+    "web_spit": WeaponSpec(
+        name="web", fire_interval=2.6,
+        shell=ShellSpec(speed=11.0, damage=4, max_range=13.0, damages_terrain=False,
+                        look="web", sound="orb"),
+    ),
+    # P9: the desert. The glass mage's shards glance off walls twice; the
+    # cactus golem's spines (it fires them itself, ai/desert.py).
+    "glass_shards": WeaponSpec(
+        name="glass shards", fire_interval=2.4, pellets=3, spread_deg=28.0,
+        shell=ShellSpec(speed=16.0, damage=6, max_range=20.0, damages_terrain=False,
+                        look="glass", sound="spark", bounces=2),
+    ),
+    "cactus_spines": WeaponSpec(
+        name="spines", fire_interval=1.0,
+        shell=ShellSpec(speed=12.0, damage=4, max_range=7.0, damages_terrain=False,
+                        look="spine", sound="bow"),
+    ),
+    # P10: the ruins. The clockwork sentry's bolts (a sweep of five), the
+    # crossbow sniper's bolt (through everything in its line).
+    "clock_bolts": WeaponSpec(
+        name="clockwork bolts", fire_interval=3.5,
+        shell=ShellSpec(speed=20.0, damage=6, max_range=18.0, damages_terrain=False,
+                        look="clock_bolt", sound="bolt"),
+    ),
+    "heavy_bolt": WeaponSpec(
+        name="heavy bolt", fire_interval=4.0,
+        shell=ShellSpec(speed=42.0, damage=20, max_range=26.0, damages_terrain=False,
+                        look="heavy_bolt", sound="bow", pierce=99),
+    ),
+    # P11: the swamp. The lizardman's javelin (sticks in the ground where
+    # it stops, systems/combat._shot_ends).
+    "javelin": WeaponSpec(
+        name="javelin", fire_interval=2.8,
+        shell=ShellSpec(speed=17.0, damage=9, max_range=14.0, damages_terrain=False,
+                        look="javelin", sound="bow"),
+    ),
+    # P12: the mushroom biome. The cordyceps hunter's spore dart.
+    "spore_dart": WeaponSpec(
+        name="spore dart", fire_interval=2.2,
+        shell=ShellSpec(speed=18.0, damage=8, max_range=18.0, damages_terrain=False,
+                        look="spore_dart", sound="orb"),
+    ),
     "lute": WeaponSpec(
         name="lute", kind="pulse", fire_interval=1.2, damage=16, reach=8, auto=True,
         blurb="plays on its own: every beat hurts everything around",
@@ -270,6 +326,30 @@ BODIES = {
     "warlock": CharacterSpec(
         name="warlock", weapon="hex", sprite="warlock", max_speed=5.0,
         accel=16.0, brake=30.0, size_px=24, aim_turn_speed=math.radians(70),
+    ),
+    # P12
+    "cordyceps": CharacterSpec(
+        name="cordyceps hunter", weapon="spore_dart", sprite="cordyceps", max_speed=4.4,
+        accel=18.0, brake=30.0, size_px=24, aim_turn_speed=math.radians(130),
+    ),
+    # P11
+    "lizardman": CharacterSpec(
+        name="lizardman javelineer", weapon="javelin", sprite="lizardman", max_speed=4.6,
+        accel=18.0, brake=30.0, size_px=24, aim_turn_speed=math.radians(130),
+    ),
+    # P9
+    "glass_mage": CharacterSpec(
+        name="glass mage", weapon="glass_shards", sprite="glass_mage", max_speed=4.2,
+        accel=16.0, brake=30.0, size_px=24, aim_turn_speed=math.radians(100),
+    ),
+    # P8
+    "woodcutter": CharacterSpec(
+        name="ghost woodcutter", weapon="ghost_axe", sprite="woodcutter", max_speed=4.2,
+        accel=16.0, brake=30.0, size_px=24, aim_turn_speed=math.radians(120),
+    ),
+    "apprentice": CharacterSpec(
+        name="witch's apprentice", weapon="curse", sprite="apprentice", max_speed=4.4,
+        accel=16.0, brake=30.0, size_px=24, aim_turn_speed=math.radians(100),
     ),
     # P7
     "bandit": CharacterSpec(
@@ -438,6 +518,402 @@ ENEMIES = {
         name="war drummer", kind="drummer", sprite="drummer",
         max_hp=50, sight=16, biomes=("plains",), weight=1, speed=4.0,
         damage=0, size_px=22, xp=7,
+    ),
+    # --- P8: the haunted forest (design/BOSSES.md 24.6; ai/forest.py) -----------------
+    # Simple chasers.
+    "skeleton": EnemySpec(
+        name="skeleton", kind="skeleton", sprite="skeleton",
+        max_hp=30, sight=14, biomes=("forest",), weight=3, speed=3.8,
+        damage=9, attack_radius=1.2, windup=0.4, cooldown=1.2, size_px=20, xp=4,
+    ),
+    "risen_skeleton": EnemySpec(        # (one that pulled itself back together: no pile again)
+        name="skeleton", kind="skeleton", sprite="skeleton",
+        max_hp=30, sight=14, biomes=(), speed=3.8,
+        damage=9, attack_radius=1.2, windup=0.4, cooldown=1.2, size_px=20, xp=2,
+    ),
+    "bone_pile": EnemySpec(
+        name="bone pile", kind="bone_pile", sprite="bone_pile",
+        max_hp=15, sight=1, biomes=(), speed=0.0, damage=0, size_px=18, xp=0,
+    ),
+    "woodsman": EnemySpec(
+        name="rotting woodsman", kind="chaser", sprite="woodsman",
+        max_hp=80, sight=12, biomes=("forest",), weight=3, speed=2.4,
+        damage=13, attack_radius=1.4, windup=0.6, cooldown=1.5, size_px=22, xp=5,
+    ),
+    "spiderling": EnemySpec(
+        name="spiderling", kind="chaser", sprite="spiderling", scale=2, group=(5, 8),
+        max_hp=6, sight=14, biomes=("forest",), weight=3, speed=6.5,
+        damage=3, attack_radius=0.8, windup=0.2, cooldown=0.8, size_px=10, xp=1,
+    ),
+    "bat": EnemySpec(
+        name="bat", kind="bat", sprite="bat", scale=2, group=(4, 4),
+        max_hp=10, sight=18, biomes=("forest",), weight=2, speed=7.0,
+        damage=4, attack_radius=0.8, windup=0.15, cooldown=0.9, size_px=12, xp=1,
+    ),
+    # Spirits and the restless dead.
+    "banshee": EnemySpec(
+        name="banshee", kind="banshee", sprite="banshee",
+        max_hp=45, sight=16, biomes=("forest",), weight=2, speed=3.6,
+        damage=14, attack_radius=7.0, windup=0.9, cooldown=4.0, size_px=22, xp=7,
+    ),
+    "phantom": EnemySpec(
+        name="phantom", kind="phantom", sprite="phantom",
+        max_hp=40, sight=16, biomes=("forest",), weight=2, speed=3.2,
+        damage=8, attack_radius=0.6, cooldown=0.8, size_px=22, xp=6,
+    ),
+    "grave_digger": EnemySpec(
+        name="grave digger", kind="grave_digger", sprite="grave_digger",
+        max_hp=60, sight=16, biomes=("forest",), weight=1, speed=3.0,
+        damage=0, windup=1.0, size_px=22, xp=7,
+    ),
+    "headless_knight": EnemySpec(
+        name="headless knight", kind="headless_knight", sprite="headless_knight", scale=4,
+        elite=True, max_hp=380, sight=14, biomes=("forest",), weight=1, speed=2.6,
+        damage=22, attack_radius=2.2, windup=0.7, cooldown=2.4, size_px=36, xp=22,
+    ),
+    "knight_head": EnemySpec(
+        name="the knight's head", kind="knight_head", sprite="knight_head", scale=2,
+        max_hp=999, sight=1, biomes=(), speed=0.0, damage=0, size_px=14, xp=0,
+    ),
+    # Beasts.
+    "centipede": EnemySpec(
+        name="giant centipede", kind="centipede", sprite="centipede_head", scale=2,
+        max_hp=20, sight=16, biomes=("forest",), weight=2, speed=4.6,
+        damage=10, attack_radius=1.0, windup=0.35, cooldown=1.1, size_px=16, xp=2,
+    ),
+    "giant_spider": EnemySpec(
+        name="giant spider", kind="giant_spider", sprite="giant_spider",
+        max_hp=70, sight=16, biomes=("forest",), weight=2, speed=4.0,
+        damage=0, windup=0.4, size_px=26, xp=8,
+    ),
+    # Folk of the dark wood (the woodcutter and apprentice are Characters).
+    "woodcutter": EnemySpec(
+        name="ghost woodcutter", kind="archer", body="woodcutter", max_hp=50, sight=16,
+        biomes=("forest",), weight=2, preferred_range=(5.0, 8.0), xp=6,
+    ),
+    "cultist": EnemySpec(
+        name="cultist", kind="cultist", sprite="cultist",
+        max_hp=55, sight=16, biomes=("forest",), weight=1, speed=3.4,
+        damage=0, windup=1.2, size_px=22, xp=8,
+    ),
+    "candle": EnemySpec(
+        name="ritual candle", kind="candle", sprite="candle", scale=2,
+        max_hp=6, sight=1, biomes=(), speed=0.0, damage=0, size_px=10, xp=0,
+    ),
+    "apprentice": EnemySpec(
+        name="witch's apprentice", kind="archer", body="apprentice", max_hp=40, sight=16,
+        biomes=("forest",), weight=2, preferred_range=(6.0, 10.0), xp=6,
+    ),
+    "wendigo": EnemySpec(
+        name="wendigo", kind="wendigo", sprite="wendigo", scale=4, elite=True,
+        max_hp=300, sight=18, biomes=("forest",), weight=1, speed=6.0,
+        damage=20, attack_radius=6.0, windup=0.4, cooldown=2.2, size_px=34, xp=20,
+    ),
+    # --- P9: the desert (design/BOSSES.md 24.7; ai/desert.py) -------------------------
+    # Simple chasers.
+    "fire_ant": EnemySpec(
+        name="fire ant", kind="chaser", sprite="fire_ant", scale=2, group=(6, 9),
+        max_hp=6, sight=14, biomes=("desert",), weight=3, speed=6.0,
+        damage=4, attack_radius=0.8, windup=0.2, cooldown=0.8, size_px=10, xp=1,
+    ),
+    "husk": EnemySpec(
+        name="dried husk", kind="chaser", sprite="husk",
+        max_hp=75, sight=12, biomes=("desert",), weight=3, speed=2.5,
+        damage=13, attack_radius=1.4, windup=0.65, cooldown=1.5, size_px=22, xp=5,
+    ),
+    "sand_imp": EnemySpec(
+        name="sand imp", kind="hopper", sprite="sand_imp", scale=2,
+        max_hp=16, sight=14, biomes=("desert",), weight=3, speed=9.0,
+        damage=5, attack_radius=0.9, windup=0.2, cooldown=0.9, size_px=12, xp=2,
+    ),
+    "jackal": EnemySpec(
+        name="desert jackal", kind="chaser", sprite="jackal",
+        max_hp=28, sight=16, biomes=("desert",), weight=2, speed=8.0,
+        damage=7, attack_radius=1.0, windup=0.25, cooldown=1.0, size_px=18, xp=3,
+    ),
+    # Beasts.
+    "scorpion": EnemySpec(
+        name="giant scorpion", kind="scorpion", sprite="scorpion", scale=4, elite=True,
+        max_hp=340, sight=14, biomes=("desert",), weight=1, speed=3.4,
+        damage=14, attack_radius=2.0, windup=0.35, cooldown=1.8, size_px=36, xp=20,
+    ),
+    "vulture": EnemySpec(
+        name="vulture", kind="vulture", sprite="vulture", group=(2, 3),
+        max_hp=30, sight=22, biomes=("desert",), weight=2, speed=6.5,
+        damage=10, attack_radius=1.0, windup=0.6, cooldown=1.0, size_px=20, xp=4,
+    ),
+    "basilisk": EnemySpec(
+        name="basilisk lizard", kind="basilisk", sprite="basilisk",
+        max_hp=55, sight=16, biomes=("desert",), weight=2, speed=6.0,
+        damage=6, attack_radius=9.0, windup=0.8, cooldown=4.0, size_px=20, xp=7,
+    ),
+    "rattlesnake": EnemySpec(
+        name="rattlesnake", kind="rattlesnake", sprite="rattlesnake",
+        max_hp=35, sight=10, biomes=("desert",), weight=2, speed=3.5,
+        damage=14, attack_radius=4.0, windup=0.6, cooldown=1.5, size_px=18, xp=5,
+    ),
+    # Folk (the glass mage is a Character).
+    "mummy": EnemySpec(
+        name="mummy", kind="mummy", sprite="mummy", scale=4, elite=True,
+        max_hp=360, sight=14, biomes=("desert",), weight=1, speed=2.2,
+        damage=26, attack_radius=7.0, windup=0.8, cooldown=3.0, size_px=34, xp=20,
+    ),
+    "fire_dancer": EnemySpec(
+        name="fire dancer", kind="fire_dancer", sprite="fire_dancer",
+        max_hp=50, sight=16, biomes=("desert",), weight=2, speed=5.5,
+        damage=12, attack_radius=4.0, windup=0.6, cooldown=2.4, size_px=22, xp=7,
+    ),
+    "glass_mage": EnemySpec(
+        name="glass mage", kind="archer", body="glass_mage", max_hp=40, sight=18,
+        biomes=("desert",), weight=2, preferred_range=(8.0, 12.0), xp=6,
+    ),
+    "dune_raider": EnemySpec(
+        name="dune raider", kind="dune_raider", sprite="dune_raider",
+        max_hp=55, sight=16, biomes=("desert",), weight=2, speed=6.0,
+        damage=10, attack_radius=1.4, windup=0.2, cooldown=1.5, size_px=22, xp=6,
+    ),
+    # Odd ones.
+    "tumbleweed": EnemySpec(
+        name="tumbleweed", kind="tumbleweed", sprite="tumbleweed", scale=2, group=(3, 5),
+        max_hp=12, sight=1, biomes=("desert",), weight=2, speed=5.0,
+        damage=6, size_px=14, xp=1,
+    ),
+    "cactus_golem": EnemySpec(
+        name="cactus golem", kind="cactus_golem", sprite="cactus_golem", scale=4,
+        max_hp=150, sight=12, biomes=("desert",), weight=2, speed=2.0,
+        damage=20, attack_radius=1.8, windup=0.8, cooldown=2.0, size_px=32, xp=10,
+    ),
+    "djinn_lamp": EnemySpec(
+        name="djinn lamp", kind="djinn_lamp", sprite="djinn_lamp",
+        max_hp=60, sight=16, biomes=("desert",), weight=1, speed=2.0,
+        damage=8, size_px=22, xp=8,
+    ),
+    # --- P10: the ruins (design/BOSSES.md 24.8; ai/ruins.py) --------------------------
+    # Simple chasers.
+    "gnoll": EnemySpec(
+        name="gnoll", kind="chaser", sprite="gnoll", group=(2, 3),
+        max_hp=40, sight=14, biomes=("ruins",), weight=3, speed=4.5,
+        damage=10, attack_radius=1.3, windup=0.45, cooldown=1.3, size_px=22, xp=4,
+    ),
+    "stone_imp": EnemySpec(
+        name="stone imp", kind="chaser", sprite="stone_imp", scale=2,
+        max_hp=25, sight=14, biomes=("ruins",), weight=3, speed=7.5,
+        damage=6, attack_radius=0.9, windup=0.2, cooldown=0.9, size_px=12, xp=2,
+    ),
+    "crawling_hand": EnemySpec(
+        name="crawling hand", kind="chaser", sprite="crawling_hand", scale=2, group=(6, 8),
+        max_hp=6, sight=12, biomes=("ruins",), weight=3, speed=5.0,
+        damage=3, attack_radius=0.8, windup=0.2, cooldown=0.8, size_px=10, xp=1,
+    ),
+    "lost_soldier": EnemySpec(
+        name="lost soldier", kind="chaser", sprite="lost_soldier",
+        max_hp=85, sight=12, biomes=("ruins",), weight=3, speed=2.4,
+        damage=14, attack_radius=1.5, windup=0.6, cooldown=1.6, size_px=22, xp=5,
+    ),
+    # Constructs.
+    "gargoyle": EnemySpec(
+        name="gargoyle", kind="gargoyle", sprite="gargoyle",
+        max_hp=60, sight=9, biomes=("ruins",), weight=2, speed=4.0,
+        damage=14, attack_radius=1.0, windup=0.5, cooldown=1.5, size_px=22, xp=7,
+    ),
+    "clockwork": EnemySpec(
+        name="clockwork sentry", kind="clockwork", sprite="clockwork",
+        max_hp=55, sight=16, biomes=("ruins",), weight=2, speed=3.6,
+        damage=0, windup=0.8, cooldown=3.5, size_px=22, xp=7,
+    ),
+    "colossus": EnemySpec(
+        name="colossus", kind="colossus", sprite="colossus", scale=4, elite=True,
+        max_hp=450, sight=16, biomes=("ruins",), weight=1, speed=1.8,
+        damage=24, attack_radius=6.0, windup=1.0, cooldown=3.5, size_px=40, xp=24,
+    ),
+    "rubble_crab": EnemySpec(
+        name="rubble crab", kind="rubble_crab", sprite="rubble_crab",
+        max_hp=40, sight=12, biomes=("ruins",), weight=2, speed=2.6,
+        damage=11, attack_radius=1.2, windup=0.45, cooldown=1.4, size_px=24, xp=7,
+    ),
+    # Scavengers and soldiers.
+    "gem_thief": EnemySpec(
+        name="gem thief", kind="gem_thief", sprite="gem_thief",
+        max_hp=30, sight=20, biomes=("ruins",), weight=2, speed=6.5,
+        damage=0, size_px=20, xp=5,
+    ),
+    "sniper": EnemySpec(
+        name="crossbow sniper", kind="sniper", sprite="sniper",
+        max_hp=40, sight=26, biomes=("ruins",), weight=2, speed=3.6,
+        damage=0, windup=1.2, cooldown=4.0, size_px=22, xp=7,
+    ),
+    "flail_brute": EnemySpec(
+        name="flail brute", kind="flail_brute", sprite="flail_brute", scale=4, elite=True,
+        max_hp=360, sight=14, biomes=("ruins",), weight=1, speed=3.0,
+        damage=12, attack_radius=5.0, windup=1.4, cooldown=2.6, size_px=34, xp=20,
+    ),
+    # Haunts.
+    "rune_mine": EnemySpec(
+        name="rune mine", kind="rune_mine", sprite="rune_mine", scale=2,
+        max_hp=20, sight=14, biomes=("ruins",), weight=2, speed=2.2,
+        damage=20, attack_radius=2.2, windup=1.0, size_px=14, xp=3,
+    ),
+    "haunted_blade": EnemySpec(
+        name="haunted blade", kind="haunted_blade", sprite="haunted_blade", group=(3, 3),
+        max_hp=25, sight=16, biomes=("ruins",), weight=2, speed=6.0,
+        damage=9, attack_radius=1.0, windup=0.2, cooldown=1.0, size_px=14, xp=3,
+    ),
+    "bell_ghost": EnemySpec(
+        name="bell ghost", kind="bell_ghost", sprite="bell_ghost",
+        max_hp=35, sight=18, biomes=("ruins",), weight=1, speed=3.5,
+        damage=4, size_px=22, xp=7,
+    ),
+    # --- P11: the swamp (design/BOSSES.md 24.9; ai/swamp.py) --------------------------
+    # Simple chasers.
+    "bog_zombie": EnemySpec(
+        name="bog zombie", kind="chaser", sprite="bog_zombie",
+        max_hp=80, sight=12, biomes=("swamp",), weight=3, speed=2.4,
+        damage=13, attack_radius=1.4, windup=0.6, cooldown=1.5, size_px=22, xp=5,
+    ),
+    "newt": EnemySpec(
+        name="newt", kind="chaser", sprite="newt", scale=2, group=(5, 8),
+        max_hp=6, sight=14, biomes=("swamp",), weight=3, speed=6.0,
+        damage=3, attack_radius=0.8, windup=0.2, cooldown=0.8, size_px=10, xp=1,
+    ),
+    "gator_hatchling": EnemySpec(
+        name="gator hatchling", kind="chaser", sprite="gator_hatchling", scale=2, group=(3, 4),
+        max_hp=14, sight=14, biomes=("swamp",), weight=3, speed=6.5,
+        damage=5, attack_radius=0.9, windup=0.2, cooldown=0.9, size_px=12, xp=2,
+    ),
+    "mudskipper": EnemySpec(
+        name="mudskipper", kind="hopper", sprite="mudskipper", scale=2,
+        max_hp=16, sight=14, biomes=("swamp",), weight=2, speed=8.5,
+        damage=5, attack_radius=0.9, windup=0.2, cooldown=0.9, size_px=12, xp=2,
+    ),
+    # Beasts.
+    "crocodile": EnemySpec(
+        name="bog crocodile", kind="crocodile", sprite="crocodile", scale=4, elite=True,
+        max_hp=360, sight=14, biomes=("swamp",), weight=1, speed=3.0,
+        damage=9, attack_radius=5.0, windup=0.5, cooldown=3.0, size_px=34, xp=20,
+    ),
+    "turtle": EnemySpec(
+        name="snapping turtle", kind="turtle", sprite="turtle", scale=3,
+        max_hp=120, sight=12, biomes=("swamp",), weight=2, speed=2.0,
+        damage=18, attack_radius=1.2, windup=0.5, cooldown=1.6, size_px=26, xp=8,
+    ),
+    "heron": EnemySpec(
+        name="heron", kind="heron", sprite="heron",
+        max_hp=40, sight=16, biomes=("swamp",), weight=2, speed=4.0,
+        damage=14, attack_radius=3.5, windup=0.5, cooldown=1.8, size_px=20, xp=6,
+    ),
+    # Folk (the lizardman is a Character).
+    "swamp_hag": EnemySpec(
+        name="swamp hag", kind="swamp_hag", sprite="swamp_hag",
+        max_hp=50, sight=16, biomes=("swamp",), weight=2, speed=3.2,
+        damage=0, windup=1.0, cooldown=4.0, size_px=22, xp=7,
+    ),
+    "lizardman": EnemySpec(
+        name="lizardman javelineer", kind="archer", body="lizardman", group=(2, 2),
+        max_hp=40, sight=16, biomes=("swamp",), weight=2, preferred_range=(7.0, 11.0), xp=5,
+    ),
+    "marsh_light": EnemySpec(
+        name="marsh light", kind="marsh_light", sprite="marsh_light", scale=2,
+        max_hp=30, sight=16, biomes=("swamp",), weight=2, speed=3.0,
+        damage=5, attack_radius=6.0, cooldown=2.5, size_px=14, xp=6,
+    ),
+    "marsh_light_fake": EnemySpec(      # (one of its two illusions: never hit, never killed)
+        name="marsh light", kind="marsh_light", sprite="marsh_light", scale=2,
+        max_hp=30, sight=16, biomes=(), speed=3.0,
+        damage=5, attack_radius=6.0, cooldown=2.5, size_px=14, xp=0,
+    ),
+    # Rot and muck.
+    "bloated_corpse": EnemySpec(
+        name="bloated corpse", kind="bloated_corpse", sprite="bloated_corpse",
+        max_hp=60, sight=12, biomes=("swamp",), weight=2, speed=2.2,
+        damage=0, attack_radius=1.2, size_px=24, xp=5,
+    ),
+    "sludge": EnemySpec(
+        name="sludge", kind="sludge", sprite="sludge", scale=4,
+        max_hp=90, sight=12, biomes=("swamp",), weight=2, speed=2.2,
+        damage=12, attack_radius=1.6, windup=0.5, cooldown=1.5, size_px=30, xp=4,
+    ),
+    "sludge_mid": EnemySpec(
+        name="sludge", kind="sludge", sprite="sludge_mid", scale=3,
+        max_hp=40, sight=12, biomes=(), speed=3.0,
+        damage=8, attack_radius=1.2, windup=0.4, cooldown=1.3, size_px=22, xp=2,
+    ),
+    "sludge_small": EnemySpec(
+        name="sludge", kind="sludge", sprite="sludge_small", scale=2,
+        max_hp=15, sight=12, biomes=(), speed=4.2,
+        damage=4, attack_radius=0.9, windup=0.3, cooldown=1.0, size_px=14, xp=1,
+    ),
+    # --- P12: the mushroom biome (design/BOSSES.md 24.10; ai/mushroom.py) --------------
+    # Simple chasers.
+    "sporeling": EnemySpec(
+        name="sporeling", kind="chaser", sprite="sporeling", scale=2, group=(5, 8),
+        max_hp=6, sight=14, biomes=("mushroom",), weight=3, speed=6.0,
+        damage=3, attack_radius=0.8, windup=0.2, cooldown=0.8, size_px=10, xp=1,
+    ),
+    "fungus_gnat": EnemySpec(
+        name="fungus gnat", kind="bat", sprite="fungus_gnat", scale=2, group=(6, 6),
+        max_hp=5, sight=18, biomes=("mushroom",), weight=2, speed=7.0,
+        damage=2, attack_radius=0.7, windup=0.15, cooldown=0.7, size_px=10, xp=1,
+    ),
+    "shroomling": EnemySpec(
+        name="shroomling", kind="chaser", sprite="shroomling", group=(2, 3),
+        max_hp=30, sight=14, biomes=("mushroom",), weight=3, speed=4.8,
+        damage=8, attack_radius=1.0, windup=0.3, cooldown=1.1, size_px=18, xp=3,
+    ),
+    "mold_zombie": EnemySpec(
+        name="mold zombie", kind="chaser", sprite="mold_zombie",
+        max_hp=80, sight=12, biomes=("mushroom",), weight=3, speed=2.4,
+        damage=13, attack_radius=1.4, windup=0.6, cooldown=1.5, size_px=22, xp=5,
+    ),
+    # Fungal folk (the cordyceps hunter is a Character).
+    "myconid": EnemySpec(
+        name="myconid shaman", kind="myconid", sprite="myconid",
+        max_hp=50, sight=16, biomes=("mushroom",), weight=1, speed=3.4,
+        damage=0, cooldown=5.0, size_px=22, xp=7,
+    ),
+    "cordyceps": EnemySpec(
+        name="cordyceps hunter", kind="cordyceps", body="cordyceps", max_hp=45, sight=18,
+        biomes=("mushroom",), weight=2, preferred_range=(7.0, 11.0), xp=6,
+    ),
+    "fungal_brute": EnemySpec(
+        name="fungal brute", kind="fungal_brute", sprite="fungal_brute", scale=4, elite=True,
+        max_hp=340, sight=14, biomes=("mushroom",), weight=1, speed=2.6,
+        damage=26, attack_radius=2.0, windup=0.8, cooldown=2.0, size_px=36, xp=20,
+    ),
+    "rootweaver": EnemySpec(
+        name="rootweaver", kind="rootweaver", sprite="rootweaver",
+        max_hp=55, sight=16, biomes=("mushroom",), weight=2, speed=3.4,
+        damage=12, cooldown=4.0, size_px=22, xp=7,
+    ),
+    # Critters.
+    "giant_snail": EnemySpec(
+        name="giant snail", kind="giant_snail", sprite="giant_snail",
+        max_hp=110, sight=12, biomes=("mushroom",), weight=2, speed=1.6,
+        damage=12, attack_radius=1.3, windup=0.6, cooldown=1.6, size_px=26, xp=7,
+    ),
+    "pillbug": EnemySpec(
+        name="pillbug", kind="pillbug", sprite="pillbug",
+        max_hp=60, sight=14, biomes=("mushroom",), weight=2, speed=2.5,
+        damage=10, windup=0.4, size_px=22, xp=6,
+    ),
+    "mantis": EnemySpec(
+        name="mantis", kind="mantis", sprite="mantis", scale=4, elite=True,
+        max_hp=280, sight=16, biomes=("mushroom",), weight=1, speed=4.5,
+        damage=20, attack_radius=7.0, windup=0.5, cooldown=2.0, size_px=32, xp=20,
+    ),
+    # Strange growths.
+    "fairy_ring": EnemySpec(            # (its middle: unseen; its caps are what you break)
+        name="fairy ring", kind="fairy_ring", sprite="fairy_cap", scale=2,
+        max_hp=1, sight=14, biomes=("mushroom",), weight=1, speed=0.0,
+        damage=0, size_px=10, xp=8,
+    ),
+    "fairy_cap": EnemySpec(
+        name="fairy cap", kind="fairy_cap", sprite="fairy_cap", scale=2,
+        max_hp=8, sight=1, biomes=(), speed=0.0, damage=0, size_px=10, xp=0,
+    ),
+    "mold_core": EnemySpec(
+        name="mold core", kind="mold_core", sprite="mold_core",
+        max_hp=120, sight=14, biomes=("mushroom",), weight=1, speed=0.0,
+        damage=3, size_px=26, xp=8,
     ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
@@ -664,6 +1140,91 @@ DRUM_KEEP = 9.0              # tiles it keeps from the heroes
 SHIELD_WINDUP = 0.8          # s the shieldbearer raises its shield before a bash...
 SHIELD_SHOVE = 2.0           # ...which shoves who it hits this far...
 SHIELD_OPEN = 1.4            # ...then it stands open (its front unguarded) this long
+
+# P12 enemy behaviour (ai/mushroom.py; design/BOSSES.md 24.10).
+POLLEN = (9.0, 2.5, 5.0, 0.04, 0.5)  # the shaman keeps this far; its cloud: radius, s,
+                             # x max HP healed, every s (enemies only)
+REGROW = (3.0, 0.04)         # the fungal brute regrows after this many s unhit, x max HP a s
+ROOTS = (9.0, 12.0, 8.0, 0.8, 0.35, 0.8)  # the rootweaver keeps this far; roots run this far at
+                             # this many tiles/s, a root every this far, bursting this many s
+                             # after the crack reaches it, this wide
+SNAIL = (0.5, 0.8, 0.5, 4.0)  # x damage to its shell (from behind); slime every this many s,
+                             # slowing to x this, lasting this long
+PILLBUG = (2.0, 9.0, 3.0, 0.2, 0.8)  # s resting; rolls at this speed for this long; x damage
+                             # while rolled up; s before it hurts the same body again
+MANTIS = (18.0, 0.35, 1.8, 0.15)  # leap speed; s with the scythes up; slash radius, s apart
+FAIRY = (6, 2.5, 3, 2.5, 6)  # caps, ring radius; break this many to undo it; a sporeling every
+                             # this many s while a hero is inside, at most this many about
+MOLD = (3.0, 6, 5.0, 1.2, 3.0, 0.5)  # a patch every this many s, at most this many, within
+                             # this far; its radius, damage, every s
+MOLD_LIFE = 25.0             # s a mold patch lasts (it withers at once if the core breaks)
+
+# P11 enemy behaviour (ai/swamp.py; design/BOSSES.md 24.9).
+CROC = (14.0, 4.0, 1.4, 2.0, 0.33)   # lunge speed, tiles; clamp s, tiles it drags you, s between bites
+TURTLE = (0.3, 2.0)          # retreats into its shell for every this share of max HP lost; s inside
+HERON = (3.0, 2.0, 5.0)      # tiles it keeps; flaps off if you're this close; this far
+HAG = (9.0, 1.3, 1.0, 1.0)   # tiles it keeps; its curse's radius, s it grows, s you're rooted
+JAVELIN_STUCK = 4.0          # s a stuck javelin stands in the way
+MARSH_LIGHTS = (3, 2.5)      # lights in a group (one real); tiles they drift apart
+CORPSE_GAS = (2.4, 5.0, 4.0, 0.5)  # its cloud: radius, s it lingers, damage, every s
+
+# P10 enemy behaviour (ai/ruins.py; design/BOSSES.md 24.8).
+GARGOYLE = (8.0, 10.0, 16.0, 1.5)   # wakes within this far; dives this far at this speed; then
+                             # this many s as stone (nothing hurts it)
+CLOCK_SWEEP = (5, 60.0, 0.08)   # bolts in a sweep, over this many degrees, s apart
+COLOSSUS_RING = (9.0, 7.0, 0.6)  # its stomp's ring: how far it rolls, tiles/s, how thick
+CRAB_SHELL = (80, 6.0)       # the rubble shell's HP; how fast the bare crab runs
+THIEF = (20.0, 0.8, 25.0, 12.0)  # looks for gems this far, scoops within this, gone once this far
+                             # from every hero... after this many s running
+SNIPER = (12.0, 16.0, 0.3)   # tiles it keeps; the line stops following you this many s before
+FLAIL = (1.0, 3.0, 0.4, 7.0, 24, 1.0)  # ring from this radius to this while it winds up, hitting
+                             # every this many s; then thrown this far for this much;
+                             # s to pull it back
+BLADE_ORBIT = 3.0            # tiles the haunted blades circle at
+BELL = (8.0, 20.0, 6.0, 1.5, 9.0)  # rings every this many s: wakes enemies this far; heroes this
+                             # close are knocked back this far; keeps this far from heroes
+
+# P9 enemy behaviour (ai/desert.py; design/BOSSES.md 24.7).
+FIRE_PATCH = (5.0, 0.5)      # burning ground (a straw golem's, a fire dancer's): damage, every s
+HOP = (0.25, 0.35)           # a sand imp: s hopping, s still
+SCORPION = (0.5, 2, 0.3, 0.6, 3.5)  # x damage to its front; pincer snaps, s apart; s the tail
+                             # rises; tiles the stab reaches
+VULTURE_HUNGRY = 0.5         # vultures dive only at heroes under this share of their HP
+BASILISK = (1.0, 0.8, 7.0)   # s turned to stone; s between darts; tiles it keeps
+SNAKE = (2.5, 14.0, 1.2)     # tiles a strike covers, its speed, s slithering off after
+MUMMY = (12.0, 0.7, 1.5, 0.3, 1.6)  # pull speed, longest pull s, close enough, s to the blow,
+                             # its radius
+DANCER = (3.0, 1.2, 50.0, 4.0)  # tiles it closes to, s between fire patches, cone degrees,
+                             # patch life s
+RAIDER = (8.0, 1.5, 13.0, 0.25)  # tiles it waits at, s it waits, dash speed, s between slashes
+TUMBLE_WIND = 0.35           # radians (east = 0) the wind rolls tumbleweeds, +- a little each
+TUMBLE_EVERY = 1.0           # s before a tumbleweed hurts the same body again
+CACTUS = (8, 0.5)            # spines all round per volley, s between volleys
+LAMP = (6.0, 5.0, 2.2, 1.8, 0.8)  # tiles it keeps, vortex radius, pull tiles/s, zap reach,
+                             # s between zaps
+
+# P8 enemy behaviour (ai/forest.py; design/BOSSES.md 24.6).
+BONE_REBUILD = 4.0           # s a skeleton's bone pile takes to pull itself back together
+BAT_WOBBLE = 0.9             # radians a bat's line wobbles either way
+BANSHEE = (5.0, 60.0, 2.5, 2.0)   # tiles it closes to, cone degrees, push tiles, s drifting off after
+PHANTOM = (2.0, 1.0, 0.7, 1.0)    # s solid, s faded, how much its touch slows you, for this many s
+DIGGER = (6.0, 2.5, 4, 7.0)  # digs every this many s, this far toward you, while fewer than this many
+                             # skeletons are about; keeps this far from heroes
+KNIGHT_COMBO = (3, 0.35)     # swings in a row, s between them
+KNIGHT_HEAD = (1.6, 1.5, 1.5, 5.0)  # the floating head circles this far out; a hit on it does
+                             # x this to the knight and staggers him this many s (at most
+                             # once every this many s)
+KNIGHT_HEAD_TURN = 1.5       # rad/s the head circles the knight
+CENTIPEDE = (8, 0.7, 0.6)    # segments, tiles between them, how much its crawl wobbles (radians)
+SPIDER_RANGE = (6.0, 10.0)   # tiles the giant spider keeps from its target...
+SPIDER_EVERY = 2.6           # ...spitting a web this often
+WEB = (1.2, 6.0, 0.45)       # a web patch's radius, s it lasts, how much it slows (speed x)
+CULTIST = (5, 2.0, 5.0, 3, 10.0, (8.0, 12.0))   # candles, ring radius, a skeleton every this
+                             # many s, at most this many, s before a new ring, range kept
+CURSE_SPLIT = (4, 0.5, 9.0)  # a cursed orb splits into this many, x damage, their speed
+WENDIGO_LUNGE = (5.0, 16.0, 0.3)  # tiles a lunge covers, its speed, s between the pair
+WENDIGO_HOWL = (10.0, 9.0, 1.0, 0.6, 3.0)  # every this many s, within this far: rears up this
+                             # long, then heroes are slowed to x this for this many s
 
 # M12 enemy behaviour.
 DEVIL_ORBIT = 3.5            # tiles: how close a dust devil circles you
@@ -1652,6 +2213,79 @@ BESTIARY = {
     "scarecrow": (800, "Shuffles along and lets loose crows."),
     "crow": (300, "The scarecrow's. Pecks, then flaps off after a while."),
     "drummer": (900, "Everyone in its ring is faster and hits harder. Runs from you."),
+    # P8: the haunted forest
+    "skeleton": (500, "Falls into a bone pile that pulls itself together. Break the pile."),
+    "woodsman": (500, "Slow, tough, walks straight at you with a rusty hatchet."),
+    "spiderling": (300, "Swarms of tiny spiders. Quick, weak, many."),
+    "bat": (400, "Flutters at you on a wobbly line, over everything."),
+    "banshee": (900, "Breathes in, then screams in a cone that pushes you back."),
+    "phantom": (900, "Drifts through trees. Only solid when it glows: hit it then."),
+    "grave_digger": (900, "The ground cracks where he's about to dig up a skeleton."),
+    "headless_knight": (1500, "Three wide swings in a row. Hit the floating head to stagger him."),
+    "centipede": (1000, "Shoot it apart and each half crawls on as its own centipede."),
+    "giant_spider": (900, "Keeps back and spits webs that stick: don't walk through them."),
+    "woodcutter": (800, "Throws an axe that comes back to him. Dodge it twice."),
+    "cultist": (1000, "Skeletons rise from its candle ring. Shoot the candles out."),
+    "apprentice": (800, "Its cursed orb splits in four when it hits anything."),
+    "wendigo": (1500, "Lunges twice, fast. It rears up before it howls: the howl slows you."),
+    # P9: the desert
+    "fire_ant": (300, "Swarms of them. Quick, weak, many."),
+    "husk": (500, "Slow, tough, walks straight at you."),
+    "sand_imp": (400, "Hops straight at you in quick bursts."),
+    "jackal": (400, "A fast runner and a quick bite."),
+    "scorpion": (1500, "Armoured in front. Two pincer snaps, then the tail: step off its line."),
+    "vulture": (700, "Circles high and waits for you to be hurt. Then it dives."),
+    "basilisk": (900, "Flares its frill and stares down a line: caught in it, you're stone for a moment."),
+    "rattlesnake": (600, "Rattles when you're close, then strikes and slithers off."),
+    "mummy": (1500, "Its bandages lash out and drag you in. Roll to break free."),
+    "fire_dancer": (900, "Breathes a cone of flame and leaves fire where it danced."),
+    "glass_mage": (800, "Its shards glance off walls twice. Mind narrow places."),
+    "dune_raider": (800, "Dashes in, slashes twice, dashes away. Again."),
+    "tumbleweed": (300, "Rolls with the wind, hurting what it bumps into."),
+    "cactus_golem": (900, "Every hit you land, it shoots spines all round. Hit it from far."),
+    "djinn_lamp": (900, "Its vortex drags you toward it; close in, it zaps."),
+    # P10: the ruins
+    "gnoll": (500, "Packs of hyena-men with clubs."),
+    "stone_imp": (400, "Small, fast, tougher than it looks."),
+    "crawling_hand": (300, "Swarms of creeping hands. Weak, many."),
+    "lost_soldier": (500, "Slow, armoured, a rusty spear. Soaks shots."),
+    "gargoyle": (900, "Swoops when you come near, then sits as stone: nothing hurts it then."),
+    "clockwork": (800, "Winds its key, then sweeps five bolts across you."),
+    "colossus": (1500, "Its stomp rolls a ring along the ground: roll through it."),
+    "rubble_crab": (800, "Break the rubble shell first; bare, it runs."),
+    "gem_thief": (900, "Runs off with your XP gems. Kill it to get them back."),
+    "sniper": (900, "A long aiming line, then a bolt through everything in it."),
+    "flail_brute": (1500, "A spinning flail that grows, then flies. Get close between spins."),
+    "rune_mine": (600, "Drifts at you; in its ring it glows, then blows. Shoot it first."),
+    "haunted_blade": (800, "Three swords circling; they thrust one at a time."),
+    "bell_ghost": (900, "Its bell wakes everything around and knocks you back."),
+    # P11: the swamp
+    "bog_zombie": (500, "Slow, tough, dripping, straight at you."),
+    "newt": (300, "Swarms of little newts. Quick, weak, many."),
+    "gator_hatchling": (400, "Packs of baby gators: quick nippers."),
+    "mudskipper": (400, "Hops at you across the mud."),
+    "crocodile": (1500, "Eyes above the bog. It lunges, clamps on and drags you: roll to break free."),
+    "turtle": (900, "Snaps hard. Hurt enough, it hides in its shell: wait it out."),
+    "heron": (800, "Stabs a line with its beak from 3 tiles. Flaps off if you close in."),
+    "swamp_hag": (900, "Curses the ground under you: step out of the puddle or be rooted."),
+    "lizardman": (700, "Throws javelins that stick in the ground as obstacles."),
+    "marsh_light": (900, "Three lights, one real. Shoot the real one and the others go out."),
+    "bloated_corpse": (700, "Bursts into a lingering toxic cloud. Kill it from far."),
+    "sludge": (700, "Splits in two when it dies, and again. Three sizes."),
+    # P12: the mushroom biome
+    "sporeling": (300, "Swarms of tiny walking spores."),
+    "fungus_gnat": (300, "Clouds of gnats over everything."),
+    "shroomling": (400, "Little mushroom men with a headbutt."),
+    "mold_zombie": (500, "Slow, tough, overgrown, straight at you."),
+    "myconid": (900, "Its pollen cloud heals the enemies in it. Pull the fight away or kill it."),
+    "cordyceps": (800, "Spits spore darts. When it dies, sporelings crawl out."),
+    "fungal_brute": (1500, "Regrows fast unless you keep hitting it."),
+    "rootweaver": (900, "A line of cracks races at you; roots burst along it. Step off the line."),
+    "giant_snail": (700, "Its shell takes half. Its slime trail slows you."),
+    "pillbug": (700, "Rolls at you as a ball (hard to hurt), then uncurls to rest: hit it then."),
+    "mantis": (1500, "Leaps at you, raises both scythes, then an X-slash. Dodge the leap."),
+    "fairy_ring": (900, "Step inside and sporelings rise. Break three of its caps."),
+    "mold_core": (900, "Spreads mold patches that hurt. Break the core and they wither."),
     # M17: filled in by beating the swamp's boss (or bought).
     "psy_frog": (1500, "They hide out across the swamp. Keeps away, spits weaving globs."),
     "froggy": (5000, "Dives between pools, lashes its tongue, belly-flops. Hit it while it's dazed."),

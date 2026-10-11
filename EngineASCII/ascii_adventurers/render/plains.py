@@ -10,6 +10,9 @@ heroes, and their tells:
   * the war drummer's ring (pulsing on the beat), and a gold star over the
     elites (the bull, the shieldbearer);
   * a hawk's shadow on the ground, under it.
+The haunted forest's (P8) letter-art creatures are drawn here too, with
+their own tells from render/forest.py; `sprite_now()` lets one change its
+picture (a phantom fading, a centipede segment that's now a head).
 """
 
 from __future__ import annotations
@@ -21,7 +24,8 @@ from ..ai.plains import Bull, Drummer, Hawk, Lancer, PlainsCreature
 from .ascii_fx import _Batch, draw_hp_bar
 from .characters import draw_character
 from .mounts import draw_rider, gallop_frame
-from . import plains_art  # noqa: F401  (adds the pictures to characters.ART)
+from . import (desert_art, forest_art, mushroom_art, plains_art, ruins_art,  # noqa: F401
+               swamp_art)                                # (they add the pictures to ART)
 
 
 def _frame(e) -> int:
@@ -67,6 +71,16 @@ def draw_plains_tells(text, camera, e) -> None:
         batch.put_c(x, top - 12, "*", palette.ELITE_STAR)
     if getattr(e, "open", 0.0) > 0:                       # the shieldbearer, unguarded
         batch.put_c(x, top, "open", palette.PLAINS_TELL[1])
+    from .desert import draw_desert_tells                 # (P9: the desert's)
+    from .ruins import draw_ruins_tells                   # (P10: the ruins')
+    from .swamp import draw_swamp_tells                   # (P11: the swamp's)
+    from .mushroom import draw_mushroom_tells             # (P12: the mushroom biome's)
+    from .forest import draw_forest_tells                 # (P8: the haunted forest's)
+    draw_forest_tells(batch, camera, e)
+    draw_desert_tells(batch, camera, e)
+    draw_ruins_tells(batch, camera, e)
+    draw_swamp_tells(batch, camera, e)
+    draw_mushroom_tells(batch, camera, e)
     batch.flush()
 
 
@@ -87,9 +101,10 @@ def draw_plains(text, bank, camera, e) -> None:
                    gallop_frame(_Gait(e)), hurt)
         _lance(text, camera, e, angle)
     else:
-        draw_character(bank, x, y, e.espec.sprite, scale, e.facing_left(), _frame(e), hurt)
+        sprite = e.sprite_now() if hasattr(e, "sprite_now") else e.espec.sprite
+        draw_character(bank, x, y, sprite, scale, e.facing_left(), _frame(e), hurt)
     draw_plains_tells(text, camera, e)
-    if e.hp < e.max_hp and e.hittable:
+    if e.hp < e.max_hp and e.hittable and e.max_hp < 999:   # (not the knight's head)
         draw_hp_bar(text, x, y - scale * 9 - 6, e.hp / e.max_hp)
 
 

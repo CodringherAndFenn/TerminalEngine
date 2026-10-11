@@ -48,6 +48,7 @@ class PlainsCreature(Creature):
     frames) and has a wind-up / cooldown."""
 
     flies = False
+    wobble = 0.0                     # radians its line weaves either way (P8: bats, centipedes)
 
     def __init__(self, *a, **kw) -> None:
         super().__init__(*a, **kw)
@@ -62,14 +63,20 @@ class PlainsCreature(Creature):
         return self._moved > 1e-6
 
     def go(self, ctx: AIContext, gx: float, gy: float, dt: float, speed: float) -> bool:
-        """Walk (or fly, straight over everything) toward (gx, gy)."""
+        """Walk (or fly, straight over everything) toward (gx, gy), weaving
+        by `wobble` as it goes."""
         x0, y0 = self.x, self.y
+        if self.wobble and not self.flies:          # (a walker weaves by aiming off to the side)
+            a = math.atan2(gy - self.y, gx - self.x) + math.pi / 2
+            off = math.sin(self.walked * 1.3) * self.wobble * 3
+            gx, gy = gx + math.cos(a) * off, gy + math.sin(a) * off
         if self.flies:
             d = math.hypot(gx - self.x, gy - self.y)
             done = d < 0.4
             if not done:
                 step = min(d, speed * dt)
-                self.facing = math.atan2(gy - self.y, gx - self.x)
+                self.facing = math.atan2(gy - self.y, gx - self.x) + (
+                    math.sin(self.walked * 1.7) * self.wobble if d > 1.5 else 0.0)
                 self.x += math.cos(self.facing) * step
                 self.y += math.sin(self.facing) * step
         else:
@@ -160,7 +167,11 @@ class Hound(PlainsCreature):
     at its own angle, and darts in to bite when it's its turn -- one hound
     of the pack per target at a time (Hound._turns)."""
 
-    _turns: dict = {}             # id(target) -> the hound darting at it
+    _turns: dict = {}             # id(target) -> the hound darting at it (one table per kind)
+
+    @property
+    def orbit_radius(self) -> float:
+        return config.HOUND_ORBIT
 
     def __init__(self, *a, **kw) -> None:
         super().__init__(*a, **kw)
@@ -193,21 +204,23 @@ class Hound(PlainsCreature):
                 self.wait = self.rng.uniform(*config.HOUND_WAIT)
             return
         self.slot += dt * 0.6                       # circle round
-        gx = t.x + math.cos(self.slot) * config.HOUND_ORBIT
-        gy = t.y + math.sin(self.slot) * config.HOUND_ORBIT
+        gx = t.x + math.cos(self.slot) * self.orbit_radius
+        gy = t.y + math.sin(self.slot) * self.orbit_radius
         self.go(ctx, gx, gy, dt, self.espec.speed)
         self.wait -= dt
-        turn = Hound._turns.get(id(t))
+        turns = type(self)._turns
+        turn = turns.get(id(t))
         free = (turn is None or not turn.alive or turn.dash <= 0
                 or not any(a is turn for a in ctx.actors))      # (asleep: not about)
         if self.wait <= 0 and self.cooldown <= 0 and free:
-            Hound._turns[id(t)] = self
+            turns[id(t)] = self
             self.dash = config.HOUND_DASH_TIME
 
     def _release(self) -> None:
-        for k, h in list(Hound._turns.items()):
+        turns = type(self)._turns
+        for k, h in list(turns.items()):
             if h is self:
-                del Hound._turns[k]
+                del turns[k]
 
     def on_death(self, ctx: AIContext) -> None:
         self._release()
@@ -552,8 +565,11 @@ class StrawGolem(Chaser):
         for k in range(n):
             a = k * math.tau / n + self.rng.uniform(-0.3, 0.3)
             r = spread * (0.4 + 0.6 * self.rng.random()) if k else 0.0
+            # (P9 fix: it hurts by itself -- heroes' statuses don't tick, so a
+            # "burn" alone never touched them.)
+            damage, every = config.FIRE_PATCH
             ctx.zones.append(Zone("trail", self.x + math.cos(a) * r, self.y + math.sin(a) * r,
-                                  radius, life, config.TRAIL_EVERY, 0.0, self,
+                                  radius, life, every, damage, self,
                                   (config.STATUSES["burn"].tag,), "burn"))
 
 

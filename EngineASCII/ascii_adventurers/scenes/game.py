@@ -578,6 +578,7 @@ class GameScene(Scene):
             weapon = p.hero.weapon
             frozen = p.hero.encased > 0            # (M24.2: encased in ice: no attacks)
             frozen = frozen or bool(p.hero.mount)  # (P6: nobody attacks from the saddle)
+            frozen = frozen or p.hero.petrified > 0  # (P9: stone)
             if weapon.update(self.rules.weapon_dt(p, dt),
                              (inp.fire or weapon.spec.auto) and not frozen):
                 self._attack(p)
@@ -590,7 +591,7 @@ class GameScene(Scene):
         # Enemies act. Only those near some player think; others wait frozen.
         heroes = [p.hero for p in self.players]
         ctx = AIContext(self.world, heroes, self._actors(), self.projectiles, self.effects,
-                        zones=self.zones)
+                        zones=self.zones, gems=self.gems)
         m = config.ENEMY_ACTIVE_MARGIN
         boxes = [(f.x - f.half_w - m, f.x + f.half_w + m, f.y - f.half_h - m, f.y + f.half_h + m)
                  for f in (p.focus() for p in self.players if p.alive or not p.ghost)]
@@ -624,7 +625,7 @@ class GameScene(Scene):
         sounds += combat.update_projectiles(self.projectiles, self.world, self.effects, dt,
                                             self._actors(), self.zones)
         roll.close_calls(self.players, self.projectiles, dt)
-        update_zones(self.zones, self._actors(), self.effects, dt)
+        update_zones(self.zones, self._actors(), self.effects, dt, self.world)
         update_statuses(self.enemies, dt, self.effects)
         self.rules.resolve_combos()
         sounds += self._handle_deaths(ctx)
@@ -847,7 +848,11 @@ class GameScene(Scene):
         if not ctx.spawned:
             return
         sp = self.spawner
-        for i, (key, x, y) in enumerate(ctx.spawned):
+        for i, item in enumerate(ctx.spawned):
+            if not isinstance(item, tuple):       # (P8: a ready-made part: a knight's head...)
+                self.enemies.append(item)
+                continue
+            key, x, y = item
             rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0xB200,
                                             self.steps, i))
             if sp is not None:

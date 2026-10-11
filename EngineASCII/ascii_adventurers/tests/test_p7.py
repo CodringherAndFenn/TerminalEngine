@@ -52,14 +52,18 @@ class Arena:
                 if e.alive:
                     tick_drum(e, dt)
                     e.think(ctx, dt * (1 + drum_haste(e)))
-            for key, x, y in ctx.spawned:
-                self.enemies.append(enemy(key, x, y, len(self.enemies)))
-            for e in self.enemies:
+            for e in self.enemies:                       # (deaths first, like the game)
                 if not e.alive and not getattr(e, "_gone", False):
                     e._gone = True
                     hook = getattr(e, "on_death", None)
                     if hook:
                         hook(ctx)
+            for item in ctx.spawned:
+                if isinstance(item, tuple):
+                    key, x, y = item
+                    self.enemies.append(enemy(key, x, y, len(self.enemies)))
+                else:                                    # (P8: a ready-made part)
+                    self.enemies.append(item)
             from ascii_adventurers.systems import combat
             combat.update_projectiles(self.projectiles, self.world, self.effects, dt,
                                       self.actors(), self.zones)
@@ -80,7 +84,7 @@ class CatalogTest(unittest.TestCase):
             self.assertIn(key, config.BESTIARY)
 
     def test_the_elites(self):
-        self.assertEqual({k for k, s in config.ENEMIES.items() if s.elite},
+        self.assertEqual({k for k, s in config.ENEMIES.items() if s.elite and "plains" in s.biomes},
                          {"bull", "shieldbearer"})
 
     def test_the_plains_now_have_nineteen_kinds(self):

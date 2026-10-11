@@ -120,6 +120,11 @@ class Character(Actor):
         self.roll_trail = 0.0
         self.roll_steps = 0
         self.speed_mult = 1.0             # Slipstream
+        # P8: slowed (a web, a wendigo's howl, a phantom's touch): x this
+        # speed for this many s more (the strongest slow wins).
+        self.slow_mult = 1.0
+        self.slow_t = 0.0
+        self.petrified = 0.0              # P9: s left turned to stone (a basilisk's gaze)
         # P6 riding (systems/mount.py): the mount ridden ("" on foot), s left
         # until a called one arrives, s before it can be called again, the
         # speed it gives, and since_hit when last looked (a drop: a hit).
@@ -165,6 +170,20 @@ class Character(Actor):
     @property
     def speed(self) -> float:
         return math.hypot(self.vx, self.vy)
+
+    def petrify(self, seconds: float) -> None:
+        """Turned to stone (P9, a basilisk): can't move or attack."""
+        self.petrified = max(self.petrified, seconds)
+
+    def slowed(self, mult: float, seconds: float) -> None:
+        """Slow to x `mult` for `seconds` (P8). A weaker slow doesn't
+        replace a stronger one still running."""
+        if self.slow_t > 0 and self.slow_mult < mult:
+            return                                    # a stronger slow is on
+        if self.slow_t > 0 and self.slow_mult == mult:
+            self.slow_t = max(self.slow_t, seconds)   # the same one again: the longer
+        else:
+            self.slow_mult, self.slow_t = mult, seconds
 
     # --- Damage ------------------------------------------------------------------------
 
@@ -233,8 +252,15 @@ class Character(Actor):
         if self.encased > 0:                  # (frozen solid, M24.2)
             self.vx = self.vy = 0.0
             return
+        if self.petrified > 0:                # (P9: stone, for a moment)
+            self.petrified -= dt
+            self.vx = self.vy = 0.0
+            return
         n = math.hypot(ax, ay)
         top = spec.max_speed * self.speed_mult * self.time_mult * self.mount_mult
+        if self.slow_t > 0:                   # (P8: webs, howls, a phantom's touch)
+            self.slow_t -= dt
+            top *= self.slow_mult
         if self.shrunk > 0:                   # (tiny: quicker on your feet, M25.1)
             top *= config.SHRINK[1]
         if n > 0:

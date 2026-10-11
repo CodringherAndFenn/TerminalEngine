@@ -67,6 +67,7 @@ CONCRETE_BG = (24, 24, 24)
 CONCRETE_FG = (95, 95, 92)
 # Swamp
 MUD_BG = (20, 22, 12)
+JAVELIN_FG = (196, 160, 100)        # P11: a lizardman's javelin stuck in the mud
 MUD_FG = (70, 80, 40)
 REED_FG = (120, 140, 60)
 BOG_FG = (60, 110, 80)
@@ -105,6 +106,13 @@ SPRITE_COLORS = {
     "u": (150, 168, 120), "U": (98, 112, 78),        # undead skin
     "c": (64, 62, 74), "C": (38, 36, 46),            # crow / charcoal black
     "l": (226, 196, 110), "L": (170, 140, 64),       # straw
+    # P8 (the haunted forest's new enemies)
+    "i": (200, 236, 240), "I": (120, 170, 190),      # ghostly pale
+    "d": (214, 206, 186), "D": (150, 142, 124),      # old bone
+    "f": (255, 196, 80), "F": (230, 110, 40),        # flame, lantern light
+    # P12 (the mushroom biome's new enemies; no red-and-white caps: that's Mycelium's)
+    "j": (110, 150, 230), "J": (66, 92, 160),        # blue cap
+    "q": (110, 190, 160), "Q": (60, 120, 100),       # mold teal
 }
 # Creature sprites (warrior, worm) flash this for a moment when hit.
 HIT_FLASH = (255, 235, 220)
@@ -395,6 +403,7 @@ MAP_TILE["blood pool"] = (110, 24, 30)
 MAP_TILE.update({"stagnant water": (70, 82, 44), "cold brazier": (150, 150, 160),   # M22.2
                  "smoking brazier": (255, 160, 70)})
 MAP_TILE_BIOME["scum"] = "swamp"
+MAP_TILE_BIOME["stuck javelin"] = "swamp"          # P11
 # The desert's landmarks (M23.1): the scarab collector's oasis camp and
 # the Dung Pit (a sunken sandstone arena).
 SANDSTONE_FG = (196, 160, 104)
@@ -653,6 +662,42 @@ DRUM_RING = ((255, 200, 120), (170, 120, 70))     # the war drummer's ring: on t
 ELITE_STAR = (255, 210, 80)                       # over an elite
 HEAL_BEAM = ((140, 255, 140), (80, 190, 90))      # the field priest's heal
 SHOT_PEBBLE = ((200, 196, 186), ((140, 136, 128), (100, 98, 92)))   # the bandit's sling
+# P8: the haunted forest (render/forest.py).
+SHOT_GHOST_AXE = ((200, 236, 240), ((120, 170, 190), (80, 110, 130)))
+SHOT_CURSE = ((210, 120, 255), ((150, 70, 200), (90, 40, 130)))
+SHOT_WEB = ((235, 235, 235), ((170, 170, 175), (120, 120, 126)))
+WEB = ((225, 225, 230), (140, 140, 150))          # a web patch: strands, faded
+SCREAM = ((200, 236, 240), (120, 170, 190))
+HOWL = ((190, 200, 230), (110, 120, 160))
+DIG_CRACK = ((150, 120, 80), (100, 80, 50))
+RITUAL = ((255, 120, 90), (160, 60, 50))          # the cultist's ring between the candles
+# P9: the desert (render/desert.py).
+SHOT_GLASS = ((210, 245, 255), ((150, 210, 230), (100, 150, 170)))
+SHOT_SPINE = ((180, 220, 120), ((120, 160, 80), (80, 110, 50)))
+GAZE = ((200, 200, 190), (130, 130, 120))         # the basilisk's stare
+BANDAGE = ((226, 218, 196), (160, 150, 130))      # the mummy's lash
+FLAMES = ((255, 210, 90), (240, 110, 40))
+VORTEX = ((230, 200, 130), (170, 140, 80))        # the djinn lamp's sand
+STONE = (150, 150, 140)                           # a hero turned to stone
+# P10: the ruins (render/ruins.py).
+SHOT_CLOCK_BOLT = ((255, 220, 120), ((200, 160, 60), (140, 110, 40)))
+SHOT_HEAVY_BOLT = ((235, 235, 245), ((160, 120, 70), (110, 80, 50)))
+SNIPER_LINE = ((255, 90, 70), (255, 220, 120))    # following you / locked
+STOMP = (190, 180, 160)                           # the colossus's ring
+FLAIL = (200, 205, 215)
+CRAB_SHELL_BAR = (170, 170, 160)
+# P11: the swamp.
+SHOT_JAVELIN = ((220, 200, 160), ((150, 120, 80), (110, 85, 55)))
+CURSE = ((120, 60, 150), (70, 30, 90))            # a hag's curse puddle
+GAS = ((150, 190, 80), (100, 130, 60))            # a bloated corpse's cloud
+MARSH_REAL = (190, 255, 255)                      # the real marsh light's glint
+# P12: the mushroom biome.
+SHOT_SPORE_DART = ((200, 170, 120), ((140, 110, 70), (100, 80, 50)))
+POLLEN = ((240, 230, 140), (170, 160, 90))        # the myconid's healing cloud
+SLIME = ((170, 200, 170), (110, 140, 110))        # the snail's trail
+MOLD = ((110, 190, 160), (60, 120, 100))          # a mold core's patches
+ROOTS = ((200, 160, 90), (120, 90, 50))           # the rootweaver's roots / cracks
+FAIRY_DOTS = (150, 170, 240)
 WRAITH = ((190, 230, 255), (110, 160, 210))
 SHOT_SHARD = ((220, 245, 255), ((150, 210, 240), (100, 150, 200)))
 SHOT_SPIKE = ((200, 240, 255), ((140, 190, 230), (90, 130, 180)))

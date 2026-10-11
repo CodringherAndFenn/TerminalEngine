@@ -222,7 +222,7 @@ Suggested angles only (to keep playstyles different — change freely):
 | M24.4 (built) | Art pass: the Snow King repainted as the Frost Hermit, Fragile/wolf/crying repainted, Mr. Buttons drawn and riding on his carrier's head (section 21) |
 | M24.5 (built) | Boss movement: the Snow King glides round his hall and Fragile circles you, between moves and (slower) during most of them (section 22) |
 | M25.1 (built) | Forest: **Nettle, the Blighted**, the corrupted pixie, and the hedge witch's "cleanse" quest; the withered glade (section 23) |
-| P1-P12 | **Playtest pass** (user, 2026-10-10; section 24; **P1-P7 built**). Comes before the squirrel, so new bosses are tuned against the final balance. P1 island -20%, P2 quest findability, P3 hero pace, P4 card dedupe, P5 difficulty levels, P6 mounts, P7-P12 enemy variety x5 (one biome each) |
+| P1-P12 | **Playtest pass** (user, 2026-10-10; section 24; **all built**: P1-P12). Comes before the squirrel, so new bosses are tuned against the final balance. P1 island -20%, P2 quest findability, P3 hero pace, P4 card dedupe, P5 difficulty levels, P6 mounts, P7-P12 enemy variety x5 (one biome each) |
 | M25.2-3 | Forest: **mad murderer squirrel**, **mimic tree** |
 | M26.1-3 | Mushroom: **Mycelium** (three variants: amanita muscaria + two more) |
 | M27 | Plains boss (not designed yet) + Adventurer's Glory + "end run" victory (+ water movement) |
@@ -933,7 +933,7 @@ Tests: `tests/test_m24_4.py`. No changes to how anything plays.
 - The base boss's shove pushed a hero ahead of her dive, so it never hit. She flies, so she doesn't shove.
 - The tiny damage cut covers every hit, not only those of heroes with card stats.
 
-## 24. Playtest pass P1-P12 (user, 2026-10-10; P1 + P2 built, see 24.1; P3, see 24.2; P4, see CARDS.md 17; P5, see 24.3; P6, see 24.4; P7, see 24.5)
+## 24. Playtest pass P1-P12 (user, 2026-10-10; P1 + P2 built, see 24.1; P3, see 24.2; P4, see CARDS.md 17; P5, see 24.3; P6, see 24.4; P7, see 24.5; P8, see 24.6; P9, see 24.7; P10, see 24.8; P11, see 24.9; P12, see 24.10)
 
 From the user's playtest (with every Guild hall upgrade bought, the game was too easy). It comes before M25.2. Each P milestone is drafted with the user first, like the bosses.
 
@@ -1037,3 +1037,157 @@ User picks: 11 of the 12 drafted (all but the bandit trapper), plus 3 simple cha
   - The shieldbearer could start its bash before facing you and miss. It now winds up only once it faces you, and keeps turning toward you while it does.
   - The bull was dazed by a pine at its side, because only the tile straight ahead was checked. It now checks its whole front.
 - Tests: `tests/test_p7.py`.
+
+### 24.6 Built: P8, the haunted forest's new enemies (2026-10-11)
+
+User picks: all 4 spirits, all 4 chasers, all 4 folk, and 2 of the 4 beasts (the giant spider and the giant centipede; not the thorn lasher or the hex cat). Elites (marked in the draft): the **headless knight** and the **wendigo**. Built all at once, like P7. The forest goes from 4 kinds to 18, plus the parts: risen skeletons, bone piles, the knight's head, candles.
+
+| Enemy | HP | Behaviour |
+|-------|----|-----------|
+| skeleton | 30 | chaser; dies into a **bone pile** (15 HP) that becomes a **risen skeleton** after 4 s, once, unless you break it |
+| rotting woodsman | 80 | slow, tough chaser |
+| spiderling | 6 | swarms of 5-8, quick chasers |
+| bat | 10 | groups of 4; flies over everything on a wobbly line (`wobble`) |
+| banshee | 45 | floats in to 5 tiles; breathes in 0.9 s (the cone's edges show); a 60° scream out to 7 tiles: 14 damage and a 2.5-tile push; drifts off 2 s |
+| phantom | 40 | drifts through everything; solid 2 s, faded 1 s (not hittable, drawn as a dotted outline); its touch: 8 damage and x0.7 speed for 1 s |
+| grave digger | 60 | keeps 7 tiles back; every 6 s the ground cracks 2.5 tiles toward you, and 1 s later a skeleton climbs out (at most 4 about) |
+| headless knight (elite) | 380 | 0.7 s wind-up, then 3 wide swings (22 each) 0.35 s apart. Its jack-o'-lantern head circles it; hits on the head do x1.5 to the knight and stagger it 1.5 s (at most once in 5 s). The head can't die itself, and vanishes with the knight |
+| giant centipede | 20 per segment | 8 segments, each its own body; the head crawls on a wobbly line and bites; a segment whose leader dies becomes a head, so it splits |
+| giant spider | 70 | keeps 6-10 tiles back; every 2.6 s a 0.4 s wind-up, then a web blob; where it stops it leaves a web patch (1.2 tiles, 6 s) that slows anyone in it to x0.45 |
+| ghost woodcutter | 50 | an archer with an axe that flies 10 tiles and comes back (the dwarf's boomerang code) |
+| cultist | 55 | keeps 8-12 tiles back; plants 5 candles (6 HP each) in a ring 3 tiles toward you; a skeleton rises in it every 5 s while any burns (at most 3); all out: a new ring after 10 s; its death snuffs them |
+| witch's apprentice | 40 | an archer with a slow cursed orb that splits into 4 (half damage) wherever it stops |
+| wendigo (elite) | 300 | pairs of lunges (5 tiles at 16 tiles/s, the line shows while it crouches); every 10 s it rears up 1 s and howls: heroes within 9 tiles x0.6 speed for 3 s |
+
+- **Code:** `ai/forest.py` uses the plains' `PlainsCreature` base (it gained `wobble`). `render/forest_art.py` holds the art, with new palette letters i/I (ghostly), d/D (bone), f/F (flame). `render/forest.py` draws the tells (the digger's crack, the cultist's ring, the banshee's cone, the wendigo's line, the knight's stagger), and `sprite_now()` swaps a picture (the phantom fading, a centipede segment turning into a head).
+- **Engine pieces (all in ascii_adventurers):**
+  - `AIContext.spawned` takes ready-made actors as well as `(key, x, y)`.
+  - `Character.slowed(mult, s)`: the strongest slow wins.
+  - `Zone.slow`: web patches slow whoever stands in them.
+  - `combat._shot_ends`: a web blob leaves a patch; a cursed orb splits.
+  - New effects: "scream" and "howl".
+- **Weights:** in the forest, the old kinds total 10 and the new ones 28. Forest density is unchanged.
+- **Cost:** about 1.6 ms of simulation and 2.4 ms of drawing per frame, with 72 of them (and their parts) fighting at once.
+- Tests: `tests/test_p8.py`. The P7 test arena now handles deaths before what's sent out, like the game.
+
+### 24.7 Built: P9, the desert's new enemies (2026-10-11)
+
+User picks: all 4 beasts, all 4 folk, all 4 chasers, and 3 of the 4 odd ones (not the mirror crystal). Elites (marked in the draft): the **giant scorpion** and the **mummy**. Built all at once. The desert goes from 5 kinds to 20. The draft steered clear of what the desert's bosses already use (scarabs and beetles, camels and mirages, sand elementals and golems).
+
+| Enemy | HP | Behaviour |
+|-------|----|-----------|
+| fire ant | 6 | swarms of 6-9, quick chasers |
+| dried husk | 75 | slow, tough chaser |
+| sand imp | 16 | a chaser that hops: 0.25 s moving, 0.35 s still (`Hopper`) |
+| desert jackal | 28 | a fast lone chaser |
+| giant scorpion (elite) | 340 | hits on its front do x0.5; two pincer snaps (0.3 s apart), then the tail rises 0.6 s (the line shows) and stabs 3.5 tiles (to a wall), x1.6 damage |
+| vulture | 30 | groups of 2-3; the hawk's dive, but it only lines up on heroes under half HP; until then it circles |
+| basilisk lizard | 55 | darts round you at 7 tiles; every 4 s stops, flares 0.8 s (the line shows), stares 9 tiles (to a wall): heroes in the line take 6 and are **stone** for 1 s (no moving, no attacking; `Character.petrify`) |
+| rattlesnake | 35 | lies coiled; a hero within 4 tiles: rattles 0.6 s, strikes 2.5 tiles at 14 tiles/s, slithers off 1.2 s |
+| mummy (elite) | 360 | slow; within 7 tiles it unwinds 0.8 s (the line shows) and lashes: the first hero on the line is dragged in at 12 tiles/s (a roll breaks free), then a 26-damage blow round it |
+| fire dancer | 50 | weaves in to 3 tiles, dropping a burning patch every 1.2 s; breathes in 0.6 s, then a 50° cone of flame out to 4 tiles |
+| glass mage | 40 | an archer: 3 glass shards that glance off walls twice (`ShellSpec.bounces`) |
+| dune raider | 55 | waits at 8 tiles, dashes in at 13 tiles/s, slashes twice, dashes back out |
+| tumbleweed | 12 | groups of 3-5; rolls with the wind (east-ish), bouncing off walls; bumps whoever it touches (6, once a second each) |
+| cactus golem | 150 | a slow chaser; each hit it takes fires 8 spines all round (at most every 0.5 s) |
+| djinn lamp | 60 | floats at 6 tiles; heroes within 5 are dragged toward it at 2.2 tiles/s (not while rolling); within 1.8 it zaps (8 every 0.8 s) |
+
+- **Code:** `ai/desert.py` (on the plains' base; the vulture is a `Hawk` that waits), `render/desert_art.py`, and `render/desert.py`, which draws the tells: the scorpion's stab line, the basilisk's stare line, the mummy's lash line and its bandage while it drags, the lamp's vortex.
+- **New effects:** "gaze", "flames", "stone".
+- **Engine pieces (in ascii_adventurers):**
+  - `Character.petrified` / `petrify`.
+  - `ShellSpec.bounces`: a shot glances off walls (`combat._reflect`, shared with the dwarf's Ricochet).
+  - `FIRE_PATCH`: burning ground hurts by itself.
+- **Fixed:** the plains' straw golem's burning straw only inflicted "burn", and heroes' statuses never tick, so it never hurt a hero. Burning patches (the golem's and the fire dancer's) now do `FIRE_PATCH` damage every 0.5 s themselves.
+- **Weights:** in the desert, the old kinds total 13 and the new ones 30. Desert density is unchanged.
+- **Cost:** about 1.7 ms of simulation and 2.4 ms of drawing per frame, with 78 of them fighting at once.
+- Tests: `tests/test_p9.py`.
+
+### 24.8 Built: P10, the ruins' new enemies (2026-10-11)
+
+User picks: all 4 constructs, all 4 chasers, 3 scavengers and soldiers (not the sapper), and 3 haunts (not the living statue). Elites (marked in the draft): the **colossus** and the **flail brute**. Built all at once. The ruins go from 5 kinds to 19. The draft steered clear of the ruins' bosses (radiation and ghouls, ice and frost wraiths, vampires, bats and wolves) and of the forest's skeletons.
+
+| Enemy | HP | Behaviour |
+|-------|----|-----------|
+| gnoll | 40 | packs of 2-3; a chaser with a club |
+| stone imp | 25 | a fast, tough-ish chaser |
+| crawling hand | 6 | swarms of 6-8 |
+| lost soldier | 85 | a slow, tough chaser |
+| gargoyle | 60 | perches until a hero is within 8 tiles; lines up 0.5 s (the line shows), dives 10 tiles at 16 tiles/s over everything, then sits as **stone** 1.5 s (no damage gets in; drawn grey); then dives again |
+| clockwork sentry | 55 | keeps 6-10 tiles; every 3.5 s winds 0.8 s, then sweeps 5 bolts over 60°, 0.08 s apart |
+| colossus (elite) | 450 | slow; within 6 tiles raises a foot 1 s, then stomps: a ring rolls out to 9 tiles at 7 tiles/s, hitting each body it passes once (24); a roll's i-frames get you through |
+| rubble crab | 40 + 80 shell | the shell takes the hits first (its own grey bar); bare, it runs from you |
+| gem thief | 30 | ignores heroes; scoops the nearest unclaimed XP gem within 20 tiles; with a full sack and none left near, it runs; 25 tiles from every hero after 12 s, it's gone with them; killed, it spills them back out |
+| crossbow sniper | 40 | keeps 12-16 tiles; every 4 s aims 1.2 s (the line follows you until the last 0.3 s, then turns yellow), then a 20-damage bolt that goes through everything |
+| flail brute (elite) | 360 | within 5 tiles spins 1.4 s: a ring from 1 to 3 tiles hitting what's on it every 0.4 s (inside it you're safe), then throws the flail 7 tiles along a line (24) and takes 1 s to pull it back |
+| rune mine | 20 | drifts at you over everything; a hero in its 2.2-tile ring: glows 1 s, then blows (20, everything in the ring) and is gone; shot first, it just pops |
+| haunted blade | 25 | groups of 3; the hounds' rules (circle at 3 tiles, one thrust at a time per target), flying; its own turn table (`_turns` per kind) |
+| bell ghost | 35 | keeps 9 tiles back; every 8 s rings: every enemy within 20 tiles wakes and heads for the nearest hero; heroes within 6 take 4 and are knocked 1.5 tiles back |
+
+- **Code:** `ai/ruins.py` (on the plains' base; the blades are hounds that fly), `render/ruins_art.py`, and `render/ruins.py`, which draws the tells: the gargoyle's dive line, the sniper's line, the colossus's rings, the flail's ring, the mine's ring, the crab's shell bar.
+- **Engine pieces (in ascii_adventurers):**
+  - `AIContext.gems`: the gem thief sees the gems.
+  - The hounds' pack rules read `orbit_radius` and a per-kind `_turns` table, so blades and hounds don't hold each other up.
+- **Weights:** in the ruins, the old kinds total 13 and the new ones 31. Ruins density is unchanged.
+- **Cost:** about 1.1 ms of simulation and 2.1 ms of drawing per frame, with 70 of them fighting at once.
+- Tests: `tests/test_p10.py`.
+
+### 24.9 Built: P11, the swamp's new enemies (2026-10-11)
+
+User picks: 3 beasts (not the bog eel), 3 folk (not the mud golem), 2 rot (not the bog totem), all 4 chasers. One elite: the **bog crocodile** (the mud golem, the other one marked, wasn't picked). Built all at once. The swamp goes from 3 kinds to 15. The draft steered clear of the swamp's bosses (frogs, leeches, mosquitoes).
+
+| Enemy | HP | Behaviour |
+|-------|----|-----------|
+| bog zombie | 80 | a slow, tough chaser |
+| newt | 6 | swarms of 5-8 |
+| gator hatchling | 14 | packs of 3-4, quick nippers |
+| mudskipper | 16 | a hopper (the sand imp's hops) |
+| bog crocodile (elite) | 360 | lurks with only its eyes and snout up (`croc_lurk`; it can be seen and shot); a hero within 5 tiles: 0.5 s crouch (the line shows), lunges 4 tiles at 14 tiles/s; a hero it reaches is **clamped** 1.4 s: dragged 2 tiles back with it, bitten every 0.33 s, can't walk or attack (a short `petrify` each step); a roll breaks free |
+| snapping turtle | 120 | a slow chaser with an 18-damage snap; for every 30% of its max HP lost it hides in its shell 2 s (nothing hurts it) |
+| heron | 40 | keeps 3 tiles; draws its neck back 0.5 s (the line shows), then stabs 3.5 tiles along it; a hero within 2: it flaps 5 tiles off |
+| swamp hag | 50 | keeps 9 tiles; every 4 s curses the ground under her target: a puddle (a "curse" zone, 1.3 tiles) grows 1 s; whoever is still in it is **rooted** 1 s (`slowed(0)`: no walking, but attacks and rolls work) |
+| lizardman javelineer | 40 | pairs; an archer with javelins; where a javelin stops (not on a body), it **sticks**: a solid "stuck javelin" tile for 4 s, then the ground again (a "stake" zone with `restore`) |
+| marsh light | 30 | the spawned one is real and brings two illusions (`marsh_light_fake`), then swaps places with one at random; all three drift round you and zap (5, every 2.5 s, within 6 tiles); the illusions can't be hit; the real one has its own glint; killed, the others go out |
+| bloated corpse | 60 | a slow chaser that bursts when it reaches you or dies: a toxic cloud (2.4 tiles, 5 s, 4 damage every 0.5 s, hurts everyone) |
+| sludge | 90 / 40 / 15 | a chaser that splits in two when it dies: sludge -> 2 mid -> 2 small each |
+
+- **Code:** `ai/swamp.py` (on the plains' base; the mudskipper is the desert's `Hopper`), `render/swamp_art.py`, and `render/swamp.py`, which draws the tells: the croc's lunge line, the heron's stab line, the real light's glint. The curse and the cloud are drawn as zones in `render/spell_fx.py`.
+- **Engine pieces (in ascii_adventurers):**
+  - `world/tiles.STUCK_JAVELIN`.
+  - `Zone.restore`: puts a tile back on the world when the zone ends, so `update_zones` now takes the world.
+  - `Zone.root`: roots whoever is in the zone when it ends.
+  - The javelin's ending in `combat._shot_ends`, which now gets the world and the actors.
+- **Weights:** in the swamp, the old kinds total 8 and the new ones 28. Swamp density is unchanged.
+- **Cost:** about 1.4 ms of simulation and 2.1 ms of drawing per frame, with 74 of them fighting at once.
+- Tests: `tests/test_p11.py`.
+
+### 24.10 Built: P12, the mushroom biome's new enemies (2026-10-11)
+
+User picks: everything drafted (4 fungal folk, 3 critters, 2 growths, 4 chasers). Elites: the **fungal brute** and the **mantis**. Built all at once. The mushroom biome goes from 3 kinds to 16. The draft kept clear of the Mycelium bosses' looks (no red caps with white spots, no ink pools, no big spore bursts) and of the spore puffer. A test checks that no sprite's top rows (where a cap would be) use red.
+
+| Enemy | HP | Behaviour |
+|-------|----|-----------|
+| sporeling | 6 | swarms of 5-8 (the cordyceps hunter and the fairy ring send them out too) |
+| fungus gnat | 5 | clouds of 6; fly over everything, wobbly (the forest's `Bat`) |
+| shroomling | 30 | groups of 2-3; a chaser with a headbutt |
+| mold zombie | 80 | a slow, tough chaser |
+| myconid shaman | 50 | keeps 9 tiles; every 5 s with hurt allies about, puffs a pollen cloud on the most hurt one (2.5 tiles, 5 s): enemies in it (not bosses) heal 4% of their max HP every 0.5 s (`Zone.heal`) |
+| cordyceps hunter | 45 | an archer with spore darts; dead, two sporelings crawl out |
+| fungal brute (elite) | 340 | a heavy chaser (26); 3 s after it was last hit it regrows 4% of its max HP a second (green "+" show it) |
+| rootweaver | 55 | keeps 9 tiles; every 4 s a line of cracks runs at its target (12 tiles, 8 tiles/s, to a wall); every 0.8 tiles a root bursts 0.35 s after the crack arrives (12, 0.8 tiles) |
+| giant snail | 110 | a slow chaser; hits from behind land on its shell (x0.5); moving, it leaves slime (x0.5 speed, 4 s) |
+| pillbug | 60 | rests 2 s, curls up 0.4 s, rolls at its target at 9 tiles/s for 3 s bouncing off walls (10 per bump, once per 0.8 s each); rolled up, hits do x0.2 |
+| mantis (elite) | 280 | within 7 tiles: crouches 0.5 s (the line shows), leaps to where you were at 18 tiles/s, raises both scythes 0.35 s, then two slashes in an X (20 each, 1.8 tiles) |
+| fairy ring | (its caps: 8 each) | 6 caps round a middle that can't be hit; a hero inside: a sporeling every 2.5 s (at most 6 about); break 3 caps and it's undone (the rest wither; the kill goes to who broke the last) |
+| mold core | 120 | never moves; every 3 s spreads a mold patch within 5 tiles (1.2 tiles, 3 every 0.5 s, lasting 25 s; at most 6); broken, its patches wither |
+
+- **Code:** `ai/mushroom.py` (on the plains' base; the cordyceps hunter is an `Archer` with an `on_death`), `render/mushroom_art.py` (new palette letters j/J blue cap, q/Q mold teal), and `render/mushroom.py`, which draws the tells: the rootweaver's cracks and roots, the mantis's leap line, the brute's regrowth, the ring's dots. Pollen, slime and mold are zones drawn in `render/spell_fx.py`.
+- **Engine piece (in ascii_adventurers):** `Zone.heal` heals enemies, never heroes or bosses.
+- **Weights:** in the mushroom biome, the old kinds total 11 and the new ones 23. Its density is unchanged.
+- **Cost:** about 1.3 ms of simulation and 2.4 ms of drawing per frame, with 72 of them fighting at once.
+- **Fixed before it shipped:** a mold core gone to sleep would have left its patches forever, and a woken one would add more. Patches now last 25 s.
+- Tests: `tests/test_p12.py`.
+
+### 24.11 The playtest pass, done (2026-10-11)
+
+P1-P12 are all built. Enemy variety went from 12 kinds that spawn to **94**: the plains 19, the haunted forest 18, the desert 20, the ruins 19, the swamp 15, the mushroom biome 16. The user asked for x5, about 60; the drafts offered more and the user took most of them. Plus the parts and summons that never spawn by themselves (bone piles, the knight's head, candles, centipede segments, risen skeletons, mole rats, crows, the marsh light's illusions, the sludge's smaller sizes, fairy caps). Every one is letter-art in the heroes' style, every attack has a tell, and every biome has simple chasers alongside the clever ones. Next: back to the bosses, M25.2 (the mad murderer squirrel).

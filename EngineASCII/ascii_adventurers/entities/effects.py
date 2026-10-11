@@ -44,7 +44,12 @@ DURATIONS = {
     "rune_burst": 0.4,      # a Rune Trap going off
     # Milestone 18: the dodge roll
     "roll_dust": 0.35,      # dust kicked up behind a rolling hero
-    "heal_beam": 0.5,       # P7: the field priest healing an ally (x2, y2: the ally)
+    "heal_beam": 0.5,
+    "scream": 0.45,         # P8: a banshee's scream, a cone (angle: its middle; size: reach)
+    "howl": 0.6,
+    "gaze": 0.35,           # P9: a basilisk's stare / a mummy's bandages (value 1), a line to (x2, y2)
+    "flames": 0.4,
+    "stone": 1.0,           # P9: a hero turned to stone (as long as BASILISK[0])          # P9: a fire dancer's breath, a cone (angle: its middle; size: reach)            # P8: a wendigo's howl, a ring growing out (size: reach)       # P7: the field priest healing an ally (x2, y2: the ally)
     "implode": 0.3,         # Implosion (P4): a ring closing on a dart's hit (size: radius)
     "blink": 0.3,           # Blink's flash, where the wizard left and arrived (size: radius)
 }

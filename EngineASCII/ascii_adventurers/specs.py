@@ -44,6 +44,7 @@ class ShellSpec:
     seek_turn: float = 0.0
     seek_after: float = 0.0
     seek_radius: float = 0.0
+    bounces: int = 0        # P9: glances off walls this many times before it stops
 
 
 @dataclass(frozen=True)

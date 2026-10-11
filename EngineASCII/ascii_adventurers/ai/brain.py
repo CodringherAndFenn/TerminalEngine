@@ -52,6 +52,7 @@ class AIContext:
     # and after the enemies' turn (P7: a molehill's rats, a scarecrow's crows).
     spawned: list = field(default_factory=list)
     zones: list | None = None     # the game's ground zones (P7: a straw golem's fire)
+    gems: list | None = None      # the XP gems on the ground (P10: the gem thief)
 
     def __post_init__(self) -> None:
         if not isinstance(self.players, (list, tuple)):
