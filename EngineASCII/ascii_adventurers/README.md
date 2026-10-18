@@ -470,10 +470,117 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   94 (the plains 19, the haunted forest 18, the desert 20, the ruins 19,
   the swamp 15, the mushroom biome 16).
 
-Next up (agreed order, `design/BOSSES.md` section 8): the playtest pass is
-done, so: the haunted forest's other two bosses (the mad murderer squirrel, the mimic tree), then the
-mushroom bosses one at a time, M27 the plains boss and the victory, and
-M28 an art spec so custom pixel art can replace the drawn sprites.
+- Love & Cuddles (M25.2), the haunted forest's second boss. A forester
+  asks you to follow trails of nut shells to a squirrel's caches and smash
+  four of them (rabid squirrels guard each, and more burst out). Then a
+  round, fluffy pink squirrel with a heart-patterned bow -- and a cleaver
+  behind its back -- comes out of the hollow oak. It gets less adorable as
+  the fight goes on (matted fur, blood, a twitching red eye, a widening
+  grin). Its signatures, kept as they stack:
+  - the hoard (all fight): it buries acorns round you and runs back to dig
+    them up; each one makes it faster and harder-hitting. Walk over a
+    mound first to steal it;
+  - treetops (phase 2): it climbs the big oaks, out of reach, pelting
+    acorns and leaping tree to tree. Shoot its tree (trunk or crown) to
+    shake it out, hurt and dazed;
+  - tripwires and frenzy (phase 3): glinting wires between the oaks swing
+    a log along them when you walk across (a roll hops them; a shot cuts
+    them), and a madness meter that, full, sends it on zigzag cleaver
+    dashes before it collapses, panting and wide open.
+  Its own moves: the cleaver spin, acorn barrages, pinecone bombs and its
+  squirrel gang (`design/BOSSES.md` section 25).
+
+- The Fallen (M25.3), the haunted forest's third boss. A lumberjack asks
+  you to fell the trees he marked with red paint; some are mimic saplings
+  that rip free and fight. Four felled, and a tall, thin, branchy tree
+  with one big eye waits in the still grove, among forty trees that look
+  just like it. Its signatures, kept as they stack:
+  - which tree? (all fight): it becomes one of the trees near you; find
+    it by its eye opening now and then. Shoot a fake and it spits back;
+    hit the real one and it's dragged out, dazed;
+  - root web (phase 2): roots grow out in lines and grab whoever steps on
+    one; shoot the root holding you, and keep near the fire bowls, which
+    burn roots away;
+  - swallow & spit (phase 3): its trunk splits into a maw that swallows
+    your shots and spits them back, unless you stuff it until it chokes.
+  Its own moves: branch sweeps, uproot charges, leaf storms, and sap
+  puddles with bark beetles (`design/BOSSES.md` section 26).
+
+- Mycelium (M26.1), the mushroom biome's boss -- always just "Mycelium",
+  but really one of three mushrooms, and you only find out which in the
+  fight. All three share one quest, word for word: sever four Mycelium
+  nodes (stand on one while sporelings crawl up the threads); only what a
+  severed node spills hints at what waits. The first, the **fly agaric**:
+  a huge red-capped toadstool in its fruiting ring. Its signatures, kept
+  as they stack:
+  - warts (all fight): white warts armour its cap; shoot them off (each
+    falls as a toadstool that puffs); it drinks from the ground to regrow
+    them;
+  - the mycelial network (phase 2): it sinks and travels the glowing
+    threads between its rings (the way lit first; a lit thread burns),
+    erupting near you; break a ring's node to cut it out for a while;
+  - trip spores and the fly lure (phase 3): linger in its spores and you
+    trip (you drift, and see fake shots; a roll clears it); flies circle it
+    as a shield, bursting as they drop dead.
+  Its own moves: cap slams, spore volleys, toadstool sprouts and the stem
+  spin (`design/BOSSES.md` section 27).
+
+- Mycelium, the shaggy ink cap (M26.2): the mycologist gives the same quest
+  (its severed nodes spill ink). A tall white shaggy cap whose hem melts
+  into black ink, more of it each phase. Its signatures, kept as they
+  stack:
+  - ink pools (all fight): it melts into a pool and flows to a bubbling
+    spot (shown first), slowing and stinging what it runs over, leaving
+    puddles;
+  - ink blots (phase 2): stand in a blot and you can't see beyond a few
+    tiles until you roll;
+  - scrawl and clusters (phase 3): it writes a word across the floor
+    through you, letter by letter -- then the letters burst in order, or
+    rise as ink imps; little ink caps push up round you and melt into
+    pools unless you break them.
+  Its own moves: scale volleys, ink spray, bursting up under you and the
+  shaggy shake (`design/BOSSES.md` section 28).
+
+- Mycelium, the giant puffball (M26.3): the forager gives the same quest (its
+  severed nodes puff dust). A huge round white puffball with a crack of a
+  mouth, cracking open as it's hurt. Its signatures, kept as they stack:
+  - the puffball minefield (all fight): little puffballs scattered round
+    you; walk near one and its fuse lights, shoot one and it pops, in a
+    chain -- and a pop next to it staggers it;
+  - bounding (phase 2): it leaps about between its moves (a ring shows
+    where it lands);
+  - spore wind and split (phase 3): a turning wind drifts its breathed-out
+    spore clouds across the field (stand upwind, or behind boulders); it
+    splits in two, the halves bounding at you on one shared health bar,
+    then rolls back together.
+  Its own moves: rolls, puff rings, spore mortars and the squash
+  (`design/BOSSES.md` section 29).
+
+- The plains boss and the victory (M27). Every run now starts outside a
+  walled necropolis at the island's centre, its gate sealed with bone. Beat
+  a guardian in each of the five ring biomes and it opens: inside (500 x 200
+  tiles) waits **More than Life**, a hooded necromancer, much harder than
+  any ring boss -- and beaten once, he rises again as **More than Death**,
+  the lich, with a full second life:
+  - his first life: raised dead from every corpse (crush them first),
+    corpses that burst, walls of bone round you, a death's gaze sweeping the
+    graveyard (hide behind graves), and his legion -- archer volleys and a
+    shielded phalanx marching through you;
+  - his second life keeps all of that, and adds a soul storm that drags you
+    in, souls spilled by your wounds that power him (grab them first),
+    possession (find which of his dead he's hiding in) and bone cages.
+  His moves: bone spears, skull fire, grasping hands, the scythe reap.
+  Beaten for good, he gives **Adventurer's Glory**: end the run as a victory
+  from the pause menu whenever you like, and walk on water
+  (`design/BOSSES.md` section 30).
+
+Next up (agreed order, `design/BOSSES.md` section 8): M28 the gear system
+(gear slots replace the cards: abilities and effects come from gear that
+levels up), M29-M32 the four ocean zones (each with its own enemies, quest
+and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
+side quests, more ring quests), M35 a balance pass (known items in
+`design/BOSSES.md` section 31), and last, M36 an art spec so custom pixel
+art can replace the drawn sprites.
 
 ## Setup (once)
 
@@ -674,7 +781,8 @@ render/         terrain.py (cached pre-drawn terrain blocks), glyphs.py
                 sprites.py (baked pictures, per angle), characters.py
                 (pixel-art heroes and enemies, walk frames),
                 painted.py (big figures painted from shapes: the Frost
-                Hermit, Fragile, Mr. Buttons, Nettle),
+                Hermit, Fragile, Mr. Buttons, Nettle, Love & Cuddles,
+                The Fallen, the three Mycelium, More than Life),
                 enemies_sprite.py (creatures, tells), ascii_fx.py (shots,
                 effects, numbers, bars as glyphs), spell_fx.py (gems,
                 spells, status pips), bosses.py (bosses and their tells,

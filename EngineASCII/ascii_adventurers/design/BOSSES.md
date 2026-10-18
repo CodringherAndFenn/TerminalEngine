@@ -38,6 +38,9 @@ Strength is budgeted with the numbers in section 5.4, not by feel, so tiers stay
 | Visit / activate | light 4 ruin beacons | uses landmarks (section 4) |
 | Escort / defend | keep an NPC alive for 60 s | built in M24.1 as an escort (the scavenger follows you and can't be hurt; the ghouls come for the players) |
 | Survive | hold a ritual circle while waves come | built in M23.3 (the apprentice's star circles) |
+| Destroy | break 4 nut caches | built in M25.2 (the forester's caches: destructible tiles at the end of nut-shell trails, guarded) |
+| Fell | fell 4 marked trees | built in M25.3 (the lumberjack's: some are mimic saplings that rip free and must be killed) |
+| Sever | sever 4 Mycelium nodes | built in M26.1, shared by all three Mycelium (stand on a node while sporelings crawl up; what a severed node spills hints which mushroom waits) |
 
 ### 3.2 Quest rules
 
@@ -199,7 +202,7 @@ Suggested angles only (to keep playstyles different — change freely):
 - leprechaun: tricks and greed (B7 decoys, gold that baits you)
 - plains (tier II): a "best of" fight that tests everything, own signature on top
 
-## 8. Roadmap (redone 2026-10-02)
+## 8. Roadmap (redone 2026-10-02; reordered 2026-10-12)
 
 | Milestone | Content |
 |-----------|---------|
@@ -223,11 +226,19 @@ Suggested angles only (to keep playstyles different — change freely):
 | M24.5 (built) | Boss movement: the Snow King glides round his hall and Fragile circles you, between moves and (slower) during most of them (section 22) |
 | M25.1 (built) | Forest: **Nettle, the Blighted**, the corrupted pixie, and the hedge witch's "cleanse" quest; the withered glade (section 23) |
 | P1-P12 | **Playtest pass** (user, 2026-10-10; section 24; **all built**: P1-P12). Comes before the squirrel, so new bosses are tuned against the final balance. P1 island -20%, P2 quest findability, P3 hero pace, P4 card dedupe, P5 difficulty levels, P6 mounts, P7-P12 enemy variety x5 (one biome each) |
-| M25.2-3 | Forest: **mad murderer squirrel**, **mimic tree** |
-| M26.1-3 | Mushroom: **Mycelium** (three variants: amanita muscaria + two more) |
-| M27 | Plains boss (not designed yet) + Adventurer's Glory + "end run" victory (+ water movement) |
-| M28 | **Art handoff spec** (user, 2026-10-05; much later, after the content is in). A document with the exact pixel-art specs, so the user can draw their own models for chosen things (arenas, bosses, enemies, heroes, NPCs, tiles) and drop them in. It covers: the grid and tile size (a tile is 20×24 px, 2 text cells of 10×24); canvas sizes per thing (body sizes like Froggy's ~5×3 tiles, a leech's 14 px); top-down vs. the 3/4 view; which things rotate (baked by angle, drawn facing +x) and which use frames (walk, wind-up, hurt flash, dazed/engorged states); frame counts; the palette and the reserved colors (telegraph red, hit flash); transparency; file format and folder layout (PNG under `assets/`); and how arenas are made (the tile map text format like `guild_hall.txt`, or a picture). Plus a loader that uses a provided PNG when there is one and the procedural painter otherwise, so art can arrive one piece at a time |
-| later | NPC side quests, cardinal regions + tier III bosses, kill order + finals, co-op, balance |
+| M25.2 (built) | Forest: **Love & Cuddles**, the mad murderer squirrel, and the forester's "destroy" quest (nut caches); the hollow oak (section 25) |
+| M25.3 (built) | Forest: **The Fallen**, the mimic tree, and the lumberjack's "fell" quest (marked trees, mimic saplings); the still grove (section 26) |
+| M26.1 (built) | Mushroom: **Mycelium, the fly agaric**, and the shared Mycelium "sever" quest (the truffle hunter's); the fruiting ring (section 27) |
+| M26.2 (built) | Mushroom: **Mycelium, the shaggy ink cap** ("the Lawyer"); the mycologist gives the same "sever" quest (section 28) |
+| M26.3 (built) | Mushroom: **Mycelium, the giant puffball**; the forager gives the same "sever" quest (section 29). The mushroom biome's three bosses are done |
+| M27 (built) | Plains boss: **More than Life**, the necromancer, who rises again as **More than Death**, the lich; his necropolis at the island's centre (the start outside its gate); Adventurer's Glory, the "end run" victory, water walking (section 30) |
+| M28 | **Gear system** (user, 2026-10-13; placed before the zones so they're tuned against gear-based heroes). The card system is reworked into **gear**: each hero has gear slots and starts with none. Gear comes with levels, and maybe from quests and bosses. Each piece gives the abilities and effects that cards give today, and pieces level up (+1, +2...). There are many of them. The user's examples: boots of freezing (leave an ice path); a helmet or a wizard cap that fits the hero and gives arcane missiles. "The system will be much more thought through": first a design doc (`GEAR.md`) drafted with the user, then built in parts (M28.x). It has to settle what happens to card offers, rerolls, skips, the Guild trainer, the boss and quest rewards, and the arcane/physical tags (section 31, B4) |
+| M29-M32 | **The four ocean zones** (user, 2026-10-12), one milestone per zone (N/E/S/W; which comes first is picked when M29 is drafted). Each zone has its own terrain and landmarks out in the ocean (reached by the water walking from M27), about 8 enemies of its own, a giver and a **quest that summons its boss** (like the ring quests), and **one tier III boss** ("absolutely crazy", section 2). M29 also builds the region framework (placing the regions, the maps, the minimap, the HUD). Each zone and boss is drafted with the user first |
+| M33 | **Kill order + final bosses**: the order the four ocean bosses fall in picks the final boss; the final fight is map-wide (tier IV, section 2). This may change how the run ends (today: Glory, then "end run" from the pause menu) |
+| M34 | **Extra quests** (user, 2026-10-12): **NPC side quests** at the landmarks (optional, small rewards: loot, gear, a reroll; section 4) and **more quests in the ring biomes** (new quest kinds or givers). The ocean zones' boss quests are built with their zones in M29-M32. Drafted with the user first; may be split into M34.x |
+| M35 | **Balance pass** (user, 2026-10-12/13: "many many balance changes"). After all the content is in, one pass over everything. The known list is in section 31 (B1-B10); more items get added as B11, B12... Each item is drafted before it's built. The user makes many of the config-only changes themselves |
+| M36 | **Art handoff spec** (user, 2026-10-05; **moved to last on 2026-10-12**: "art handoff should be last since many things can change till then"). A document with the exact pixel-art specs, so the user can draw their own models for chosen things (arenas, bosses, enemies, heroes, NPCs, tiles) and drop them in. It covers: the grid and tile size (a tile is 20×24 px, 2 text cells of 10×24); canvas sizes per thing (body sizes like Froggy's ~5×3 tiles, a leech's 14 px); top-down vs. the 3/4 view; which things rotate (baked by angle, drawn facing +x) and which use frames (walk, wind-up, hurt flash, dazed/engorged states); frame counts; the palette and the reserved colors (telegraph red, hit flash); transparency; file format and folder layout (PNG under `assets/`); and how arenas are made (the tile map text format like `guild_hall.txt`, or a picture). Plus a loader that uses a provided PNG when there is one and the procedural painter otherwise, so art can arrive one piece at a time |
+| later | Co-op |
 
 Each boss is still drafted first and reviewed before it's built, one at a time: signature, 2-3 supporting patterns, a phase table like section 6.
 
@@ -292,7 +303,7 @@ Three bosses per ring biome. Since 2026-10-05 all three are in every run, each i
 | Ruins | a **radioactive monster** (built: the Fallout King), an **ice wizard** (built: the Snow King, King of Loneliness), a **vampire girl** (built: Fragile, The Misunderstood) | Adventure Time nods (the glowing lich-like monster, the ice king, the vampire queen). Use our own names and looks so the built game doesn't copy the show (the user will rename them) |
 | Haunted forest (M21) | a **corrupted pixie** (built: Nettle, the Blighted), a **mad murderer squirrel**, a **mimic tree** | the mimic hides among ordinary trees |
 | Mushroom | **Mycelium**, always: one of three real mushrooms (**amanita muscaria** + two others), but the name, quest and HUD always say just "Mycelium", so you only find out which one in the fight. With all three in every run (M22.5), there are three "Mycelium" arenas, and you don't know which mushroom is in which | the other two (user, 2026-10-02): **shaggy ink cap** (melts into ink pools) and **giant puffball** (spore bursts) |
-| Plains (tier II) | not decided | |
+| Plains (tier II) | **More than Life / More than Death** (built in M27) | a necromancer with two lives; the gate to the ending |
 
 ## 12. The Leech Swarm (swamp, built in M22, 2026-10-02)
 
@@ -1191,3 +1202,386 @@ User picks: everything drafted (4 fungal folk, 3 critters, 2 growths, 4 chasers)
 ### 24.11 The playtest pass, done (2026-10-11)
 
 P1-P12 are all built. Enemy variety went from 12 kinds that spawn to **94**: the plains 19, the haunted forest 18, the desert 20, the ruins 19, the swamp 15, the mushroom biome 16. The user asked for x5, about 60; the drafts offered more and the user took most of them. Plus the parts and summons that never spawn by themselves (bone piles, the knight's head, candles, centipede segments, risen skeletons, mole rats, crows, the marsh light's illusions, the sludge's smaller sizes, fairy caps). Every one is letter-art in the heroes' style, every attack has a tell, and every biome has simple chasers alongside the clever ones. Next: back to the bosses, M25.2 (the mad murderer squirrel).
+
+## 25. Love & Cuddles (haunted forest, built in M25.2, 2026-10-11)
+
+**The user's picks:**
+- Name: Love & Cuddles. Look: "adorable, then not".
+- Signatures: all four offered (the hoard, treetops, tripwires, frenzy), on 3 phases: the hoard in phase 1, treetops added in phase 2, tripwires and the frenzy together in phase 3.
+- Moves: all four (cleaver spin, acorn barrage, pinecone bombs, squirrel gang).
+- Quest: the forester's caches (the first `kind="destroy"` quest). Arena: THE HOLLOW OAK.
+
+**Quest: "Break the Caches"** (the forester).
+- **The camp:** the forester's cabin by a pond, stumps and woodpiles round it (`forester_camp`).
+- **The caches:** 16 nut caches (`tiles.NUT_CACHE`, 160 HP, a squirrel's hoard in a hollow log) are spread over the forest. Each sits at the end of a **trail of nut shells**, 30-46 tiles long, wandering in from a random way. The trails are stamped first, under every camp and lair, so they never cut into one.
+- Each cache is guarded by 3 **rabid squirrels** (a fast letter-art chaser, 22 HP, bites for 5). Break a cache any way you like (shots, swings, blasts): it counts, and 2 more squirrels burst out.
+- Four broken wake it. Near a cache you see CACHE over it and, once it's hit, a bar.
+
+**Arena: the hollow oak** (`world/landmarks._hollow_oak`).
+- An oval in a wall of oak roots round dead leaves and a little fog. The great hollow oak (8 × 4) stands in the middle under its crown.
+- 10 big **climbing oaks** (2 × 2 trunks, a crown of leaves round each) are spread over a ring 0.42-0.72 of the way out, none within 22 tiles of the gate (`props["trees"]`). 22 stumps are cover.
+
+**Boss** (8,000 HP; hit radius 2.0).
+- It's painted (`render/painted.paint_love`): a round, fluffy pastel-pink squirrel, a huge curled tail, a cream belly, big shiny eyes, rosy cheeks, a pink bow with red hearts, and the blade of a cleaver peeking out from behind its back.
+- Its look follows the phase: phase 2 has matted fur, blood spatters, its front eye twitching red and a toothy grin; phase 3 has spikier fur, more blood, a torn bow, both eyes red and a grin ear to ear.
+- Poses: the cleaver raised (spin), held out (frenzy), cheeks stuffed (barrage), a pinecone held back (throw), paws in the dirt (dig), a paw at its mouth (call, string), slumped and panting.
+- It scuttles round its target at 7-11 tiles (5 tiles/s), and on at half that during its moves.
+
+**Signature 1, the hoard** (all fight).
+- Every 13 s it buries 3 acorns in mounds 5-13 tiles round its target (at most 6 out). Mounds have a ring, STEAL, and map pins.
+- Between moves it runs for the nearest mound (if one is close) and digs it up: 1.3 s standing still, a DIG bar. Its next move waits meanwhile.
+- Each acorn held: +7% damage, +5% speed, up to 8 (the bar says HOARD n).
+- **Walk over a mound to steal it** (and heal 8).
+- Shaken out of a tree, or collapsing after a frenzy, it spills half its hoard.
+
+**Signature 2, treetops** (phase 2+).
+- Every 20 s it scurries up the nearest oak: out of reach, drawn in the crown. From there it pelts fans of 3 acorns and every 6 s leaps to the oak nearest you (a dotted line first).
+- **Shoot its tree to shake it.** Hits on the trunk count (shots, swings, blasts: read from the trunk tiles' lost hit points; the trunk never breaks), and so does any hero's shot flying into its crown (3.6 tiles round the trunk). The shaking stays with it when it leaps.
+- 2% of its max HP of shaking and it **falls out**: it loses 3% of its max HP, spills acorns, and is dazed 4 s.
+- Left alone 13 s, it comes down **pouncing** on you (a ring where it'll land, 18 damage).
+- The bar reads UP THE OAK - SHOOT THE TRUNK! with the shake %; its tree has SHOOT THE TRUNK!, a SHAKE bar and a map pin, and an arrow points to it.
+
+**Signature 3, tripwires** (phase 3).
+- Every 16 s it strings 3 glinting wires between the oaks (and the hollow oak) nearest you, at most 6 out. They're armed 0.6 s later.
+- **Walk across one and a log swings down along it**: the wire creaks red for 0.5 s, then the log sweeps it end to end from the far end (34 tiles/s, 18 damage, a knock back). A roll hops a wire. **A shot across a wire cuts it** (SNAP!).
+
+**Signature 4, frenzy** (phase 3).
+- A madness meter (the bar shows MADNESS %) fills 1.5% a second, 5% for each hit it lands, and 6% for each 1% of its max HP it loses.
+- Full: IT SNAPS!, and 5 **cleaver dashes** (a dotted red line first, 0.45 s), each through where you'll be and 6 tiles past, back and forth. 16 each.
+- Then it **collapses panting** for 4.5 s, dazed, taking ×1.5 damage, and spills half its hoard.
+
+**Its moves** (its own damage at level 1):
+- **Cleaver spin:** the cleaver raised (0.6 s), then 6 blades whirling round it as it scuttles at you for 2.6 s (12 a hit); flung outward at the end.
+- **Acorn barrage:** cheeks puffed (0.7 s), then 3 fans of 7 acorns, each turned 14° further (9 each).
+- **Pinecone bombs:** 4 pinecones lobbed onto marked rings, one where you'll be. Each bursts (15) into 6 splinters.
+- **Squirrel gang:** a whistle, and 4-6 rabid squirrels drop out of the oaks nearest you (at most 10 out).
+
+**Measured** (the bot was rebuilt this session: it circle-strafes at 8-10 tiles, steals mounds within 12 tiles, shoots at its tree while it's up, and ignores wires; the same bot gives Nettle 2:41-3:09 and 266-315 damage a minute; seeds 31/7/12):
+- 2:34 / 2:38 / 2:50, taking 195 / 212 / 232 damage a minute.
+- 4-5 climbs a fight, every one ending in a fall; up 31-47 s a fight. Its hoard reached 6-8.
+
+**Tuned on the way:**
+- At first it was never shaken out (10 climbs, 10 pounces; fights took 4:30). The wizard's darts fan out, so few hit a 2 × 2 trunk, and each leap reset the shake. Now a shot into the crown counts, the shake stays with it through leaps, it leaps every 6 s (was 4.5), and the shake needed is 2% of its max HP (was 2.5%).
+- It overstayed when a leap started near the end of its time up. It no longer leaps in its last 3 s up there.
+- Its frenzy dashes were aimed 26° off you, so they never hit anyone standing still. They now go through where you'll be.
+- Damage went up about 25% after the first numbers (151-182 a minute).
+
+## 26. The Fallen (haunted forest, built in M25.3, 2026-10-11)
+
+**The user's picks:**
+- Signatures: "Which tree?", Root web, Swallow & spit (Bark reflections, the backlog's frozen reflections, was not picked: it stays in the backlog). As with Nettle, one a phase in the order offered.
+- Moves: all four (branch sweep, uproot charge, leaf storm, sap & beetles).
+- Quest: the lumberjack's marked trees (the first `kind="fell"` quest).
+- Name: **The Fallen**, with the look offered as "Gnarlgrin": tall and thin, more branches than trunk, long grasping branch-arms with twig fingers, one big eye in a hollow. Arena: THE STILL GROVE.
+
+**Quest: "Fell the Marked Trees"** (the lumberjack).
+- **The camp:** the lumberjack's cabin by a pond, sawhorses and stumps round it (`lumber_camp`).
+- **The trees:** 16 trees marked with red paint (`tiles.MARKED_TREE`, 120 HP) are spread over the forest. Fell one any way you like and it counts (TIMBER!).
+- **Saplings:** about 1 in 3 (by the seed, `Quests.is_sapling`) is a mimic sapling: felled, it rips free (IT'S ALIVE!; 90 HP, bites for 10) and counts once it's dead.
+- Near a marked tree you see MARKED over it and, once it's hit, a bar. Four felled wake it.
+
+**Arena: the still grove** (`world/landmarks._still_grove`).
+- An oval in a thicket round dead leaves and fog. A great fallen trunk (22 long, 2 high) lies across the middle as cover.
+- **40 lookalike trees**, at least 9 tiles apart (`props["trees"]`). Each is The Fallen's own figure posed as a tree (`render/fallen.draw_groves`, drawn at any stage), solid at its foot (a trunk tile 2 below), and catching any hero's shot that flies into it.
+- 8 **fire bowls** (`props["fires"]`) and 12 stumps.
+
+**Boss** (8,000 HP; hit radius 1.6).
+- It's painted (`render/painted.paint_fallen`). Its roots glow faintly from phase 2 and its bark cracks with glowing sap in phase 3, except when it poses as a tree: then it's exactly the lookalikes' picture.
+- Poses: stalking, still/blink (as a tree), sweep (an arm drawn back) and swing, charge (leaning in, roots up), cast, maw, stun.
+- It stalks round its target at 6-10 tiles (3.6 tiles/s), half that during its moves.
+
+**Signature 1, which tree?** (all fight).
+- Every 24 s it sinks its roots (0.8 s), leaves swirl over the 7 trees nearest its target (none within 5 tiles of a hero), and it becomes one of them, mirrored like the tree it took.
+- While it hides, it can't be hit, the boss arrow is hidden, and the bar says FIND THE EYE! with the seconds left. Every 1.6 s one of those trees (it or a fake) lashes 4 splinters at the nearest hero.
+- **Its tell:** its eye opens for 0.4 s every 1.6-2.8 s.
+- A shot into a fake: WRONG TREE!, and that tree spits 3 splinters back at the shooter (once a 0.8 s per tree).
+- A hit on its tree (a shot into it, or a blow on its trunk): FOUND IT!, it loses 4% of its max HP, steps out, and is dazed 3.5 s.
+- Not found in 12 s, it bursts out (BOO!): a blast (radius 3.2, 16) and a ring of 14 splinters.
+
+**Signature 2, root web** (phase 2+).
+- Every 12 s the ground cracks at its feet (0.6 s), then 4 roots grow out (one straight at its target, the others 50° and 100° off and behind) at 12 tiles/s, up to 30 tiles, for 9 s.
+- A hero who isn't rolling within 0.55 of a root is **grabbed**: held 1.5 s and squeezed for 6 every 0.5 s, then free of roots for 2 s.
+- **Shoot the root holding someone** to cut it (it glows red, SHOOT THE ROOT!).
+- A root that grows within 3 tiles of a fire bowl burns away there (SEARED!). While roots are out the fire bowls get rings and FIRE labels, and an arrow points to the nearest. They're also pinned on the map from phase 2.
+
+**Signature 3, swallow & spit** (phase 3).
+- Every 15 s its trunk splits into a toothy maw (0.7 s), open for 4 s. Shots that hit it are swallowed: no damage, and its SAP fills (a bar over it).
+- Stuffed with 2% of its max HP it **chokes**: dazed 3.5 s, coughing a few back at random.
+- Otherwise it **spits** them all back: 8-28 sap shots in 3 fans at its target (8 each).
+
+**Its moves** (its own damage at level 1):
+- **Branch sweep:** an arm drawn back as it strides in (the arc shown, 0.7 s), then swept across a 130° arc, 8 tiles out (16). In phase 3 the other arm follows, the other way.
+- **Uproot charge:** a line shown (0.7 s), then it stomps along it (20 tiles/s, 14), and where it lands a blast (3.2, 12) and 10 splinters.
+- **Leaf storm:** 3 arms of leaves turning out of it for 2.4 s (8 each), then 3 fans of 5 splinters.
+- **Sap & beetles:** 3 sap globs lobbed onto marked rings (one where you'll be), each a sticky puddle (radius 2.4, 7 s, ×0.45 speed); then 3-4 bark beetles crawl out (at most 8).
+
+**Measured** (the bot from section 25, which now also shoots the tree it saw blink, and only that one; seeds 31/7/12):
+- 2:50 / 2:48 / 3:03, taking 207 / 262 / 217 damage a minute.
+- 7 hides a fight, nearly every one found.
+
+**Tuned on the way:**
+- First numbers were 3:06-3:38 and 112-157 a minute. The trees ate many of the bot's shots, and the sweep (7 tiles out) never reached a hero 6-10 tiles off.
+- Now tree bodies are narrower (0.9 tiles, was 1.1) and being found costs it 4% (was 2%). It hides every 24 s (was 22). The sweep strides in during its tell and reaches 8. The squeeze is 6 (was 4), and leaves and splinters hit for 8 (were 7).
+
+## 27. Mycelium, the fly agaric (mushroom, built in M26.1, 2026-10-11)
+
+**The user's picks:**
+- Signatures: all four offered (warts, mycelial network, trip spores, fly lure), on 3 phases: warts in phase 1, the network added in phase 2, trip spores and the fly lure together in phase 3.
+- Moves: all four (cap slam, spore volleys, toadstool sprouts, stem spin).
+- Look: the toadstool giant.
+- The three Mycelium quests: **shared, with a twist** -- one "sever" quest, word for word, for all three; only the giver and what a severed node spills differ.
+- How you find out which Mycelium it is: **only by sight**. The banner, the bar, the quest and the map all say MYCELIUM.
+
+**The shared quest: "Sever the Network"** (`kind="sever"`; M26.1's giver is the truffle hunter).
+- The words are `config.MYCELIUM_LINES`, the same for all three. A test checks they name no mushroom.
+- **The camp:** a plank hut by a pond in the spores, giant mushrooms round it (`spore_camp`).
+- **The nodes:** 16 Mycelium nodes (`tiles.MYC_NODE`, spores sprinkled round each) across the mushroom biome. It runs on the "survive"/"cleanse" circle code: stand within 3.2 tiles for 16 s in total (it heals back at half speed with nobody on it). Every 5 s of it, 3-5 sporelings crawl up 6-10 tiles out.
+- **The twist:** a severed node spills its mushroom's sign (`quests.SEVER_SPILL` by the quest's `skin`). The fly agaric's is red-and-white specks (`tiles.NODE_SPILL_RED`).
+- The lair's name on the map is just MYCELIUM.
+
+**Arena: the fruiting ring** (`world/landmarks._amanita_ring`).
+- An oval in a wall of giant mushrooms round bare mycelium.
+- **7 fruiting rings** (`props["rings"]`): a node (`tiles.NET_NODE`: solid, breakable, 150 HP) in a ring of little red mushrooms. One is in the middle and 6 are round it, 0.55 of the way out.
+- **Threads** (`props["threads"]`) join the middle to each ring, and each ring to the next one round.
+- 18 giant mushrooms (2 wide) for cover, off the threads.
+
+**Boss** (8,000 HP; its body is its stem, hit radius 1.4).
+- It's painted (`render/painted.paint_amanita`): a wide red cap, a pale stem with a frilly ring and a bulb, root-threads it waddles on, and two eyes glowing in the shadow of its gills.
+- Its look follows the phase: phase 2 adds purple mycelium veins up the stem; phase 3 a torn cap and red eyes.
+- Poses: waddling, hop, slam, spin (cap tilted), drink (threads glowing), puff (spores rising), stun.
+- It waddles round its target at 6-10 tiles (3.2 tiles/s), half that during its moves.
+
+**Signature 1, warts** (all fight).
+- 8 white warts on its cap are bodies of their own (`ai/bosses.MycoPart`), each 45 HP × its max HP / 8,000. They're drawn over its cap.
+- With all on it takes 40% of any hit, rising to 100% with none. The bar reads MYCELIUM - WARTS n/8.
+- A wart shot off falls as a little toadstool that puffs 4 spores (and 7 damage round it) 3 s later.
+- Every 20 s, short of warts, it **drinks** (1.5 s standing still, a DRINK bar) and regrows 2.
+
+**Signature 2, mycelial network** (phase 2+).
+- Every 14 s the whole way lights up (0.9 s): from it to its nearest live ring, along the threads (breadth first, live rings only), to the ring nearest its target.
+- It sinks (it can't be hit), travels the path at 22 tiles/s (a mound moving along it; an arrow says IT RISES), and erupts at the far ring: a blast (3, 16) and 12 spores.
+- **A lit thread burns** whoever stands on it (5 every 0.5 s).
+- **Break a ring's node** and that ring is out of the network (no thread runs through it) until it regrows 30 s later (REGROWS n).
+- From phase 2 the threads show faintly all the time, and live nodes are labelled NODE and pinned on the map.
+
+**Signature 3, trip spores** (phase 3).
+- Every 13 s, after pores open (0.7 s), 3 clouds (radius 2.6, 7 s) fall on and round its target.
+- 0.6 s in one and you **trip** for 5 s: you drift as you walk (2.2 tiles/s, the way turning), and each of its new shots gets a **fake twin** beside it. Fakes are see-through, flicker, and do no harm; only a tripping player sees them, with a rainbow shimmer round them.
+- **A roll clears your head.**
+
+**Signature 4, fly lure** (phase 3).
+- Every 18 s a stench (0.8 s) brings 12 flies (at most 16, 6 HP each) to circle it 3.2 tiles out, soaking up shots.
+- Every 1.5 s one drops dead by itself and bursts (1.4, 6). The flies hide with it underground or in the air.
+
+**Its moves** (its own damage at level 1):
+- **Cap slam:** a hop (it can't be hit; its landing ring shown) onto where you'll be. A blast (3, 12), then rings of 10 and 8 spores.
+- **Spore volleys:** pores open (0.6 s), then either 3 fans of 7 red spores, or 3 arms of white spores turning for 2.4 s.
+- **Toadstool sprouts:** cracks in 3 lines toward you (0.8 s), then little toadstools come up along them one after another, each popping 0.5 s later (1.4, 9).
+- **Stem spin:** its cap tilts (0.6 s), then it spins at you for 3 s, spraying 3 spores all round every 0.25 s. Touching it hurts (8).
+
+**Measured** (the bot from sections 25-26, which also shoots warts first; it ignores threads, clouds and rings; seeds 31/7/12):
+- 3:05 / 2:53 / 3:01, taking 308 / 234 / 288 damage a minute. The same bot takes 266-315 from Nettle.
+- Warts were on 0.5-0.6 on average: the bot strips them fast.
+
+**Tuned on the way:**
+- First numbers were 3:07-3:24 and 348-422 a minute.
+- The stem spin sprayed every 0.15 s (now 0.25) and hit 12 on contact (now 8). The slam's blast was 3.5 / 16 with spore rings of 16 and 12 (now 3 / 12, 10 and 8). A fallen wart's puff was 6 spores and 9 damage (now 4 and 7).
+- Warts went from 60 to 45 HP and armour from 30% to 40%. It regrows them every 20 s (was 15). Spores hit 6 / 5 (were 7 / 6).
+
+## 28. Mycelium, the shaggy ink cap (mushroom, built in M26.2, 2026-10-11)
+
+**The user's picks:**
+- Signatures: all four offered (ink pools, ink blots, scrawl, ink-cap clusters). Phases "one per phase, then the rest": ink pools in phase 1, ink blots added in phase 2, the scrawl and the clusters together in phase 3.
+- Moves: all four (scale volley, ink spray, burst up, shaggy shake).
+- Look: the lawyer's-wig design, called just "the Lawyer" (it's still only ever "Mycelium" in the game).
+
+**Quest:** the shared "Sever the Network" (section 27), word for word. Its giver is the **mycologist**, in a second `spore_camp`. Its severed nodes spill **ink** (`tiles.NODE_SPILL_INK`, skin "inkcap"). The lair is just MYCELIUM on the map.
+
+**Arena** (`world/landmarks._inkcap_ring`): an oval in a wall of giant mushrooms round mycelium, with patches of old cracked paving (ink caps push up through stone) and ink stains, plus 16 giant mushrooms (2 wide) for cover. No fixtures: the fight is about the ink on the floor.
+
+**Boss** (8,000 HP; hit radius 1.5).
+- It's painted (`render/painted.paint_inkcap`): a tall white shaggy cylinder of a cap, rows of scales, its hem fraying into black ink that drips as it moves (rimmed pale so it shows on dark ground), a long thin stem, and a gaunt face with pale eyes peering out under the fringe.
+- More of the cap turns to ink each phase.
+- Poses: stalking, melt (slumping into its ink), rear (tilted back), write (an ink tendril reaching to the ground), shake, sink.
+- It stalks round its target at 6-10 tiles (3.4 tiles/s), half that during its moves.
+
+**Ink on the floor** (puddles, the flowing pool, clusters' pools) slows you to ×0.55 and stings for 3 every 0.6 s. A roll passes over it.
+
+**Signature 1, ink pools** (all fight).
+- Every 14 s a bubbling spot appears 5-8 tiles beside its target (where it'll reform; it's pinned on the map too). It slumps (0.8 s) into a pool of ink (it can't be hit; radius 2.2) and flows there at 7 tiles/s.
+- The pool slows and stings whoever it runs over, and it leaves puddles (radius 1.4, 8 s) every 2 tiles.
+- It reforms there in a splash of 12 ink drops.
+
+**Signature 2, ink blots** (phase 2+).
+- Every 12 s it rears (0.6 s) and lobs 3 blots (0.9 s, big "@" rings show where) on and round its target: patches 2.6 tiles across for 8 s.
+- Stand in one and you're **inked**: everything beyond 4.5 tiles of you goes dark (INKED! ROLL TO WIPE IT OFF). It lingers 2 s after you step out.
+- **A roll wipes it off.**
+
+**Signature 3, scrawl** (phase 3).
+- Every 13 s it writes a word (GROW, ROT, SPORE, DEEPER, HUNGER, MYCELIUM, SEEP) across the floor, centred on its target at a random angle: a big ink letter every 0.12 s, 2.4 tiles apart.
+- 0.7 s after the last letter, the letters **burst in order** (0.1 s apart, radius 1.5, 12 each). Every other word they **rise as ink imps** instead (a letter-art chaser, 14 HP; at most 6 out).
+
+**Signature 4, ink-cap clusters** (phase 3).
+- Every 15 s it rears (0.5 s) and 5 little ink caps push up 4-9 tiles round its target. They're bodies (`MycoPart`, rooted: they stay hittable while it's in the ground), 30 HP × its max HP / 8,000.
+- Break one while it's small. Left alone 6 s, each **melts** into a pool that spreads to 3 tiles over 4 s and lasts 10.
+
+**Its moves** (its own damage at level 1):
+- **Scale volley:** it rears (0.6 s): 3 fans of 7 scales, then two arms of scales turning for 1.8 s (5 each).
+- **Ink spray:** 4 globs of ink lobbed onto rings (one where you'll be), each splashing (radius 1.5, 10) into a puddle.
+- **Burst up:** it sinks; a ring of cracks under you (1 s); it erupts there (radius 2.8, 12) in a ring of 10 ink drops.
+- **Shaggy shake:** its cap shakes (0.6 s), then 3 rings of 14 scales, each with a 40° gap to slip through.
+
+**Measured** (the same bot; it ignores ink, blots and letters; seeds 31/7/12):
+- 2:47 / 2:44 / 2:45, taking 294 / 274 / 289 damage a minute. That's the fly agaric's and Nettle's range on this bot.
+
+**Tuned on the way:**
+- First numbers were 2:36-2:51 and 336-362 a minute. The scale volley's spiral fired every 0.1 s (now 0.15) at 6 damage (now 5) and was picked most often (weight 3, now 2).
+- Burst up's blast was 16 with 12 drops (now 12 and 10).
+- Sight when inked: 4 tiles (now 4.5).
+
+## 29. Mycelium, the giant puffball (mushroom, built in M26.3, 2026-10-11)
+
+**The user's picks:**
+- Signatures: puffball minefield, bounding, spore wind, and **split**. The offered pressure burst was dropped: "too much like the Fallout King's core overload". Split was picked from four replacements; dust doubles, float and spore hatchlings were not.
+- Order "one per phase, then the rest": the minefield in phase 1, bounding added in phase 2, the spore wind and the split together in phase 3.
+- Moves: all four (roll, puff rings, spore mortars, squash). Look: the ball.
+
+**Quest:** the shared "Sever the Network" (section 27), word for word. Its giver is the **forager**, in a third `spore_camp`. Its severed nodes puff **olive-brown dust** (`tiles.NODE_SPILL_DUST`, skin "puffball"). A test checks all three Mycelium quests match in everything but the giver and the spill.
+
+**Arena** (`world/landmarks._puffball_field`): an oval in a wall of giant mushrooms round mycelium with drifts of spore dust. 12 clusters of boulders (3-4 × 2) are cover from the wind and the bursts, plus 8 giant mushrooms.
+
+**Boss** (8,000 HP; hit radius 1.8).
+- It's painted (`render/painted.paint_puffball`): a huge round white ball, lumpy, shaded to a soft rim, with a crack of a mouth and two little dark eyes. It cracks open each phase, olive-brown dust showing through, then puffing out.
+- Poses: wobbling, squash, air (mid-leap), roll (its face turning round), breath (mouth open), split (pinched in two), dizzy (staggered).
+- It rolls round its target at 6-10 tiles (3.4 tiles/s), half that during its moves.
+
+**Spore clouds** (mortars', its breath's) choke: 4 every 0.5 s. A cloud drifting into a boulder or a mushroom stops there.
+
+**Signature 1, puffball minefield** (all fight).
+- Every 12 s it puffs (0.6 s) and scatters 8 little puffballs 3.5-11 tiles round its target (at most 18). They're bodies (`MycoPart`, 1 HP).
+- Walk within 1.4 tiles of one and its fuse lights (0.45 s, blinking red with "!"). Shoot one and it pops at once.
+- A pop bursts (radius 2, 10) and pops every mine within 3.6 tiles 0.15 s later: a chain.
+- **A pop within 3.6 tiles of it** costs it 0.6% of its max HP and staggers it for 1.5 s (STAGGERED, HIT IT!). Turn its mines against it.
+
+**Signature 2, bounding** (phase 2+).
+- Between its moves it bounds every 2.2 s: a ring where it'll land, 5-9 tiles from its target (0.65 s in the air, can't be hit). Landing: a shockwave (2.4, 12) and 6 spores.
+- A bound isn't a move: no rest follows it.
+
+**Signature 3, spore wind** (phase 3).
+- A wind blows at 3 tiles/s and turns 90° every 10 s (THE WIND TURNS). Streaks drift across the screen, and WIND with an arrow (`>`, `v>`, ...) shows over you.
+- Every 9 s it breathes in (0.6 s), then out: 5 clouds (radius 2.4, 7 s) that drift downwind. Stand upwind, or behind a boulder.
+
+**Signature 4, split** (phase 3).
+- Every 22 s it pinches (0.8 s) and splits into two halves (`ai/bosses.PuffHalf`). Each half's hits go to its health: one bar, which reads SPLIT IN TWO.
+- Each half bounds every 1.8 s, landing on or right by the hero nearest it (a ring first). Landing: a shockwave (2, 10) and 5 spores.
+- After 12 s they roll back together (8 tiles/s) and merge (BACK TOGETHER).
+
+**Its moves** (its own damage at level 1):
+- **Roll:** a line (0.6 s), then it rolls 30 tiles along it at 16 tiles/s (14 on contact), bouncing once off the field's edge or a boulder.
+- **Puff rings:** it puffs (0.6 s): 3 slow rings of 16 puffs, each with a 40° gap (6 each).
+- **Spore mortars:** 4 spore balls lobbed onto rings (one where you'll be); each bursts (1.6, 8) into a 5-second choking cloud.
+- **Squash:** it squashes flat (0.7 s) and springs up: a shockwave (3.2, 14) and 14 spores all round.
+
+**Measured** (the same bot; it ignores mines, clouds and the wind, and shoots the halves and mines as they come; seeds 31/7/12):
+- 2:39 / 2:42 / 2:30, taking 285 / 272 / 277 damage a minute. That's the other two Mycelium's and Nettle's range on this bot.
+
+**Tuned on the way:**
+- At first the halves landed 3-6 tiles from you, outside their blast, so they never threatened anyone standing still. Now they land on you or right by you, with the ring to warn you.
+- A pop next to it cost it 1.2% of its max HP, and fights took 2:13-2:26. Now it's 0.6%.
+
+## 30. More than Life / More than Death, the plains boss (built in M27, 2026-10-11)
+
+**The user's picks:**
+- A **necromancer** who **revives once** after he dies: he rises again as a **lich**.
+- "Much much harder" than the ring bosses, about **twice as long**, with the difficulty coming from **more abilities, not just more HP**.
+- His arena sits **at the centre of the plains, twice the size** of a ring arena. **Runs start outside his gate**, which is sealed until the five guardians fall.
+- Signatures:
+  - Life 1: raise the dead, plus four the user asked me to come up with (bone walls, death's gaze, the legion, corpse explosion).
+  - Life 2: soul storm, possession, soul harvest, bone cage.
+  - Layout: "lich keeps all, adds its own".
+  - Phylacteries, death mark and shades of the living were offered and not picked.
+- Moves: bone spears, skull fire, grasping hands, the scythe reap. Look: the hooded necromancer.
+- Names: **"More than Life"** alive, **"More than Death"** as the lich.
+- Victory: the Glory comes right away and **the player chooses when to end the run**, from the pause menu for now (the later four ocean regions may change that).
+- Water movement: **now**.
+
+**The main quest.** `config.QUESTS["necropolis"]` (`kind="finale"`): no giver, no camp (`camp="none"`). Its state's NPC is None and its camp an empty stand-in.
+- While its gate is sealed the stage is "hunt". Once `Quests.guardians` reaches 5 (a boss beaten in each ring biome; the plains boss doesn't count), the gate opens (`Quests._unseal`): THE NECROPOLIS OPENS, the pin goes up, and the quest log's GLORY line reads "defeat More than Life".
+- Dev F7 opens it at once.
+
+**Arena: the necropolis** (`world/landmarks._necropolis`).
+- At (0, 0), 500 × 200 (`NECRO_RADII`), walled in crypt stone, its gate facing south, sealed with bone (`tiles.SEALED_GATE`).
+- Grave soil with drifts of bone litter, a green ritual ring in the middle where he waits, 10 mausoleums (5 × 3), and 24 rows of gravestones (4-7 each; `props["graves"]`: cover from the gaze and from shots).
+- 28 old corpses lie about (`props["corpses"]`).
+- `_arena_shell` now takes an optional site, size and gate direction. The necropolis is placed before every other landmark.
+- **The start:** `IslandLayout._find_spawn` now searches from just south of the necropolis wall (never inside it), so every run starts in sight of the sealed gate.
+
+**Boss** (`ai/bosses.Necromancer`; 8,000 HP per life, hits ×1.25).
+- Painted (`render/painted.paint_necro`), "life" or "lich":
+  - **More than Life:** tall and gaunt, a tattered violet robe, a cowl with two green eye-lights, a necklace of little bones, a staff with a horned skull and a scythe blade.
+  - **More than Death:** the robe in rags, floating, a bare skull crowned in green flame, ribs showing, the staff cracked and blazing.
+- Poses: cast, gaze, reap, raise, ritual.
+- In life 1 he walks round his target at 7-12 tiles (3.4 tiles/s); as the lich he floats over graves (4.6 tiles/s).
+
+**Dying the first time.** The killing blow leaves him at 1 HP and starts the ritual (`m_revive`, 6 s). He can't be hurt. MORE THAN LIFE FALLS / "...his soul will not". Every corpse rises round him. Then MORE THAN DEATH: full health, the lich's phases (`BOSSES["necromancer_lich"]`). The bar reads LIFE 1 OF 2 / LIFE 2 OF 2.
+
+**Life 1 signatures** (background ones run while he casts his moves; the lich keeps them all, their timers ×1.35):
+- **Raise the dead** (all fight): whatever dies in his arena leaves a corpse ("x_x").
+  - Stand on one for 0.5 s to crush it (CRUSH labels near you).
+  - Every 11 s the 4 corpses nearest him (within 30 tiles) glow green for 1 s and rise as risen dead (a letter-art chaser, 30 HP), plus 1 from a grave near his target. At most 7 are out.
+- **Corpse explosion** (all fight): every 9 s the corpses within 8 tiles of a hero glow red (1 s) and burst (2.4, 15).
+- **Bone walls** (phase 2+): every 15 s, cracks (1 s), then 2 walls of bone 18 tiles long rise through and round his target (never on a hero). They're breakable (80 HP) and crumble 12 s later.
+- **Death's gaze** (phase 2+, channelled): every 20 s his eyes blaze and the start of the beam shows (1.2 s). Then a beam up to 70 tiles long sweeps once round him in 5 s, stopped by anything that stops shots (7 every 0.25 s). One grave gives partial cover; hide behind a row.
+- **The legion** (phase 3+): every 16 s, by turns:
+  - an archer volley: 3 zones (radius 3.2) on and round heroes, rings for 1.3 s, then arrows (14);
+  - a phalanx: 10 shield skeletons (`LegionPart`, 40 HP; their shields take no harm from in front) marching 34 tiles through his target at 4 tiles/s, shoving and hitting (12) whoever they walk into.
+
+**Life 2 signatures:**
+- **Soul storm** (channelled): every 16 s for 6 s, heroes within 20 tiles are dragged toward him (3 tiles/s; a roll slips the pull) while 10 souls circle him at 4-9 tiles, cutting (8).
+- **Soul harvest:** each of his hits that lands spills a soul that flies to him at 8 tiles/s. Grab it first (heal 3), or each one he swallows (up to 12) powers his next move by +5% (the bar shows SOULS n).
+- **Possession** (phase 2+, channelled): every 30 s he raises his dead (up to 6) and hides in one. His body stands still, shielded; the host's eyes flash for 0.4 s every 2 s.
+  - Kill the host: FORCED OUT, 3% of his max HP lost, stunned for 4 s.
+  - Not found in 10 s: he comes back in a ring of 16 souls.
+- **Bone cage** (phase 3): every 13 s, rib shadows round his target (0.9 s), then 10 ribs (25 HP × his max HP / 8,000 each).
+  - The caged hero can't walk but can shoot. The ribs close in from 2.2 to 0.9 tiles over 5 s and crush (28).
+  - Break any rib to break the cage.
+
+**His moves** (both lives; the lich's are quicker):
+- **Bone spears:** a fan of 7 where you're going, then a line of 6, one after another; 2 rounds (3 for the lich).
+- **Skull fire:** 4 skulls (6 for the lich) circle him, then dive at you, homing (12).
+- **Grasping hands:** rings of "v" round where you'll be (1 s), then hands burst out (10) and root you for 1 s.
+- **Scythe reap:** his shadow beside you (0.7 s), he blinks there, winds up (0.25 s) and reaps a 150° arc, 4.5 tiles out (18).
+
+**Glory and the victory** (`Quests._win_glory`):
+- Beaten for good: ADVENTURER'S GLORY. Every player gets `Player.glory`, `Character.water_walk` (`systems/collision.WaterWalk`: lakes, the ocean, bogs and ponds are ground), `RunStats.victory`, the loot (8,000), a card offer, the achievement and the pages.
+- The quest log reads "GLORY obtained - end the run any time".
+- The pause menu gains **End run (victory)** (`GameScene._victory`), which banks the run and shows `ui/overlays.VictoryPanel`: the run's stats under VICTORY - ADVENTURER'S GLORY.
+
+**Measured** (the same bot, which also shoots his dead while he hides in one; seeds 31/7/12):
+- 7:36 / 7:34 / 5:52, taking 511 / 568 / 618 damage a minute. Each life took 2:30-4:10.
+- The ring bosses run 2:30-3:00 at 230-310 a minute on this bot: about twice as long and twice as punishing.
+- The bot shoots him 54-75% of the time; the rest goes on his dead, or is blocked by graves and walls.
+- The bot understates how fast people kill a boss, so play will be shorter.
+
+**Tuned on the way:**
+- First numbers were 8:35-11:27. He held 14 risen dead and raised 8 at a time (plus 2 from graves), possession lasted 14 s every 24 s, there were 34 grave rows and 22-tile walls, and the bot ignored his dead while he hid.
+- Now: 7 dead at most (4 per raise, plus 1), possession lasts 10 s every 30 s, 24 grave rows, 18-tile walls. HP stayed at 8,000 per life (the standing rule: don't cut HP on bot numbers alone).
+- Souls drifted at 3.5 tiles/s, slower than the floating lich, so he never got them: now 8.
+
+## 31. Balance list (user, 2026-10-13; built in M35, section 8)
+
+Known items for the balance pass. The user tunes many config-only ones themselves, at any time; this list is so they aren't lost. Each item is drafted with the user before it's built.
+
+| # | Item | What the user said / where it lives today |
+|---|------|-------------------------------------------|
+| B1 | **Gems last much longer** | "exp expiration much longer". Today `GEM_LIFETIME` = 180 s |
+| B2 | **Every arena gets several entrances** | "all arenas should have multiple entry points". Today each arena has one gate (`landmarks._arena_shell` `gate_dir`; the lair seals on entry) |
+| B3 | **Boss balance, the early ones most** | The first bosses (Froggy, the Leech Swarm, Lady Proboscia...) were built before the Magus-sized kits (section 5.6; the Nameless Magus is the target) and have fewer abilities |
+| B4 | **Arcane vs physical vs plain damage upgrades** | Explain them in game, and probably rework them. **Settled 2026-10-18 (GEAR.md section 8): simplify to "+damage" and "+elemental damage"; Arcane Mastery and Weapons Master are cut; a damage breakdown on the gear screen.** Built with the gear system (M28) |
+| B5 | **The bard does more damage to walls** | Today the pulse wears down terrain at `PULSE_TERRAIN_FACTOR` = 0.25 of its damage |
+| B6 | **The Fallout King teleports far less, and is a bit harder overall** | "teleports way too much but he himself is even a bit too easy". His jumps: the stomp (`FALLOUT_STOMP`, lands 6-14 tiles from his target) and the grate (`KING_GRATE`, sinks and bursts out elsewhere); check which ones feel like teleports when drafting (section 18) |
+| B7 | **The Fallout King's valves scale with the players** | 1 valve in single player, more with more heroes in the game. Today always 4 (meltdown core, phase 3; `VALVE_TIME`, `VALVE_REACH`) |
+| B8 | **The desert's burrower needs changing** | "first desert underground bug enemy needs changing" (`ENEMIES["burrower"]`: swims under the sand and erupts beneath you). What to change is drafted with the user |
+| B9 | **The headless knight's melee must reach** | "knight just sucks with melee", it doesn't reach you (forest elite, `ENEMIES["headless_knight"]`) |
+| B10 | **The shieldbearer drops its shield** | After taking some damage, it loses its shield (plains elite, `ENEMIES["shieldbearer"]`; today nothing gets past the shield from the front) |
+

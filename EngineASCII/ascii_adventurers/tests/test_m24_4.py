@@ -21,7 +21,21 @@ from ascii_adventurers.tests.test_m22_5 import finish
 
 POSES = {"snow_king": ("", "cast", "down"), "fragile": ("", "twirl", "raise", "bare"),
          "fragile_wolf": ("", "howl"), "fragile_crying": ("", "hug"), "fragile_hugging": ("",),
-         "mr_buttons": ("",), "nettle": ("", "cast", "dive")}            # (M25.1)
+         "mr_buttons": ("",), "nettle": ("", "cast", "dive"),            # (M25.1)
+         "love_cuddles": ("0:", "0:cleaver", "0:puff", "0:dig", "0:call", "0:throw",
+                          "1:frenzy", "1:pant", "2:", "2:cleaver", "2:frenzy", "2:puff",
+                          "2:pant", "2:throw"),                          # (M25.2)
+         "the_fallen": ("0:", "0:still", "0:blink", "0:sweep", "1:swing", "1:charge",
+                        "1:cast", "2:maw", "2:stun", "2:"),             # (M25.3)
+         "mycelium_amanita": ("0:", "0:hop", "0:slam", "1:spin", "1:drink", "2:puff",
+                              "2:stun", "2:spin"),                       # (M26.1)
+         "mycelium_inkcap": ("0:", "0:melt", "1:rear", "1:write", "2:shake", "2:sink",
+                             "2:"),                                      # (M26.2)
+         "mycelium_puffball": ("0:", "0:squash", "1:air", "1:roll", "2:breath", "2:split",
+                               "2:dizzy"),                               # (M26.3)
+         "necromancer": ("life:", "life:cast", "life:gaze", "life:reap", "life:raise",
+                         "life:ritual", "lich:", "lich:cast", "lich:gaze", "lich:reap",
+                         "lich:raise")}                                  # (M27)
 
 
 def paint(name, scale, flip=False, frame=0, hurt=False, pose=""):

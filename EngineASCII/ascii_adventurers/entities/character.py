@@ -29,7 +29,7 @@ import random
 
 from .. import config
 from ..specs import CharacterSpec
-from ..systems.collision import TileSource, move_hull
+from ..systems.collision import TileSource, WaterWalk, move_hull
 from .actor import Actor
 from .weapon import Weapon
 
@@ -152,6 +152,7 @@ class Character(Actor):
         # M25.1: seconds left shrunk by Nettle's dust (faster, half damage,
         # knocked about; a growcap grows you back sooner).
         self.shrunk = 0.0
+        self.water_walk = False           # M27: Adventurer's Glory -- water is ground
         self.spiral = 0                   # Spiral: how far round its extra shot has turned
 
     @property
@@ -275,6 +276,8 @@ class Character(Actor):
             return
         dx, dy = self.vx * dt, self.vy * dt
         x0, y0 = self.x, self.y
+        if self.water_walk:                   # (M27: Adventurer's Glory)
+            world = WaterWalk(world)
         self.x, self.y, bx, by = move_hull(world, self.x, self.y, 0.0, self.half, self.half, dx, dy)
         if bx:
             self.vx = 0.0
@@ -294,6 +297,8 @@ class Character(Actor):
         self.roll_t -= dt
         dx, dy = self.roll_dir
         if self.roll_speed > 0:
+            if self.water_walk:
+                world = WaterWalk(world)
             x0, y0 = self.x, self.y
             self.x, self.y, bx, by = move_hull(world, self.x, self.y, 0.0, self.half, self.half,
                                                dx * self.roll_speed * step,

@@ -71,6 +71,8 @@ class GiverPinTest(unittest.TestCase):
         q = s.quests
         pins = {(x, y): (k, label) for x, y, k, label in q.pins((s.hero.x, s.hero.y))}
         for st in q.states.values():
+            if st.npc is None:                  # (M27: the plains boss has no giver)
+                continue
             kind, label = pins[(st.npc.x, st.npc.y)]
             self.assertEqual(kind, f"giver_{st.biome}")
             self.assertEqual(label, st.spec.camp_name)

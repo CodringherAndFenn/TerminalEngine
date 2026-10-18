@@ -2,7 +2,9 @@
 render/painted.py -- big figures painted from shapes instead of a pixel
 grid: the Snow King (the Frost Hermit), Fragile's three looks (the girl,
 the wolf, beaten and crying / hugging her bear) and Mr. Buttons (M24.4),
-and Nettle, the Blighted (M25.1).
+Nettle, the Blighted (M25.1), Love & Cuddles (M25.2), The Fallen (M25.3) and Mycelium the fly
+agaric (M26.1), the shaggy ink cap (M26.2) and the giant puffball (M26.3), and the
+plains boss, More than Life / More than Death (M27).
 
 A 14 x 18 pixel picture (render/characters.ART) drawn 5-6x is too coarse
 for a boss up close, so these are painted like the camels (render/camel.py):
@@ -655,6 +657,747 @@ def paint_nettle(pen: Pen, frame: int, pose: str) -> None:
 
 # --- The registry draw_character() reads ------------------------------------------------------
 
+# --- Love & Cuddles (M25.2) -------------------------------------------------------------
+
+
+def _heart(pen: Pen, u: float, v: float, r: float, color) -> None:
+    """A little heart (two dots and a point), for its bow."""
+    pen.dot(u - r * 0.5, v, r * 0.6, color)
+    pen.dot(u + r * 0.5, v, r * 0.6, color)
+    pen.poly([(u - r * 1.05, v + r * 0.15), (u + r * 1.05, v + r * 0.15), (u, v + r * 1.4)],
+             color, edge=False)
+
+
+def _cleaver(pen: Pen, c, hand, angle: float, size: float, bloody: int) -> None:
+    """Its cleaver: a wooden handle from `hand`, a broad blade beyond it
+    (turned to `angle`, art radians: 0 = forward), a hole in the corner,
+    blood on it from the second look on."""
+    ca, sa = math.cos(angle), math.sin(angle)
+
+    def R(a, b):                       # (a along the handle, b across it)
+        return hand[0] + a * ca - b * sa, hand[1] + a * sa + b * ca
+    pen.lines([R(-0.4, 0), R(1.4 * size, 0)], 0.42, c["handle"], edge=True)
+    blade = [R(1.3 * size, -0.4), R(4.3 * size, -0.4), R(4.3 * size, 2.3 * size),
+             R(1.6 * size, 2.3 * size), R(1.3 * size, 1.4 * size)]
+    pen.poly(blade, c["blade"])
+    pen.line(R(1.5 * size, 2.15 * size), R(4.2 * size, 2.15 * size), 0.18, c["blade_hi"])
+    pen.dot(*R(3.7 * size, 0.3), 0.22, c["edge"])
+    for k in range(bloody * 2):
+        pen.dot(*R((2.0 + 0.7 * k) * size, (0.6 + 0.5 * (k % 2)) * size), 0.28 + 0.06 * k,
+                c["blood"])
+
+
+def paint_love(pen: Pen, frame: int, pose: str) -> None:
+    """Love & Cuddles: a round, fluffy pastel-pink squirrel seen 3/4 on --
+    a huge curled tail behind it, a cream belly, big shiny eyes, rosy
+    cheeks, a pink bow with red hearts between its ears, and a cleaver
+    hidden behind its back (just the blade peeking out).
+
+    `pose` is "<look>:<action>". The look (0, 1, 2: its phase) goes from
+    adorable to not: 1 -- fur matted and blood-spattered, its front eye
+    twitching red, a grin with teeth; 2 -- spikier fur, more blood, the
+    bow torn, both eyes wrong and the grin ear to ear. Actions: "" (the
+    cleaver behind it), "cleaver" (raised high), "frenzy" (held out in
+    front), "puff" (cheeks stuffed), "dig" (paws down, digging), "pant"
+    (slumped, tongue out, the cleaver dropped), "call" (a paw to its mouth,
+    whistling), "throw" (a pinecone held back to throw)."""
+    c = palette.LOVE_CUDDLES
+    pen.edge = c["edge"]
+    look, _, act = pose.partition(":")
+    look = int(look or 0)
+    pant, dig, puff = act == "pant", act == "dig", act == "puff"
+    b = _bob(frame) * (0.4 if pant else 1.0)
+    sway = 0.35 * math.sin(frame * math.pi / 2)
+    hv = -3.4 + b + (1.4 if pant else 0.0) + (0.9 if dig else 0.0)   # the head's middle
+    hu = 1.0 + (0.8 if dig else 0.0)
+    pen.shadow(0.0, 8.6, 6.4, 1.3)
+
+    # The tail: a big fluffy S curling up behind it, tufts along it.
+    tail = [(-3.0, 5.0, 2.4), (-5.0, 3.0, 2.6), (-6.1, 0.0, 2.5), (-6.0, -3.0, 2.3),
+            (-4.9, -5.6, 2.1), (-3.2, -7.2, 1.8), (-1.6, -7.4, 1.3)]
+    # (one outline round the whole plume: outline ovals a little bigger
+    # first, then the fur over them without edges)
+    out = 0.22
+    for k, (u, v, r) in enumerate(tail):
+        w = sway * k / len(tail)
+        pen.oval(u + w, v + b * 0.5, r + out, r * 0.95 + out, c["edge"], edge=False, n=18)
+    for k, (u, v, r) in enumerate(tail):
+        w = sway * k / len(tail)
+        pen.oval(u + w, v + b * 0.5, r, r * 0.95, c["fur_shade"], edge=False, n=18)
+    for k, (u, v, r) in enumerate(tail[1:-1]):
+        w = sway * (k + 1) / len(tail)
+        pen.oval(u + w + 0.5, v + b * 0.5 - 0.2, r * 0.62, r * 0.6, c["fur"], edge=False, n=14)
+    for k, (u, v, r) in enumerate(tail[2:]):     # (fur strokes down the plume)
+        w = sway * (k + 2) / len(tail)
+        pen.line((u + w - r * 0.5, v + b * 0.5 + r * 0.3), (u + w - r * 0.1, v + b * 0.5 - r * 0.2),
+                 0.14, c["fur_dark"])
+    if look:
+        for k, (u, v, r) in enumerate(tail[:-1]):
+            w = sway * k / len(tail)
+            pen.poly([(u + w - r * 0.9, v - r * 0.2), (u + w - r * 1.35 - look * 0.3, v - r * 0.5),
+                      (u + w - r * 0.8, v + r * 0.3)], c["matted"])
+    # The cleaver behind its back: just the blade peeking out.
+    if act in ("", "puff", "call", "dig"):
+        _cleaver(pen, c, (-1.2, 3.4 + b), math.pi * 0.62, 1.0, look)
+    elif pant:
+        _cleaver(pen, c, (5.4, 7.6), 0.15, 0.9, look)
+    # Feet.
+    for u in (-1.6, 2.4):
+        pen.oval(u + (0.8 if dig else 0.0), 7.7, 1.4, 0.65, c["fur_dark"])
+    # The body: round as a ball, a cream belly.
+    bu, bv = 0.4, 3.0 + b + (0.7 if pant else 0.0)
+    if look:                           # (matted: tufts poking out round it)
+        for k in range(7 + 3 * look):
+            a = -2.6 + k * 4.6 / (6 + 3 * look)
+            r = 4.5 + (0.6 if k % 2 else 0.2) * look
+            pen.poly([(bu + math.cos(a - 0.12) * 4.2, bv + math.sin(a - 0.12) * 4.3),
+                      (bu + math.cos(a) * r, bv + math.sin(a) * (r + 0.2)),
+                      (bu + math.cos(a + 0.12) * 4.2, bv + math.sin(a + 0.12) * 4.3)],
+                     c["matted"])
+    pen.oval(bu, bv, 4.4, 4.6 - (0.5 if pant else 0.0), c["fur"])
+    pen.oval(bu - 1.6, bv + 0.6, 2.2, 3.2, c["fur_shade"], edge=False, n=16)
+    pen.oval(bu + 1.0, bv + 0.6, 2.6, 3.3, c["belly"], edge=False, n=18)
+    pen.oval(bu + 1.6, bv - 1.6, 1.0, 0.6, c["fur_hi"], edge=False, n=10)
+    if look:
+        for k, (u, v, r) in enumerate(((1.8, 2.4, 0.45), (0.4, 4.6, 0.3), (2.6, 4.0, 0.35),
+                                       (1.0, 1.2, 0.25), (3.0, 1.8, 0.3), (-0.4, 3.0, 0.4))):
+            if k < 3 * look:
+                pen.dot(u, v + b, r, c["blood"] if k % 2 else c["blood_dark"])
+    # Arms and whatever its paws hold.
+    shoulder = (bu + 2.0, bv - 2.6)
+    arm = 1.0
+    if act == "cleaver":
+        hand = (4.6, -3.6 + b)
+        pen.lines([shoulder, (4.2, -1.6 + b), hand], arm, c["fur"], edge=True)
+        _cleaver(pen, c, hand, -math.pi / 2 + 0.15, 1.15, look)
+        pen.oval(*hand, 0.75, 0.65, c["fur_hi"])
+    elif act == "frenzy":
+        hand = (4.3, 0.6 + b)
+        pen.lines([shoulder, hand], arm, c["fur"], edge=True)
+        _cleaver(pen, c, hand, -0.2, 0.95, max(1, look))
+        pen.oval(*hand, 0.75, 0.65, c["fur_hi"])
+    elif act == "throw":
+        hand = (-0.4, -6.4 + b)
+        pen.lines([shoulder, (0.6, -4.4 + b), hand], arm, c["fur"], edge=True)
+        pen.oval(hand[0], hand[1] - 0.8, 0.9, 1.2, c["handle"])
+        for k in range(3):
+            pen.line((hand[0] - 0.8, hand[1] - 1.4 + k * 0.6), (hand[0] + 0.8, hand[1] - 1.0 + k * 0.6),
+                     0.12, c["claw"])
+    elif act == "call":
+        hand = (hu + 2.8, hv + 1.6)
+        pen.lines([shoulder, (3.6, 0.0 + b), hand], arm, c["fur"], edge=True)
+        pen.oval(*hand, 0.75, 0.65, c["fur_hi"])
+    elif dig:
+        for hand in ((4.2, 4.0 + (frame % 2) * 0.6), (3.4, 4.6 + ((frame + 1) % 2) * 0.6)):
+            pen.lines([shoulder, hand], arm, c["fur"], edge=True)
+            pen.oval(*hand, 0.75, 0.55, c["fur_hi"])
+        for k in range(3):
+            pen.dot(5.6 + k * 0.6, 6.0 - (frame + k) % 3 * 0.7, 0.25, c["claw"])
+    elif pant:
+        pen.lines([shoulder, (3.4, 4.4)], arm, c["fur"], edge=True)
+    else:                              # (paws behind its back, hiding the cleaver)
+        pen.lines([shoulder, (1.6, 1.6 + b)], arm, c["fur"], edge=True)
+
+    # The head: ears with tufts, then a big round face.
+    for (u0, v0), (u1, v1), (u2, v2) in (((-1.4, -2.2), (-2.0, -6.2), (0.2, -2.8)),
+                                         ((2.2, -2.8), (3.6, -6.0), (3.9, -2.0))):
+        droop = 1.2 if pant else 0.0
+        pen.poly([(hu + u0 - 1.0, hv + v0 + 0.4), (hu + u1 - 1.0 - droop, hv + v1 + droop),
+                  (hu + u2 - 1.0, hv + v2 + 0.4)], c["fur"])
+        pen.poly([(hu + u0 - 0.8, hv + v0 + 0.2), (hu + u1 - 0.95 - droop, hv + v1 + 1.0 + droop),
+                  (hu + u2 - 1.15, hv + v2 + 0.2)], c["cheek"], edge=False)
+    rw = 3.7 + (0.5 if puff else 0.0)
+    pen.oval(hu, hv, rw, 3.2, c["fur"])
+    pen.oval(hu - 1.4, hv + 0.6, 1.6, 2.2, c["fur_shade"], edge=False, n=14)
+    pen.oval(hu + 1.6, hv + 1.2, 2.1, 1.6, c["belly"], edge=False, n=16)
+    if look:                           # (blood on its face)
+        pen.dot(hu - 1.8, hv - 1.0, 0.35, c["blood"])
+        if look >= 2:
+            pen.dot(hu + 0.4, hv - 2.2, 0.3, c["blood_dark"])
+            pen.dot(hu + 3.0, hv + 0.2, 0.25, c["blood"])
+    # Cheeks: rosy (stuffed full to puff).
+    for u, r in ((-1.9, 0.75), (2.5, 0.85)):
+        if puff:
+            pen.oval(hu + u * 1.15, hv + 1.1, r * 1.9, r * 1.4, c["fur"], n=16)
+            pen.oval(hu + u * 1.15, hv + 1.2, r * 1.2, r * 0.8, c["cheek"], edge=False, n=12)
+        else:
+            pen.oval(hu + u, hv + 1.2, r, r * 0.6, c["cheek"], edge=False, n=12)
+    # Eyes: huge and shiny -- then the front one twitches red, then both go wrong.
+    twitch = look >= 1 and frame % 2 == 1
+    for k, (u, ru) in enumerate(((-0.8, 1.0), (1.8, 1.05))):
+        ex, ey = hu + u, hv - 0.4
+        if pant:
+            pen.lines([(ex - 0.8, ey + 0.1), (ex, ey - 0.3), (ex + 0.8, ey + 0.1)], 0.22,
+                      c["eye"])
+            continue
+        rv = 1.25 * (0.55 if (twitch and k == 1) else 1.0)
+        pen.oval(ex, ey, ru, rv, c["eye"], n=18)
+        if look >= 1 and (k == 1 or look >= 2):
+            pen.oval(ex + 0.1, ey + 0.1, ru * 0.55, rv * 0.5, c["eye_red"], edge=False, n=12)
+            pen.dot(ex + 0.15, ey + 0.1, 0.18, c["eye"])
+        if look >= 2:                  # (dark rings under them)
+            pen.line((ex - ru * 0.8, ey + rv + 0.15), (ex + ru * 0.8, ey + rv + 0.15), 0.2,
+                     c["fur_dark"])
+        pen.dot(ex - ru * 0.35, ey - rv * 0.4, 0.38, c["shine"])
+        pen.dot(ex + ru * 0.3, ey + rv * 0.3, 0.16, c["shine"])
+    # Nose and mouth: a little smile, then teeth, then ear to ear.
+    nx, ny = hu + 3.3, hv + 0.6
+    pen.oval(nx, ny, 0.5, 0.38, c["nose"], n=10)
+    if pant:
+        pen.oval(hu + 2.2, hv + 2.0, 0.9, 0.7, c["mouth"], n=12)
+        pen.oval(hu + 2.4, hv + 2.8, 0.45, 0.8, c["cheek"], n=10)
+    elif puff:
+        pen.lines([(hu + 1.8, hv + 1.7), (hu + 2.6, hv + 1.9)], 0.15, c["edge"])
+    elif look == 0:
+        pen.lines([(hu + 1.9, hv + 1.4), (hu + 2.4, hv + 1.8), (nx, ny + 0.5), (hu + 3.4, hv + 1.8),
+                   (hu + 3.8, hv + 1.4)], 0.14, c["edge"])
+    else:
+        left = hu + (0.9 if look == 1 else -1.6)
+        mid_v = hv + (2.4 if look == 1 else 2.9)
+        grin = [(left, hv + 1.3), (hu + 1.4, hv + 1.6), (hu + 3.9, hv + 1.2),
+                (hu + 3.2, mid_v - 0.4), (hu + 1.6, mid_v), (left + 0.5, hv + 2.0)]
+        pen.poly(grin, c["mouth"])
+        for k in range(4 + 2 * look):
+            u = left + 0.45 + k * (hu + 3.6 - left - 0.45) / (4 + 2 * look)
+            pen.poly([(u, hv + 1.45), (u + 0.32, hv + 1.45), (u + 0.16, hv + 2.0)], c["teeth"],
+                     edge=False)
+    # The bow between its ears, hearts on its loops (one torn in look 2).
+    bx, by = hu - 0.6, hv - 3.1
+    torn = look >= 2
+    pen.poly([(bx, by), (bx - 2.0, by - 1.3), (bx - 2.3, by + 0.6)], c["bow"])
+    if torn:
+        pen.poly([(bx, by), (bx + 1.0, by + 1.6), (bx + 1.8, by + 2.4), (bx + 0.6, by + 0.8)],
+                 c["bow_dark"])
+    else:
+        pen.poly([(bx, by), (bx + 2.0, by - 1.4), (bx + 2.3, by + 0.5)], c["bow"])
+    pen.oval(bx, by, 0.55, 0.5, c["bow_dark"], n=10)
+    _heart(pen, bx - 1.5, by - 0.5, 0.35, c["heart"])
+    if not torn:
+        _heart(pen, bx + 1.5, by - 0.6, 0.35, c["heart"])
+    if pant:                           # (sweat flying off it)
+        for k in range(3):
+            pen.dot(hu - 3.0 - k * 0.4, hv - 2.0 - (frame + k) % 4 * 0.5, 0.22, c["shine"])
+
+
+# --- The Fallen (M25.3) -----------------------------------------------------------------
+
+
+def paint_fallen(pen: Pen, frame: int, pose: str) -> None:
+    """The Fallen: a tall, thin tree, more branches than trunk -- a crown of
+    bare branches with a few clumps of leaves, two long grasping branch-arms
+    ending in twig fingers, one big eye in a hollow, and roots for legs.
+
+    `pose` is "<look>:<action>"; the look (0, 1, 2: its phase) adds roots
+    glowing faintly, then cracks of glowing sap -- except posing as a tree
+    ("still", "blink"), which every lookalike in its grove shares exactly
+    (arms raised as branches, roots planted, the eye shut -- or, "blink",
+    open: its tell). Actions: "" (stalking on its roots), "sweep" (an arm
+    drawn back), "swing" (it lashed out), "charge" (leaning in, roots up),
+    "cast" (arms up and wide), "maw" (its trunk split into a toothy maw),
+    "stun" (slumped, the eye half shut)."""
+    c = palette.THE_FALLEN
+    pen.edge = c["edge"]
+    look, _, act = pose.partition(":")
+    still = act in ("still", "blink")
+    look = 0 if still else int(look or 0)
+    stun, maw, charge = act == "stun", act == "maw", act == "charge"
+    lean = 1.0 if charge else (-0.6 if stun else 0.0)
+    sag = 0.6 if stun else 0.0
+    pen.shadow(0.0, 8.6, 5.2, 1.0)
+
+    # Roots for legs: splayed, stepping (planted when it poses as a tree,
+    # bunched up mid-charge).
+    for k, (u, spread) in enumerate(((-1.0, -3.6), (-0.4, -1.6), (0.4, 1.4), (1.0, 3.4))):
+        step = 0.0 if still else 0.5 * math.sin(frame * math.pi / 2 + k * 1.7)
+        tip_u = u + spread * (0.55 if charge else 1.0)
+        tip_v = 8.4 - (0.9 if charge and k % 2 else 0.0) - max(0.0, step)
+        pen.lines([(u * 0.8, 5.6), (u + spread * 0.5, 7.0 - abs(step) * 0.4), (tip_u, tip_v)],
+                  0.42, c["bark_dark"] if k % 2 else c["bark"], edge=True)
+        if look >= 1:
+            pen.line((u + spread * 0.5, 7.0), (tip_u, tip_v), 0.12, c["moss"])
+
+    def B(u, v):                       # (the trunk leans from the roots up)
+        return u + lean * (5.6 - v) / 10, v + sag * (5.6 - v) / 10
+
+    # The far arm, behind the trunk.
+    if still:
+        far = [B(-0.7, -0.8), B(-3.1, -4.0), B(-3.9, -6.6)]
+    elif act == "cast":
+        far = [B(-0.7, -0.8), B(-3.6, -3.4), B(-5.6, -5.8)]
+    elif stun:
+        far = [B(-0.7, 0.2), B(-2.4, 2.8), B(-2.8, 5.6)]
+    else:
+        far = [B(-0.7, 0.0), B(-3.2, 1.6), B(-4.4, 4.0)]
+    pen.lines(far, 0.5, c["bark_dark"], edge=True)
+    _twigs(pen, c, far[-1], far[-2], c["bark_dark"])
+    # The trunk: thin and tall, a hollow for its eye.
+    bulge = 0.9 if maw else 0.0
+    trunk = [B(-1.4, 6.0), B(1.4, 6.0), B(1.0 + bulge, 2.6), B(1.3 + bulge * 0.6, -0.8),
+             B(0.9, -4.2), B(-0.9, -4.2), B(-1.3 - bulge * 0.6, -0.8), B(-1.0 - bulge, 2.6)]
+    pen.poly(trunk, c["bark"])
+    pen.poly([B(-1.4, 6.0), B(-0.4, 6.0), B(-0.5, -0.8), B(-0.4, -4.2), B(-0.9, -4.2),
+              B(-1.3 - bulge * 0.6, -0.8), B(-1.0 - bulge, 2.6)], c["bark_dark"], edge=False)
+    for u, v in ((0.5, 4.4), (-0.2, 1.8), (0.6, -2.6), (-0.6, 3.2)):
+        pen.dot(*B(u, v), 0.22, c["lichen"])
+    pen.line(B(0.5, 5.4), B(0.3, 3.4), 0.12, c["bark_hi"])
+    if look >= 2:                      # (cracks of glowing sap)
+        pen.lines([B(0.2, 5.2), B(-0.3, 3.8), B(0.4, 2.6), B(-0.1, 1.2)], 0.14, c["sap"])
+        pen.lines([B(-0.5, -2.0), B(0.1, -3.0), B(-0.2, -3.9)], 0.12, c["sap"])
+    if maw:                            # (its trunk split into a maw)
+        pen.oval(*B(0.0, 2.6), 1.5, 2.1, c["maw"], n=20)
+        pen.oval(*B(0.1, 2.8), 0.9, 1.4, c["maw_deep"], edge=False, n=16)
+        for k in range(5):
+            v = 1.0 + k * 0.75
+            for side in (-1, 1):
+                w = 1.25 * math.sqrt(max(0.0, 1 - ((v - 2.6) / 2.1) ** 2))
+                pen.poly([B(side * w, v - 0.25), B(side * w, v + 0.25), B(side * (w - 0.6), v)],
+                         c["tooth"], edge=False)
+    # The crown: bare branches, a few clumps of leaves.
+    sway = 0.15 * math.sin(frame * math.pi / 2) if not still else 0.0
+    for (u0, v0), (u1, v1), (u2, v2) in (((0.0, -4.0), (-2.6, -6.6), (-4.6, -7.6)),
+                                         ((0.0, -4.1), (-0.9, -7.2), (-1.4, -9.2)),
+                                         ((0.2, -4.1), (1.3, -7.0), (2.0, -9.0)),
+                                         ((0.3, -4.0), (2.8, -6.0), (4.8, -7.0))):
+        pts = [B(u0, v0), B(u1 + sway, v1), B(u2 + sway * 2, v2)]
+        pen.lines(pts, 0.55, c["bark"], edge=True)
+        fork = B((u1 + u2) / 2 + sway + (0.9 if u2 >= 0 else -0.9), v1 - 0.9)
+        pen.lines([B(u1 + sway, v1), fork], 0.3, c["bark"], edge=True)
+        pen.line(fork, (fork[0] + (0.6 if u2 >= 0 else -0.6), fork[1] - 0.7), 0.14, c["twig"])
+    for u, v, r in ((-3.6, -7.5, 1.4), (1.9, -8.3, 1.3), (4.2, -6.7, 1.2), (-1.0, -8.8, 1.1),
+                    (3.4, -8.6, 0.8)):
+        pen.oval(*B(u + sway, v), r, r * 0.7, c["leaf"], n=14)
+        pen.oval(*B(u + sway - 0.25, v + 0.2), r * 0.55, r * 0.35, c["leaf_dark"], edge=False,
+                 n=10)
+    # The eye in its hollow: shut (a lid), open (amber, a slit), half shut
+    # (dazed); hotter as the fight goes on.
+    ex, ey = B(0.15, -1.4)
+    pen.oval(ex, ey, 1.0, 1.25, c["hollow"], n=18)
+    if act == "still" or (stun and frame % 2):
+        pen.lines([(ex - 0.7, ey + 0.1), (ex, ey + 0.3), (ex + 0.7, ey + 0.1)], 0.22, c["lid"])
+    else:
+        hot = c["eye_hot"] if look >= 1 and not still else c["eye"]
+        rv = 0.45 if stun else 0.85
+        pen.oval(ex, ey, 0.72, rv, hot, edge=False, n=16)
+        look_u = 0.2 if not stun else 0.0
+        pen.oval(ex + look_u, ey, 0.16, rv * 0.8, c["pupil"], edge=False, n=10)
+        pen.dot(ex - 0.3, ey - 0.35, 0.14, c["glow"])
+    # The near arm, in front: long, with twig fingers.
+    if still:
+        near = [B(0.7, -0.8), B(3.2, -3.9), B(4.2, -6.5)]
+    elif act == "sweep":               # (drawn right back over its shoulder)
+        near = [B(0.7, -0.4), B(-1.6, -3.4), B(-4.4, -4.6)]
+    elif act == "swing":               # (lashed out in front)
+        near = [B(0.7, -0.2), B(3.8, -0.6), B(6.6, 0.2)]
+    elif act == "cast":
+        near = [B(0.7, -0.8), B(3.6, -3.4), B(5.6, -5.8)]
+    elif charge:
+        near = [B(0.7, 0.0), B(2.8, 1.2), B(5.2, 0.8)]
+    elif stun:
+        near = [B(0.7, 0.2), B(2.2, 2.8), B(2.6, 5.6)]
+    else:
+        near = [B(0.7, 0.0), B(3.3, 1.4), B(4.8, 3.8)]
+    pen.lines(near, 0.55, c["bark"], edge=True)
+    _twigs(pen, c, near[-1], near[-2], c["twig"])
+
+
+def _twigs(pen: Pen, c, tip, before, color) -> None:
+    """Three twig fingers spreading from the end of a branch-arm."""
+    a = math.atan2(tip[1] - before[1], tip[0] - before[0])
+    for k in (-0.6, 0.0, 0.6):
+        pen.line(tip, (tip[0] + math.cos(a + k) * 1.2, tip[1] + math.sin(a + k) * 1.2), 0.16,
+                 color)
+
+
+# --- Mycelium: the fly agaric (M26.1) ---------------------------------------------------
+
+
+def paint_amanita(pen: Pen, frame: int, pose: str) -> None:
+    """Mycelium, the fly agaric: a huge toadstool -- a wide red cap (its
+    white warts are drawn over it by render/amanita.py: each is a body that
+    can be shot off), a pale stem with a frilly ring, a bulb at the base,
+    and root-threads it waddles on. Its face is only two eyes glowing in
+    the shadow of its gills.
+
+    `pose` is "<look>:<action>"; the look (0, 1, 2: its phase) adds purple
+    mycelium veins up its stem, then a torn cap and red eyes. Actions: ""
+    (waddling), "hop" (stretched, up), "slam" (squashed flat), "spin" (its
+    cap tilted like a blade), "drink" (threads glowing into the ground, its
+    eyes shut), "puff" (pores open, spores rising), "stun"."""
+    c = palette.AMANITA
+    pen.edge = c["edge"]
+    look, _, act = pose.partition(":")
+    look = int(look or 0)
+    sx, sy = {"hop": (0.9, 1.08), "slam": (1.15, 0.82)}.get(act, (1.0, 1.0))
+
+    def T(u, v):
+        return u * sx, 6.5 - (6.5 - v) * sy
+
+    tilt = 0.4 * math.sin(frame * math.pi / 2 + 0.6) + 0.15 if act == "spin" else 0.0
+
+    def C(u, v):                       # (the cap: tilted when it spins)
+        u0, v0 = 0.0, -3.6
+        du, dv = u - u0, v - v0
+        ca, sa = math.cos(tilt), math.sin(tilt)
+        return T(u0 + du * ca - dv * sa, v0 + du * sa + dv * ca)
+
+    pen.shadow(0.0, 8.6, 5.8 * sx, 1.2)
+    # Root-threads: wiggling as it waddles; glowing into the ground as it drinks.
+    for k, u in enumerate((-2.2, -1.1, 0.0, 1.1, 2.2)):
+        sway = 0.0 if act in ("drink", "slam") else 0.4 * math.sin(frame * math.pi / 2 + k * 1.3)
+        tip = (u * 1.5 + sway, 8.5 if act != "hop" else 8.0)
+        col = c["vein"] if act == "drink" else c["thread"]
+        pen.lines([T(u * 0.7, 6.8), T(u * 1.1 + sway * 0.5, 7.7), T(*tip)], 0.24, col, edge=True)
+    # The bulb and the stem.
+    pen.oval(*T(0.0, 6.2), 2.6 * sx, 1.5 * sy, c["bulb"])
+    stem = [T(-1.6, 6.0), T(1.6, 6.0), T(1.25, 1.5), T(1.3, -3.4), T(-1.3, -3.4), T(-1.25, 1.5)]
+    pen.poly(stem, c["stem"])
+    pen.poly([T(-1.6, 6.0), T(-0.6, 6.0), T(-0.5, -3.4), T(-1.3, -3.4), T(-1.25, 1.5)],
+             c["stem_shade"], edge=False)
+    if look >= 1:                      # (mycelium veins up its stem)
+        pen.lines([T(0.4, 5.6), T(-0.2, 3.6), T(0.5, 1.8), T(0.0, -0.6)], 0.14, c["vein"])
+        pen.lines([T(-0.9, 5.2), T(-0.6, 3.0), T(-1.0, 1.4)], 0.12, c["vein"])
+    # The ring (skirt), frilly.
+    skirt = [T(-1.4, -1.4), T(1.4, -1.4)]
+    for k in range(9):
+        u = 2.5 - k * 5.0 / 8
+        skirt.append(T(u, 0.6 if k % 2 == 0 else 0.15))
+    pen.poly(skirt, c["skirt"])
+    # The gills' shadow under the cap, and its eyes in it.
+    pen.poly([C(-5.6, -3.6), C(5.6, -3.6), C(3.6, -2.4), C(-3.6, -2.4)], c["gills_dark"])
+    for k in range(9):
+        u = -4.4 + k * 1.1
+        pen.line(C(u, -3.5), C(u * 0.75, -2.55), 0.1, c["gills"])
+    shut = act in ("drink",) or (act == "stun" and frame % 2)
+    for u in (-1.1, 1.1):
+        ex, ey = C(u, -2.95)
+        if shut:
+            pen.line((ex - 0.35, ey), (ex + 0.35, ey), 0.14, c["eye"])
+        else:
+            pen.oval(ex, ey, 0.55, 0.42, c["eye_red"] if look >= 2 else c["eye"], edge=False, n=12)
+            pen.dot(ex + 0.12, ey - 0.08, 0.13, c["pore"])
+    # The cap: a wide red dome, a pale rim, a highlight.
+    dome = []
+    for k in range(17):
+        t = math.pi + k * math.pi / 16
+        dome.append((math.cos(t) * 6.6, -3.7 + math.sin(t) * 5.0))
+    if look >= 2:                      # (torn: a bite out of its rim)
+        dome[2] = (dome[2][0] + 0.6, dome[2][1] + 0.9)
+        dome[3] = (dome[3][0] + 0.2, dome[3][1] + 1.3)
+    pen.poly([C(u, v) for u, v in dome], c["cap"])
+    pen.poly([C(u, v) for u, v in dome[:5]] + [C(-4.4, -3.7)], c["cap_dark"], edge=False)
+    pen.lines([C(-6.4, -3.7), C(0.0, -3.4), C(6.4, -3.7)], 0.28, c["cap_rim"])
+    pen.oval(*C(-2.2, -7.0), 1.8, 0.8, c["cap_hi"], edge=False, n=14, tilt=-0.3)
+    if act == "puff":                  # (pores open: spores rising)
+        for k in range(6):
+            u = -4.0 + k * 1.6
+            rise = (frame + k) % 4 * 0.5
+            pen.dot(*C(u, -8.2 - rise + abs(u) * 0.45), 0.22, c["pore"])
+
+
+# --- Mycelium: the shaggy ink cap, "the Lawyer" (M26.2) -----------------------------------
+
+
+def paint_inkcap(pen: Pen, frame: int, pose: str) -> None:
+    """Mycelium, the shaggy ink cap ("the Lawyer"): a tall white cylinder of
+    a cap, all shaggy scales, its hem fraying into black ink that drips as
+    it moves; a long thin stem; a gaunt face peering out under the fringe.
+
+    `pose` is "<look>:<action>"; the look (0, 1, 2: its phase) turns more of
+    the cap to ink, from the hem up. Actions: "" (stalking), "melt"
+    (slumping into its ink), "rear" (tilted back, about to fling), "write"
+    (leaning in, an ink tendril reaching to the ground), "shake" (its cap
+    shaking, scales flying), "sink" (half gone into the ground)."""
+    c = palette.INKCAP
+    pen.edge = c["edge"]
+    look, _, act = pose.partition(":")
+    look = int(look or 0)
+    sx, sy = {"melt": (1.35, 0.55), "sink": (1.1, 0.7)}.get(act, (1.0, 1.0))
+    lean = {"write": 0.45, "rear": -0.3}.get(act, 0.0)
+    jig = 0.25 * math.sin(frame * math.pi) if act == "shake" else 0.0
+    sway = 0.2 * math.sin(frame * math.pi / 2)
+
+    def T(u, v):                       # (squashed toward the ground, leaning)
+        v2 = 8.0 - (8.0 - v) * sy
+        return u * sx + lean * (8.0 - v2) * 0.35 + (jig if v < 0 else 0.0), v2
+
+    pen.shadow(0.0, 8.6, 3.8 * sx, 1.0)
+    # Ink pooled round its foot (more as it melts).
+    pool = 1.2 + look * 0.5 + (2.0 if act in ("melt", "sink") else 0.0)
+    pen.oval(0.0, 8.2, pool, pool * 0.3, c["ink"], n=20)
+    # The stem: long and thin, a little bulb at the foot.
+    pen.oval(*T(0.0, 7.6), 1.2 * sx, 0.6, c["base"])
+    pen.poly([T(-0.8 + sway * 0.3, 7.4), T(0.8 + sway * 0.3, 7.4), T(0.7, 0.0), T(-0.7, 0.0)],
+             c["stem"])
+    pen.poly([T(-0.8 + sway * 0.3, 7.4), T(-0.3, 7.4), T(-0.3, 0.0), T(-0.7, 0.0)],
+             c["stem_shade"], edge=False)
+    # The cap: a tall shaggy cylinder, rounded on top, its hem in ink.
+    cap = [T(-3.3, -0.4), T(-3.4, -3.0), T(-3.1, -6.0), T(-2.4, -8.3), T(-1.2, -9.3),
+           T(0.0, -9.5), T(1.2, -9.3), T(2.4, -8.3), T(3.1, -6.0), T(3.4, -3.0), T(3.3, -0.4)]
+    pen.poly(cap + [T(0.0, -0.2)], c["cap"])
+    pen.poly([T(-3.3, -0.4), T(-3.4, -3.0), T(-3.1, -6.0), T(-2.4, -8.3), T(-1.6, -8.9),
+              T(-1.9, -6.0), T(-2.2, -3.0), T(-2.0, -0.4)], c["cap_shade"], edge=False)
+    # Shaggy scales, in staggered rows.
+    for row in range(6):
+        v = -8.4 + row * 1.35
+        w = 2.9 if row else 2.0
+        for k in range(4 + (row % 2)):
+            u = -w + (k + (0.5 if row % 2 else 0.0)) * (2 * w / (3.5 + row % 2))
+            if abs(u) > 3.0:
+                continue
+            pen.lines([T(u - 0.35, v), T(u, v + 0.45), T(u + 0.35, v)], 0.16,
+                      c["scale_dark"] if (row + k) % 2 else c["scale"])
+    # The hem melting into ink, higher each phase, dripping.
+    top = -0.4 - (0.7, 2.6, 4.6)[min(look, 2)]
+    ink = [T(-3.3, -0.4), T(-3.35, top + 0.3), T(-1.8, top), T(-0.6, top + 0.4), T(0.8, top - 0.1),
+           T(2.2, top + 0.3), T(3.35, top), T(3.3, -0.4)]
+    pen.edge = c["ink_hi"]             # (a pale rim, so the ink shows on dark ground)
+    pen.poly(ink, c["ink"])
+    pen.edge = c["edge"]
+    pen.lines([T(-3.0, top + 0.5), T(-1.4, top + 0.2), T(0.4, top + 0.5), T(2.6, top + 0.2)],
+              0.12, c["ink_hi"])
+    for k, u in enumerate((-2.8, -1.7, -0.6, 0.5, 1.6, 2.8)):
+        drip = 0.6 + ((frame + k * 3) % 4) * 0.35 + look * 0.3
+        pen.lines([T(u, -0.5), T(u + 0.05, -0.5 + drip)], 0.32, c["ink"], edge=False)
+        pen.dot(*T(u + 0.05, -0.4 + drip), 0.22, c["ink"])
+    # The face, gaunt, peering out under the fringe.
+    pen.oval(*T(0.15, 0.9), 1.25, 0.85, c["face"], n=14)
+    for u in (-0.35, 0.6):
+        pen.oval(*T(u, 0.75), 0.26, 0.2, c["eye"], edge=False, n=8)
+    pen.line(T(-0.25, 1.3), T(0.55, 1.35), 0.1, c["mouth"])
+    if act == "write":                 # (an ink tendril, its pen)
+        pen.lines([T(2.8, -0.6), T(4.6, 2.0), T(5.6, 5.4), T(6.0, 8.0)], 0.3, c["ink"], edge=True)
+        pen.dot(6.0, 8.0, 0.35, c["ink_hi"])
+    if act == "shake":                 # (scales flying off)
+        for k in range(5):
+            a = frame * 0.9 + k * 1.3
+            pen.dot(math.cos(a) * 4.6, -4.5 + math.sin(a) * 3.4, 0.2, c["scale"])
+
+
+# --- Mycelium: the giant puffball (M26.3) ------------------------------------------------
+
+
+def paint_puffball(pen: Pen, frame: int, pose: str) -> None:
+    """Mycelium, the giant puffball: a huge round white ball, smooth and
+    lumpy, with a crack of a mouth and two little dark eyes.
+
+    `pose` is "<look>:<action>"; the look (0, 1, 2: its phase) cracks it
+    open, olive-brown spore dust showing through (and puffing out, in the
+    last). Actions: "" (wobbling), "squash" (flat, about to spring), "air"
+    (stretched, mid-leap), "roll" (its face turning round as it rolls;
+    `frame` is how far round), "breath" (puffed up, mouth open), "split"
+    (pinched in two), "dizzy" (staggered, eyes crossed)."""
+    c = palette.PUFFBALL
+    pen.edge = c["edge"]
+    look, _, act = pose.partition(":")
+    look = int(look or 0)
+    wob = 0.04 * math.sin(frame * math.pi / 2)
+    sx, sy = {"squash": (1.3, 0.62), "air": (0.9, 1.12), "breath": (1.08, 1.08)}.get(
+        act, (1.0 + wob, 1.0 - wob))
+    cy0 = 7.4 - 6.0 * sy                            # (it sits on the ground)
+    pen.shadow(0.0, 8.0, 5.6 * sx, 1.1)
+
+    def ball(u0: float, r: float, seed: float) -> list:
+        pts = []
+        for k in range(30):
+            t = k * math.tau / 30
+            rr = r * (1 + 0.04 * math.sin(5 * t + seed) + 0.025 * math.sin(9 * t + seed * 2))
+            pts.append((u0 + math.cos(t) * rr * sx, cy0 + math.sin(t) * rr * sy))
+        return pts
+
+    if act == "split":                              # (pinched in two)
+        for u0 in (-2.6, 2.6):
+            pen.poly(ball(u0, 4.0, u0), c["skin"])
+            pen.oval(u0 + 0.8, cy0 + 1.4, 2.2, 1.6, c["skin_shade"], edge=False, n=16)
+            pen.oval(u0 - 1.3, cy0 - 1.8, 1.0, 0.6, c["skin_hi"], edge=False, n=12)
+        return
+    pen.poly(ball(0.0, 6.0, 0.0), c["skin_shade"])
+    pen.poly([(u * 0.9 - 0.5, (v - cy0) * 0.88 + cy0 - 0.55) for u, v in ball(0.0, 6.0, 0.0)],
+             c["skin"], edge=False)
+    pen.oval(-2.2 * sx, cy0 - 3.0 * sy, 1.8, 1.0, c["skin_hi"], edge=False, n=16, tilt=-0.4)
+    for u, v in ((-3.0, 1.0), (2.6, -2.4), (1.0, 3.2), (-1.4, -4.0)):
+        pen.dot(u * sx, cy0 + v * sy, 0.25, c["skin_dark"])
+    # Cracks, olive dust showing through.
+    if look >= 1:
+        for (u0, v0), (u1, v1), (u2, v2) in (((-4.6, -2.2), (-3.2, -1.2), (-2.6, -2.6)),
+                                             ((3.8, 1.6), (2.4, 2.4), (2.0, 1.0))):
+            pts = [(u0 * sx, cy0 + v0 * sy), (u1 * sx, cy0 + v1 * sy), (u2 * sx, cy0 + v2 * sy)]
+            pen.poly(pts, c["dust"], edge=False)
+            pen.lines(pts, 0.14, c["crack"])
+    if look >= 2:
+        for (u0, v0), (u1, v1), (u2, v2) in (((-1.0, -5.6), (0.6, -4.4), (1.8, -5.4)),
+                                             ((-4.8, 2.8), (-3.6, 4.2), (-2.2, 3.4))):
+            pts = [(u0 * sx, cy0 + v0 * sy), (u1 * sx, cy0 + v1 * sy), (u2 * sx, cy0 + v2 * sy)]
+            pen.poly(pts, c["dust"], edge=False)
+            pen.lines(pts, 0.16, c["crack"])
+        for k in range(4):
+            rise = ((frame + k) % 4) * 0.6
+            pen.dot((-2.0 + k * 1.3) * sx, cy0 - 6.4 * sy - rise, 0.3 + 0.08 * k, c["dust_hi"])
+    # The face (it turns round as it rolls).
+    turn = (frame % 4) * 1.4 - 2.1 if act == "roll" else 0.0
+    fu = turn * sx
+    for u in (-1.3, 1.3):
+        ex, ey = (u + fu) * sx, cy0 + 0.2 * sy
+        if abs(u + fu) > 4.6:
+            continue
+        if act == "dizzy":
+            pen.line((ex - 0.35, ey - 0.35), (ex + 0.35, ey + 0.35), 0.14, c["eye"])
+            pen.line((ex - 0.35, ey + 0.35), (ex + 0.35, ey - 0.35), 0.14, c["eye"])
+        else:
+            pen.oval(ex, ey, 0.42, 0.55, c["eye"], edge=False, n=10)
+            pen.dot(ex - 0.12, ey - 0.18, 0.12, c["shine"])
+    if abs(fu) < 3.5:
+        my = cy0 + 2.1 * sy
+        if act == "breath":
+            pen.oval(fu * sx, my, 0.9, 0.8, c["mouth"], n=14)
+        else:
+            pen.lines([((-1.6 + fu) * sx, my), ((-0.8 + fu) * sx, my + 0.35), (fu * sx, my - 0.1),
+                       ((0.8 + fu) * sx, my + 0.35), ((1.6 + fu) * sx, my)], 0.16, c["mouth"])
+    if act == "dizzy":
+        for k in range(3):
+            a = frame * 0.8 + k * math.tau / 3
+            pen.dot(math.cos(a) * 3.0, cy0 - 7.2 + math.sin(a) * 0.8, 0.28, c["dust_hi"])
+
+
+# --- The plains boss: More than Life / More than Death (M27) ---------------------------
+
+
+def paint_necro(pen: Pen, frame: int, pose: str) -> None:
+    """More than Life, the necromancer: tall and gaunt in a tattered
+    black-and-violet robe, a pointed cowl hiding all but two green
+    eye-lights, a necklace of little bones, a staff topped with a horned
+    skull and a scythe's blade. As More than Death (the lich): the same robe
+    in rags, floating, a bare skull crowned in green flame, ribs showing,
+    the staff cracked and blazing.
+
+    `pose` is "<life|lich>:<action>". Actions: "" (walking / floating),
+    "cast" (staff raised, the other hand glowing), "gaze" (staff thrust
+    forward, eyes blazing), "reap" (the scythe swept forward), "raise" (both
+    arms up), "ritual" (fallen to his knees, the soul tearing free)."""
+    c = palette.NECROMANCER
+    pen.edge = c["edge"]
+    life, _, act = pose.partition(":")
+    lich = life == "lich"
+    bob = (0.35 * math.sin(frame * math.pi / 2)) if lich else _bob(frame) * 0.6
+    sway = 0.3 * math.sin(frame * math.pi / 2)
+    kneel = 1.6 if act == "ritual" else 0.0
+    if not lich:
+        pen.shadow(0.0, 8.7, 4.4, 1.0)
+    else:
+        pen.oval(0.0, 8.9, 3.4, 0.8, (60, 255, 120, 40), edge=False)
+    up = -1.0 if lich else 0.0                     # (the lich floats)
+    dv = bob + up + kneel
+
+    # The staff (behind the far arm when walking; in hand).
+    if act == "cast" or act == "raise":
+        sb, st = (3.0, 2.0 + dv), (4.2, -10.6 + dv)
+    elif act == "gaze":
+        sb, st = (-1.0, -2.0 + dv), (6.8, -4.4 + dv)
+    elif act == "reap":
+        sb, st = (-2.4, 1.2 + dv), (6.6, -1.6 + dv)
+    elif act == "ritual":
+        sb, st = (3.6, 8.4), (5.6, -4.0)
+    else:
+        sb, st = (3.4, 8.0 + dv * 0.3), (3.0, -9.2 + dv)
+    pen.lines([sb, st], 0.32, c["staff"], edge=True)
+    if lich:                                       # (cracked, blazing)
+        pen.line(((sb[0] + st[0]) / 2, (sb[1] + st[1]) / 2),
+                 ((sb[0] + st[0]) / 2 + 0.3, (sb[1] + st[1]) / 2 - 1.2), 0.12, c["flame"])
+    ang = math.atan2(st[1] - sb[1], st[0] - sb[0])
+    # The scythe's blade, curving off below the skull.
+    bx, by = st[0] - math.cos(ang) * 0.9, st[1] - math.sin(ang) * 0.9
+    side = ang + math.pi / 2
+    blade = [(bx, by), (bx + math.cos(side) * 1.6 + math.cos(ang) * 0.4,
+                        by + math.sin(side) * 1.6 + math.sin(ang) * 0.4),
+             (bx + math.cos(side) * 3.4 - math.cos(ang) * 1.4,
+              by + math.sin(side) * 3.4 - math.sin(ang) * 1.4),
+             (bx + math.cos(side) * 1.4 - math.cos(ang) * 0.3,
+              by + math.sin(side) * 1.4 - math.sin(ang) * 0.3)]
+    pen.poly(blade, c["blade"])
+    # The horned skull on top.
+    pen.oval(*st, 0.9, 0.8, c["bone"])
+    for k in (-1, 1):
+        pen.lines([(st[0] + k * 0.6, st[1] - 0.4), (st[0] + k * 1.3, st[1] - 1.3),
+                   (st[0] + k * 1.0, st[1] - 2.0)], 0.2, c["bone_dark"])
+    pen.dot(st[0] - 0.3, st[1], 0.18, c["eye"])
+    pen.dot(st[0] + 0.3, st[1], 0.18, c["eye"])
+    if act in ("cast", "gaze", "raise") or lich:
+        pen.oval(*st, 1.5, 1.4, (120, 255, 150, 90), edge=False)
+
+    # The robe: long, flaring, ragged (in tatters for the lich).
+    top = -3.0 + dv
+    hem = 7.6 + (0 if not lich else -0.4) + (kneel * -0.6)
+    robe = [(-2.2, top), (2.2, top), (3.9 + sway * 0.3, hem)]
+    n = 7
+    for k in range(n + 1):
+        u = 3.9 - k * 7.8 / n + sway * 0.3
+        deep = (1.4 if lich else 0.6) if k % 2 else 0.0
+        robe.append((u, hem + deep))
+    robe.append((-3.9 + sway * 0.3, hem))
+    pen.poly(robe, c["robe"])
+    pen.poly([(-2.2, top), (-0.6, top), (-1.2, hem), (-3.9 + sway * 0.3, hem)], c["robe_dark"],
+             edge=False)
+    pen.line((0.0, top + 0.4), (0.2, hem - 0.3), 0.14, c["trim"])
+    if lich:                                       # (ribs through the rags)
+        for k in range(4):
+            v = top + 1.2 + k * 0.7
+            pen.lines([(-1.1, v), (0.0, v + 0.25), (1.1, v)], 0.16, c["bone"])
+        pen.line((0.0, top + 1.0), (0.0, top + 4.0), 0.18, c["bone_dark"])
+    else:                                          # (a necklace of little bones)
+        for k in range(5):
+            u = -1.4 + k * 0.7
+            pen.oval(u, top + 0.9 + abs(u) * -0.25, 0.22, 0.3, c["bone"], n=8)
+    # Arms: sleeves, bony hands.
+    if act in ("cast", "raise"):
+        near = [(1.6, top + 0.6), (2.7, top - 1.8), (3.0, top - 4.2)]
+        far = [(-1.6, top + 0.6), (-2.8, top - 1.6), (-3.4 if act == "raise" else -3.0,
+                                                       top - 3.8)]
+    elif act == "gaze":
+        near = [(1.6, top + 0.6), (2.8, top + 0.4), (4.0, top + 0.6)]
+        far = [(-1.6, top + 0.6), (-2.6, top + 1.8), (-2.4, top + 3.2)]
+    elif act == "reap":
+        near = [(1.6, top + 0.6), (3.0, top + 1.6), (4.4, top + 2.0)]
+        far = [(-1.6, top + 0.6), (-2.4, top + 2.2), (-1.4, top + 3.4)]
+    elif act == "ritual":
+        near = [(1.6, top + 0.6), (2.8, top + 3.0), (3.4, top + 5.4)]
+        far = [(-1.6, top + 0.6), (-2.8, top + 3.0), (-2.6, top + 5.4)]
+    else:
+        near = [(1.6, top + 0.6), (2.6, top + 3.0), (3.2, top + 5.6 + sway * 0.2)]
+        far = [(-1.6, top + 0.6), (-2.5, top + 3.0), (-2.2, top + 5.4 - sway * 0.2)]
+    for arm in (far, near):
+        pen.lines(arm, 0.75, c["robe"] if arm is near else c["robe_dark"], edge=True)
+        hx, hy = arm[-1]
+        for k in (-0.5, 0.0, 0.5):
+            pen.line((hx, hy), (hx + 0.5 * math.cos(k - 1.2), hy - 0.6), 0.1, c["bone"])
+        if act in ("cast", "raise") and arm is far:
+            pen.oval(hx, hy - 0.6, 0.8, 0.8, (120, 255, 150, 140), edge=False)
+    # The head: a pointed cowl round a dark face -- or a bare flaming skull.
+    hv = top - 2.2
+    if lich:
+        for k in range(5):                         # (green flame crown)
+            u = -1.4 + k * 0.7
+            tall = 1.6 + ((frame + k) % 3) * 0.5
+            pen.poly([(u - 0.35, hv - 0.8), (u + 0.1, hv - 0.8 - tall), (u + 0.4, hv - 0.8)],
+                     c["flame"], edge=False)
+            pen.poly([(u - 0.15, hv - 0.8), (u + 0.1, hv - 0.8 - tall * 0.55), (u + 0.25, hv - 0.8)],
+                     c["flame_hi"], edge=False)
+        pen.oval(0.0, hv, 1.5, 1.6, c["bone"])
+        pen.oval(0.1, hv + 1.2, 0.9, 0.6, c["bone_dark"])
+        for u in (-0.55, 0.6):
+            pen.oval(u, hv - 0.1, 0.45, 0.4, c["face"], edge=False, n=10)
+            pen.dot(u, hv - 0.1, 0.18, c["eye_hot"])
+        pen.line((-0.4, hv + 1.3), (0.6, hv + 1.3), 0.08, c["face"])
+    else:
+        pen.poly([(-2.0, top + 0.4), (-1.9, hv - 0.4), (-0.6, hv - 2.4), (0.4, hv - 2.8),
+                  (1.6, hv - 1.2), (2.0, top + 0.4)], c["hood"])
+        pen.oval(0.1, hv + 0.2, 1.1, 1.3, c["face"], edge=False, n=14)
+        glow = c["eye_hot"] if act in ("gaze", "cast") else c["eye"]
+        for u in (-0.4, 0.5):
+            pen.oval(u, hv + 0.05, 0.22, 0.14, glow, edge=False, n=8)
+        if act == "gaze":
+            for u in (-0.4, 0.5):
+                pen.line((u, hv + 0.05), (u + 1.6, hv + 0.05), 0.12, c["glow"])
+
+
 @dataclass(frozen=True)
 class Figure:
     paint: Callable[[Pen, int, str], None]
@@ -670,6 +1413,12 @@ PAINTED: dict[str, Figure] = {
                               9.5),
     "mr_buttons": Figure(paint_bear_figure, 6.5),
     "nettle": Figure(paint_nettle, 11.5),
+    "love_cuddles": Figure(paint_love, 12.0),
+    "the_fallen": Figure(paint_fallen, 12.0),
+    "mycelium_amanita": Figure(paint_amanita, 12.0),
+    "mycelium_inkcap": Figure(paint_inkcap, 12.0),
+    "mycelium_puffball": Figure(paint_puffball, 12.0),
+    "necromancer": Figure(paint_necro, 14.5),
 }
 
 

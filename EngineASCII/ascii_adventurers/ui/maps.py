@@ -137,6 +137,8 @@ _PIN_COLORS = {"quest": palette.PIN_QUEST, "lair": palette.PIN_LAIR,
                "lever": palette.PIN_LEVER, "sun": palette.PIN_SUN,              # M24.3
                "coffin": palette.PIN_COFFIN, "bear": palette.PIN_BEAR,
                "growcap": palette.PIN_GROWCAP, "seed": palette.PIN_SEED,       # M25.1
+               "mound": palette.PIN_MOUND, "oak": palette.PIN_OAK,             # M25.2
+               "node": palette.PIN_NODE,                                         # M26.1
                "giver_done": palette.PIN_DONE}                                # P2
 _PIN_COLORS.update({f"giver_{biome}": c for biome, c in palette.PIN_GIVER.items()})
 

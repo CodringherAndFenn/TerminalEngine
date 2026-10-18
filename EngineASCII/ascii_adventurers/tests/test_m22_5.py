@@ -22,7 +22,8 @@ SWAMP = ("bad_trip", "leech_doctor", "smoke_keeper")
 def finish(q, key):
     """Every target of a quest done, as if players found them (no giver)."""
     st = q.states[key]
-    if st.spec.kind in ("light", "collect", "survive", "escort", "rescue", "fetch", "cleanse"):
+    if st.spec.kind in ("light", "collect", "survive", "escort", "rescue", "fetch", "cleanse",
+                        "destroy", "fell", "sever"):
         for i in range(st.spec.count):
             st.lit.add(i)
             q._found(st, st.npc)
@@ -72,7 +73,7 @@ class HiddenQuestTest(unittest.TestCase):
         self.assertTrue(all(st.stage == "hunt" and not st.taken for st in q.states.values()))
         # Lairs are found; givers are pinned from the start (P2).
         self.assertTrue(all(k.startswith("giver_") for _, _, k, _ in q.pins()))
-        self.assertEqual(len(q.pins()), len(q.states))
+        self.assertEqual(len(q.pins()), sum(1 for st in q.states.values() if st.npc is not None))
         self.assertEqual([label for label, _, _ in q.log()], ["GLORY"])
         # Hunt quests' targets are out already, without anyone talking.
         for key in ("bad_trip", "leech_doctor"):

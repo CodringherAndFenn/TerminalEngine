@@ -626,3 +626,164 @@ GROWCAP = TileType(
 GROWCAP_SPENT = TileType(
     "spent growcap", ("n.", ".n"), palette.GROWCAP_SPENT_FG, palette.HAUNT_BG,
 )
+
+# --- Love & Cuddles' hollow oak and the forester's nut caches (M25.2) --------------------
+
+NUT_SHELLS = TileType(
+    # A trail of nut shells leading to a cache (just a look: walkable).
+    "nut shells", ("c ", " c", "c,", ",c"), palette.NUT_SHELL_FG, palette.HAUNT_BG,
+)
+NUT_SPILL = TileType(
+    "spilt nuts", ("c.", ".c", "c:"), palette.NUT_SHELL_FG, palette.HAUNT_BG,
+)
+NUT_CACHE = TileType(
+    # A squirrel's hoard in a hollow log: break it (a "destroy" quest).
+    "nut cache", ("(@",), palette.NUT_CACHE_FG, palette.NUT_CACHE_BG,
+    solid=True, blocks_shots=True, hp=config.CACHE_HP, wear=(("(.",), ("..",)),
+    becomes=NUT_SPILL,
+)
+WOODPILE = TileType(
+    "woodpile", ("==", "=o", "o="), palette.WOODPILE_FG, palette.DECK_BG,
+    solid=True,
+)
+OAK_ROOTS = TileType(
+    "oak roots", ("&#", "#&", "##", "&&"), palette.OAK_ROOTS_FG, palette.OAK_ROOTS_BG,
+    solid=True, blocks_shots=True,
+)
+OAK_TRUNK = TileType(
+    # A big climbing oak's trunk. "Destructible" only so a shot or a hit on
+    # it is counted (world.hp_at): Love & Cuddles up in it is shaken out
+    # once enough lands. It never breaks.
+    "climbing oak", ("██", "▓█", "█▓"), palette.OAK_TRUNK_FG, palette.HAUNT_BG,
+    solid=True, blocks_shots=True, hp=10 ** 9,
+)
+OAK_CROWN = TileType(
+    # The oak's crown, drawn on the ground round its trunk (a look: walkable).
+    "oak crown", ("&%", "%&", "&&", "& "), palette.OAK_CROWN_FG, palette.HAUNT_BG,
+)
+
+# --- The Fallen's still grove and the lumberjack's marked trees (M25.3) ------------------
+
+FELLED = TileType(
+    # What a felled marked tree leaves: a stump with red paint (walkable).
+    "felled tree", ("_.", "._"), palette.MARKED_FG, palette.HAUNT_BG,
+)
+MARKED_TREE = TileType(
+    # A tree marked with red paint: fell it (a "fell" quest).
+    "marked tree", ("Ax",), palette.MARKED_FG, palette.HAUNT_BG,
+    solid=True, blocks_shots=True, hp=config.MARKED_HP, wear=(("A.",), ("a.",)),
+    becomes=FELLED,
+)
+SAWHORSE = TileType(
+    "sawhorse", ("XX", "X=", "=X"), palette.WOODPILE_FG, palette.DECK_BG,
+    solid=True,
+)
+THICKET = TileType(
+    "thicket", ("Y#", "#Y", "YY", "##"), palette.THICKET_FG, palette.THICKET_BG,
+    solid=True, blocks_shots=True,
+)
+GROVE_TRUNK = TileType(
+    # The foot of one of the still grove's trees (painted over by the tree,
+    # render/fallen.py). "Destructible" only so a hit on it is counted
+    # (world.hp_at); it never breaks.
+    "grove tree", ("▐▌",), palette.HAUNT_TRUNK, palette.HAUNT_BG,
+    solid=True, blocks_shots=True, hp=10 ** 9,
+)
+FALLEN_TRUNK = TileType(
+    # The great fallen trunk across the grove (cover).
+    "fallen trunk", ("==", "=#", "#="), palette.FALLEN_TRUNK_FG, palette.HAUNT_BG,
+    solid=True, blocks_shots=True,
+)
+GROVE_FIRE = TileType(
+    # A fire bowl: The Fallen's roots burn away near one.
+    "fire bowl", ("[]",), palette.FIRE_LIT_FG, palette.HAUNT_BG,
+    solid=True,
+)
+
+# --- Mycelium: the "sever" quests' nodes (M26) and the fly agaric's fruiting ring (M26.1) ---
+
+MYC_NODE = TileType(
+    # A Mycelium node pulsing under the ground: stand on it to sever it.
+    "mycelium node", ("{}",), palette.MYC_NODE_FG, palette.MYCELIUM_BG,
+)
+NODE_SPILL_RED = TileType(
+    # A severed node, spilling red-and-white specks (the fly agaric's hint).
+    "severed node", ("*.", ".*", ":*"), palette.SPILL_RED_FG, palette.MYCELIUM_BG,
+)
+SHROOM_WALL = TileType(
+    "mushroom thicket", ("()", "{}", ")(", "()"), palette.SHROOM_WALL_FG, palette.SHROOM_BG,
+    solid=True, blocks_shots=True,
+)
+RING_SHROOMS = TileType(
+    # A fruiting ring's little mushrooms (a look: walkable).
+    "fruiting ring", ("n ", " n", "n."), palette.RING_SHROOM_FG, palette.MYCELIUM_BG,
+)
+NET_NODE_DEAD = TileType(
+    "broken node", (":.", ".:"), palette.MYCELIUM_FG, palette.MYCELIUM_BG,
+)
+NET_NODE = TileType(
+    # A fruiting ring's node: Mycelium travels the threads between them.
+    # Break it and that ring's cut out (it regrows: ai/bosses.Amanita).
+    "network node", ("@@",), palette.NET_NODE_FG, palette.SHROOM_BG,
+    solid=True, blocks_shots=True, hp=config.NODE_HP, wear=(("@.",),), becomes=NET_NODE_DEAD,
+)
+
+# --- Mycelium the shaggy ink cap (M26.2) --------------------------------------------------
+
+NODE_SPILL_INK = TileType(
+    # A severed node, spilling black ink (the shaggy ink cap's hint).
+    "inky node", ("%.", ".%", "%:"), palette.SPILL_INK_FG, palette.MYCELIUM_BG,
+)
+OLD_PAVING = TileType(
+    # Old cracked paving the ink caps push up through (walkable).
+    "old paving", ("_|", "|_", "__", "_ "), palette.PAVING_FG, palette.PAVING_BG,
+)
+INK_STAIN = TileType(
+    "ink stain", (";.", ".;", ";;"), palette.SPILL_INK_FG, palette.MYCELIUM_BG,
+)
+
+# --- Mycelium the giant puffball (M26.3) --------------------------------------------------
+
+NODE_SPILL_DUST = TileType(
+    # A severed node, puffing olive-brown dust (the giant puffball's hint).
+    "dusty node", ("``", "` ", " `"), palette.SPILL_DUST_FG, palette.MYCELIUM_BG,
+)
+SPORE_DUST = TileType(
+    # Drifts of olive-brown spore dust on the floor (walkable).
+    "spore dust", ("` ", " `", ". ", "``"), palette.SPILL_DUST_FG, palette.MYCELIUM_BG,
+)
+
+# --- More than Life's necropolis (M27) ----------------------------------------------------
+
+GRAVE_SOIL = TileType(
+    "grave soil", (". ", " .", "  ", ", "), palette.GRAVE_SOIL_FG, palette.GRAVE_SOIL_BG,
+)
+BONE_LITTER = TileType(
+    "bone litter", ("_ ", " _", "  ", ". "), palette.BONE_LITTER_FG, palette.GRAVE_SOIL_BG,
+)
+RITUAL_RING = TileType(
+    "ritual ring", ("::", ": ", " :"), palette.RITUAL_FG, palette.GRAVE_SOIL_BG,
+)
+GRAVESTONE = TileType(
+    # A grave: cover from his gaze and his shots.
+    "gravestone", ("▐▌", "▄▄", "▐▌"), palette.GRAVESTONE_FG, palette.GRAVE_SOIL_BG,
+    solid=True, blocks_shots=True,
+)
+MAUSOLEUM = TileType(
+    "mausoleum", ("██", "▓█", "█▓"), palette.MAUSOLEUM_FG, palette.GRAVE_SOIL_BG,
+    solid=True, blocks_shots=True,
+)
+CRYPT_WALL = TileType(
+    "crypt wall", ("▓▓", "▓▒", "▒▓"), palette.CRYPT_FG, palette.CRYPT_BG,
+    solid=True, blocks_shots=True,
+)
+SEALED_GATE = TileType(
+    # The necropolis gate, sealed with bone until the guardians fall.
+    "bone gate", ("##", "#=", "=#"), palette.BONE_FG, palette.CRYPT_BG,
+    solid=True, blocks_shots=True,
+)
+BONE_WALL = TileType(
+    # A wall of bone he raises in the fight; it crumbles (or shoot it down).
+    "bone wall", ("#%", "%#", "##"), palette.BONE_FG, palette.GRAVE_SOIL_BG,
+    solid=True, blocks_shots=True, hp=config.NECRO_BONE_WALL_HP, becomes=BONE_LITTER,
+)

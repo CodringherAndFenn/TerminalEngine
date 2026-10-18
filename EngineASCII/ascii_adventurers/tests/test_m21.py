@@ -57,9 +57,12 @@ class HauntedForestTest(unittest.TestCase):
         cut = [(x, y) for x, y in trunks if any((x + dx) // n != x // n or (y + dy) // n != y // n
                                                 for dx, dy in tiles.CROWN)]
         self.assertTrue(cut)
+        laid = self.w.layout.landmarks              # (a quest's clearing may cover a crown)
         for x, y in trunks:
             for (dx, dy), piece in tiles.CROWN.items():
                 got = self.w.tile_at(x + dx, y + dy)
+                if any(m.tile_at(x + dx, y + dy) is not None for m in laid):
+                    continue
                 if self.w.biome_at(x + dx, y + dy) is biomes.FOREST and not got.solid \
                         and got is not tiles.WATER:
                     self.assertIs(got, piece, (x, y, dx, dy))

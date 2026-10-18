@@ -226,8 +226,10 @@ def build_landmarks(layout) -> list[Landmark]:
     rngs = {key: random.Random(hash_coords(layout.seed, 0x1A4D, i + 1))
             for i, (key, _) in enumerate(quests)}
     marks: dict[str, dict[str, Landmark | None]] = {}
+    # (the plains boss's necropolis first: it has a fixed place, the centre)
+    order = sorted(quests, key=lambda kq: kq[1].kind != "finale")
     for which in ("lair", "camp"):
-        for key, q in quests:
+        for key, q in order:
             mark = BUILDERS[getattr(q, which)](layout, q, rngs[key], out)
             if mark is not None:
                 mark.quest = key
@@ -241,10 +243,16 @@ def build_landmarks(layout) -> list[Landmark]:
             continue
         camp.spots = _scatter(layout, q, camp, out, spots, rngs[key])
         spots += camp.spots
-        for x, y in camp.spots:
+        for k, (x, y) in enumerate(camp.spots):
             spot = _clearing(q.biome, x, y, centre=SPOT_CENTRE.get(q.kind))
             spot.quest = key
             out.append(spot)
+            if q.kind == "destroy":
+                # (first in the list: stamped under everything else, so a
+                # trail never cuts into a camp or a lair)
+                trail = _nut_trail(q.biome, x, y, random.Random(hash_coords(layout.seed, 0x7A11, k)))
+                trail.quest = key
+                out.insert(0, trail)
     return out
 
 
@@ -317,12 +325,13 @@ def _scatter(layout, quest, camp, marks, others, rng: random.Random) -> list[tup
 
 # The ground of a quest spot's clearing, per biome.
 CLEARING = {"swamp": tiles.MUD, "desert": tiles.SAND, "ruins": tiles.CONCRETE,
-            "forest": tiles.DEAD_LEAVES}
+            "forest": tiles.DEAD_LEAVES, "mushroom": tiles.MYCELIUM}
 # What stands in the middle of a quest spot's clearing, per quest kind: a
 # "light" quest's cold brazier (M22.2), a "collect" quest's bundle (M23.2).
 SPOT_CENTRE = {"light": tiles.BRAZIER, "collect": tiles.CARGO, "survive": tiles.SEAL,
                "escort": tiles.BEACON_SITE, "rescue": tiles.ICE_BLOCK,
-               "fetch": tiles.BEAR_PIECE, "cleanse": tiles.SHRINE}
+               "fetch": tiles.BEAR_PIECE, "cleanse": tiles.SHRINE, "destroy": tiles.NUT_CACHE,
+               "fell": tiles.MARKED_TREE, "sever": tiles.MYC_NODE}
 
 
 def _clearing(biome: str, x: float, y: float, centre: TileType | None = None) -> Landmark:
@@ -337,6 +346,13 @@ def _clearing(biome: str, x: float, y: float, centre: TileType | None = None) ->
              for i in range(2 * r + 1)] for j in range(2 * r + 1)]
     if centre is not None:
         rows[r][r] = centre
+    if centre is tiles.MYC_NODE:
+        # A node's threads (M26): spores sprinkled round it (every Mycelium's
+        # look the same; only what it spills, severed, differs).
+        for j in range(2 * r + 1):
+            for i in range(2 * r + 1):
+                if rows[j][i] is ground and (i * 7 + j * 3) % 5 == 0 and (i, j) != (r, r):
+                    rows[j][i] = tiles.SPORES
     if centre is tiles.SEAL or centre is tiles.SHRINE:
         # A star circle (M23.3) / a blighted shrine's ring of rot (M25.1),
         # as wide as the circle you stand in to break / cleanse it.
@@ -347,6 +363,28 @@ def _clearing(biome: str, x: float, y: float, centre: TileType | None = None) ->
                 if abs(d - (r - 0.5)) < 0.55 and (i + j) % 2 == 0:
                     rows[j][i] = ring
     return Landmark("quest_spot", "spot", biome, "", tx - r, ty - r, rows, cx=x, cy=y)
+
+
+def _nut_trail(biome: str, x: float, y: float, rng: random.Random) -> Landmark:
+    """A "destroy" quest's trail of nut shells (M25.2): CACHE_TRAIL tiles
+    long, wandering in to the cache at (x, y) from a random way, a shell
+    on most of its tiles (only those are laid: it blends into the wood)."""
+    n = rng.randint(*config.CACHE_TRAIL)
+    a = rng.uniform(0, math.tau)
+    px, py = x, y
+    pts = []
+    for k in range(n):
+        a += rng.uniform(-0.35, 0.35)
+        px, py = px + math.cos(a), py + math.sin(a) * 0.7
+        if k > config.QUEST_SPOT_CLEARING and rng.random() < 0.75:
+            pts.append((math.floor(px), math.floor(py)))
+    xs = [p[0] for p in pts] or [math.floor(x)]
+    ys = [p[1] for p in pts] or [math.floor(y)]
+    x0, y0 = min(xs), min(ys)
+    rows = [[None] * (max(xs) - x0 + 1) for _ in range(max(ys) - y0 + 1)]
+    for tx, ty in pts:
+        rows[ty - y0][tx - x0] = tiles.NUT_SHELLS
+    return Landmark("nut_trail", "spot", biome, "", x0, y0, rows, cx=x, cy=y)
 
 
 # --- Camps: the frog hunter's bog, the scarab collector's oasis -------------------------
@@ -376,6 +414,22 @@ CAMP_STYLES = {
     # the fog, her plank hut with herbs drying on racks.
     "witch_camp": dict(radii=config.CAMP_WITCH_RADII, ground=tiles.DEAD_LEAVES, pool=tiles.POND,
                        pool_edge=tiles.FOG, plants=tiles.BARK, plant_min=0.6, core=0.3,
+                       floor=tiles.DECK, wall=tiles.PLANK_WALL, post=tiles.HUNTER_POST,
+                       rack=tiles.DRYING_RACK),
+    # M25.2: the forester's camp -- a log pond, his cabin, woodpiles.
+    "forester_camp": dict(radii=config.CAMP_FORESTER_RADII, ground=tiles.DEAD_LEAVES,
+                          pool=tiles.POND, pool_edge=tiles.BARK, plants=tiles.STUMP,
+                          plant_min=0.66, core=0.3, floor=tiles.DECK, wall=tiles.PLANK_WALL,
+                          post=tiles.HUNTER_POST, rack=tiles.WOODPILE),
+    # M25.3: the lumberjack's camp -- a pond, his cabin, sawhorses.
+    "lumber_camp": dict(radii=config.CAMP_LUMBER_RADII, ground=tiles.DEAD_LEAVES,
+                        pool=tiles.POND, pool_edge=tiles.FELLED, plants=tiles.STUMP,
+                        plant_min=0.6, core=0.3, floor=tiles.DECK, wall=tiles.PLANK_WALL,
+                        post=tiles.HUNTER_POST, rack=tiles.SAWHORSE),
+    # M26: a Mycelium quest giver's camp in the mushroom biome -- a pond in
+    # the spores, giant mushrooms, a plank hut with drying racks.
+    "spore_camp": dict(radii=config.CAMP_SPORE_RADII, ground=tiles.MYCELIUM, pool=tiles.POND,
+                       pool_edge=tiles.SPORES, plants=tiles.GIANT_SHROOM, plant_min=0.64, core=0.3,
                        floor=tiles.DECK, wall=tiles.PLANK_WALL, post=tiles.HUNTER_POST,
                        rack=tiles.DRYING_RACK),
 }
@@ -514,16 +568,20 @@ class _Shell:
 
 
 def _arena_shell(layout, quest, rng: random.Random, avoid: list, floor: TileType,
-                 wall: TileType) -> _Shell | None:
+                 wall: TileType, site: tuple[int, int] | None = None,
+                 radii: tuple[int, int] | None = None,
+                 gate_dir: float | None = None) -> _Shell | None:
     """A boss arena's shell: a random site in the quest's biome, an oval of
     `floor` LAIR_RADII tiles ringed by LAIR_WALL tiles of `wall`, and the
     gate -- a gap in the ring facing the island's centre, with a path of
-    floor out through the LAIR_MARGIN clearing round it."""
+    floor out through the LAIR_MARGIN clearing round it. (M27: `site`,
+    `radii` and `gate_dir` -- the gate's parameter angle -- can be given.)"""
     biome = quest.biome
-    a, b = config.LAIR_RADII
+    a, b = radii or config.LAIR_RADII
     t = config.LAIR_WALL
     margin = config.LAIR_MARGIN
-    site = _random_site(layout, biome, a + t + margin, b + t + margin, rng, avoid)
+    if site is None:
+        site = _random_site(layout, biome, a + t + margin, b + t + margin, rng, avoid)
     if site is None:
         return None
     cx, cy = site
@@ -543,7 +601,7 @@ def _arena_shell(layout, quest, rng: random.Random, avoid: list, floor: TileType
 
     # The gate: the stones' gap facing the island's centre, and a mud
     # causeway out through the margin.
-    g = math.atan2(-cy / b, -cx / a)            # (the oval's parameter angle)
+    g = math.atan2(-cy / b, -cx / a) if gate_dir is None else gate_dir   # (the oval's angle)
     gx, gy = math.cos(g), math.sin(g)
     gate = []
     half_gap = config.LAIR_GATE_WIDTH / 2
@@ -1178,6 +1236,464 @@ def _glade(layout, quest, rng: random.Random, avoid: list) -> Landmark | None:
                     gate=shell.gate, radii=(float(a), float(b)), floor=floor, props=props)
 
 
+def _hollow_oak(layout, quest, rng: random.Random, avoid: list) -> Landmark | None:
+    """Love & Cuddles' lair (M25.2): the arena's oval in a wall of oak roots
+    round dead leaves and a little fog. The great hollow oak in the middle
+    (OAK_HOLLOW); OAK_TREES big climbing oaks (2 x 2 trunks with a crown of
+    leaves round each) spread over a ring OAK_RING of the way out
+    (props["trees"]: each trunk's middle), none near the gate; stumps for
+    cover. It waits in front of the hollow oak, toward the gate."""
+    floor = tiles.DEAD_LEAVES
+    shell = _arena_shell(layout, quest, rng, avoid, floor, tiles.OAK_ROOTS)
+    if shell is None:
+        return None
+    a, b = config.LAIR_RADII
+    ex, ey = shell.ex, shell.ey
+    put = shell.put
+    cx, cy = shell.cx, shell.cy
+
+    xs = (np.arange(shell.x0, shell.x0 + shell.W) + 0.5)[None, :]
+    ys = (np.arange(shell.y0, shell.y0 + shell.H) + 0.5)[:, None]
+    fog = fbm(layout.seed, _SALT_REEDS + 11, xs, ys, 9.0, 2)
+    for j in range(shell.H):
+        for i in range(shell.W):
+            if shell.rows[j][i] is floor and shell.inner[j, i] < 0.97 and fog[j, i] > 0.66:
+                shell.rows[j][i] = tiles.FOG
+
+    def free(i0: int, j0: int, w: int, h: int, pad: int = 1) -> bool:
+        for j in range(j0 - pad, j0 + h + pad):
+            for i in range(i0 - pad, i0 + w + pad):
+                ii, jj = cx + i - shell.x0, cy + j - shell.y0
+                if not (0 <= jj < shell.H and 0 <= ii < shell.W) or \
+                        shell.rows[jj][ii] not in (floor, tiles.FOG):
+                    return False
+        return True
+
+    def lay(i: int, j: int, tile: TileType) -> None:
+        put(i, j, tile, floor) or put(i, j, tile, tiles.FOG)
+
+    def crown(i0: int, j0: int, ru: float, rv: float) -> None:
+        """Leaves on the ground round a trunk whose top-left is (i0, j0)."""
+        for j in range(math.floor(-rv) - 1, math.ceil(rv) + 2):
+            for i in range(math.floor(-ru) - 1, math.ceil(ru) + 2):
+                if (i / ru) ** 2 + (j / rv) ** 2 <= 1.0:
+                    lay(i0 + i, j0 + j, tiles.OAK_CROWN)
+
+    # The great hollow oak.
+    tw, th = config.OAK_HOLLOW
+    for dj in range(th):
+        for di in range(tw):
+            lay(di - tw // 2, dj - th // 2, tiles.HOLLOW_TREE)
+    crown(0, 0, tw * 0.9, th * 0.9)
+    # The climbing oaks: spread round the ring by angle, each at its own
+    # distance out.
+    props: dict = {"trees": [], "oak": (cx + 0.5, cy + 0.5)}
+    n = config.OAK_TREES
+    lo, hi = config.OAK_RING
+    for k in range(n):
+        for _ in range(40):
+            t = (k + rng.uniform(0.25, 0.75)) / n * math.tau
+            f = rng.uniform(lo, hi)
+            i, j = round(math.cos(t) * a * f), round(math.sin(t) * b * f)
+            if math.hypot(i - ex, j - ey) > config.OAK_GATE_GAP and free(i - 3, j - 2, 8, 6, 0):
+                for dj in (0, 1):
+                    for di in (0, 1):
+                        lay(i + di, j + dj, tiles.OAK_TRUNK)
+                crown(i, j, 3.6, 2.2)
+                props["trees"].append((cx + i + 1.0, cy + j + 1.0))
+                break
+    # Stumps over the floor.
+    placed = tries = 0
+    while placed < config.OAK_STUMPS and tries < 2000:
+        tries += 1
+        u, v = rng.uniform(-0.9, 0.9), rng.uniform(-0.9, 0.9)
+        if u * u + v * v > 0.85:
+            continue
+        i, j = round(u * a), round(v * b)
+        if math.hypot(i - ex, j - ey) > 18 and math.hypot(i, j * 2.5) > 12 and free(i, j, 1, 1, 1):
+            lay(i, j, tiles.STUMP)
+            placed += 1
+
+    gl = math.hypot(ex, ey) or 1.0
+    sx, sy = ex / gl * 12.0, ey / gl * 5.0
+    return Landmark("hollow_oak", "lair", quest.biome, quest.lair_name or "LAIR", shell.x0,
+                    shell.y0, shell.rows, cx=cx, cy=cy, spots=[(cx + sx + 0.5, cy + sy + 0.5)],
+                    gate=shell.gate, radii=(float(a), float(b)), floor=floor, props=props)
+
+
+def _still_grove(layout, quest, rng: random.Random, avoid: list) -> Landmark | None:
+    """The Fallen's lair (M25.3): the arena's oval in a thicket round dead
+    leaves and fog. A great fallen trunk across the middle (GROVE_LOG long,
+    2 high: cover); GROVE_TREES lookalike trees, at least GROVE_TREE_GAP
+    apart, none near the gate (props["trees"]: where each stands -- the
+    figure is painted there, its trunk tile 2 below); GROVE_FIRES fire bowls
+    (props["fires"]); stumps. It waits beside the fallen trunk, toward the
+    gate."""
+    floor = tiles.DEAD_LEAVES
+    shell = _arena_shell(layout, quest, rng, avoid, floor, tiles.THICKET)
+    if shell is None:
+        return None
+    a, b = config.LAIR_RADII
+    ex, ey = shell.ex, shell.ey
+    put = shell.put
+    cx, cy = shell.cx, shell.cy
+
+    xs = (np.arange(shell.x0, shell.x0 + shell.W) + 0.5)[None, :]
+    ys = (np.arange(shell.y0, shell.y0 + shell.H) + 0.5)[:, None]
+    fog = fbm(layout.seed, _SALT_REEDS + 13, xs, ys, 9.0, 2)
+    for j in range(shell.H):
+        for i in range(shell.W):
+            if shell.rows[j][i] is floor and shell.inner[j, i] < 0.97 and fog[j, i] > 0.62:
+                shell.rows[j][i] = tiles.FOG
+
+    def free(i0: int, j0: int, w: int, h: int, pad: int = 1) -> bool:
+        for j in range(j0 - pad, j0 + h + pad):
+            for i in range(i0 - pad, i0 + w + pad):
+                ii, jj = cx + i - shell.x0, cy + j - shell.y0
+                if not (0 <= jj < shell.H and 0 <= ii < shell.W) or \
+                        shell.rows[jj][ii] not in (floor, tiles.FOG):
+                    return False
+        return True
+
+    def lay(i: int, j: int, tile: TileType) -> None:
+        put(i, j, tile, floor) or put(i, j, tile, tiles.FOG)
+
+    # The great fallen trunk, a little askew.
+    n = config.GROVE_LOG
+    for k in range(n):
+        i = k - n // 2
+        j = round(k * 0.12) - 1
+        lay(i, j, tiles.FALLEN_TRUNK)
+        lay(i, j + 1, tiles.FALLEN_TRUNK)
+    props: dict = {"trees": [], "fires": []}
+    # Fire bowls, spread round by angle.
+    m = config.GROVE_FIRES
+    for k in range(m):
+        for _ in range(40):
+            t = (k + rng.uniform(0.2, 0.8)) / m * math.tau
+            f = rng.uniform(0.35, 0.75)
+            i, j = round(math.cos(t) * a * f), round(math.sin(t) * b * f)
+            if math.hypot(i - ex, j - ey) > 14 and free(i, j, 1, 1, 2):
+                lay(i, j, tiles.GROVE_FIRE)
+                props["fires"].append((cx + i + 0.5, cy + j + 0.5))
+                break
+    # The lookalike trees: each needs room for its figure (5 x 6 tiles round
+    # its trunk) and keeps GROVE_TREE_GAP from the others.
+    gap = config.GROVE_TREE_GAP
+    tries = 0
+    while len(props["trees"]) < config.GROVE_TREES and tries < 4000:
+        tries += 1
+        u, v = rng.uniform(-0.92, 0.92), rng.uniform(-0.92, 0.92)
+        if u * u + v * v > 0.8:
+            continue
+        i, j = round(u * a), round(v * b)            # (its trunk tile)
+        x, y = cx + i + 0.5, cy + j - 2 + 0.5
+        if math.hypot(i - ex, j - ey) < config.OAK_GATE_GAP or not free(i - 2, j - 4, 5, 5, 0):
+            continue
+        if any(math.hypot(x - tx, y - ty) < gap for tx, ty in props["trees"]):
+            continue
+        if any(math.hypot(x - fx, y - fy) < 5.0 for fx, fy in props["fires"]):
+            continue
+        lay(i, j, tiles.GROVE_TRUNK)
+        props["trees"].append((x, y))
+    # Stumps over the floor.
+    placed = tries = 0
+    while placed < config.GROVE_STUMPS and tries < 2000:
+        tries += 1
+        u, v = rng.uniform(-0.9, 0.9), rng.uniform(-0.9, 0.9)
+        if u * u + v * v > 0.85:
+            continue
+        i, j = round(u * a), round(v * b)
+        if math.hypot(i - ex, j - ey) > 18 and free(i, j, 1, 1, 2) and \
+                all(math.hypot(cx + i - tx, cy + j - ty) > 4 for tx, ty in props["trees"]):
+            lay(i, j, tiles.STUMP)
+            placed += 1
+
+    gl = math.hypot(ex, ey) or 1.0
+    sx, sy = ex / gl * 16.0, ey / gl * 6.0
+    return Landmark("still_grove", "lair", quest.biome, quest.lair_name or "LAIR", shell.x0,
+                    shell.y0, shell.rows, cx=cx, cy=cy, spots=[(cx + sx + 0.5, cy + sy + 0.5)],
+                    gate=shell.gate, radii=(float(a), float(b)), floor=floor, props=props)
+
+
+def _amanita_ring(layout, quest, rng: random.Random, avoid: list) -> Landmark | None:
+    """Mycelium the fly agaric's lair (M26.1): the arena's oval in a wall of
+    giant mushrooms round bare mycelium. NET_RINGS fruiting rings -- a node
+    (solid, breakable) in a ring of little red mushrooms -- the middle one
+    and the rest round it NET_RING of the way out, joined by threads
+    (props["rings"], props["threads"]); AMANITA_SHROOMS giant mushrooms for
+    cover, off the threads. It waits toward the gate."""
+    from ..systems.patterns import point_segment_distance
+    floor = tiles.MYCELIUM
+    shell = _arena_shell(layout, quest, rng, avoid, floor, tiles.SHROOM_WALL)
+    if shell is None:
+        return None
+    a, b = config.LAIR_RADII
+    ex, ey = shell.ex, shell.ey
+    put = shell.put
+    cx, cy = shell.cx, shell.cy
+
+    def lay(i: int, j: int, tile: TileType) -> None:
+        put(i, j, tile, floor) or put(i, j, tile, tiles.RING_SHROOMS)
+
+    # The rings: the middle, then the rest round it (pulled in if one
+    # would sit by the gate).
+    spots = [(0, 0)]
+    n = config.NET_RINGS - 1
+    turn = rng.uniform(0, math.tau)
+    for k in range(n):
+        t = turn + k * math.tau / n
+        for f in (config.NET_RING, config.NET_RING * 0.75, config.NET_RING * 0.5):
+            i, j = round(math.cos(t) * a * f), round(math.sin(t) * b * f)
+            if math.hypot(i - ex, j - ey) > 18:
+                break
+        spots.append((i, j))
+    for i, j in spots:
+        for dj in range(-3, 4):
+            for di in range(-5, 6):
+                if abs(math.hypot(di / 1.7, dj) - 2.6) < 0.6:
+                    put(i + di, j + dj, tiles.RING_SHROOMS, floor)
+        put(i, j, tiles.NET_NODE, floor) or put(i, j, tiles.NET_NODE, tiles.RING_SHROOMS)
+    rings = [(cx + i + 0.5, cy + j + 0.5) for i, j in spots]
+    threads = [(0, k) for k in range(1, len(rings))] + \
+        [(k, k % n + 1) for k in range(1, len(rings))]
+    # Giant mushrooms: cover, off the threads and the rings.
+    placed = tries = 0
+    while placed < config.AMANITA_SHROOMS and tries < 3000:
+        tries += 1
+        u, v = rng.uniform(-0.9, 0.9), rng.uniform(-0.9, 0.9)
+        if u * u + v * v > 0.85:
+            continue
+        i, j = round(u * a), round(v * b)
+        x, y = cx + i + 0.5, cy + j + 0.5
+        if math.hypot(i - ex, j - ey) < 18 or any(math.hypot(x - rx, y - ry) < 6
+                                                  for rx, ry in rings):
+            continue
+        if any(point_segment_distance(x, y, *rings[p], *rings[q]) < 3 for p, q in threads):
+            continue
+        ii, jj = cx + i - shell.x0, cy + j - shell.y0
+        if all(shell.rows[jj + dj][ii + di] is floor for dj in (-1, 0, 1) for di in (-1, 0, 1, 2)):
+            lay(i, j, tiles.GIANT_SHROOM)
+            lay(i + 1, j, tiles.GIANT_SHROOM)
+            placed += 1
+
+    gl = math.hypot(ex, ey) or 1.0
+    sx, sy = ex / gl * 20.0, ey / gl * 8.0
+    return Landmark("amanita_ring", "lair", quest.biome, quest.lair_name or "LAIR", shell.x0,
+                    shell.y0, shell.rows, cx=cx, cy=cy, spots=[(cx + sx + 0.5, cy + sy + 0.5)],
+                    gate=shell.gate, radii=(float(a), float(b)), floor=floor,
+                    props={"rings": rings, "threads": threads})
+
+
+def _inkcap_ring(layout, quest, rng: random.Random, avoid: list) -> Landmark | None:
+    """Mycelium the shaggy ink cap's lair (M26.2): the arena's oval in a wall
+    of giant mushrooms round mycelium, with patches of old cracked paving
+    (ink caps push up through stone) and ink stains where a noise is high;
+    INKCAP_SHROOMS giant mushrooms (2 wide) for cover. It waits toward the
+    gate."""
+    floor = tiles.MYCELIUM
+    shell = _arena_shell(layout, quest, rng, avoid, floor, tiles.SHROOM_WALL)
+    if shell is None:
+        return None
+    a, b = config.LAIR_RADII
+    ex, ey = shell.ex, shell.ey
+    cx, cy = shell.cx, shell.cy
+    xs = (np.arange(shell.x0, shell.x0 + shell.W) + 0.5)[None, :]
+    ys = (np.arange(shell.y0, shell.y0 + shell.H) + 0.5)[:, None]
+    pave = fbm(layout.seed, _SALT_REEDS + 17, xs, ys, 14.0, 2)
+    ink = fbm(layout.seed, _SALT_REEDS + 19, xs, ys, 6.0, 2)
+    for j in range(shell.H):
+        for i in range(shell.W):
+            if shell.rows[j][i] is not floor or shell.inner[j, i] >= 0.97:
+                continue
+            if pave[j, i] > 0.6:
+                shell.rows[j][i] = tiles.OLD_PAVING
+            elif ink[j, i] > 0.72:
+                shell.rows[j][i] = tiles.INK_STAIN
+    placed = tries = 0
+    while placed < config.INKCAP_SHROOMS and tries < 3000:
+        tries += 1
+        u, v = rng.uniform(-0.9, 0.9), rng.uniform(-0.9, 0.9)
+        if u * u + v * v > 0.85:
+            continue
+        i, j = round(u * a), round(v * b)
+        if math.hypot(i - ex, j - ey) < 18 or math.hypot(i, j * 2.5) < 14:
+            continue
+        ii, jj = cx + i - shell.x0, cy + j - shell.y0
+        if all(shell.rows[jj + dj][ii + di] in (floor, tiles.OLD_PAVING, tiles.INK_STAIN)
+               for dj in (-1, 0, 1) for di in (-1, 0, 1, 2)):
+            shell.rows[jj][ii] = tiles.GIANT_SHROOM
+            shell.rows[jj][ii + 1] = tiles.GIANT_SHROOM
+            placed += 1
+    gl = math.hypot(ex, ey) or 1.0
+    sx, sy = ex / gl * 20.0, ey / gl * 8.0
+    return Landmark("inkcap_ring", "lair", quest.biome, quest.lair_name or "LAIR", shell.x0,
+                    shell.y0, shell.rows, cx=cx, cy=cy, spots=[(cx + sx + 0.5, cy + sy + 0.5)],
+                    gate=shell.gate, radii=(float(a), float(b)), floor=floor, props={})
+
+
+def _puffball_field(layout, quest, rng: random.Random, avoid: list) -> Landmark | None:
+    """Mycelium the giant puffball's lair (M26.3): the arena's oval in a wall
+    of giant mushrooms round mycelium with drifts of spore dust;
+    PUFF_BOULDERS clusters of boulders (cover from its wind and its bursts)
+    and PUFF_SHROOMS giant mushrooms. It waits toward the gate."""
+    floor = tiles.MYCELIUM
+    shell = _arena_shell(layout, quest, rng, avoid, floor, tiles.SHROOM_WALL)
+    if shell is None:
+        return None
+    a, b = config.LAIR_RADII
+    ex, ey = shell.ex, shell.ey
+    cx, cy = shell.cx, shell.cy
+    xs = (np.arange(shell.x0, shell.x0 + shell.W) + 0.5)[None, :]
+    ys = (np.arange(shell.y0, shell.y0 + shell.H) + 0.5)[:, None]
+    dust = fbm(layout.seed, _SALT_REEDS + 23, xs, ys, 10.0, 2)
+    for j in range(shell.H):
+        for i in range(shell.W):
+            if shell.rows[j][i] is floor and shell.inner[j, i] < 0.97 and dust[j, i] > 0.62:
+                shell.rows[j][i] = tiles.SPORE_DUST
+
+    def free(i0: int, j0: int, w: int, h: int, pad: int = 1) -> bool:
+        for j in range(j0 - pad, j0 + h + pad):
+            for i in range(i0 - pad, i0 + w + pad):
+                ii, jj = cx + i - shell.x0, cy + j - shell.y0
+                if not (0 <= jj < shell.H and 0 <= ii < shell.W) or \
+                        shell.rows[jj][ii] not in (floor, tiles.SPORE_DUST):
+                    return False
+        return True
+
+    def lay(i: int, j: int, tile: TileType) -> None:
+        ii, jj = cx + i - shell.x0, cy + j - shell.y0
+        shell.rows[jj][ii] = tile
+
+    # Boulder clusters: a lumpy 3-4 x 2 block each.
+    placed = tries = 0
+    while placed < config.PUFF_BOULDERS and tries < 3000:
+        tries += 1
+        u, v = rng.uniform(-0.85, 0.85), rng.uniform(-0.85, 0.85)
+        if u * u + v * v > 0.75:
+            continue
+        i, j = round(u * a), round(v * b)
+        w = rng.choice((3, 4))
+        if math.hypot(i - ex, j - ey) < 20 or math.hypot(i, j * 2.5) < 14 or \
+                not free(i, j, w, 2, 3):
+            continue
+        for dj in range(2):
+            for di in range(w):
+                if (di, dj) not in ((0, 1), (w - 1, 0)) or rng.random() < 0.5:
+                    lay(i + di, j + dj, tiles.ROCK)
+        placed += 1
+    placed = tries = 0
+    while placed < config.PUFF_SHROOMS and tries < 2000:
+        tries += 1
+        u, v = rng.uniform(-0.85, 0.85), rng.uniform(-0.85, 0.85)
+        if u * u + v * v > 0.8:
+            continue
+        i, j = round(u * a), round(v * b)
+        if math.hypot(i - ex, j - ey) < 18 or not free(i, j, 2, 1, 2):
+            continue
+        lay(i, j, tiles.GIANT_SHROOM)
+        lay(i + 1, j, tiles.GIANT_SHROOM)
+        placed += 1
+    gl = math.hypot(ex, ey) or 1.0
+    sx, sy = ex / gl * 20.0, ey / gl * 8.0
+    return Landmark("puffball_field", "lair", quest.biome, quest.lair_name or "LAIR", shell.x0,
+                    shell.y0, shell.rows, cx=cx, cy=cy, spots=[(cx + sx + 0.5, cy + sy + 0.5)],
+                    gate=shell.gate, radii=(float(a), float(b)), floor=floor, props={})
+
+
+def _necropolis(layout, quest, rng: random.Random, avoid: list) -> Landmark | None:
+    """More than Life's necropolis (M27): at the island's centre, NECRO_RADII
+    (twice a ring lair), walled in crypt stone, its gate to the south --
+    sealed with bone until the guardians fall (Quests opens it). Grave soil
+    and bone litter; rows of gravestones (cover: props["graves"]),
+    mausoleums, a ritual ring in the middle where he waits, and old corpses
+    lying about (props["corpses"])."""
+    floor = tiles.GRAVE_SOIL
+    a, b = config.NECRO_RADII
+    shell = _arena_shell(layout, quest, rng, avoid, floor, tiles.CRYPT_WALL, site=(0, 0),
+                         radii=(a, b), gate_dir=math.pi / 2)
+    if shell is None:
+        return None
+    cx, cy = shell.cx, shell.cy
+    ex, ey = shell.ex, shell.ey
+    xs = (np.arange(shell.x0, shell.x0 + shell.W) + 0.5)[None, :]
+    ys = (np.arange(shell.y0, shell.y0 + shell.H) + 0.5)[:, None]
+    litter = fbm(layout.seed, _SALT_REEDS + 29, xs, ys, 8.0, 2)
+    for j in range(shell.H):
+        for i in range(shell.W):
+            if shell.rows[j][i] is floor and shell.inner[j, i] < 0.97 and litter[j, i] > 0.72:
+                shell.rows[j][i] = tiles.BONE_LITTER
+    open_ = (floor, tiles.BONE_LITTER)
+
+    def at(i: int, j: int):
+        ii, jj = cx + i - shell.x0, cy + j - shell.y0
+        if 0 <= jj < shell.H and 0 <= ii < shell.W:
+            return shell.rows[jj][ii]
+        return None
+
+    def lay(i: int, j: int, tile: TileType) -> None:
+        shell.rows[cy + j - shell.y0][cx + i - shell.x0] = tile
+
+    def free(i0: int, j0: int, w: int, h: int, pad: int = 1) -> bool:
+        return all(at(i, j) in open_ for j in range(j0 - pad, j0 + h + pad)
+                   for i in range(i0 - pad, i0 + w + pad))
+
+    # The ritual ring in the middle.
+    for j in range(-6, 7):
+        for i in range(-14, 15):
+            if abs(math.hypot(i / 2.2, j) - 5.5) < 0.6:
+                lay(i, j, tiles.RITUAL_RING)
+    props: dict = {"graves": [], "corpses": []}
+    # Mausoleums.
+    placed = tries = 0
+    while placed < config.NECRO_TOMBS and tries < 3000:
+        tries += 1
+        u, v = rng.uniform(-0.85, 0.85), rng.uniform(-0.85, 0.85)
+        if u * u + v * v > 0.75:
+            continue
+        i, j = round(u * a), round(v * b)
+        if math.hypot(i - ex, j - ey) < 30 or math.hypot(i / 2.2, j) < 14 or \
+                not free(i, j, 5, 3, 3):
+            continue
+        for dj in range(3):
+            for di in range(5):
+                lay(i + di, j + dj, tiles.MAUSOLEUM)
+        placed += 1
+    # Rows of graves, a few tiles apart.
+    placed = tries = 0
+    while placed < config.NECRO_GRAVES and tries < 6000:
+        tries += 1
+        u, v = rng.uniform(-0.9, 0.9), rng.uniform(-0.9, 0.9)
+        if u * u + v * v > 0.8:
+            continue
+        i, j = round(u * a), round(v * b)
+        n = rng.randint(4, 7)
+        step = rng.choice((3, 4))
+        if math.hypot(i - ex, j - ey) < 24 or math.hypot(i / 2.2, j) < 10 or \
+                not free(i, j, n * step, 1, 2):
+            continue
+        for k in range(n):
+            lay(i + k * step, j, tiles.GRAVESTONE)
+            props["graves"].append((cx + i + k * step + 0.5, cy + j + 0.5))
+        placed += 1
+    # Old corpses lying about (drawn; not tiles).
+    tries = 0
+    while len(props["corpses"]) < config.NECRO_CORPSES and tries < 3000:
+        tries += 1
+        u, v = rng.uniform(-0.85, 0.85), rng.uniform(-0.85, 0.85)
+        if u * u + v * v > 0.7:
+            continue
+        i, j = round(u * a), round(v * b)
+        if at(i, j) in open_ and math.hypot(i / 2.2, j) > 8:
+            props["corpses"].append((cx + i + 0.5, cy + j + 0.5))
+    # The gate, sealed with bone (Quests opens it once the guardians fall).
+    for tx, ty in shell.gate:
+        shell.rows[ty - shell.y0][tx - shell.x0] = tiles.SEALED_GATE
+    return Landmark("necropolis", "lair", quest.biome, quest.lair_name or "LAIR", shell.x0,
+                    shell.y0, shell.rows, cx=cx, cy=cy, spots=[(cx + 0.5, cy + 0.5)],
+                    gate=shell.gate, radii=(float(a), float(b)), floor=floor, props=props)
+
+
 BUILDERS = {key: (lambda layout, q, rng, avoid, key=key: _camp(layout, q, rng, avoid, key))
             for key in CAMP_STYLES}
 BUILDERS.update({key: (lambda layout, q, rng, avoid, key=key: _lair(layout, q, rng, avoid, key))
@@ -1188,3 +1704,10 @@ BUILDERS["reactor_vault"] = _reactor_vault
 BUILDERS["throne_hall"] = _throne_hall
 BUILDERS["ballroom"] = _ballroom
 BUILDERS["glade"] = _glade
+BUILDERS["hollow_oak"] = _hollow_oak
+BUILDERS["still_grove"] = _still_grove
+BUILDERS["amanita_ring"] = _amanita_ring
+BUILDERS["inkcap_ring"] = _inkcap_ring
+BUILDERS["puffball_field"] = _puffball_field
+BUILDERS["necropolis"] = _necropolis
+BUILDERS["none"] = lambda layout, q, rng, avoid: None      # (M27: a quest with no camp)

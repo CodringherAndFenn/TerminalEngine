@@ -95,6 +95,40 @@ her ruined ballroom, a signature a phase, each kept: sunlight (open the
 shutters: she burns in the shafts), then shapeshifting (bats, a wolf,
 herself), then on the beat (roll on a beat to stun her). Beaten, she sits
 down and cries: give her back Mr. Buttons.
+
+Nettle, the Blighted (forest, M25.1): a corrupted pixie in her withered
+glade: glamour copies, shrinking dust, then blight seeds.
+
+Love & Cuddles (forest, M25.2): a fluffy pink squirrel with a cleaver
+behind its back, in the hollow oak: its hoard of buried acorns (steal
+them), then the treetops (shake it out of its tree), then tripwires and
+a frenzy together. Between them: the cleaver spin, acorn barrages,
+pinecone bombs and its squirrel gang.
+
+The Fallen (forest, M25.3): a tall branchy tree with one eye, in the still
+grove among lookalike trees: it hides among them (find the eye), then its
+roots grab (fires sear them), then its maw swallows your shots and spits
+them back. Between them: branch sweeps, uproot charges, leaf storms, sap
+and bark beetles.
+
+Mycelium (mushroom, M26): one of three real mushrooms, only ever called
+"Mycelium". M26.1, the fly agaric: warts armour its cap (shoot them off),
+then it travels its mycelial network between fruiting rings, then trip
+spores and a fly lure. Between them: cap slams, spore volleys, toadstool
+sprouts and the stem spin.
+M26.2, the shaggy ink cap: it melts into ink pools, then throws ink blots
+(blinding), then scrawls words that burst and pushes up ink-cap clusters.
+Between them: scale volleys, ink spray, bursting up and the shaggy shake.
+M26.3, the giant puffball: a puffball minefield (pop them next to it),
+then bounding, then the spore wind and splitting in two. Between them:
+rolls, puff rings, spore mortars and the squash.
+
+More than Life (plains, M27): the necromancer in his necropolis at the
+island's centre, the main quest's last boss -- and, beaten once, More than
+Death, the lich his soul rises as. Raised dead and corpse explosions, bone
+walls, death's gaze and his legion; then soul storms, soul harvest,
+possession and bone cages. Moves: bone spears, skull fire, grasping hands
+and the scythe reap.
 """
 
 from __future__ import annotations
@@ -5815,3 +5849,4245 @@ class Nettle(Boss):
             self.ctx.effects.append(Effect("nova", x, y, size=1.5))
         self.ctx.events.append("hex")
         yield 0.2
+
+
+class LoveCuddles(Boss):
+    """A round, fluffy pink squirrel with a heart-patterned bow and a cleaver
+    hidden behind its back, in the hollow oak (design/BOSSES.md section
+    25). Phase 1 is the hoard; phase 2 adds the treetops; phase 3 adds
+    the tripwires and the frenzy (each kept):
+
+    1. THE HOARD (all fight): every HOARD_EVERY s it buries acorns in
+       mounds round its target. Between moves it runs for the nearest
+       mound and digs it up (standing still a moment): each acorn held
+       makes it hit harder and scuttle faster (the bar counts them). Walk
+       over a mound first to steal it.
+    2. TREETOPS (phase 2+): every TREE_EVERY s it scurries up the nearest
+       big oak -- out of reach -- and pelts acorns, leaping tree to tree
+       (a line first). Hit the trunk it's in (shots, swings) and the tree
+       shakes (a shot into its crown counts too, and the shaking stays
+       with it as it leaps); shaken enough, it falls out, hurt and dazed,
+       spilling acorns. Left alone, it comes down pouncing.
+    3. TRIPWIRES (phase 3): every WIRE_EVERY s it strings glinting wires
+       between the oaks near you. Walk across one (a roll hops it) and a
+       log swings down along it. Shoot a wire to cut it.
+    4. FRENZY (phase 3): a madness meter fills as it hits and is hit.
+       Full, it dashes about in a zigzag with its cleaver (each line shown
+       first), then collapses panting: wide open (FRENZY_VULN x damage).
+
+    Its own moves: the cleaver spin (a ring of blades round it as it
+    scuttles at you; flung out at the end), the acorn barrage (cheeks
+    puffed; three fans, turning), pinecone bombs (lobbed onto marked
+    spots, bursting into splinters) and the squirrel gang (rabid
+    squirrels out of the trees). It scuttles round its target between
+    moves, and on (slower) through them (M24.5)."""
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.LOVE_HIT_RADIUS)
+        self.shots = config.LOVE_SHOTS
+        self.hoard = 0
+        self.mounds: list[list[float]] = []     # [x, y]
+        self.digging = 0.0                      # s spent digging at the nearest mound
+        self.dig_for = 0.0                      # s spent going for mounds since the last move
+        self.hoard_t = config.HOARD_EVERY * 0.4
+        self.tree: int | None = None            # the oak it's up (props["trees"] index)
+        self.shake = 0.0                        # damage its tree's trunk has taken
+        self._seen = 0.0                        # (the trunk's damage when last looked)
+        self.shook = 0.0                        # drawing: the crown shaking
+        self.tree_t = config.TREE_EVERY * 0.5
+        self.leap: tuple | None = None          # a leap's line (x0, y0, x1, y1) (the tell)
+        self.pounce: tuple | None = None        # where it'll land coming down (the tell)
+        self.wires: list[list[float]] = []      # [x0, y0, x1, y1, age]
+        self.logs: list[list] = []              # [x0, y0, x1, y1, s since tripped, hit set]
+        self.wire_t = config.WIRE_EVERY * 0.5
+        self.madness = 0.0
+        self.panting = False
+        self.spin: float | None = None          # the blades' turn while it spins
+        self.cones: list[list[float]] = []      # [x0, y0, x1, y1, s flown, s flight]
+        self.dashing = False
+        self.circle_dir = 1
+        self.circle_t = 0.0
+        self._last: dict[int, tuple[float, float]] = {}   # hero id -> last step's spot
+        self._caught: dict[int, object] = {}    # shots its tree's crown has caught (held, so
+                                                # a new shot never gets a dead one's id)
+
+    # --- Helpers ------------------------------------------------------------------------
+
+    @property
+    def props(self) -> dict:
+        return self.lair.props if self.lair is not None else {}
+
+    @property
+    def trees(self) -> list:
+        return self.props.get("trees", [])
+
+    @property
+    def up(self) -> bool:
+        return self.tree is not None
+
+    def _solid(self, x: float, y: float) -> bool:
+        t = self.ctx.world.tile_at(math.floor(x), math.floor(y))
+        return t is None or t.solid
+
+    def _room(self, x: float, y: float) -> bool:
+        """Somewhere it fits on the ground: in the arena, nothing solid at
+        its middle or a tile out on either side."""
+        if self.lair is not None and not self.lair.inside(x, y, 1.0):
+            return False
+        return not any(self._solid(x + dx, y + dy) for dx, dy in
+                       ((0, 0), (0.9, 0), (-0.9, 0), (0, 0.6), (0, -0.6)))
+
+    def speed(self) -> float:
+        return config.LOVE_SCUTTLE[3] * (1 + config.HOARD_SPEED * self.hoard)
+
+    def _set_hoard(self, n: int) -> None:
+        """Acorns held (0..HOARD_MAX): each one, harder hits."""
+        n = max(0, min(config.HOARD_MAX, n))
+        k = config.HOARD_DMG
+        self.damage_mult *= (1 + k * n) / (1 + k * self.hoard)
+        self.hoard = n
+
+    def _spill(self) -> None:
+        """Knocked about: HOARD_SPILL of its acorns go flying (lost)."""
+        lose = math.ceil(self.hoard * config.HOARD_SPILL)
+        if lose <= 0:
+            return
+        self._set_hoard(self.hoard - lose)
+        for k in range(min(6, lose * 2)):
+            a = k * math.tau / min(6, lose * 2)
+            self.ctx.effects.append(Effect("debris", self.x + math.cos(a) * 1.5,
+                                           self.y + math.sin(a)))
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 3.5,
+                                       label=f"-{lose} ACORN{'S' if lose > 1 else ''}"))
+
+    def _madden(self, amount: float) -> None:
+        if self.phase >= 2 and not self.panting and self.move != "frenzy":
+            self.madness = min(1.0, self.madness + amount)
+
+    def _hit(self, h, damage: float, angle) -> float:
+        dealt = combat.strike(h, damage * self.damage_mult, self, angle, self.ctx.effects)
+        if dealt:
+            self._madden(config.FRENZY_HIT)
+        return dealt or 0.0
+
+    def on_shot_hit(self, victim, dealt: float, angle=None) -> None:
+        if dealt:
+            self._madden(config.FRENZY_HIT)
+
+    def take_damage(self, amount: float, source=None, from_angle=None) -> float:
+        if self.panting:
+            amount *= config.FRENZY_VULN
+        dealt = super().take_damage(amount, source, from_angle)
+        if dealt and self.max_hp:
+            self._madden(config.FRENZY_HURT * dealt / self.max_hp)
+        return dealt
+
+    def shove_heroes(self, extra: float = 0.3) -> None:
+        if not self.dashing:                    # (a dash must reach you to hit)
+            super().shove_heroes(extra)
+
+    def _toward(self, x: float, y: float, step: float) -> bool:
+        """One step toward (x, y), sidestepping what's in the way; False if
+        it couldn't move."""
+        a = math.atan2(y - self.y, x - self.x)
+        step = min(step, math.hypot(x - self.x, y - self.y))
+        for turn in (0.0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5):
+            nx, ny = self.x + math.cos(a + turn) * step, self.y + math.sin(a + turn) * step
+            if self._room(nx, ny):
+                self.x, self.y = nx, ny
+                return True
+        return False
+
+    def _scuttle(self, t, dt: float, mult: float) -> None:
+        """Round its target at LOVE_SCUTTLE's distance, turning about now and
+        then or when the way round is blocked."""
+        near, far, every, _, _ = config.LOVE_SCUTTLE
+        self.circle_t -= dt
+        if self.circle_t <= 0:
+            self.circle_dir = -self.circle_dir
+            self.circle_t = self.rng.uniform(*every)
+        d = math.hypot(t.x - self.x, t.y - self.y)
+        out = math.atan2(self.y - t.y, self.x - t.x)
+        bend = 0.8 if d < near else (-0.8 if d > far else 0.0)
+        a = out + self.circle_dir * (math.pi / 2 - bend)
+        step = self.speed() * mult * dt
+        for turn in (0.0, 0.5, -0.5, 1.0, -1.0):
+            nx, ny = self.x + math.cos(a + turn) * step, self.y + math.sin(a + turn) * step
+            if self._room(nx, ny):
+                self.x, self.y = nx, ny
+                return
+        self.circle_dir = -self.circle_dir
+
+    def trunk_tiles(self, i: int) -> list[tuple[int, int]]:
+        x, y = self.trees[i]
+        tx, ty = math.floor(x) - 1, math.floor(y) - 1
+        return [(tx, ty), (tx + 1, ty), (tx, ty + 1), (tx + 1, ty + 1)]
+
+    def _trunk_damage(self, i: int) -> float:
+        """How much oak tree i's trunk has been hit, all told (the tiles'
+        lost hit points: world.hp_at)."""
+        from ..world import tiles
+        hp_at = getattr(self.ctx.world, "hp_at", None)
+        if hp_at is None:
+            return 0.0
+        full = tiles.OAK_TRUNK.hp
+        return sum(full - hp for hp in (hp_at(tx, ty) for tx, ty in self.trunk_tiles(i))
+                   if hp is not None)
+
+    def _climb(self, i: int, fresh: bool = True) -> None:
+        """Up oak i: out of reach, its tree's hits counted from now -- the
+        shake so far kept when it only leapt across (`fresh` False)."""
+        self.tree = i
+        self.x, self.y = self.trees[i]
+        self.airborne = 1.0
+        if fresh:
+            self.shake = 0.0
+        self._seen = self._trunk_damage(i)
+        self._caught = {}
+
+    def _get_down(self, x: float, y: float) -> None:
+        self.tree = None
+        self.airborne = 0.0
+        self.x, self.y = x, y
+        if not self._room(x, y):                # (beside the trunk, never in it)
+            for r in (1.5, 2.5, 3.5):
+                for k in range(8):
+                    a = k * math.tau / 8 + math.pi / 2
+                    nx, ny = x + math.cos(a) * r, y + math.sin(a) * r
+                    if self._room(nx, ny):
+                        self.x, self.y = nx, ny
+                        return
+
+    # --- Every step ---------------------------------------------------------------------
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.ctx = ctx
+        self.shook = max(0.0, self.shook - dt)
+        self._tick_mounds(dt)
+        self._tick_wires(dt)
+        self._tick_cones(dt)
+        self._watch_tree()
+        if self.phase >= 2:
+            self._madden(config.FRENZY_TIME * dt)
+        g = self.drift_target()
+        if g is not None and self.dazed <= 0 and not self.dashing and not self.up \
+                and not self.panting:
+            if self._gen is None and self._go_dig(dt):
+                pass                                # (between moves: after its acorns)
+            elif self.move not in ("treetop", "frenzy"):
+                mult = 1.0 if self._gen is None else config.LOVE_SCUTTLE[4]
+                self._scuttle(g, dt, mult)
+            if not self.digging:
+                self.facing = math.atan2(g.y - self.y, g.x - self.x)
+        self.hoard_t -= dt                          # (its signatures' timers run on
+        if self.phase >= 1:                         # through its moves; each starts
+            self.tree_t -= dt                       # once it's free)
+        if self.phase >= 2:
+            self.wire_t -= dt
+        if self._gen is None and self.dazed <= 0 and not self.digging:
+            start = None
+            if self.phase >= 2 and self.madness >= 1.0:
+                start = "frenzy"
+            elif self.phase >= 1 and self.tree_t <= 0 and self.trees:
+                self.tree_t = config.TREE_EVERY
+                start = "treetop"
+            elif self.hoard_t <= 0:
+                self.hoard_t = config.HOARD_EVERY
+                start = "bury"
+            elif self.phase >= 2 and self.wire_t <= 0 and len(self.trees) >= 2:
+                self.wire_t = config.WIRE_EVERY
+                start = "string"
+            if start is not None:
+                self._start(start)
+                self._wait = 0.0
+        super().think(ctx, dt)
+
+    def _end_move(self) -> None:
+        super()._end_move()
+        self.dashing = False
+        self.leap = None
+        self.pounce = None
+        self.spin = None
+        self.dig_for = 0.0
+
+    def on_phase(self, phase: int, ctx: AIContext) -> None:
+        label = ("UP THE TREES IT GOES!", "IT'S LOSING IT...")[min(phase, 2) - 1] \
+            if phase else ""
+        if label:
+            ctx.effects.append(Effect("toast", self.x, self.y - 3, label=label))
+
+    def _go_dig(self, dt: float) -> bool:
+        """Between moves: run for the nearest mound (within HOARD_NEAR[1] x 2
+        tiles) and dig it up, holding its next move off meanwhile. Gives up
+        after a few seconds of not getting there."""
+        if not self.mounds or self.dig_for > 4.0:
+            self.digging = 0.0
+            return False
+        m = min(self.mounds, key=lambda m: math.hypot(m[0] - self.x, m[1] - self.y))
+        d = math.hypot(m[0] - self.x, m[1] - self.y)
+        if d > config.HOARD_NEAR[1] * 2:
+            self.digging = 0.0
+            return False
+        self._rest = max(self._rest, 0.1)
+        if d > 1.0:
+            self.digging = 0.0
+            self.dig_for += dt
+            if not self._toward(m[0], m[1], self.speed() * 1.3 * dt):
+                self.dig_for += dt * 4
+            self.facing = math.atan2(m[1] - self.y, m[0] - self.x)
+            return True
+        self.digging += dt
+        if self.digging >= config.HOARD_DIG:
+            self.digging = 0.0
+            self.dig_for = 0.0
+            self.mounds.remove(m)
+            self._set_hoard(self.hoard + 1)
+            self.ctx.effects.append(Effect("toast", self.x, self.y - 3.5,
+                                           label=f"ACORN! ({self.hoard})"))
+            self.ctx.events.append("chime")
+        return True
+
+    def _tick_mounds(self, dt: float) -> None:
+        """A hero walking over a mound steals its acorn."""
+        keep = []
+        for m in self.mounds:
+            thief = next((h for h in self.ctx.players if h.alive and self.in_arena(h)
+                          and math.hypot(h.x - m[0], h.y - m[1]) <= config.HOARD_STEAL), None)
+            if thief is None:
+                keep.append(m)
+                continue
+            thief.heal(config.HOARD_HEAL)
+            self.ctx.effects.append(Effect("toast", m[0], m[1] - 2, label="STOLEN!"))
+            self.ctx.effects.append(Effect("nova", m[0], m[1], size=1.5))
+            self.ctx.events.append("chime")
+        if len(keep) != len(self.mounds):
+            self.digging = 0.0
+        self.mounds = keep
+
+    def _watch_tree(self) -> None:
+        """Up a tree: what's hit its trunk since last step shakes it -- and
+        any hero's shot flying into its crown (TREE_CROWN tiles round the
+        trunk) hits the tree too (stopped there, but for a boomerang)."""
+        if self.tree is None or self.leap is not None:
+            return
+        seen = self._trunk_damage(self.tree)
+        if seen > self._seen:
+            self.shake += seen - self._seen
+            self.shook = 0.3
+        self._seen = seen
+        tx, ty = self.trees[self.tree]
+        heroes = [h for h in self.ctx.players if h.alive]
+        live = {id(p) for p in self.ctx.projectiles}
+        self._caught = {k: p for k, p in self._caught.items() if k in live}
+        for p in self.ctx.projectiles:
+            if id(p) in self._caught or p.owner not in heroes or not getattr(p, "alive", True) \
+                    or p.spec.lob or math.hypot(p.x - tx, (p.y - ty) * 1.4) > config.TREE_CROWN:
+                continue
+            self._caught[id(p)] = p
+            self.shake += combat.outgoing(p.owner, p.damage, p.tags) * p.mult
+            self.shook = 0.3
+            self.ctx.effects.append(Effect("impact", p.x, p.y))
+            if not p.spec.returns:
+                p.alive = False
+
+    def shake_frac(self) -> float:
+        need = config.TREE_SHAKE * self.max_hp
+        return min(1.0, self.shake / need) if need > 0 else 0.0
+
+    def _tick_wires(self, dt: float) -> None:
+        """Wires age (armed after a moment); a hero walking across one trips
+        it (a log swings along it); a hero's shot across one cuts it. Logs
+        sweep their wire end to end, hitting whoever is on it."""
+        from ..systems.patterns import point_segment_distance
+        for w in self.wires:
+            w[4] += dt
+        heroes = [h for h in self.ctx.players if h.alive and self.in_arena(h)]
+        keep = []
+        for w in self.wires:
+            cut = next((p for p in self.ctx.projectiles if p.owner in heroes and getattr(
+                p, "alive", True) and point_segment_distance(p.x, p.y, *w[:4]) <= config.WIRE_CUT),
+                None)
+            if cut is not None:
+                self.ctx.effects.append(Effect("toast", cut.x, cut.y - 1.5, label="SNAP!"))
+                self.ctx.effects.append(Effect("impact", cut.x, cut.y))
+                continue
+            tripped = None
+            if w[4] >= 0.6:
+                for h in heroes:
+                    last = self._last.get(id(h))
+                    if last is None or getattr(h, "rolling", False):
+                        continue
+                    if _crosses(last[0], last[1], h.x, h.y, *w[:4]):
+                        tripped = h
+                        break
+            if tripped is not None:
+                # The log comes from the end farther from whoever tripped it.
+                x0, y0, x1, y1 = w[:4]
+                if math.hypot(x0 - tripped.x, y0 - tripped.y) < math.hypot(x1 - tripped.x,
+                                                                         y1 - tripped.y):
+                    x0, y0, x1, y1 = x1, y1, x0, y0
+                self.logs.append([x0, y0, x1, y1, -self.tell_s(config.WIRE_LOG[0]), set()])
+                self.ctx.effects.append(Effect("toast", tripped.x, tripped.y - 2,
+                                               label="*TWANG*"))
+                self.ctx.events.append("swing")
+                continue
+            keep.append(w)
+        self.wires = keep
+        self._last = {id(h): (h.x, h.y) for h in heroes}
+        _, speed, damage, width = config.WIRE_LOG
+        live = []
+        for g in self.logs:
+            g[4] += dt
+            if g[4] < 0:
+                live.append(g)
+                continue
+            length = math.hypot(g[2] - g[0], g[3] - g[1]) or 1.0
+            gone = g[4] * speed
+            if gone > length:
+                continue
+            lx, ly = g[0] + (g[2] - g[0]) * gone / length, g[1] + (g[3] - g[1]) * gone / length
+            a = math.atan2(g[3] - g[1], g[2] - g[0])
+            for h in heroes:
+                if h.hittable and id(h) not in g[5] and \
+                        math.hypot(h.x - lx, h.y - ly) <= width + h.hit_radius:
+                    g[5].add(id(h))
+                    self._hit(h, damage, a)
+                    combat.push(h, self.ctx.world, math.cos(a) * 1.5, math.sin(a) * 1.5)
+            live.append(g)
+        self.logs = live
+
+    def log_at(self, g) -> tuple[float, float] | None:
+        """Where a swinging log is (None while it creaks)."""
+        if g[4] < 0:
+            return None
+        length = math.hypot(g[2] - g[0], g[3] - g[1]) or 1.0
+        gone = min(length, g[4] * config.WIRE_LOG[1])
+        return g[0] + (g[2] - g[0]) * gone / length, g[1] + (g[3] - g[1]) * gone / length
+
+    def _tick_cones(self, dt: float) -> None:
+        """Pinecones come down where they were marked, and burst."""
+        _, _, radius, damage, splinters, _ = config.LOVE_CONES
+        keep = []
+        for c in self.cones:
+            c[4] += dt
+            if c[4] < c[5]:
+                keep.append(c)
+                continue
+            x, y = c[2], c[3]
+            self.ctx.effects.append(Effect("explosion", x, y))
+            for h in self.ctx.players:
+                if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius:
+                    self._hit(h, damage, None)
+            if self.room_for_shots():
+                patterns.radial(self, x, y, splinters, self.shots["splinter"],
+                                self.ctx.projectiles, self.rng.uniform(0, math.tau))
+            self.ctx.events.append("boulder")
+        self.cones = keep
+
+    # --- The bar, the map ---------------------------------------------------------------
+
+    @property
+    def bar_label(self) -> str:
+        if self.up:
+            return f"UP THE OAK - SHOOT THE TRUNK! {round(self.shake_frac() * 100)}%"
+        if self.panting:
+            return "PANTING - HIT IT!"
+        if self.digging:
+            return "DIGGING UP AN ACORN - STEAL THEM!"
+        out = self.espec.name
+        if self.hoard:
+            out += f" - HOARD {self.hoard}"
+        if self.phase >= 2:
+            out += f" - MADNESS {round(self.madness * 100)}%"
+        return out
+
+    def map_marks(self) -> list[tuple[float, float, str, str]]:
+        """Map pins: buried acorns, and the oak it's up."""
+        out = [(m[0], m[1], "mound", "ACORN") for m in self.mounds]
+        if self.up:
+            x, y = self.trees[self.tree]
+            out.append((x, y, "oak", "SHAKE"))
+        return out
+
+    def on_death(self, ctx: AIContext) -> None:
+        self.ctx = ctx
+        self.mounds, self.wires, self.logs, self.cones = [], [], [], []
+        self.tree = None
+        self.airborne = 0.0
+        ctx.effects.append(Effect("explosion", self.x, self.y))
+        ctx.effects.append(Effect("nova", self.x, self.y, size=4.0))
+        ctx.events.append(combat.BREAK)
+
+    # --- Signature moves ----------------------------------------------------------------
+
+    def m_bury(self):
+        """Signature 1: it digs (the tell), then acorns go into mounds round
+        its target -- to dig up later."""
+        self.tell = ("dig",)
+        yield self.tell_s(config.HOARD_TELL)
+        self.tell = None
+        t = self.target_now()
+        if t is None:
+            return
+        lo, hi = config.HOARD_NEAR
+        for _ in range(min(config.HOARD_MOUNDS, config.HOARD_MOUNDS_MAX - len(self.mounds))):
+            for _ in range(20):
+                a = self.rng.uniform(0, math.tau)
+                r = self.rng.uniform(lo, hi)
+                x, y = self.clamp_to_lair(t.x + math.cos(a) * r, t.y + math.sin(a) * r * 0.7, 3.0)
+                if not self._solid(x, y) and all(math.hypot(x - m[0], y - m[1]) > 3.0
+                                                 for m in self.mounds):
+                    self.mounds.append([x, y])
+                    self.ctx.effects.append(Effect("debris", x, y))
+                    break
+        self.ctx.events.append("boulder")
+        yield 0.3
+
+    def m_treetop(self):
+        """Signature 2: up the nearest oak (it scurries there first), then
+        acorns pelted down and leaps tree to tree -- until its tree is
+        shaken enough (it falls) or it's been up TREE_STAY s (it pounces)."""
+        trees = self.trees
+        if not trees:
+            return
+        i = min(range(len(trees)), key=lambda k: math.hypot(trees[k][0] - self.x,
+                                                             trees[k][1] - self.y))
+        foot = (trees[i][0], trees[i][1] + 1.8)
+        tt = 0.0
+        self.tell = ("scurry",)
+        while math.hypot(foot[0] - self.x, foot[1] - self.y) > 1.2 and tt < 4.0:
+            if not self._toward(*foot, config.TREE_RUN * self.dt):
+                break
+            tt += self.dt
+            yield 0
+        self.tell = None
+        self._climb(i)
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="UP THE TREE!"))
+        self.ctx.events.append("swing")
+        pelt_every, n, fan = config.TREE_PELT
+        leap_every, leap_tell, leap_speed = config.TREE_LEAP
+        stay, pelt, leap = 0.0, pelt_every, leap_every
+        need = config.TREE_SHAKE * self.max_hp
+        while stay < config.TREE_STAY:
+            if self.shake >= need:
+                break
+            t = self.target_now()
+            pelt -= self.dt
+            leap -= self.dt
+            if t is not None and pelt <= 0:
+                pelt = pelt_every
+                if self.room_for_shots():
+                    patterns.fan(self, self.x, self.y, self.aim(t, self.x, self.y, 12.0), n, fan,
+                                 self.shots["acorn"], self.ctx.projectiles)
+            if t is not None and leap <= 0 and len(trees) > 1 \
+                    and stay < config.TREE_STAY - 3.0:        # (no leap just before it's down)
+                leap = leap_every
+                j = min((k for k in range(len(trees)) if k != self.tree),
+                        key=lambda k: math.hypot(trees[k][0] - t.x, trees[k][1] - t.y))
+                x0, y0 = self.x, self.y
+                x1, y1 = trees[j]
+                self.leap = (x0, y0, x1, y1)
+                wait = self.tell_s(leap_tell)
+                yield wait
+                stay += wait
+                total = math.hypot(x1 - x0, y1 - y0) or 1.0
+                gone = 0.0
+                while gone < total:
+                    gone = min(total, gone + leap_speed * self.dt)
+                    self.x = x0 + (x1 - x0) * gone / total
+                    self.y = y0 + (y1 - y0) * gone / total
+                    stay += self.dt
+                    yield 0
+                self.leap = None
+                self._climb(j, fresh=False)
+                continue
+            stay += self.dt
+            yield 0
+        x, y = self.trees[self.tree]
+        if self.shake >= need:
+            # Shaken out: down it comes, hurt and dazed, acorns everywhere.
+            self._get_down(x, y + 2.0)
+            self.hp = max(1.0, self.hp - config.TREE_FALL * self.max_hp)
+            self.hurt_flash = 0.3
+            self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="SHAKEN OUT!"))
+            self.ctx.effects.append(Effect("nova", self.x, self.y, size=3.0))
+            self.ctx.events.append("boulder")
+            self._spill()
+            self.dazed = config.TREE_DAZE
+            yield config.TREE_DAZE
+            return
+        # Bored up there: it pounces on its target (a ring where it lands).
+        t = self.target_now()
+        tell, damage, radius = config.TREE_POUNCE
+        wait = self.tell_s(tell)
+        if t is None:
+            self._get_down(x, y + 2.0)
+            return
+        px, py = self.clamp_to_lair(*self.lead(t, x, y, secs=wait), 3.0)
+        self.pounce = (px, py)
+        yield wait
+        self.pounce = None
+        self._get_down(px, py)
+        self.ctx.effects.append(Effect("explosion", px, py))
+        for h in self.ctx.players:
+            if h.hittable and math.hypot(h.x - px, h.y - py) <= radius + h.hit_radius:
+                self._hit(h, damage, None)
+        self.ctx.events.append("boulder")
+        yield 0.5
+
+    def m_string(self):
+        """Signature 3: wires strung between the oaks (and the hollow oak)
+        nearest its target, glinting; armed a moment later."""
+        self.tell = ("string",)
+        yield self.tell_s(config.WIRE_TELL)
+        self.tell = None
+        t = self.target_now()
+        if t is None:
+            return
+        from ..systems.patterns import point_segment_distance
+        anchors = list(self.trees) + ([self.props["oak"]] if "oak" in self.props else [])
+        pairs = []
+        for a in range(len(anchors)):
+            for b in range(a + 1, len(anchors)):
+                (x0, y0), (x1, y1) = anchors[a], anchors[b]
+                if 12.0 <= math.hypot(x1 - x0, y1 - y0) <= 75.0:
+                    pairs.append((point_segment_distance(t.x, t.y, x0, y0, x1, y1),
+                                  (x0, y0, x1, y1)))
+        pairs.sort(key=lambda p: p[0])
+        have = {tuple(w[:4]) for w in self.wires}
+        room = min(config.WIRES, config.WIRE_MAX - len(self.wires))
+        for d, seg in pairs:
+            if room <= 0:
+                break
+            if seg in have or d < 2.0:          # (never right on top of you)
+                continue
+            self.wires.append([*seg, 0.0])
+            have.add(seg)
+            room -= 1
+        self.ctx.events.append("swing")
+        yield 0.3
+
+    def m_frenzy(self):
+        """Signature 4: the madness boils over -- cleaver dashes through you
+        and on past, back and forth in a zigzag (each line first), then it
+        collapses, panting, wide open."""
+        tell, dashes, speed, longest, damage, width = config.FRENZY_DASH
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="IT SNAPS!"))
+        self.tell = ("frenzy",)
+        yield self.tell_s(0.6)
+        side = self.rng.choice((-1, 1))
+        for _ in range(dashes):
+            t = self.target_now()
+            if t is None:
+                break
+            wait = self.tell_s(tell)
+            tx, ty = self.lead(t, self.x, self.y, secs=wait)
+            a = math.atan2(ty - self.y, tx - self.x) + side * 0.12
+            side = -side
+            length = min(longest, math.hypot(tx - self.x, ty - self.y) + 6.0)
+            x1, y1 = self.clamp_to_lair(self.x + math.cos(a) * length,
+                                        self.y + math.sin(a) * length, 3.0)
+            self.facing = a
+            self.tell = ("dash", self.x, self.y, x1, y1)
+            self.dashing = True
+            yield wait
+            self.tell = ("frenzy",)
+            self.ctx.events.append("swing")
+            x0, y0 = self.x, self.y
+            total = math.hypot(x1 - x0, y1 - y0) or 1.0
+            gone = 0.0
+            hit = set()
+            while gone < total:
+                gone = min(total, gone + speed * self.dt)
+                nx, ny = x0 + (x1 - x0) * gone / total, y0 + (y1 - y0) * gone / total
+                if not self._room(nx, ny):
+                    break                           # (into a stump or a trunk: it stops)
+                self.x, self.y = nx, ny
+                for h in self.ctx.players:
+                    if h.hittable and id(h) not in hit and \
+                            math.hypot(h.x - self.x, h.y - self.y) <= width + h.hit_radius:
+                        hit.add(id(h))
+                        self._hit(h, damage, a)
+                yield 0
+            self.dashing = False
+            yield 0.08
+        self.tell = None
+        self.madness = 0.0
+        self.panting = True
+        self._spill()
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="*PANT* *PANT*"))
+        self.dazed = config.FRENZY_PANT
+        yield config.FRENZY_PANT
+        self.panting = False
+
+    # --- Its moves ----------------------------------------------------------------------
+
+    def m_spin(self):
+        """Cleaver out (the tell), then a ring of blades whirling round it as
+        it scuttles at you; flung outward at the end."""
+        tell, blades, radius, dur, speed, damage, every = config.LOVE_SPIN
+        self.tell = ("cleaver",)
+        yield self.tell_s(tell)
+        self.tell = None
+        self.spin = self.rng.uniform(0, math.tau)
+        way = self.rng.choice((-1, 1))
+        last: dict[int, float] = {}
+        tt = 0.0
+        while tt < dur:
+            t = self.target_now()
+            if t is not None and math.hypot(t.x - self.x, t.y - self.y) > 1.5:
+                self._toward(t.x, t.y, speed * (1 + config.HOARD_SPEED * self.hoard) * self.dt)
+            self.spin += way * 7.0 * self.dt
+            for k in range(blades):
+                a = self.spin + k * math.tau / blades
+                bx, by = self.x + math.cos(a) * radius, self.y + math.sin(a) * radius * 0.7
+                for h in self.ctx.players:
+                    if h.hittable and math.hypot(h.x - bx, h.y - by) <= 0.8 + h.hit_radius \
+                            and tt - last.get(id(h), -9.0) >= every:
+                        last[id(h)] = tt
+                        self._hit(h, damage, a + way * math.pi / 2)
+            tt += self.dt
+            yield 0
+        for k in range(blades):
+            a = self.spin + k * math.tau / blades
+            patterns.shoot(self, self.x + math.cos(a) * radius, self.y + math.sin(a) * radius * 0.7,
+                           a, self.shots["cleaver"], self.ctx.projectiles)
+        self.spin = None
+        self.ctx.events.append("swing")
+        yield 0.3
+
+    def m_barrage(self):
+        """Cheeks puffed (the tell), then three fans of acorns, each turned
+        a little further."""
+        tell, fans, n, spread, gap, turn = config.LOVE_BARRAGE
+        self.tell = ("puff",)
+        yield self.tell_s(tell)
+        self.tell = None
+        t = self.target_now()
+        if t is None:
+            return
+        a0 = self.aim(t, self.x, self.y, self.shots["acorn"].speed)
+        way = self.rng.choice((-1, 1))
+        for f in range(fans):
+            if self.room_for_shots():
+                patterns.fan(self, self.x, self.y, a0 + way * math.radians(turn) * (f - 1), n,
+                             spread, self.shots["acorn"], self.ctx.projectiles)
+            self.ctx.events.append("fizzle")
+            yield gap
+
+    def m_pinecones(self):
+        """Pinecones lobbed high: marks where they'll land (one on you), then
+        each bursts into splinters."""
+        flight, n, _, _, _, spread = config.LOVE_CONES
+        t = self.target_now()
+        if t is None:
+            return
+        self.tell = ("throw",)
+        yield self.tell_s(0.35)
+        self.tell = None
+        T = self.tell_s(flight)
+        spots = [self.clamp_to_lair(*self.lead(t, self.x, self.y, secs=T), 3.0)]
+        for _ in range(n - 1):
+            a = self.rng.uniform(0, math.tau)
+            r = self.rng.uniform(2.5, spread)
+            spots.append(self.clamp_to_lair(t.x + math.cos(a) * r, t.y + math.sin(a) * r * 0.8,
+                                            3.0))
+        for k, (x, y) in enumerate(spots):
+            self.cones.append([self.x, self.y, x, y, -0.12 * k, T])
+        self.ctx.events.append("swing")
+        yield 0.4
+
+    def m_gang(self):
+        """A whistle (the tell), and rabid squirrels drop out of the oaks
+        nearest its target (no more than LOVE_GANG[2] out)."""
+        tell, (lo, hi), most = config.LOVE_GANG
+        self.tell = ("call",)
+        yield self.tell_s(tell)
+        self.tell = None
+        t = self.target_now()
+        alive = sum(1 for a in self.ctx.actors if getattr(a, "summoner", None) is self and a.alive)
+        want = min(self.rng.randint(lo, hi), most - alive)
+        trees = sorted(self.trees, key=lambda p: math.hypot(p[0] - t.x, p[1] - t.y)) \
+            if t is not None and self.trees else []
+        for k in range(max(0, want)):
+            if self.recruit is None:
+                break
+            if trees:
+                x, y = trees[k % min(3, len(trees))]
+                a = self.rng.uniform(0, math.tau)
+                x, y = x + math.cos(a) * 2.5, y + math.sin(a) * 2.0
+            else:
+                a = self.rng.uniform(0, math.tau)
+                x, y = self.x + math.cos(a) * 3, self.y + math.sin(a) * 3
+            x, y = self.clamp_to_lair(x, y, 3.0)
+            add = self.recruit("rabid_squirrel", x, y)
+            if add is not None:
+                add.summoner = self
+                add.alert = True
+                self.ctx.effects.append(Effect("nova", x, y, size=1.5))
+        self.ctx.events.append("orb")
+        yield 0.3
+
+
+def _crosses(ax: float, ay: float, bx: float, by: float, cx: float, cy: float, dx: float,
+             dy: float) -> bool:
+    """Does the step a->b cross the segment c->d (touching counts once)?"""
+    def side(px, py, qx, qy, rx, ry):
+        return (qx - px) * (ry - py) - (qy - py) * (rx - px)
+    d1, d2 = side(cx, cy, dx, dy, ax, ay), side(cx, cy, dx, dy, bx, by)
+    d3, d4 = side(ax, ay, bx, by, cx, cy), side(ax, ay, bx, by, dx, dy)
+    return (d1 > 0) != (d2 > 0) and (d3 > 0) != (d4 > 0)
+
+
+class TheFallen(Boss):
+    """A tall, thin tree -- more branches than trunk, long grasping arms of
+    branches with twig fingers, one big eye in a hollow -- in the still
+    grove, among trees that look just like it (design/BOSSES.md section
+    26). Its signatures stack, one a phase:
+
+    1. WHICH TREE? (all fight): every HIDE_EVERY s it sinks its roots and,
+       in a flurry of leaves over the trees near its target, becomes one of
+       them: it can't be hit, and the trees round you lash splinters (it
+       among them). Its tell is its eye, opening now and then. A shot into
+       a fake makes it spit splinters back at you; a hit on its tree drags
+       it out, hurt and dazed. Not found in time, it bursts out.
+    2. ROOT WEB (phase 2+): roots grow out from its feet in lines; a hero
+       on one is grabbed (held, squeezed) until the hold ends or someone
+       shoots that root. Roots burn away near the grove's fire bowls.
+    3. SWALLOW & SPIT (phase 3): its trunk splits into a maw for a while:
+       shots that hit it are swallowed (its SAP fills), then spat back in
+       fans -- unless it's stuffed past MAW_CHOKE, and chokes, dazed.
+
+    Its own moves: the branch sweep (a wide arc shown first; two arms in
+    phase 3), the uproot charge (a line shown, a ring of splinters where it
+    lands), the leaf storm (spirals of leaves, then splinter fans), and sap
+    and beetles (sticky puddles lobbed onto marked spots, bark beetles out
+    of its bark). It stalks round its target, and on (slower) through most
+    of its moves.
+
+    The grove's trees (props["trees"]) are cover: solid at the foot, and
+    they catch any hero's shot that flies into them."""
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.FALLEN_HIT_RADIUS)
+        self.shots = config.FALLEN_SHOTS
+        self.hid_at: int | None = None          # the tree it's posing as (props["trees"] index)
+        self.among: list[int] = []              # the trees it hid among
+        self.hide_t = config.HIDE_EVERY * 0.35
+        self.hide_left = 0.0                    # s before it bursts out
+        self.blink_t = 0.0
+        self.eye_open = 0.0                     # drawing: its eye open (the tell) this long
+        self.flurry: list[tuple[float, float]] = []   # leaves swirling over these (drawing)
+        self.flurry_t = 0.0
+        self.lashing: dict[int, float] = {}     # tree -> s it's been lashing (drawing)
+        self.spat: dict[int, float] = {}        # tree -> s before it spits back again
+        self._seen: dict[int, float] = {}       # tree -> its trunk's damage when last looked
+        self._caught: dict[int, object] = {}    # shots the trees caught (held: ids get reused)
+        self.roots: list[list] = []             # [x0, y0, angle, length, stop, age, seared]
+        self.root_t = config.ROOT_EVERY * 0.5
+        self.held: dict[int, list] = {}         # hero id -> [root, s left, s to the next squeeze]
+        self.immune: dict[int, float] = {}      # hero id -> s free from roots
+        self.maw_open = False
+        self.maw_t = config.MAW_EVERY * 0.5
+        self.sap = 0.0                          # damage swallowed while the maw's open
+        self.swallowed = 0                      # shots swallowed
+        self.globs: list[list[float]] = []      # sap in flight: [x0, y0, x1, y1, s flown, s flight]
+        self.puddles: list[list[float]] = []    # [x, y, age]
+        self.arc: tuple | None = None           # a sweep's tell: (angle, reach, half, way)
+        self.sweep_at: float | None = None      # drawing: where its arm is in the sweep
+        self.dashing = False
+        self.circle_dir = 1
+        self.circle_t = 0.0
+
+    # --- Helpers ------------------------------------------------------------------------
+
+    @property
+    def props(self) -> dict:
+        return self.lair.props if self.lair is not None else {}
+
+    @property
+    def trees(self) -> list:
+        return self.props.get("trees", [])
+
+    @property
+    def hidden(self) -> bool:
+        return self.hid_at is not None
+
+    @property
+    def hittable(self) -> bool:
+        return super().hittable and self.hid_at is None
+
+    def _solid(self, x: float, y: float) -> bool:
+        t = self.ctx.world.tile_at(math.floor(x), math.floor(y))
+        return t is None or t.solid
+
+    def _room(self, x: float, y: float) -> bool:
+        """Somewhere it can stand: in the grove, its feet (2 tiles under its
+        middle) clear, and not in another tree."""
+        if self.lair is not None and not self.lair.inside(x, y + 1.8, 1.0):
+            return False
+        if any(self._solid(x + dx, y + 1.8) for dx in (-0.7, 0.0, 0.7)):
+            return False
+        return all(abs(x - tx) > 1.6 or abs(y - ty) > 2.6 for tx, ty in self.trees)
+
+    def _toward(self, x: float, y: float, step: float) -> bool:
+        a = math.atan2(y - self.y, x - self.x)
+        step = min(step, math.hypot(x - self.x, y - self.y))
+        for turn in (0.0, 0.5, -0.5, 1.0, -1.0):
+            nx, ny = self.x + math.cos(a + turn) * step, self.y + math.sin(a + turn) * step
+            if self._room(nx, ny):
+                self.x, self.y = nx, ny
+                return True
+        return False
+
+    def _stalk(self, t, dt: float, mult: float) -> None:
+        near, far, every, speed, _ = config.FALLEN_STALK
+        self.circle_t -= dt
+        if self.circle_t <= 0:
+            self.circle_dir = -self.circle_dir
+            self.circle_t = self.rng.uniform(*every)
+        d = math.hypot(t.x - self.x, t.y - self.y)
+        out = math.atan2(self.y - t.y, self.x - t.x)
+        bend = 0.8 if d < near else (-0.8 if d > far else 0.0)
+        a = out + self.circle_dir * (math.pi / 2 - bend)
+        step = speed * mult * dt
+        for turn in (0.0, 0.5, -0.5, 1.0, -1.0):
+            nx, ny = self.x + math.cos(a + turn) * step, self.y + math.sin(a + turn) * step
+            if self._room(nx, ny):
+                self.x, self.y = nx, ny
+                return
+        self.circle_dir = -self.circle_dir
+
+    def _hit(self, h, damage: float, angle) -> float:
+        return combat.strike(h, damage * self.damage_mult, self, angle, self.ctx.effects) or 0.0
+
+    def shove_heroes(self, extra: float = 0.3) -> None:
+        if not self.dashing and self.hid_at is None:
+            super().shove_heroes(extra)
+
+    def take_damage(self, amount: float, source=None, from_angle=None) -> float:
+        if self.maw_open and self.alive:
+            self.sap += amount                     # swallowed
+            self.swallowed += 1
+            if self.ctx is not None and self.swallowed % 3 == 1:
+                self.ctx.effects.append(Effect("toast", self.x, self.y - 3, label="GULP"))
+            return 0.0
+        return super().take_damage(amount, source, from_angle)
+
+    def trunk_tile(self, i: int) -> tuple[int, int]:
+        x, y = self.trees[i]
+        return math.floor(x), math.floor(y) + 2
+
+    def _trunk_damage(self, i: int) -> float:
+        from ..world import tiles
+        hp_at = getattr(self.ctx.world, "hp_at", None)
+        hp = hp_at(*self.trunk_tile(i)) if hp_at is not None else None
+        return 0.0 if hp is None else tiles.GROVE_TRUNK.hp - hp
+
+    # --- Every step ---------------------------------------------------------------------
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.ctx = ctx
+        self.flurry_t = max(0.0, self.flurry_t - dt)
+        if not self.flurry_t:
+            self.flurry = []
+        for i in list(self.lashing):
+            self.lashing[i] -= dt
+            if self.lashing[i] <= 0:
+                self.lashing.pop(i)
+        for i in list(self.spat):
+            self.spat[i] -= dt
+            if self.spat[i] <= 0:
+                self.spat.pop(i)
+        self._tick_blink(dt)
+        self._tick_trees()
+        self._tick_roots(dt)
+        self._tick_globs(dt)
+        g = self.drift_target()
+        if g is not None and self.dazed <= 0 and not self.dashing and self.hid_at is None \
+                and self.arc is None and self.move != "hide":
+            mult = 1.0 if self._gen is None else config.FALLEN_STALK[4]
+            self._stalk(g, dt, mult)
+            self.facing = math.atan2(g.y - self.y, g.x - self.x)
+        self.hide_t -= dt                          # (its signatures' timers run on
+        if self.phase >= 1:                        # through its moves; each starts
+            self.root_t -= dt                      # once it's free)
+        if self.phase >= 2:
+            self.maw_t -= dt
+        if self._gen is None and self.dazed <= 0:
+            start = None
+            if self.hide_t <= 0 and len(self.trees) >= 2:
+                self.hide_t = config.HIDE_EVERY
+                start = "hide"
+            elif self.phase >= 1 and self.root_t <= 0:
+                self.root_t = config.ROOT_EVERY
+                start = "roots"
+            elif self.phase >= 2 and self.maw_t <= 0:
+                self.maw_t = config.MAW_EVERY
+                start = "maw"
+            if start is not None:
+                self._start(start)
+                self._wait = 0.0
+        super().think(ctx, dt)
+
+    def _end_move(self) -> None:
+        super()._end_move()
+        self.dashing = False
+        self.arc = None
+        self.sweep_at = None
+        self.maw_open = False
+
+    def on_phase(self, phase: int, ctx: AIContext) -> None:
+        label = ("ITS ROOTS STIR...", "ITS TRUNK SPLITS OPEN!")[min(phase, 2) - 1] \
+            if phase else ""
+        if label:
+            ctx.effects.append(Effect("toast", self.x, self.y - 4, label=label))
+
+    def _tick_blink(self, dt: float) -> None:
+        """Hiding, its eye opens now and then (the tell)."""
+        self.eye_open = max(0.0, self.eye_open - dt)
+        if self.hid_at is None:
+            return
+        self.blink_t -= dt
+        if self.blink_t <= 0:
+            on, every, give = config.HIDE_BLINK
+            self.eye_open = on
+            self.blink_t = every + self.rng.uniform(-give, give)
+
+    def _tick_trees(self) -> None:
+        """The grove's trees: hits on a trunk, and heroes' shots flying into
+        a tree (caught: stopped there, but for a boomerang). While it hides,
+        a hit on its tree finds it; a hit on a fake spits splinters back."""
+        from ..systems.patterns import point_segment_distance
+        trees = self.trees
+        if not trees:
+            return
+        heroes = [h for h in self.ctx.players if h.alive]
+        hits: dict[int, tuple[float, object]] = {}
+        for i in range(len(trees)):
+            seen = self._trunk_damage(i)
+            if seen > self._seen.get(i, 0.0):
+                who = min(heroes, key=lambda h: math.hypot(h.x - trees[i][0], h.y - trees[i][1]),
+                          default=None)
+                hits[i] = (seen - self._seen.get(i, 0.0), who)
+            self._seen[i] = seen
+        live = {id(p) for p in self.ctx.projectiles}
+        self._caught = {k: p for k, p in self._caught.items() if k in live}
+        body = config.TREE_BODY
+        for p in self.ctx.projectiles:
+            if id(p) in self._caught or p.owner not in heroes or not getattr(p, "alive", True) \
+                    or p.spec.lob:
+                continue
+            for i, (tx, ty) in enumerate(trees):
+                if abs(p.x - tx) > body + 0.5 or not (ty - 3.0 <= p.y <= ty + 3.2):
+                    continue
+                if point_segment_distance(p.x, p.y, tx, ty - 1.8, tx, ty + 2.0) > body:
+                    continue
+                self._caught[id(p)] = p
+                dmg = combat.outgoing(p.owner, p.damage, p.tags) * p.mult
+                old = hits.get(i, (0.0, p.owner))
+                hits[i] = (old[0] + dmg, p.owner)
+                self.ctx.effects.append(Effect("impact", p.x, p.y))
+                if not p.spec.returns:
+                    p.alive = False
+                break
+        if self.hid_at is None:
+            return
+        for i, (dmg, who) in hits.items():
+            if i == self.hid_at:
+                self._found(who)
+                return
+            if i in self.spat or who is None:
+                continue
+            self.spat[i] = config.HIDE_SPIT_GAP
+            self.lashing[i] = 0.3
+            tx, ty = trees[i]
+            a = math.atan2(who.y - ty, who.x - tx)
+            patterns.fan(self, tx, ty, a, config.HIDE_SPIT, 30.0, self.shots["splinter"],
+                         self.ctx.projectiles)
+            self.ctx.effects.append(Effect("toast", tx, ty - 3, label="WRONG TREE!"))
+
+    def _found(self, who) -> None:
+        """A hit on the tree it's posing as: dragged out, hurt and dazed."""
+        x, y = self.trees[self.hid_at]
+        self.hid_at = None
+        self.among = []
+        self.eye_open = 0.0
+        self.hp = max(1.0, self.hp - config.HIDE_FOUND * self.max_hp)
+        self.hurt_flash = 0.3
+        self.dazed = config.HIDE_STUN
+        self._step_out(x, y, who)
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="FOUND IT!"))
+        self.ctx.effects.append(Effect("nova", self.x, self.y, size=3.0))
+        self.ctx.events.append("boulder")
+
+    def _step_out(self, x: float, y: float, toward) -> None:
+        """Out of a tree's spot, onto open ground (toward someone, if it can)."""
+        a0 = math.atan2(toward.y - y, toward.x - x) if toward is not None else 0.0
+        for r in (2.0, 3.0, 4.5, 6.0):
+            for k in range(12):
+                a = a0 + (k + 1) // 2 * (1 if k % 2 else -1) * math.tau / 12
+                nx, ny = x + math.cos(a) * r, y + math.sin(a) * r
+                if self._room(nx, ny):
+                    self.x, self.y = nx, ny
+                    return
+        self.x, self.y = x, y
+
+    def _tick_roots(self, dt: float) -> None:
+        """Roots grow (burning away near a fire bowl, stopping at the
+        grove's edge), grab heroes who step on them, squeeze, let go; a
+        hero's shot at a root holding someone cuts it."""
+        from ..systems.patterns import point_segment_distance
+        fires = self.props.get("fires", [])
+        keep = []
+        for r in self.roots:
+            r[5] += dt
+            if r[6] > 0:                                      # (seared: burning away)
+                r[6] -= dt
+                if r[6] > 0:
+                    keep.append(r)
+                continue
+            if r[5] >= config.ROOT_LIFE:
+                continue
+            if r[3] < r[4]:
+                r[3] = min(r[4], r[3] + config.ROOT_GROW * dt)
+                tx, ty = r[0] + math.cos(r[2]) * r[3], r[1] + math.sin(r[2]) * r[3]
+                if any(math.hypot(tx - fx, ty - fy) <= config.FIRE_SEAR for fx, fy in fires):
+                    r[4] = r[3]
+                    r[6] = 0.5
+                    self.ctx.effects.append(Effect("explosion", tx, ty))
+                    self.ctx.effects.append(Effect("toast", tx, ty - 2, label="SEARED!"))
+                elif self.lair is not None and not self.lair.inside(tx, ty, 1.0):
+                    r[4] = r[3]
+            keep.append(r)
+        self.roots = keep
+        for k in list(self.immune):
+            self.immune[k] -= dt
+            if self.immune[k] <= 0:
+                self.immune.pop(k)
+        heroes = [h for h in self.ctx.players if h.alive and self.in_arena(h)]
+        # Shots cut the roots holding someone.
+        holding = {id(v[0]): v[0] for v in self.held.values()}
+        for p in self.ctx.projectiles:
+            if not holding or p.owner not in heroes or not getattr(p, "alive", True):
+                continue
+            for rid, r in list(holding.items()):
+                if point_segment_distance(p.x, p.y, *self.root_seg(r)) <= 0.6:
+                    r[5] = config.ROOT_LIFE                   # (cut: gone next step)
+                    r[6] = 0.0
+                    holding.pop(rid)
+                    self.ctx.effects.append(Effect("toast", p.x, p.y - 1.5, label="SNAP!"))
+                    if not p.spec.returns:
+                        p.alive = False
+                    break
+        live = [r for r in self.roots if r[6] <= 0 and r[5] < config.ROOT_LIFE and r[3] > 0.5]
+        for h in heroes:
+            k = id(h)
+            hold = self.held.get(k)
+            if hold is not None:
+                hold[1] -= dt
+                hold[2] -= dt
+                if hold[1] <= 0 or not any(r is hold[0] for r in live):
+                    self.held.pop(k)
+                    self.immune[k] = config.ROOT_IMMUNE
+                    h.slow_t = 0.0
+                    continue
+                h.slowed(0.0, hold[1])
+                if hold[2] <= 0:
+                    hold[2] = 0.5
+                    self._hit(h, config.ROOT_SQUEEZE, None)
+                continue
+            if k in self.immune or getattr(h, "rolling", False) or not h.hittable:
+                continue
+            for r in live:
+                if point_segment_distance(h.x, h.y, *self.root_seg(r)) <= config.ROOT_WIDTH:
+                    self.held[k] = [r, config.ROOT_HOLD, 0.25]
+                    h.slowed(0.0, config.ROOT_HOLD)
+                    self.ctx.effects.append(Effect("toast", h.x, h.y - 2, label="GRABBED!"))
+                    self.ctx.events.append("swing")
+                    break
+
+    def root_seg(self, r) -> tuple[float, float, float, float]:
+        return r[0], r[1], r[0] + math.cos(r[2]) * r[3], r[1] + math.sin(r[2]) * r[3]
+
+    def _tick_globs(self, dt: float) -> None:
+        """Sap globs land as sticky puddles; heroes in a puddle are slowed."""
+        _, _, radius, life, slow, _, _, _ = config.FALLEN_SAP
+        keep = []
+        for g in self.globs:
+            g[4] += dt
+            if g[4] < g[5]:
+                keep.append(g)
+                continue
+            self.puddles.append([g[2], g[3], 0.0])
+            self.ctx.effects.append(Effect("impact", g[2], g[3]))
+        self.globs = keep
+        for p in self.puddles:
+            p[2] += dt
+        self.puddles = [p for p in self.puddles if p[2] < life]
+        for h in self.ctx.players:
+            if h.alive and any(math.hypot(h.x - p[0], h.y - p[1]) <= radius for p in self.puddles):
+                h.slowed(slow, 0.2)
+
+    # --- The bar, the map ---------------------------------------------------------------
+
+    @property
+    def bar_label(self) -> str:
+        if self.hid_at is not None:
+            return f"IT HIDES AMONG THE TREES - FIND THE EYE! {math.ceil(self.hide_left)}"
+        if self.maw_open:
+            return f"ITS MAW IS OPEN - SAP {round(100 * self.choke_frac())}%"
+        if self.dazed > 0:
+            return f"{self.espec.name} - DAZED, HIT IT!"
+        return self.espec.name
+
+    def choke_frac(self) -> float:
+        need = config.MAW_CHOKE * self.max_hp
+        return min(1.0, self.sap / need) if need > 0 else 0.0
+
+    def map_marks(self) -> list[tuple[float, float, str, str]]:
+        """Map pins: the fire bowls (from phase 2, against its roots)."""
+        if self.phase < 1:
+            return []
+        return [(x, y, "fire_lit", "FIRE") for x, y in self.props.get("fires", [])]
+
+    def on_death(self, ctx: AIContext) -> None:
+        self.ctx = ctx
+        self.hid_at = None
+        self.roots, self.globs, self.puddles = [], [], []
+        for h in ctx.players:
+            if id(h) in self.held:
+                h.slow_t = 0.0
+        self.held = {}
+        ctx.effects.append(Effect("explosion", self.x, self.y))
+        ctx.effects.append(Effect("nova", self.x, self.y, size=4.0))
+        ctx.events.append(combat.BREAK)
+
+    # --- Signature moves ----------------------------------------------------------------
+
+    def m_hide(self):
+        """Signature 1: it sinks its roots (the tell), leaves swirl over the
+        trees near its target, and it's one of them. The trees lash out;
+        its eye gives it away. Found: dragged out (_found). Not found in
+        HIDE_TIME s: it bursts out."""
+        self.tell = ("hide",)
+        yield self.tell_s(config.HIDE_TELL)
+        self.tell = None
+        t = self.target_now()
+        if t is None:
+            return
+        heroes = [h for h in self.ctx.players if h.alive]
+        trees = self.trees
+        order = sorted(range(len(trees)), key=lambda i: math.hypot(trees[i][0] - t.x,
+                                                                   trees[i][1] - t.y))
+        among = [i for i in order if all(math.hypot(trees[i][0] - h.x, trees[i][1] - h.y)
+                                         > config.HIDE_CLEAR for h in heroes)][:config.HIDE_AMONG]
+        if len(among) < 2:
+            return
+        self.flurry = [trees[i] for i in among] + [(self.x, self.y)]
+        self.flurry_t = 0.8
+        self.among = among
+        self.hid_at = self.rng.choice(among)
+        self.x, self.y = trees[self.hid_at]
+        self.blink_t = config.HIDE_BLINK[1] * 0.6
+        self.ctx.events.append("fizzle")
+        self.hide_left = config.HIDE_TIME
+        lash = config.HIDE_LASH
+        while self.hid_at is not None and self.hide_left > 0:
+            self.hide_left -= self.dt
+            lash -= self.dt
+            if lash <= 0:
+                lash = config.HIDE_LASH
+                i = self.rng.choice(self.among)
+                tx, ty = trees[i]
+                h = min(heroes, key=lambda h: math.hypot(h.x - tx, h.y - ty), default=None)
+                if h is not None and h.alive and self.room_for_shots():
+                    self.lashing[i] = 0.4
+                    patterns.fan(self, tx, ty, math.atan2(h.y - ty, h.x - tx), config.HIDE_FAN,
+                                 40.0, self.shots["splinter"], self.ctx.projectiles)
+            yield 0
+        if self.hid_at is None:                   # found: dazed (_found)
+            yield config.HIDE_STUN
+            return
+        # Not found: it bursts out, splinters all round.
+        x, y = trees[self.hid_at]
+        self.hid_at = None
+        self.among = []
+        shards, radius, damage = config.HIDE_BURST
+        self._step_out(x, y, self.target_now())
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="BOO!"))
+        self.ctx.effects.append(Effect("explosion", self.x, self.y))
+        for h in self.ctx.players:
+            if h.hittable and math.hypot(h.x - self.x, h.y - self.y) <= radius + h.hit_radius:
+                self._hit(h, damage, None)
+        patterns.radial(self, self.x, self.y, shards, self.shots["splinter"],
+                        self.ctx.projectiles, self.rng.uniform(0, math.tau))
+        self.ctx.events.append("boulder")
+        yield 0.5
+
+    def m_roots(self):
+        """Signature 2: the ground cracks at its feet (the tell), then roots
+        grow out in lines, one straight at its target."""
+        self.tell = ("roots",)
+        yield self.tell_s(config.ROOT_TELL)
+        self.tell = None
+        t = self.target_now()
+        if t is None:
+            return
+        fx, fy = self.x, self.y + 1.8
+        a0 = math.atan2(t.y - fy, t.x - fx)
+        s = math.radians(config.ROOT_SPREAD)
+        offsets = [0.0, s, -s, math.pi, 2 * s, -2 * s][:config.ROOT_LINES]
+        for o in offsets:
+            self.roots.append([fx, fy, a0 + o, 0.0, config.ROOT_LEN, 0.0, 0.0])
+        self.ctx.events.append("boulder")
+        yield 0.3
+
+    def m_maw(self):
+        """Signature 3: its trunk splits into a maw (the tell); shots that
+        hit it are swallowed, then spat back in fans -- or, stuffed full, it
+        chokes."""
+        self.tell = ("maw",)
+        yield self.tell_s(config.MAW_TELL)
+        self.tell = None
+        self.maw_open = True
+        self.sap, self.swallowed = 0.0, 0
+        tt = 0.0
+        choked = False
+        while tt < config.MAW_OPEN:
+            if self.sap >= config.MAW_CHOKE * self.max_hp:
+                choked = True
+                break
+            tt += self.dt
+            yield 0
+        self.maw_open = False
+        if choked:
+            self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="IT CHOKES!"))
+            for _ in range(min(6, self.swallowed)):
+                patterns.shoot(self, self.x, self.y, self.rng.uniform(0, math.tau),
+                               self.shots["spit"], self.ctx.projectiles)
+            self.dazed = config.MAW_STUN
+            yield config.MAW_STUN
+            return
+        t = self.target_now()
+        if t is None:
+            return
+        lo, hi, fans, spread = config.MAW_SPIT
+        n = max(lo, min(hi, self.swallowed))
+        per = max(1, round(n / fans))
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="PTOO!"))
+        for f in range(fans):
+            if self.room_for_shots():
+                a = self.aim(t, self.x, self.y, self.shots["spit"].speed)
+                patterns.fan(self, self.x, self.y, a + (f - (fans - 1) / 2) * 0.15, per, spread,
+                             self.shots["spit"], self.ctx.projectiles)
+            self.ctx.events.append("fizzle")
+            yield 0.2
+
+    # --- Its moves ----------------------------------------------------------------------
+
+    def m_sweep(self):
+        """A branch arm drawn back (the arc shown) as it strides in, then
+        swept across it; in phase 3 the other arm follows, the other way."""
+        tell, reach, half_deg, damage, takes, stride = config.FALLEN_SWEEP
+        half = math.radians(half_deg)
+        way = self.rng.choice((-1, 1))
+        for arm in range(2 if self.phase >= 2 else 1):
+            t = self.target_now()
+            if t is None:
+                return
+            # The arm drawn back, striding in (the arc shown moves with it).
+            wait = self.tell_s(tell if arm == 0 else tell * 0.6)
+            tt = 0.0
+            while tt < wait:
+                if math.hypot(t.x - self.x, t.y - self.y) > reach * 0.6:
+                    self._toward(t.x, t.y, stride * self.dt)
+                a = math.atan2(t.y - self.y, t.x - self.x)
+                self.arc = (a, reach, half, way)
+                self.facing = a
+                tt += self.dt
+                yield 0
+            a = self.arc[0]
+            hit = set()
+            tt = 0.0
+            while tt < takes:
+                tt = min(takes, tt + self.dt)
+                at = a - way * half + way * 2 * half * tt / takes
+                self.sweep_at = at
+                for h in self.ctx.players:
+                    if not h.hittable or id(h) in hit:
+                        continue
+                    d = math.hypot(h.x - self.x, h.y - self.y)
+                    off = (math.atan2(h.y - self.y, h.x - self.x) - (a - way * half)) * way
+                    off = off % math.tau
+                    if d <= reach + h.hit_radius and off <= (at - (a - way * half)) * way + 0.15:
+                        hit.add(id(h))
+                        self._hit(h, damage, at + way * math.pi / 2)
+                yield 0
+            self.arc = None
+            self.sweep_at = None
+            self.ctx.events.append("swing")
+            way = -way
+            yield 0.15
+
+    def m_uproot(self):
+        """It tears its roots up: a line shown, it stomps along it, and a
+        ring of splinters bursts where it lands."""
+        tell, speed, longest, damage, width, radius, land, shards = config.FALLEN_CHARGE
+        t = self.target_now()
+        if t is None:
+            return
+        wait = self.tell_s(tell)
+        tx, ty = self.lead(t, self.x, self.y, secs=wait)
+        a = math.atan2(ty - self.y, tx - self.x)
+        length = min(longest, math.hypot(tx - self.x, ty - self.y) + 3.0)
+        x1, y1 = self.clamp_to_lair(self.x + math.cos(a) * length, self.y + math.sin(a) * length,
+                                    3.0)
+        self.facing = a
+        self.tell = ("charge", self.x, self.y, x1, y1)
+        self.dashing = True
+        yield wait
+        self.tell = None
+        x0, y0 = self.x, self.y
+        total = math.hypot(x1 - x0, y1 - y0) or 1.0
+        gone = 0.0
+        hit = set()
+        while gone < total:
+            gone = min(total, gone + speed * self.dt)
+            nx, ny = x0 + (x1 - x0) * gone / total, y0 + (y1 - y0) * gone / total
+            if not self._room(nx, ny):
+                break
+            self.x, self.y = nx, ny
+            self.walked += speed * self.dt
+            for h in self.ctx.players:
+                if h.hittable and id(h) not in hit and \
+                        math.hypot(h.x - self.x, h.y - self.y) <= width + h.hit_radius:
+                    hit.add(id(h))
+                    self._hit(h, damage, a)
+            yield 0
+        self.dashing = False
+        self.ctx.effects.append(Effect("explosion", self.x, self.y + 1.5))
+        for h in self.ctx.players:
+            if h.hittable and math.hypot(h.x - self.x, h.y - self.y) <= radius + h.hit_radius:
+                self._hit(h, land, None)
+        if self.room_for_shots():
+            patterns.radial(self, self.x, self.y, shards, self.shots["splinter"],
+                            self.ctx.projectiles, self.rng.uniform(0, math.tau))
+        self.ctx.events.append("boulder")
+        yield 0.4
+
+    def m_leaves(self):
+        """Arms up (the tell): spirals of leaves turning out of it, then
+        fans of splinters at its target."""
+        tell, arms, dur, every, turn, fans, n, spread = config.FALLEN_LEAVES
+        self.tell = ("cast",)
+        yield self.tell_s(tell)
+        self.tell = None
+        base = self.rng.uniform(0, math.tau)
+        way = self.rng.choice((-1, 1))
+        tt = 0.0
+        while tt < dur:
+            if self.room_for_shots():
+                for k in range(arms):
+                    patterns.shoot(self, self.x, self.y - 1.0, base + k * math.tau / arms,
+                                   self.shots["leaf"], self.ctx.projectiles)
+            base += way * turn * every
+            tt += every
+            yield every
+        for _ in range(fans):
+            t = self.target_now()
+            if t is None:
+                return
+            if self.room_for_shots():
+                patterns.fan(self, self.x, self.y, self.aim(t, self.x, self.y, 12.0), n, spread,
+                             self.shots["splinter"], self.ctx.projectiles)
+            self.ctx.events.append("fizzle")
+            yield 0.3
+
+    def m_sap(self):
+        """Sap globs lobbed onto marked spots (one where you'll be): sticky
+        puddles. Then bark beetles crawl out of its bark."""
+        flight, n, _, _, _, spread, (lo, hi), most = config.FALLEN_SAP
+        t = self.target_now()
+        if t is None:
+            return
+        self.tell = ("throw",)
+        yield self.tell_s(0.35)
+        self.tell = None
+        T = self.tell_s(flight)
+        spots = [self.clamp_to_lair(*self.lead(t, self.x, self.y, secs=T), 3.0)]
+        for _ in range(n - 1):
+            a = self.rng.uniform(0, math.tau)
+            r = self.rng.uniform(2.5, spread)
+            spots.append(self.clamp_to_lair(t.x + math.cos(a) * r, t.y + math.sin(a) * r * 0.8,
+                                            3.0))
+        for x, y in spots:
+            self.globs.append([self.x, self.y - 1.0, x, y, 0.0, T])
+        yield 0.4
+        alive = sum(1 for a in self.ctx.actors if getattr(a, "summoner", None) is self and a.alive)
+        for _ in range(max(0, min(self.rng.randint(lo, hi), most - alive))):
+            if self.recruit is None:
+                break
+            a = self.rng.uniform(0, math.tau)
+            x, y = self.clamp_to_lair(self.x + math.cos(a) * 1.8, self.y + 1.5 + math.sin(a), 3.0)
+            add = self.recruit("bark_beetle", x, y)
+            if add is not None:
+                add.summoner = self
+                add.alert = True
+        self.ctx.events.append("orb")
+        yield 0.3
+
+
+class MycoPart(Actor):
+    """A part of a Mycelium (M26): the fly agaric's warts on its cap, the
+    flies circling it. Bodies of their own (shots stop on them), but it
+    moves them, and they're worth nothing. Hidden with it when it's
+    underground or in the air."""
+
+    faction = "enemy"
+    boss = True                       # never sleeps
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec.max_hp, max(0.35, spec.size_px / 22))
+        self.espec = spec
+        self.spawn_id = spawn_id
+        self.x, self.y = x, y
+        self.half = spec.size_px / 2
+        self.facing = 0.0
+        self.vx = self.vy = 0.0
+        self.part_of = None               # its Mycelium (set when it's made)
+        self.slot = 0
+        self.rooted = False               # (in the ground on its own: not hidden with it)
+        self.age = 0.0
+        self.dropped = False              # (a fly that died by itself)
+        self.walked = 0.0
+        self.damage_mult = 1.0
+        self.haste = 0.0
+        self.level = 1
+
+    @property
+    def hittable(self) -> bool:
+        b = self.part_of
+        return self.alive and (b is None or self.rooted or (not b.submerged and b.airborne <= 0))
+
+    def scale_to_level(self, level: int) -> None:
+        pass
+
+    def think(self, ctx, dt: float) -> None:
+        pass                          # its Mycelium moves it
+
+    def hear(self, x: float, y: float) -> None:
+        pass
+
+
+class Amanita(Boss):
+    """Mycelium -- this one the fly agaric (amanita muscaria): a huge
+    red-capped toadstool waddling on root-threads, in its fruiting ring
+    (design/BOSSES.md section 27). It's only ever called "Mycelium". Its
+    signatures stack: phase 1 the warts; phase 2 adds the network; phase 3
+    adds the trip spores and the fly lure.
+
+    1. WARTS (all fight): white warts on its cap (MycoPart bodies) armour it
+       -- with all on it takes WART_ARMOR of a hit, more as they come off.
+       A wart shot off falls as a little toadstool that puffs spores. Every
+       WART_REGROW[0] s, short of warts, it drinks from the ground (standing
+       still) and regrows some.
+    2. MYCELIAL NETWORK (phase 2+): it sinks and travels the threads between
+       its fruiting rings -- the whole way lit first, a lit thread burning
+       whoever stands on it -- and erupts at the ring nearest its target.
+       Break a ring's node and that ring's out until it regrows.
+    3. TRIP SPORES (phase 3): clouds; linger and you trip -- drifting as you
+       walk, seeing fake shots beside its real ones. A roll clears it.
+    4. FLY LURE (phase 3): flies circle it, soaking up shots; now and then
+       one drops dead, bursting.
+
+    Its own moves: the cap slam (a hop, a landing ring, rings of spores),
+    spore volleys (fans, or turning spirals), toadstool sprouts (cracks,
+    then lines of toadstools popping) and the stem spin (gliding at you,
+    spores spraying out). It waddles round its target, and on (slower)
+    through most of its moves."""
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.AMANITA_HIT_RADIUS)
+        self.shots = config.AMANITA_SHOTS
+        self.warts: list = [None] * len(config.WART_SPOTS)
+        self.grown = False                       # its warts put on (the first step it can)
+        self.sprouts: list[list[float]] = []     # fallen warts' toadstools: [x, y, age]
+        self.regrow_t = config.WART_REGROW[0]
+        self.net_t = config.NET_EVERY * 0.5
+        self.lit: list[tuple[float, float]] = []  # the network path lit (tell, travel)
+        self.lit_t = 0.0                         # s it stays lit after it's out
+        self.burn: dict[int, float] = {}         # hero id -> s to the next burn
+        self.regrowing: dict[int, float] = {}    # broken ring node -> s before it regrows
+        self.trip_t = config.TRIP_EVERY * 0.5
+        self.clouds: list[list[float]] = []      # [x, y, age]
+        self.in_cloud: dict[int, float] = {}
+        self.trip: dict[int, float] = {}         # hero id -> s tripping left
+        self.drift: dict[int, float] = {}        # hero id -> the way it drifts
+        self.fakes: list[list[float]] = []       # [x, y, angle, speed, life, look]
+        self._seen_shots: dict[int, object] = {}
+        self.fly_t = config.FLY_EVERY * 0.4
+        self.flies: list = []
+        self.fly_spin = 0.0
+        self.fly_drop = config.FLY_DROP[0]
+        self.slam_at: tuple | None = None        # where a slam lands (the tell)
+        self.hop = 0.0                           # 0..1 through a hop (drawing)
+        self.cracks: list[tuple] = []            # sprouts' tell
+        self.pending: list[list[float]] = []     # sprouts to come: [x, y, s until]
+        self.shrooms: list[list[float]] = []     # sprouted, about to pop: [x, y, age]
+        self.spinning = False
+        self.spin_turn = 0.0
+        self.circle_dir = 1
+        self.circle_t = 0.0
+
+    # --- Helpers ------------------------------------------------------------------------
+
+    @property
+    def props(self) -> dict:
+        return self.lair.props if self.lair is not None else {}
+
+    def _solid(self, x: float, y: float) -> bool:
+        t = self.ctx.world.tile_at(math.floor(x), math.floor(y))
+        return t is None or t.solid
+
+    def _room(self, x: float, y: float) -> bool:
+        if self.lair is not None and not self.lair.inside(x, y + 1.2, 1.0):
+            return False
+        return not any(self._solid(x + dx, y + dy) for dx, dy in
+                       ((0, 0), (0.8, 1.2), (-0.8, 1.2), (0, 1.2)))
+
+    def _toward(self, x: float, y: float, step: float) -> bool:
+        a = math.atan2(y - self.y, x - self.x)
+        step = min(step, math.hypot(x - self.x, y - self.y))
+        for turn in (0.0, 0.5, -0.5, 1.0, -1.0):
+            nx, ny = self.x + math.cos(a + turn) * step, self.y + math.sin(a + turn) * step
+            if self._room(nx, ny):
+                self.x, self.y = nx, ny
+                return True
+        return False
+
+    def _waddle(self, t, dt: float, mult: float) -> None:
+        near, far, every, speed, _ = config.AMANITA_WALK
+        self.circle_t -= dt
+        if self.circle_t <= 0:
+            self.circle_dir = -self.circle_dir
+            self.circle_t = self.rng.uniform(*every)
+        d = math.hypot(t.x - self.x, t.y - self.y)
+        out = math.atan2(self.y - t.y, self.x - t.x)
+        bend = 0.8 if d < near else (-0.8 if d > far else 0.0)
+        a = out + self.circle_dir * (math.pi / 2 - bend)
+        step = speed * mult * dt
+        for turn in (0.0, 0.5, -0.5, 1.0, -1.0):
+            nx, ny = self.x + math.cos(a + turn) * step, self.y + math.sin(a + turn) * step
+            if self._room(nx, ny):
+                self.x, self.y = nx, ny
+                return
+        self.circle_dir = -self.circle_dir
+
+    def _hit(self, h, damage: float, angle) -> float:
+        return combat.strike(h, damage * self.damage_mult, self, angle, self.ctx.effects) or 0.0
+
+    def _blast(self, x: float, y: float, radius: float, damage: float) -> None:
+        for h in self.ctx.players:
+            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius:
+                self._hit(h, damage, None)
+
+    def shove_heroes(self, extra: float = 0.3) -> None:
+        if not self.spinning:
+            super().shove_heroes(extra)
+
+    def warts_on(self) -> int:
+        return sum(1 for w in self.warts if w is not None and w.alive)
+
+    def armour(self) -> float:
+        """What it takes of a hit: WART_ARMOR with every wart on, all of it
+        with none."""
+        n = len(self.warts)
+        return config.WART_ARMOR + (1 - config.WART_ARMOR) * (1 - self.warts_on() / n) if n \
+            else 1.0
+
+    def take_damage(self, amount: float, source=None, from_angle=None) -> float:
+        return super().take_damage(amount * self.armour(), source, from_angle)
+
+    def _grow_wart(self, k: int) -> None:
+        if self.recruit is None:
+            return
+        dx, dy = config.WART_SPOTS[k]
+        w = self.recruit("amanita_wart", self.x + dx, self.y + dy)
+        if w is None:
+            return
+        w.part_of = self
+        w.slot = k
+        w.max_hp = w.hp = config.WART_HP * self.max_hp / 8000
+        self.warts[k] = w
+
+    def live_rings(self) -> list[int]:
+        """The fruiting rings whose node stands (the network's stops)."""
+        from ..world import tiles
+        return [i for i, (x, y) in enumerate(self.props.get("rings", []))
+                if self.ctx.world.tile_at(math.floor(x), math.floor(y)) is tiles.NET_NODE]
+
+    def _route(self, start: int, goal: int, live: list[int]) -> list[int] | None:
+        """The rings from `start` to `goal` along threads between live rings
+        (breadth first), or None."""
+        ok = set(live)
+        nxt: dict[int, list[int]] = {}
+        for p, q in self.props.get("threads", []):
+            if p in ok and q in ok:
+                nxt.setdefault(p, []).append(q)
+                nxt.setdefault(q, []).append(p)
+        came = {start: None}
+        todo = [start]
+        while todo:
+            i = todo.pop(0)
+            if i == goal:
+                out = []
+                while i is not None:
+                    out.append(i)
+                    i = came[i]
+                return out[::-1]
+            for j in nxt.get(i, []):
+                if j not in came:
+                    came[j] = i
+                    todo.append(j)
+        return None
+
+    def on_lit(self, x: float, y: float, width: float) -> bool:
+        from ..systems.patterns import point_segment_distance
+        return any(point_segment_distance(x, y, *self.lit[k], *self.lit[k + 1]) <= width
+                   for k in range(len(self.lit) - 1))
+
+    # --- Every step ---------------------------------------------------------------------
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.ctx = ctx
+        if not self.grown and self.recruit is not None and self.lair is not None:
+            self.grown = True
+            for k in range(len(self.warts)):
+                self._grow_wart(k)
+        self._tick_parts(dt)
+        self._tick_sprouts(dt)
+        self._tick_nodes(dt)
+        self._tick_lit(dt)
+        self._tick_trip(dt)
+        self._tick_shrooms(dt)
+        g = self.drift_target()
+        if g is not None and self.dazed <= 0 and not self.submerged and self.airborne <= 0 \
+                and self.move not in ("drink", "spin"):
+            mult = 1.0 if self._gen is None else config.AMANITA_WALK[4]
+            self._waddle(g, dt, mult)
+            self.facing = math.atan2(g.y - self.y, g.x - self.x)
+        self.regrow_t -= dt                       # (its signatures' timers run on
+        if self.phase >= 1:                       # through its moves; each starts
+            self.net_t -= dt                      # once it's free)
+        if self.phase >= 2:
+            self.trip_t -= dt
+            self.fly_t -= dt
+        if self._gen is None and self.dazed <= 0:
+            start = None
+            if self.regrow_t <= 0 and self.warts_on() < len(self.warts) and self.recruit:
+                self.regrow_t = config.WART_REGROW[0]
+                start = "drink"
+            elif self.phase >= 1 and self.net_t <= 0:
+                self.net_t = config.NET_EVERY
+                start = "network"
+            elif self.phase >= 2 and self.trip_t <= 0:
+                self.trip_t = config.TRIP_EVERY
+                start = "trip"
+            elif self.phase >= 2 and self.fly_t <= 0:
+                self.fly_t = config.FLY_EVERY
+                start = "flies"
+            if start is not None:
+                self._start(start)
+                self._wait = 0.0
+        super().think(ctx, dt)
+        self._place_parts()
+
+    def _end_move(self) -> None:
+        super()._end_move()
+        self.spinning = False
+        self.slam_at = None
+        self.cracks = []
+
+    def on_phase(self, phase: int, ctx: AIContext) -> None:
+        label = ("THE NETWORK STIRS...", "THE AIR TURNS SWEET...")[min(phase, 2) - 1] \
+            if phase else ""
+        if label:
+            ctx.effects.append(Effect("toast", self.x, self.y - 4, label=label))
+
+    def _place_parts(self) -> None:
+        """Warts sit on its cap; flies circle it."""
+        for k, w in enumerate(self.warts):
+            if w is not None and w.alive:
+                dx, dy = config.WART_SPOTS[k]
+                w.x, w.y = self.x + dx, self.y + dy
+        r, _ = config.FLY_ORBIT
+        n = max(1, len(self.flies))
+        for k, f in enumerate(self.flies):
+            a = self.fly_spin + k * math.tau / n
+            wob = 0.4 * math.sin(self.time * 5 + k)
+            f.x = self.x + math.cos(a) * (r + wob)
+            f.y = self.y - 1.0 + math.sin(a) * (r + wob) * 0.7
+
+    def _tick_parts(self, dt: float) -> None:
+        """A wart shot off falls as a toadstool; dead flies are dropped (one
+        that dropped by itself bursts)."""
+        for k, w in enumerate(self.warts):
+            if w is not None and not w.alive:
+                self.warts[k] = None
+                self.sprouts.append([w.x, self.y + 1.2 + self.rng.uniform(-0.6, 0.6), 0.0])
+                self.ctx.effects.append(Effect("toast", w.x, w.y - 1.5, label="POP!"))
+        self.fly_spin += config.FLY_ORBIT[1] * dt
+        keep = []
+        for f in self.flies:
+            if f.alive:
+                keep.append(f)
+            elif f.dropped:
+                _, radius, damage = config.FLY_DROP
+                self._blast(f.x, f.y, radius, damage)
+                self.ctx.effects.append(Effect("explosion", f.x, f.y))
+        self.flies = keep
+        if self.flies:
+            self.fly_drop -= dt
+            if self.fly_drop <= 0:
+                self.fly_drop = config.FLY_DROP[0]
+                f = self.rng.choice(self.flies)
+                f.dropped = True
+                f.last_hit_by = None
+                f.hp = 0.0
+
+    def _tick_sprouts(self, dt: float) -> None:
+        """A fallen wart's toadstool puffs spores WART_SPROUT[0] s later."""
+        later, n, radius, damage = config.WART_SPROUT
+        keep = []
+        for s in self.sprouts:
+            s[2] += dt
+            if s[2] < later:
+                keep.append(s)
+                continue
+            self._blast(s[0], s[1], radius, damage)
+            if self.room_for_shots():
+                patterns.radial(self, s[0], s[1], n, self.shots["white"], self.ctx.projectiles,
+                                self.rng.uniform(0, math.tau))
+            self.ctx.effects.append(Effect("nova", s[0], s[1], size=1.5))
+        self.sprouts = keep
+
+    def _tick_nodes(self, dt: float) -> None:
+        """A broken ring node regrows NODE_REGROW s later."""
+        from ..world import tiles
+        world = self.ctx.world
+        for i, (x, y) in enumerate(self.props.get("rings", [])):
+            tx, ty = math.floor(x), math.floor(y)
+            if i in self.regrowing:
+                self.regrowing[i] -= dt
+                if self.regrowing[i] <= 0 and hasattr(world, "set_tile"):
+                    self.regrowing.pop(i)
+                    world.set_tile(tx, ty, tiles.NET_NODE)
+                    self.ctx.effects.append(Effect("nova", x, y, size=2.0))
+            elif world.tile_at(tx, ty) is tiles.NET_NODE_DEAD:
+                self.regrowing[i] = config.NODE_REGROW
+
+    def _tick_lit(self, dt: float) -> None:
+        """A lit thread burns whoever stands on it."""
+        if not self.lit:
+            return
+        if not self.submerged and self.move != "network":
+            self.lit_t -= dt
+            if self.lit_t <= 0:
+                self.lit = []
+                self.burn = {}
+                return
+        width, damage, every = config.NET_BURN
+        for h in self.ctx.players:
+            if not h.alive or not self.in_arena(h) or getattr(h, "rolling", False):
+                continue
+            k = id(h)
+            if self.on_lit(h.x, h.y, width):
+                self.burn[k] = self.burn.get(k, 0.0) - dt
+                if self.burn[k] <= 0:
+                    self.burn[k] = every
+                    self._hit(h, damage, None)
+            else:
+                self.burn.pop(k, None)
+
+    def _tick_trip(self, dt: float) -> None:
+        """Trip clouds age; a hero TRIP_IN s in one trips: drifts as they
+        walk and sees fake shots (a roll clears it). While anyone trips,
+        each of its new shots gets a fake twin."""
+        radius, life = config.TRIP_CLOUD
+        for c in self.clouds:
+            c[2] += dt
+        self.clouds = [c for c in self.clouds if c[2] < life]
+        for h in self.ctx.players:
+            k = id(h)
+            if not h.alive or not self.in_arena(h):
+                self.trip.pop(k, None)
+                continue
+            if getattr(h, "rolling", False):
+                if self.trip.pop(k, None) is not None:
+                    self.ctx.effects.append(Effect("toast", h.x, h.y - 2, label="CLEAR HEAD"))
+                self.in_cloud.pop(k, None)
+                continue
+            if any(math.hypot(h.x - c[0], h.y - c[1]) <= radius for c in self.clouds):
+                self.in_cloud[k] = self.in_cloud.get(k, 0.0) + dt
+                if self.in_cloud[k] >= config.TRIP_IN and k not in self.trip:
+                    self.trip[k] = config.TRIP_TIME
+                    self.drift[k] = self.rng.uniform(0, math.tau)
+                    self.ctx.effects.append(Effect("toast", h.x, h.y - 2,
+                                                   label="YOU'RE TRIPPING!"))
+            else:
+                self.in_cloud.pop(k, None)
+            if k in self.trip:
+                self.trip[k] -= dt
+                if self.trip[k] <= 0:
+                    self.trip.pop(k)
+                    continue
+                self.drift[k] = self.drift.get(k, 0.0) + 0.8 * dt
+                d = config.TRIP_DRIFT * dt
+                combat.push(h, self.ctx.world, math.cos(self.drift[k]) * d,
+                            math.sin(self.drift[k]) * d)
+        live = {id(p): p for p in self.ctx.projectiles if p.owner is self}
+        if self.trip:
+            for k, p in live.items():
+                if k not in self._seen_shots and len(self.fakes) < 120:
+                    a = p.angle + self.rng.choice((-1, 1)) * self.rng.uniform(0.35, 0.9)
+                    self.fakes.append([p.x, p.y, a, p.spec.speed, p.max_range / p.spec.speed,
+                                       p.spec.look])
+        self._seen_shots = live
+        for f in self.fakes:
+            f[0] += math.cos(f[2]) * f[3] * dt
+            f[1] += math.sin(f[2]) * f[3] * dt
+            f[4] -= dt
+        self.fakes = [f for f in self.fakes if f[4] > 0]
+
+    def tripping(self, h) -> bool:
+        return id(h) in self.trip
+
+    def _tick_shrooms(self, dt: float) -> None:
+        """Toadstool sprouts come up along their lines, then pop."""
+        _, _, _, _, _, pop, radius, damage, _ = config.AMANITA_SPROUTS
+        keep = []
+        for p in self.pending:
+            p[2] -= dt
+            if p[2] > 0:
+                keep.append(p)
+            else:
+                self.shrooms.append([p[0], p[1], 0.0])
+        self.pending = keep
+        keep = []
+        for s in self.shrooms:
+            s[2] += dt
+            if s[2] < pop:
+                keep.append(s)
+                continue
+            self._blast(s[0], s[1], radius, damage)
+            self.ctx.effects.append(Effect("nova", s[0], s[1], size=radius))
+        self.shrooms = keep
+
+    # --- The bar, the map ---------------------------------------------------------------
+
+    @property
+    def bar_label(self) -> str:
+        name = self.espec.name.upper()
+        if self.submerged:
+            return f"{name} - UNDER THE GROUND"
+        if self.move == "drink":
+            return f"{name} - REGROWING ITS WARTS"
+        if self.grown:
+            return f"{name} - WARTS {self.warts_on()}/{len(self.warts)}"
+        return name
+
+    def map_marks(self) -> list[tuple[float, float, str, str]]:
+        """Map pins: its network's live nodes (from phase 2)."""
+        if self.phase < 1:
+            return []
+        rings = self.props.get("rings", [])
+        return [(rings[i][0], rings[i][1], "node", "NODE") for i in self.live_rings()]
+
+    def on_death(self, ctx: AIContext) -> None:
+        self.ctx = ctx
+        for p in [w for w in self.warts if w is not None] + self.flies:
+            p.hp = 0.0
+            p.last_hit_by = None
+        self.warts = [None] * len(self.warts)
+        self.flies = []
+        self.submerged = False
+        self.lit, self.clouds, self.trip, self.fakes = [], [], {}, []
+        self.sprouts, self.pending, self.shrooms = [], [], []
+        ctx.effects.append(Effect("explosion", self.x, self.y))
+        ctx.effects.append(Effect("nova", self.x, self.y, size=4.0))
+        ctx.events.append(combat.BREAK)
+
+    # --- Signature moves ----------------------------------------------------------------
+
+    def m_drink(self):
+        """Signature 1: it stands still, threads sucking at the ground, and
+        regrows WART_REGROW[2] of its warts."""
+        _, takes, n = config.WART_REGROW
+        self.tell = ("drink",)
+        yield self.tell_s(takes)
+        self.tell = None
+        missing = [k for k, w in enumerate(self.warts) if w is None or not w.alive]
+        for k in missing[:n]:
+            self._grow_wart(k)
+        self._place_parts()
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="WARTS REGROW"))
+        self.ctx.events.append("chime")
+        yield 0.2
+
+    def m_network(self):
+        """Signature 2: the way lit (the tell), then it travels underground
+        along it, and erupts at the far end."""
+        rings = self.props.get("rings", [])
+        live = self.live_rings()
+        t = self.target_now()
+        if t is None or not live:
+            return
+        start = min(live, key=lambda i: math.hypot(rings[i][0] - self.x, rings[i][1] - self.y))
+        goal = min(live, key=lambda i: math.hypot(rings[i][0] - t.x, rings[i][1] - t.y))
+        route = self._route(start, goal, live) or [start]
+        self.lit = [(self.x, self.y)] + [rings[i] for i in route]
+        self.lit_t = 0.6
+        self.tell = ("sink",)
+        yield self.tell_s(config.NET_TELL)
+        self.tell = None
+        self.submerged = True
+        self.ctx.effects.append(Effect("nova", self.x, self.y, size=2.0))
+        for k in range(len(self.lit) - 1):
+            (x0, y0), (x1, y1) = self.lit[k], self.lit[k + 1]
+            total = math.hypot(x1 - x0, y1 - y0) or 1.0
+            gone = 0.0
+            while gone < total:
+                gone = min(total, gone + config.NET_SPEED * self.dt)
+                self.x = x0 + (x1 - x0) * gone / total
+                self.y = y0 + (y1 - y0) * gone / total
+                yield 0
+        # Up at the far ring (beside its node, never in it).
+        x, y = self.x, self.y
+        for r in (1.5, 2.5, 3.5):
+            if self._room(self.x, self.y):
+                break
+            for k in range(8):
+                a = k * math.tau / 8 + math.pi / 2
+                if self._room(x + math.cos(a) * r, y + math.sin(a) * r):
+                    self.x, self.y = x + math.cos(a) * r, y + math.sin(a) * r
+                    break
+        self.submerged = False
+        radius, damage, spores = config.NET_ERUPT
+        self.ctx.effects.append(Effect("explosion", self.x, self.y))
+        self._blast(self.x, self.y, radius, damage)
+        if self.room_for_shots():
+            patterns.radial(self, self.x, self.y, spores, self.shots["spore"],
+                            self.ctx.projectiles, self.rng.uniform(0, math.tau))
+        self.ctx.events.append("boulder")
+        yield 0.4
+
+    def m_trip(self):
+        """Signature 3: pores open (the tell), clouds of trip spores on and
+        round its target."""
+        self.tell = ("puff",)
+        yield self.tell_s(config.TRIP_TELL)
+        self.tell = None
+        t = self.target_now()
+        if t is None:
+            return
+        x, y = self.lead(t, self.x, self.y, secs=0.6)
+        self.clouds.append([x, y, 0.0])
+        for _ in range(config.TRIP_CLOUDS - 1):
+            a = self.rng.uniform(0, math.tau)
+            r = self.rng.uniform(4.0, 7.0)
+            self.clouds.append([*self.clamp_to_lair(x + math.cos(a) * r, y + math.sin(a) * r, 3.0),
+                                0.0])
+        self.ctx.events.append("fizzle")
+        yield 0.3
+
+    def m_flies(self):
+        """Signature 4: a sweet stench (the tell), and flies come to circle it."""
+        self.tell = ("stench",)
+        yield self.tell_s(config.FLY_TELL)
+        self.tell = None
+        if self.recruit is None:
+            return
+        for _ in range(min(config.FLIES, config.FLY_MAX - len(self.flies))):
+            f = self.recruit("myco_fly", self.x, self.y)
+            if f is None:
+                break
+            f.part_of = self
+            self.flies.append(f)
+        self.fly_drop = config.FLY_DROP[0]
+        self._place_parts()
+        self.ctx.events.append("orb")
+        yield 0.3
+
+    # --- Its moves ----------------------------------------------------------------------
+
+    def m_slam(self):
+        """A hop high (its landing ring shown), its cap slammed down: a blast,
+        then two rings of spores rolling out."""
+        T, radius, damage, n1, n2 = config.AMANITA_SLAM
+        t = self.target_now()
+        if t is None:
+            return
+        T = self.tell_s(T)
+        x1, y1 = self.clamp_to_lair(*self.lead(t, self.x, self.y, secs=T), 3.0)
+        if not self._room(x1, y1):
+            x1, y1 = t.x, t.y
+        x0, y0 = self.x, self.y
+        self.slam_at = (x1, y1)
+        self.airborne = 1.0
+        tt = 0.0
+        while tt < T:
+            tt = min(T, tt + self.dt)
+            self.hop = tt / T
+            self.x, self.y = x0 + (x1 - x0) * self.hop, y0 + (y1 - y0) * self.hop
+            yield 0
+        self.airborne = 0.0
+        self.hop = 0.0
+        self.slam_at = None
+        self.ctx.effects.append(Effect("explosion", self.x, self.y + 1.0))
+        self._blast(self.x, self.y, radius, damage)
+        self.ctx.events.append("boulder")
+        a = self.rng.uniform(0, math.tau)
+        if self.room_for_shots():
+            patterns.radial(self, self.x, self.y, n1, self.shots["spore"], self.ctx.projectiles, a)
+        yield 0.3
+        if self.room_for_shots():
+            patterns.radial(self, self.x, self.y, n2, self.shots["white"], self.ctx.projectiles,
+                            a + math.pi / n2)
+        yield 0.3
+
+    def m_spores(self):
+        """Pores open (the tell): fans of red spores at you, or turning
+        spirals of white ones."""
+        tell, fans, n, spread, gap, arms, dur, every, turn = config.AMANITA_SPORES
+        self.tell = ("puff",)
+        yield self.tell_s(tell)
+        self.tell = None
+        if self.rng.random() < 0.5:
+            for _ in range(fans):
+                t = self.target_now()
+                if t is None:
+                    return
+                if self.room_for_shots():
+                    patterns.fan(self, self.x, self.y, self.aim(t, self.x, self.y, 10.0), n,
+                                 spread, self.shots["spore"], self.ctx.projectiles)
+                self.ctx.events.append("fizzle")
+                yield gap
+            return
+        base = self.rng.uniform(0, math.tau)
+        way = self.rng.choice((-1, 1))
+        tt = 0.0
+        while tt < dur:
+            if self.room_for_shots():
+                for k in range(arms):
+                    patterns.shoot(self, self.x, self.y, base + k * math.tau / arms,
+                                   self.shots["white"], self.ctx.projectiles)
+            base += way * turn * every
+            tt += every
+            yield every
+
+    def m_sprouts(self):
+        """The ground cracks in lines toward you (the tell), then little
+        toadstools shoot up along them, one after another, each popping a
+        moment later."""
+        tell, lines, length, spacing, gap, _, _, _, spread = config.AMANITA_SPROUTS
+        t = self.target_now()
+        if t is None:
+            return
+        a0 = math.atan2(t.y - self.y, t.x - self.x)
+        pts = []
+        for k in range(lines):
+            a = a0 + math.radians(spread) * (k - (lines - 1) / 2)
+            d = 2.5
+            while d <= length:
+                x, y = self.x + math.cos(a) * d, self.y + math.sin(a) * d
+                if self.lair is None or self.lair.inside(x, y, 1.5):
+                    pts.append((x, y, d))
+                d += spacing
+        self.cracks = [(x, y) for x, y, _ in pts]
+        self.tell = ("cracks",)
+        yield self.tell_s(tell)
+        self.tell = None
+        self.cracks = []
+        for x, y, d in pts:
+            self.pending.append([x, y, d / spacing * gap])
+        self.ctx.events.append("boulder")
+        yield length / spacing * gap
+
+    def m_spin(self):
+        """It spins on its stem (the tell: tilting), gliding at you, spores
+        spraying out all round; touching it hurts."""
+        tell, dur, speed, every, n, damage, gap = config.AMANITA_SPIN
+        self.tell = ("spin",)
+        yield self.tell_s(tell)
+        self.tell = None
+        self.spinning = True
+        last: dict[int, float] = {}
+        tt, shot = 0.0, 0.0
+        while tt < dur:
+            t = self.target_now()
+            if t is not None:
+                self._toward(t.x, t.y, speed * self.dt)
+            self.spin_turn += 9.0 * self.dt
+            shot -= self.dt
+            if shot <= 0:
+                shot = every
+                if self.room_for_shots():
+                    patterns.radial(self, self.x, self.y, n, self.shots["spore"],
+                                    self.ctx.projectiles, self.spin_turn)
+            for h in self.ctx.players:
+                if h.hittable and math.hypot(h.x - self.x, h.y - self.y) <= \
+                        self.hit_radius + h.hit_radius + 0.8 and tt - last.get(id(h), -9.0) >= gap:
+                    last[id(h)] = tt
+                    self._hit(h, damage, math.atan2(h.y - self.y, h.x - self.x))
+            tt += self.dt
+            yield 0
+        self.spinning = False
+        yield 0.3
+
+
+class InkCap(Boss):
+    """Mycelium -- this one the shaggy ink cap: a tall white shaggy cap whose
+    hem melts into black ink, a long thin stem, a gaunt face under the
+    fringe (design/BOSSES.md section 28). Only ever called "Mycelium". Its
+    signatures stack: phase 1 ink pools; phase 2 adds ink blots; phase 3
+    adds the scrawl and ink-cap clusters.
+
+    1. INK POOLS (all fight): it melts into a pool of ink (can't be hit) and
+       flows to where it'll reform -- a bubbling spot shown from the start --
+       slowing and stinging whoever it runs over, leaving puddles.
+    2. INK BLOTS (phase 2+): blots lobbed on and round you; stand in one and
+       you're blind beyond a few tiles. A roll wipes it off.
+    3. SCRAWL (phase 3): it writes a word across the floor through you,
+       letter by letter; then the letters burst in order -- or, every other
+       word, rise as ink imps.
+    4. INK-CAP CLUSTERS (phase 3): little ink caps (bodies) push up round
+       you; break them while they're small, or each melts into a pool.
+
+    Ink on the floor slows (x INK_SLOW) and stings. Its own moves: scale
+    volleys (fans, then a spiral), ink spray (lobbed onto marked spots,
+    splashing into puddles), burst up (it sinks, the floor cracks in a ring
+    under you, it erupts) and the shaggy shake (rings of scales with a gap).
+    It stalks round its target, and on (slower) through most of its moves."""
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.INKCAP_HIT_RADIUS)
+        self.shots = config.INKCAP_SHOTS
+        self.puddles: list[list[float]] = []     # [x, y, radius, age, life, s to full size]
+        self.ink_hit: dict[int, float] = {}      # hero id -> s to the next sting
+        self.pool_t = config.POOL_EVERY * 0.5
+        self.pooling = False                     # a pool of ink, flowing (drawing, the bar)
+        self.reform: tuple | None = None         # where it'll reform (the tell)
+        self.blot_t = config.BLOT_EVERY * 0.5
+        self.globs: list[list] = []              # lobbed ink: [x0, y0, x1, y1, s flown, s, kind]
+        self.blots: list[list[float]] = []       # [x, y, age]
+        self.inked: dict[int, float] = {}        # hero id -> s blind left
+        self.scrawl_t = config.SCRAWL_EVERY * 0.5
+        self.scrawls = 0
+        self.letters: list[list] = []            # [x, y, letter, age]
+        self.cluster_t = config.CLUSTER_EVERY * 0.7
+        self.sprouts: list = []                  # ink-cap sprout bodies
+        self.crack_at: tuple | None = None       # burst up: where (the tell)
+        self.shaking = False
+        self.circle_dir = 1
+        self.circle_t = 0.0
+
+    # --- Helpers ------------------------------------------------------------------------
+
+    def _solid(self, x: float, y: float) -> bool:
+        t = self.ctx.world.tile_at(math.floor(x), math.floor(y))
+        return t is None or t.solid
+
+    def _room(self, x: float, y: float) -> bool:
+        if self.lair is not None and not self.lair.inside(x, y + 1.2, 1.0):
+            return False
+        return not any(self._solid(x + dx, y + dy) for dx, dy in
+                       ((0, 0), (0.8, 1.2), (-0.8, 1.2), (0, 1.2)))
+
+    def _stalk(self, t, dt: float, mult: float) -> None:
+        near, far, every, speed, _ = config.INKCAP_WALK
+        self.circle_t -= dt
+        if self.circle_t <= 0:
+            self.circle_dir = -self.circle_dir
+            self.circle_t = self.rng.uniform(*every)
+        d = math.hypot(t.x - self.x, t.y - self.y)
+        out = math.atan2(self.y - t.y, self.x - t.x)
+        bend = 0.8 if d < near else (-0.8 if d > far else 0.0)
+        a = out + self.circle_dir * (math.pi / 2 - bend)
+        step = speed * mult * dt
+        for turn in (0.0, 0.5, -0.5, 1.0, -1.0):
+            nx, ny = self.x + math.cos(a + turn) * step, self.y + math.sin(a + turn) * step
+            if self._room(nx, ny):
+                self.x, self.y = nx, ny
+                return
+        self.circle_dir = -self.circle_dir
+
+    def _hit(self, h, damage: float, angle) -> float:
+        return combat.strike(h, damage * self.damage_mult, self, angle, self.ctx.effects) or 0.0
+
+    def _blast(self, x: float, y: float, radius: float, damage: float) -> None:
+        for h in self.ctx.players:
+            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius:
+                self._hit(h, damage, None)
+
+    def _open_near(self, x: float, y: float) -> tuple[float, float]:
+        """(x, y), or the nearest open spot round it it can stand on."""
+        if self._room(x, y):
+            return x, y
+        for r in (1.5, 3.0, 4.5, 6.0):
+            for k in range(12):
+                a = k * math.tau / 12
+                nx, ny = self.clamp_to_lair(x + math.cos(a) * r, y + math.sin(a) * r, 3.0)
+                if self._room(nx, ny):
+                    return nx, ny
+        return self.x, self.y
+
+    def shove_heroes(self, extra: float = 0.3) -> None:
+        if not self.pooling:
+            super().shove_heroes(extra)
+
+    def puddle_radius(self, p) -> float:
+        return p[2] * min(1.0, p[3] / p[5]) if p[5] > 0 else p[2]
+
+    def on_ink(self, x: float, y: float) -> bool:
+        if self.pooling and math.hypot(x - self.x, y - self.y) <= config.POOL_RADIUS:
+            return True
+        return any(math.hypot(x - p[0], y - p[1]) <= self.puddle_radius(p) for p in self.puddles)
+
+    def blind(self, h) -> bool:
+        return self.inked.get(id(h), 0.0) > 0
+
+    # --- Every step ---------------------------------------------------------------------
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.ctx = ctx
+        self._tick_ink(dt)
+        self._tick_globs(dt)
+        self._tick_blots(dt)
+        self._tick_sprouts(dt)
+        for l in self.letters:
+            l[3] += dt
+        g = self.drift_target()
+        if g is not None and self.dazed <= 0 and not self.submerged \
+                and self.move not in ("melt", "burst", "scrawl"):
+            mult = 1.0 if self._gen is None else config.INKCAP_WALK[4]
+            self._stalk(g, dt, mult)
+            self.facing = math.atan2(g.y - self.y, g.x - self.x)
+        self.pool_t -= dt                         # (its signatures' timers run on
+        if self.phase >= 1:                       # through its moves; each starts
+            self.blot_t -= dt                     # once it's free)
+        if self.phase >= 2:
+            self.scrawl_t -= dt
+            self.cluster_t -= dt
+        if self._gen is None and self.dazed <= 0:
+            start = None
+            if self.pool_t <= 0:
+                self.pool_t = config.POOL_EVERY
+                start = "melt"
+            elif self.phase >= 1 and self.blot_t <= 0:
+                self.blot_t = config.BLOT_EVERY
+                start = "blots"
+            elif self.phase >= 2 and self.scrawl_t <= 0:
+                self.scrawl_t = config.SCRAWL_EVERY
+                start = "scrawl"
+            elif self.phase >= 2 and self.cluster_t <= 0 and self.recruit is not None:
+                self.cluster_t = config.CLUSTER_EVERY
+                start = "clusters"
+            if start is not None:
+                self._start(start)
+                self._wait = 0.0
+        super().think(ctx, dt)
+
+    def _end_move(self) -> None:
+        super()._end_move()
+        self.crack_at = None
+        self.shaking = False
+
+    def on_phase(self, phase: int, ctx: AIContext) -> None:
+        label = ("INK SPATTERS EVERYWHERE...", "IT STARTS TO WRITE...")[min(phase, 2) - 1] \
+            if phase else ""
+        if label:
+            ctx.effects.append(Effect("toast", self.x, self.y - 4, label=label))
+
+    def _tick_ink(self, dt: float) -> None:
+        """Puddles grow to size and dry up; ink (and the flowing pool) slows
+        and stings whoever's in it."""
+        for p in self.puddles:
+            p[3] += dt
+        self.puddles = [p for p in self.puddles if p[3] < p[4]]
+        for h in self.ctx.players:
+            if not h.alive or not self.in_arena(h):
+                continue
+            k = id(h)
+            if self.on_ink(h.x, h.y) and not getattr(h, "rolling", False):
+                h.slowed(config.INK_SLOW, 0.2)
+                self.ink_hit[k] = self.ink_hit.get(k, 0.2) - dt
+                if self.ink_hit[k] <= 0:
+                    self.ink_hit[k] = config.INK_TICK
+                    self._hit(h, config.INK_STING, None)
+            else:
+                self.ink_hit.pop(k, None)
+
+    def _tick_globs(self, dt: float) -> None:
+        """Lobbed ink lands: a spray glob splashes (and leaves a puddle), a
+        blot spreads into a blot patch."""
+        keep = []
+        for g in self.globs:
+            g[4] += dt
+            if g[4] < g[5]:
+                keep.append(g)
+                continue
+            x, y = g[2], g[3]
+            if g[6] == "blot":
+                self.blots.append([x, y, 0.0])
+            else:
+                _, _, radius, damage, _ = config.INKCAP_SPRAY
+                self._blast(x, y, radius, damage)
+                self.puddles.append([x, y, config.PUDDLE[0], 0.0, config.PUDDLE[1], 0.2])
+            self.ctx.effects.append(Effect("impact", x, y))
+        self.globs = keep
+
+    def _tick_blots(self, dt: float) -> None:
+        """Blot patches dry up; a hero in one is inked (blind); a roll wipes
+        it off."""
+        for b in self.blots:
+            b[2] += dt
+        self.blots = [b for b in self.blots if b[2] < config.BLOT_LIFE]
+        for h in self.ctx.players:
+            k = id(h)
+            if not h.alive:
+                self.inked.pop(k, None)
+                continue
+            if getattr(h, "rolling", False):
+                if self.inked.pop(k, 0.0) > 0:
+                    self.ctx.effects.append(Effect("toast", h.x, h.y - 2, label="WIPED OFF"))
+                continue
+            if any(math.hypot(h.x - b[0], h.y - b[1]) <= config.BLOT_RADIUS for b in self.blots):
+                if k not in self.inked:
+                    self.ctx.effects.append(Effect("toast", h.x, h.y - 2, label="INKED!"))
+                self.inked[k] = config.INKED
+            elif k in self.inked:
+                self.inked[k] -= dt
+                if self.inked[k] <= 0:
+                    self.inked.pop(k)
+
+    def _tick_sprouts(self, dt: float) -> None:
+        """Ink-cap sprouts grow; one left CLUSTER_GROW s melts into a pool."""
+        keep = []
+        r, life = config.CLUSTER_POOL
+        for s in self.sprouts:
+            if not s.alive:
+                if not s.dropped:
+                    self.ctx.effects.append(Effect("impact", s.x, s.y))
+                continue
+            s.age += dt
+            if s.age >= config.CLUSTER_GROW:
+                s.dropped = True
+                s.last_hit_by = None
+                s.hp = 0.0
+                self.puddles.append([s.x, s.y, r, 0.0, life, 4.0])
+                self.ctx.effects.append(Effect("toast", s.x, s.y - 2, label="IT MELTS"))
+                continue
+            keep.append(s)
+        self.sprouts = keep
+
+    # --- The bar, the map ---------------------------------------------------------------
+
+    @property
+    def bar_label(self) -> str:
+        name = self.espec.name.upper()
+        if self.pooling:
+            return f"{name} - A POOL OF INK"
+        if self.submerged:
+            return f"{name} - UNDER THE GROUND"
+        return name
+
+    def map_marks(self) -> list[tuple[float, float, str, str]]:
+        """Map pins: where it'll reform while it flows as ink."""
+        return [(*self.reform, "node", "IT REFORMS")] if self.reform is not None else []
+
+    def on_death(self, ctx: AIContext) -> None:
+        self.ctx = ctx
+        for s in self.sprouts:
+            s.dropped = True
+            s.hp = 0.0
+            s.last_hit_by = None
+        self.sprouts = []
+        self.submerged = self.pooling = False
+        self.puddles, self.blots, self.globs, self.letters, self.inked = [], [], [], [], {}
+        ctx.effects.append(Effect("explosion", self.x, self.y))
+        ctx.effects.append(Effect("nova", self.x, self.y, size=4.0))
+        ctx.events.append(combat.BREAK)
+
+    # --- Signature moves ----------------------------------------------------------------
+
+    def m_melt(self):
+        """Signature 1: it slumps (the tell) into a pool of ink and flows to
+        the bubbling spot (shown from the start), leaving puddles; it
+        reforms there in a splash."""
+        t = self.target_now()
+        if t is None:
+            return
+        spot = None
+        lo, hi = config.POOL_AWAY
+        for _ in range(16):
+            a = self.rng.uniform(0, math.tau)
+            r = self.rng.uniform(lo, hi)
+            x, y = self.clamp_to_lair(t.x + math.cos(a) * r, t.y + math.sin(a) * r * 0.8, 3.0)
+            if self._room(x, y):
+                spot = (x, y)
+                break
+        spot = spot or self._open_near(t.x, t.y)
+        self.reform = spot
+        self.tell = ("melt",)
+        yield self.tell_s(config.POOL_TELL)
+        self.tell = None
+        self.submerged = self.pooling = True
+        last = (self.x, self.y)
+        while math.hypot(spot[0] - self.x, spot[1] - self.y) > 0.4:
+            d = math.hypot(spot[0] - self.x, spot[1] - self.y)
+            step = min(d, config.POOL_SPEED * self.dt)
+            self.x += (spot[0] - self.x) / d * step
+            self.y += (spot[1] - self.y) / d * step
+            self.walked += step
+            if math.hypot(self.x - last[0], self.y - last[1]) >= config.PUDDLE_GAP:
+                last = (self.x, self.y)
+                self.puddles.append([self.x, self.y, config.PUDDLE[0], 0.0, config.PUDDLE[1], 0.2])
+            yield 0
+        self.x, self.y = spot
+        self.submerged = self.pooling = False
+        self.reform = None
+        self.ctx.effects.append(Effect("nova", self.x, self.y, size=2.5))
+        if self.room_for_shots():
+            patterns.radial(self, self.x, self.y, config.POOL_SPLASH, self.shots["ink"],
+                            self.ctx.projectiles, self.rng.uniform(0, math.tau))
+        self.ctx.events.append("fizzle")
+        yield 0.4
+
+    def m_blots(self):
+        """Signature 2: it rears back (the tell) and flicks blots of ink on
+        and round its target (rings show where)."""
+        self.tell = ("rear",)
+        yield self.tell_s(config.BLOT_TELL)
+        self.tell = None
+        t = self.target_now()
+        if t is None:
+            return
+        T = self.tell_s(config.BLOT_FLIGHT)
+        spots = [self.clamp_to_lair(*self.lead(t, self.x, self.y, secs=T), 3.0)]
+        for _ in range(config.BLOTS - 1):
+            a = self.rng.uniform(0, math.tau)
+            r = self.rng.uniform(4.0, 7.0)
+            spots.append(self.clamp_to_lair(t.x + math.cos(a) * r, t.y + math.sin(a) * r * 0.8,
+                                            3.0))
+        for x, y in spots:
+            self.globs.append([self.x, self.y - 2.0, x, y, 0.0, T, "blot"])
+        self.ctx.events.append("fizzle")
+        yield 0.3
+
+    def m_scrawl(self):
+        """Signature 3: it writes a word across the floor through its target,
+        letter by letter (the tell is the writing); then the letters burst in
+        order -- or, every other word, rise as ink imps."""
+        t = self.target_now()
+        if t is None:
+            return
+        word = self.rng.choice(config.SCRAWL_WORDS)
+        a = self.rng.uniform(0, math.tau)
+        n = len(word)
+        gap = config.SCRAWL_GAP
+        self.tell = ("write",)
+        for k, ch in enumerate(word):
+            off = (k - (n - 1) / 2) * gap
+            x, y = self.clamp_to_lair(t.x + math.cos(a) * off, t.y + math.sin(a) * off * 0.8, 2.0)
+            self.letters.append([x, y, ch, 0.0])
+            yield config.SCRAWL_PEN
+        self.tell = None
+        yield self.tell_s(config.SCRAWL_HOLD)
+        imps = self.scrawls % 2 == 1
+        self.scrawls += 1
+        letters, self.letters = self.letters, []
+        if imps and self.recruit is not None:
+            alive = sum(1 for e in self.ctx.actors
+                        if getattr(e, "summoner", None) is self and e.alive)
+            for x, y, ch, _ in letters[:max(0, config.SCRAWL_IMPS - alive)]:
+                e = self.recruit("ink_imp", x, y)
+                if e is not None:
+                    e.summoner = self
+                    e.alert = True
+                    self.ctx.effects.append(Effect("nova", x, y, size=1.0))
+            self.ctx.events.append("orb")
+            yield 0.3
+            return
+        every, radius, damage = config.SCRAWL_BURST
+        for x, y, ch, _ in letters:
+            self._blast(x, y, radius, damage)
+            self.ctx.effects.append(Effect("explosion", x, y))
+            yield every
+        self.ctx.events.append("boulder")
+
+    def m_clusters(self):
+        """Signature 4: it rears (the tell), and little ink caps push up
+        round its target -- break them before they melt."""
+        self.tell = ("rear",)
+        yield self.tell_s(config.CLUSTER_TELL)
+        self.tell = None
+        t = self.target_now()
+        if t is None or self.recruit is None:
+            return
+        lo, hi = config.CLUSTER_NEAR
+        for _ in range(config.CLUSTER):
+            for _ in range(12):
+                a = self.rng.uniform(0, math.tau)
+                r = self.rng.uniform(lo, hi)
+                x, y = self.clamp_to_lair(t.x + math.cos(a) * r, t.y + math.sin(a) * r * 0.8, 3.0)
+                if not self._solid(x, y):
+                    break
+            s = self.recruit("ink_sprout", x, y)
+            if s is None:
+                continue
+            s.part_of = self
+            s.rooted = True
+            s.max_hp = s.hp = config.CLUSTER_HP * self.max_hp / 8000
+            self.sprouts.append(s)
+            self.ctx.effects.append(Effect("eruption", x, y))
+        self.ctx.events.append("boulder")
+        yield 0.3
+
+    # --- Its moves ----------------------------------------------------------------------
+
+    def m_scales(self):
+        """It rears (the tell): fans of shaggy scales flicked at you, then a
+        turning spiral."""
+        tell, fans, n, spread, gap, arms, dur, every, turn = config.INKCAP_SCALES
+        self.tell = ("rear",)
+        yield self.tell_s(tell)
+        self.tell = None
+        for _ in range(fans):
+            t = self.target_now()
+            if t is None:
+                return
+            if self.room_for_shots():
+                patterns.fan(self, self.x, self.y - 1.5, self.aim(t, self.x, self.y, 11.0), n,
+                             spread, self.shots["scale"], self.ctx.projectiles)
+            self.ctx.events.append("fizzle")
+            yield gap
+        base = self.rng.uniform(0, math.tau)
+        way = self.rng.choice((-1, 1))
+        tt = 0.0
+        while tt < dur:
+            if self.room_for_shots():
+                for k in range(arms):
+                    patterns.shoot(self, self.x, self.y - 1.5, base + k * math.tau / arms,
+                                   self.shots["scale"], self.ctx.projectiles)
+            base += way * turn * every
+            tt += every
+            yield every
+
+    def m_spray(self):
+        """Lobbed arcs of ink (rings show where they land), splashing into
+        puddles."""
+        flight, n, _, _, spread = config.INKCAP_SPRAY
+        t = self.target_now()
+        if t is None:
+            return
+        self.tell = ("rear",)
+        yield self.tell_s(0.3)
+        self.tell = None
+        T = self.tell_s(flight)
+        spots = [self.clamp_to_lair(*self.lead(t, self.x, self.y, secs=T), 3.0)]
+        for _ in range(n - 1):
+            a = self.rng.uniform(0, math.tau)
+            r = self.rng.uniform(2.5, spread)
+            spots.append(self.clamp_to_lair(t.x + math.cos(a) * r, t.y + math.sin(a) * r * 0.8,
+                                            3.0))
+        for k, (x, y) in enumerate(spots):
+            self.globs.append([self.x, self.y - 2.0, x, y, -0.1 * k, T, "spray"])
+        self.ctx.events.append("fizzle")
+        yield 0.4
+
+    def m_burst(self):
+        """It sinks; the floor cracks in a ring under its target (the tell);
+        it bursts up there in a ring of ink drops."""
+        tell, radius, damage, drops = config.INKCAP_BURST
+        t = self.target_now()
+        if t is None:
+            return
+        self.tell = ("sink",)
+        yield 0.3
+        self.tell = None
+        self.submerged = True
+        wait = self.tell_s(tell)
+        x, y = self._open_near(*self.clamp_to_lair(*self.lead(t, self.x, self.y, secs=wait),
+                                                   3.0))
+        self.crack_at = (x, y)
+        yield wait
+        self.crack_at = None
+        self.x, self.y = x, y
+        self.submerged = False
+        self.ctx.effects.append(Effect("explosion", x, y))
+        self._blast(x, y, radius, damage)
+        if self.room_for_shots():
+            patterns.radial(self, x, y, drops, self.shots["ink"], self.ctx.projectiles,
+                            self.rng.uniform(0, math.tau))
+        self.ctx.events.append("boulder")
+        yield 0.5
+
+    def m_shake(self):
+        """It shakes its whole cap (the tell): rings of scales flung out one
+        after another, each with a gap to slip through."""
+        tell, rings, n, gap_deg, every = config.INKCAP_SHAKE
+        self.tell = ("shake",)
+        yield self.tell_s(tell)
+        self.tell = None
+        self.shaking = True
+        half = math.radians(gap_deg) / 2
+        t = self.target_now()
+        gap_at = math.atan2(t.y - self.y, t.x - self.x) + math.pi if t is not None else 0.0
+        for k in range(rings):
+            gap_at += self.rng.uniform(-1.2, 1.2)
+            turn = self.rng.uniform(0, math.tau)
+            if self.room_for_shots():
+                for j in range(n):
+                    a = turn + j * math.tau / n
+                    if abs((a - gap_at + math.pi) % math.tau - math.pi) < half:
+                        continue
+                    patterns.shoot(self, self.x, self.y - 1.5, a, self.shots["scale"],
+                                   self.ctx.projectiles)
+            self.ctx.events.append("fizzle")
+            yield every
+        self.shaking = False
+
+
+class PuffHalf(MycoPart):
+    """Half of a split giant puffball (M26.3): a body of its own that bounds
+    about, but its hits go to the whole puffball's health (one bar)."""
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec, x, y, rng, spawn_id)
+        self.hit_radius = config.SPLIT_HALF[0]
+        self.max_hp = self.hp = 10.0 ** 9
+        self.airborne = 0.0
+        self.hop = 0.0
+        self.landing: tuple | None = None
+        self.bound_t = 0.0
+
+    @property
+    def hittable(self) -> bool:
+        b = self.part_of
+        return self.alive and self.airborne <= 0 and (b is None or b.alive)
+
+    def take_damage(self, amount: float, source=None, from_angle=None) -> float:
+        b = self.part_of
+        if b is None or not b.alive or not self.alive:
+            return 0.0
+        dealt = b.take_damage(amount, source, from_angle)
+        if dealt:
+            self.hurt_flash = 0.12
+        return dealt
+
+
+class Puffball(Boss):
+    """Mycelium -- this one the giant puffball: a huge round white puffball
+    with a crack of a mouth and two little eyes, cracking open as the fight
+    goes on (design/BOSSES.md section 29). Only ever called "Mycelium". Its
+    signatures stack: phase 1 the minefield; phase 2 adds bounding; phase 3
+    adds the spore wind and the split.
+
+    1. PUFFBALL MINEFIELD (all fight): little puffballs (bodies) scattered
+       round you. Walk near one and its fuse lights; shoot one and it pops
+       at once. A pop sets off the mines round it, in a chain -- and a pop
+       next to it hurts and staggers it.
+    2. BOUNDING (phase 2+): between its moves it bounds about in leaps (a
+       shadow where it'll land), each landing a shockwave and spores.
+    3. SPORE WIND (phase 3): a wind blows across its field, turning now and
+       then; it breathes clouds of spores that drift with it (stand upwind,
+       or behind cover: clouds stop at boulders).
+    4. SPLIT (phase 3): it splits into two halves that bound about on their
+       own, sharing its health, then roll back together.
+
+    Spore clouds choke. Its own moves: the roll (a line shown; it bounces
+    off the field's edge once), puff rings (slow rings with a gap), spore
+    mortars (lobbed onto rings, bursting into clouds) and the squash (it
+    squashes flat, then springs: a shockwave and spores all round). It
+    rolls round its target, and on (slower) through most of its moves."""
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.PUFF_HIT_RADIUS)
+        self.shots = config.PUFF_SHOTS
+        self.mines: list = []
+        self.mine_t = config.MINE_EVERY * 0.4
+        self.pops: list[list[float]] = []        # chained pops to come: [x, y, s until]
+        self.clouds: list[list[float]] = []      # [x, y, age, life, radius, drifts (0/1)]
+        self.choke: dict[int, float] = {}        # hero id -> s to the next choke
+        self.bound_t = config.BOUND_EVERY
+        self.landing: tuple | None = None        # where a bound lands (the tell)
+        self.hop = 0.0
+        self.wind = rng.uniform(0, math.tau)
+        self.wind_t = config.WIND_EVERY
+        self.breath_t = config.BREATH_EVERY * 0.5
+        self.split_t = config.SPLIT_EVERY * 0.5
+        self.halves: list = []
+        self.squashed = False
+        self.lobs: list[list[float]] = []        # mortars in flight: [x0, y0, x1, y1, s flown, s]
+        self.rolled = 0.0                        # drawing: how far it's rolled (its face turns)
+        self.dashing = False
+        self.circle_dir = 1
+        self.circle_t = 0.0
+
+    # --- Helpers ------------------------------------------------------------------------
+
+    @property
+    def split(self) -> bool:
+        return bool(self.halves)
+
+    @property
+    def hittable(self) -> bool:
+        return super().hittable and not self.halves
+
+    def _solid(self, x: float, y: float) -> bool:
+        t = self.ctx.world.tile_at(math.floor(x), math.floor(y))
+        return t is None or t.solid
+
+    def _room(self, x: float, y: float, r: float = 1.0) -> bool:
+        if self.lair is not None and not self.lair.inside(x, y + 0.8, 1.0):
+            return False
+        return not any(self._solid(x + dx, y + dy) for dx, dy in
+                       ((0, 0), (r, 0.8), (-r, 0.8), (0, 1.4)))
+
+    def _open_near(self, x: float, y: float) -> tuple[float, float]:
+        if self._room(x, y):
+            return x, y
+        for r in (1.5, 3.0, 4.5, 6.0):
+            for k in range(12):
+                a = k * math.tau / 12
+                nx, ny = self.clamp_to_lair(x + math.cos(a) * r, y + math.sin(a) * r, 3.0)
+                if self._room(nx, ny):
+                    return nx, ny
+        return self.x, self.y
+
+    def _roll_round(self, t, dt: float, mult: float) -> None:
+        near, far, every, speed, _ = config.PUFF_WALK
+        self.circle_t -= dt
+        if self.circle_t <= 0:
+            self.circle_dir = -self.circle_dir
+            self.circle_t = self.rng.uniform(*every)
+        d = math.hypot(t.x - self.x, t.y - self.y)
+        out = math.atan2(self.y - t.y, self.x - t.x)
+        bend = 0.8 if d < near else (-0.8 if d > far else 0.0)
+        a = out + self.circle_dir * (math.pi / 2 - bend)
+        step = speed * mult * dt
+        for turn in (0.0, 0.5, -0.5, 1.0, -1.0):
+            nx, ny = self.x + math.cos(a + turn) * step, self.y + math.sin(a + turn) * step
+            if self._room(nx, ny):
+                self.x, self.y = nx, ny
+                self.rolled += step
+                return
+        self.circle_dir = -self.circle_dir
+
+    def _hit(self, h, damage: float, angle) -> float:
+        return combat.strike(h, damage * self.damage_mult, self, angle, self.ctx.effects) or 0.0
+
+    def _blast(self, x: float, y: float, radius: float, damage: float) -> None:
+        for h in self.ctx.players:
+            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius:
+                self._hit(h, damage, None)
+
+    def shove_heroes(self, extra: float = 0.3) -> None:
+        if not self.dashing and not self.halves:
+            super().shove_heroes(extra)
+
+    def wind_vec(self) -> tuple[float, float]:
+        return math.cos(self.wind) * config.WIND_SPEED, math.sin(self.wind) * config.WIND_SPEED
+
+    def in_cloud(self, x: float, y: float) -> bool:
+        return any(math.hypot(x - c[0], y - c[1]) <= c[4] for c in self.clouds)
+
+    def bodies(self) -> list:
+        """Where it is: itself, or its two halves."""
+        return [h for h in self.halves if h.alive] or [self]
+
+    # --- Every step ---------------------------------------------------------------------
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.ctx = ctx
+        self._tick_mines(dt)
+        self._tick_clouds(dt)
+        if self.phase >= 2:
+            self.wind_t -= dt
+            if self.wind_t <= 0:
+                self.wind_t = config.WIND_EVERY
+                self.wind += self.rng.choice((-1, 1)) * math.radians(config.WIND_TURN)
+                self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="THE WIND TURNS"))
+        g = self.drift_target()
+        if g is not None and self.dazed <= 0 and self.airborne <= 0 and not self.halves \
+                and not self.dashing and self.move not in ("squash", "split", "bound"):
+            mult = 1.0 if self._gen is None else config.PUFF_WALK[4]
+            self._roll_round(g, dt, mult)
+            self.facing = math.atan2(g.y - self.y, g.x - self.x)
+        self.mine_t -= dt                         # (its signatures' timers run on
+        if self.phase >= 1:                       # through its moves; each starts
+            self.bound_t -= dt                    # once it's free)
+        if self.phase >= 2:
+            self.breath_t -= dt
+            self.split_t -= dt
+        if self._gen is None and self.dazed <= 0:
+            start = None
+            if self.phase >= 2 and self.split_t <= 0 and self.recruit is not None:
+                self.split_t = config.SPLIT_EVERY
+                start = "split"
+            elif self.mine_t <= 0 and self.recruit is not None:
+                self.mine_t = config.MINE_EVERY
+                start = "mines"
+            elif self.phase >= 2 and self.breath_t <= 0:
+                self.breath_t = config.BREATH_EVERY
+                start = "breath"
+            elif self.phase >= 1 and self.bound_t <= 0:
+                self.bound_t = config.BOUND_EVERY
+                start = "bound"
+            if start is not None:
+                self._start(start)
+                self._wait = 0.0
+        super().think(ctx, dt)
+
+    def _end_move(self) -> None:
+        bound = self.move == "bound"
+        rest = self._rest
+        super()._end_move()
+        if bound:                                 # (a bound isn't a move: no rest after it)
+            self._rest = max(rest, 0.2)
+        self.landing = None
+        self.dashing = False
+        self.squashed = False
+
+    def on_phase(self, phase: int, ctx: AIContext) -> None:
+        label = ("IT STARTS TO BOUNCE...", "THE WIND RISES...")[min(phase, 2) - 1] \
+            if phase else ""
+        if label:
+            ctx.effects.append(Effect("toast", self.x, self.y - 4, label=label))
+
+    def _pop(self, x: float, y: float) -> None:
+        """A mine pops: a burst, the mines near it pop in a chain, and one
+        popping by it hurts and staggers it."""
+        radius, damage = config.MINE_BURST
+        self._blast(x, y, radius, damage)
+        self.ctx.effects.append(Effect("nova", x, y, size=radius))
+        self.ctx.events.append("fizzle")
+        for m in self.mines:
+            if m.alive and math.hypot(m.x - x, m.y - y) <= config.MINE_CHAIN:
+                m.dropped = True
+                m.last_hit_by = None
+                m.hp = 0.0
+                self.pops.append([m.x, m.y, config.MINE_GAP])
+        if self.alive and any(math.hypot(b.x - x, b.y - y) <= config.MINE_STAGGER
+                              for b in self.bodies()):
+            self.hp = max(1.0, self.hp - config.MINE_HURT * self.max_hp)
+            self.hurt_flash = 0.2
+            if not self.halves and self.airborne <= 0:
+                if self.dazed <= 0:
+                    self.ctx.effects.append(Effect("toast", self.x, self.y - 4,
+                                                   label="STAGGERED!"))
+                self.dazed = max(self.dazed, config.MINE_DAZE)
+                self._rest = max(self._rest, config.MINE_DAZE)
+
+    def _tick_mines(self, dt: float) -> None:
+        """A shot mine pops; a hero near one lights its fuse; chains go off."""
+        heroes = [h for h in self.ctx.players if h.alive and self.in_arena(h)]
+        keep = []
+        for m in self.mines:
+            if not m.alive:
+                if not m.dropped:                  # (shot: pops at once)
+                    m.dropped = True
+                    self._pop(m.x, m.y)
+                continue
+            if m.age > 0:                          # (its fuse burning)
+                m.age -= dt
+                if m.age <= 0:
+                    m.dropped = True
+                    m.last_hit_by = None
+                    m.hp = 0.0
+                    self._pop(m.x, m.y)
+                    continue
+            elif any(math.hypot(h.x - m.x, h.y - m.y) <= config.MINE_TRIGGER for h in heroes):
+                m.age = config.MINE_FUSE
+            keep.append(m)
+        self.mines = keep
+        todo = []
+        for p in self.pops:
+            p[2] -= dt
+            if p[2] <= 0:
+                self._pop(p[0], p[1])
+            else:
+                todo.append(p)
+        self.pops = todo
+
+    def _tick_clouds(self, dt: float) -> None:
+        """Clouds age; a drifting one drifts with the wind (stopping where it
+        meets something solid); heroes in one choke."""
+        wx, wy = self.wind_vec()
+        keep = []
+        for c in self.clouds:
+            c[2] += dt
+            if c[2] >= c[3]:
+                continue
+            if c[5]:
+                nx, ny = c[0] + wx * dt, c[1] + wy * dt
+                if self._solid(nx, ny) or (self.lair is not None and not self.lair.inside(nx, ny)):
+                    c[5] = 0.0                     # (stopped against it)
+                else:
+                    c[0], c[1] = nx, ny
+            keep.append(c)
+        self.clouds = keep
+        for h in self.ctx.players:
+            k = id(h)
+            if h.alive and self.in_arena(h) and self.in_cloud(h.x, h.y):
+                self.choke[k] = self.choke.get(k, 0.15) - dt
+                if self.choke[k] <= 0:
+                    self.choke[k] = config.CLOUD_TICK
+                    self._hit(h, config.CLOUD_CHOKE, None)
+            else:
+                self.choke.pop(k, None)
+
+    # --- The bar, the map ---------------------------------------------------------------
+
+    @property
+    def bar_label(self) -> str:
+        name = self.espec.name.upper()
+        if self.halves:
+            return f"{name} - SPLIT IN TWO"
+        if self.dazed > 0:
+            return f"{name} - STAGGERED, HIT IT!"
+        return name
+
+    def map_marks(self) -> list[tuple[float, float, str, str]]:
+        return []
+
+    def on_death(self, ctx: AIContext) -> None:
+        self.ctx = ctx
+        for p in self.mines + self.halves:
+            p.dropped = True
+            p.hp = 0.0
+            p.last_hit_by = None
+        self.mines, self.halves, self.pops, self.clouds = [], [], [], []
+        ctx.effects.append(Effect("explosion", self.x, self.y))
+        ctx.effects.append(Effect("nova", self.x, self.y, size=5.0))
+        ctx.events.append(combat.BREAK)
+
+    # --- Signature moves ----------------------------------------------------------------
+
+    def m_mines(self):
+        """Signature 1: it puffs (the tell) and scatters little puffballs
+        round its target."""
+        self.tell = ("puff",)
+        yield self.tell_s(config.MINE_TELL)
+        self.tell = None
+        t = self.target_now()
+        if t is None or self.recruit is None:
+            return
+        lo, hi = config.MINE_NEAR
+        room = config.MINE_MAX - sum(1 for m in self.mines if m.alive)
+        for _ in range(min(config.MINES, room)):
+            for _ in range(12):
+                a = self.rng.uniform(0, math.tau)
+                r = self.rng.uniform(lo, hi)
+                x, y = self.clamp_to_lair(t.x + math.cos(a) * r, t.y + math.sin(a) * r * 0.8, 2.5)
+                if not self._solid(x, y) and math.hypot(x - t.x, y - t.y) > config.MINE_TRIGGER + 1:
+                    break
+            m = self.recruit("puff_mine", x, y)
+            if m is None:
+                continue
+            m.part_of = self
+            m.rooted = True
+            self.mines.append(m)
+            self.ctx.effects.append(Effect("impact", x, y))
+        self.ctx.events.append("fizzle")
+        yield 0.3
+
+    def _leap(self, body, x1: float, y1: float, T: float):
+        """One leap of `body` (it, or a half) to (x1, y1) over T s (in the
+        air: can't be hit)."""
+        x0, y0 = body.x, body.y
+        body.landing = (x1, y1)
+        body.airborne = 1.0
+        tt = 0.0
+        while tt < T:
+            tt = min(T, tt + self.dt)
+            body.hop = tt / T
+            body.x, body.y = x0 + (x1 - x0) * body.hop, y0 + (y1 - y0) * body.hop
+            yield 0
+        body.airborne = 0.0
+        body.hop = 0.0
+        body.landing = None
+
+    def m_bound(self):
+        """Signature 2: a bound -- its shadow where it'll land, then a
+        shockwave and spores there."""
+        t = self.target_now()
+        if t is None:
+            return
+        lo, hi = config.BOUND_NEAR
+        a = self.rng.uniform(0, math.tau)
+        r = self.rng.uniform(lo, hi)
+        x, y = self._open_near(*self.clamp_to_lair(t.x + math.cos(a) * r,
+                                                   t.y + math.sin(a) * r * 0.8, 3.0))
+        yield from self._leap(self, x, y, self.tell_s(config.BOUND_TELL))
+        radius, damage, spores = config.BOUND_LAND
+        self._blast(self.x, self.y, radius, damage)
+        self.ctx.effects.append(Effect("explosion", self.x, self.y + 1.0))
+        if self.room_for_shots():
+            patterns.radial(self, self.x, self.y, spores, self.shots["spore"],
+                            self.ctx.projectiles, self.rng.uniform(0, math.tau))
+        self.ctx.events.append("boulder")
+        yield 0.2
+
+    def m_breath(self):
+        """Signature 3: it breathes in (the tell), then out: clouds of spores
+        that drift off with the wind."""
+        self.tell = ("breath",)
+        yield self.tell_s(config.BREATH_TELL)
+        self.tell = None
+        radius, life = config.BREATH_CLOUD
+        for k in range(config.BREATH_CLOUDS):
+            a = self.wind + self.rng.uniform(-0.9, 0.9)
+            r = 1.5 + k * 1.2
+            self.clouds.append([self.x + math.cos(a) * r, self.y + math.sin(a) * r * 0.8, 0.0,
+                                life, radius, 1.0])
+        self.ctx.events.append("fizzle")
+        yield 0.3
+
+    def m_split(self):
+        """Signature 4: it pinches in two (the tell); the halves bound about
+        on their own, sharing its health; then they roll back together."""
+        self.tell = ("split",)
+        yield self.tell_s(config.SPLIT_TELL)
+        self.tell = None
+        if self.recruit is None:
+            return
+        for side in (-1, 1):
+            h = self.recruit("puff_half", self.x + side * 2.5, self.y)
+            if h is None:
+                continue
+            h.part_of = self
+            h.bound_t = 0.6 + (side + 1) * 0.5
+            self.halves.append(h)
+        if not self.halves:
+            return
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="IT SPLITS!"))
+        self.ctx.effects.append(Effect("nova", self.x, self.y, size=3.0))
+        _, every, radius, damage, spores = config.SPLIT_HALF
+        leaps = {id(h): None for h in self.halves}
+        tt = 0.0
+        while tt < config.SPLIT_TIME:
+            for h in self.halves:
+                g = leaps[id(h)]
+                if g is not None:
+                    try:
+                        next(g)
+                    except StopIteration:
+                        leaps[id(h)] = None
+                        self._blast(h.x, h.y, radius, damage)
+                        self.ctx.effects.append(Effect("explosion", h.x, h.y + 0.6))
+                        if self.room_for_shots():
+                            patterns.radial(self, h.x, h.y, spores, self.shots["spore"],
+                                            self.ctx.projectiles, self.rng.uniform(0, math.tau))
+                    continue
+                h.bound_t -= self.dt
+                if h.bound_t <= 0:
+                    h.bound_t = every
+                    t = min((p for p in self.ctx.players if p.alive),
+                            key=lambda p: math.hypot(p.x - h.x, p.y - h.y), default=None)
+                    if t is not None:
+                        a = self.rng.uniform(0, math.tau)
+                        r = self.rng.uniform(0.0, 2.0)          # (on or right by you)
+                        x, y = self.lead(t, h.x, h.y, secs=0.6)
+                        x, y = self._open_near(*self.clamp_to_lair(
+                            x + math.cos(a) * r, y + math.sin(a) * r * 0.8, 3.0))
+                        leaps[id(h)] = self._leap(h, x, y, self.tell_s(0.6))
+            self.x = sum(h.x for h in self.halves) / len(self.halves)
+            self.y = sum(h.y for h in self.halves) / len(self.halves)
+            tt += self.dt
+            yield 0
+        # Back together: they roll to their middle and merge.
+        for h in self.halves:
+            h.airborne = 0.0
+            h.landing = None
+        while True:
+            mx = sum(h.x for h in self.halves) / len(self.halves)
+            my = sum(h.y for h in self.halves) / len(self.halves)
+            far = 0.0
+            for h in self.halves:
+                d = math.hypot(mx - h.x, my - h.y)
+                far = max(far, d)
+                if d > 0.3:
+                    step = min(d, config.SPLIT_JOIN * self.dt)
+                    h.x += (mx - h.x) / d * step
+                    h.y += (my - h.y) / d * step
+            self.x, self.y = mx, my
+            if far <= 0.8:
+                break
+            yield 0
+        for h in self.halves:
+            h.dropped = True
+            h.hp = 0.0
+            h.last_hit_by = None
+        self.halves = []
+        self.x, self.y = self._open_near(self.x, self.y)
+        self.ctx.effects.append(Effect("nova", self.x, self.y, size=3.0))
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="BACK TOGETHER"))
+        yield 0.3
+
+    # --- Its moves ----------------------------------------------------------------------
+
+    def m_roll(self):
+        """A line shown, then it rolls along it at you, bouncing once off the
+        field's edge (or a boulder) and on."""
+        tell, speed, far, damage, width = config.PUFF_ROLL
+        t = self.target_now()
+        if t is None:
+            return
+        wait = self.tell_s(tell)
+        tx, ty = self.lead(t, self.x, self.y, secs=wait)
+        a = math.atan2(ty - self.y, tx - self.x)
+        self.tell = ("roll", self.x, self.y, self.x + math.cos(a) * far, self.y + math.sin(a) * far)
+        self.dashing = True
+        yield wait
+        self.tell = None
+        dx, dy = math.cos(a), math.sin(a)
+        gone, bounced = 0.0, False
+        hit = set()
+        while gone < far:
+            step = speed * self.dt
+            nx, ny = self.x + dx * step, self.y + dy * step
+            if not self._room(nx, ny, 0.6):
+                if bounced:
+                    break
+                bounced = True
+                if self.lair is not None and not self.lair.inside(nx, ny + 0.8, 1.0):
+                    a_, b_ = self.lair.radii
+                    n0, n1 = (self.x - self.lair.cx) / (a_ * a_), (self.y - self.lair.cy) / (b_ * b_)
+                    nn = math.hypot(n0, n1) or 1.0
+                    n0, n1 = n0 / nn, n1 / nn
+                    dot = dx * n0 + dy * n1
+                    dx, dy = dx - 2 * dot * n0, dy - 2 * dot * n1
+                else:
+                    dx, dy = -dx, -dy
+                self.ctx.effects.append(Effect("impact", self.x, self.y))
+                continue
+            self.x, self.y = nx, ny
+            gone += step
+            self.rolled += step
+            for h in self.ctx.players:
+                if h.hittable and id(h) not in hit and \
+                        math.hypot(h.x - self.x, h.y - self.y) <= width + h.hit_radius:
+                    hit.add(id(h))
+                    self._hit(h, damage, math.atan2(dy, dx))
+            yield 0
+        self.dashing = False
+        yield 0.3
+
+    def m_rings(self):
+        """It puffs (the tell): slow rings of spore puffs swelling out, one
+        after another, each with a gap."""
+        tell, rings, n, gap_deg, every = config.PUFF_RINGS
+        self.tell = ("puff",)
+        yield self.tell_s(tell)
+        self.tell = None
+        half = math.radians(gap_deg) / 2
+        for _ in range(rings):
+            gap_at = self.rng.uniform(0, math.tau)
+            turn = self.rng.uniform(0, math.tau)
+            if self.room_for_shots():
+                for j in range(n):
+                    a = turn + j * math.tau / n
+                    if abs((a - gap_at + math.pi) % math.tau - math.pi) < half:
+                        continue
+                    patterns.shoot(self, self.x, self.y, a, self.shots["puff"],
+                                   self.ctx.projectiles)
+            self.ctx.events.append("fizzle")
+            yield every
+
+    def m_mortars(self):
+        """Spore balls lobbed onto marked rings (one where you'll be), each
+        bursting into a lingering choking cloud."""
+        flight, n, radius, damage, cloud, life, spread = config.PUFF_MORTARS
+        t = self.target_now()
+        if t is None:
+            return
+        self.tell = ("puff",)
+        yield self.tell_s(0.3)
+        self.tell = None
+        T = self.tell_s(flight)
+        spots = [self.clamp_to_lair(*self.lead(t, self.x, self.y, secs=T), 3.0)]
+        for _ in range(n - 1):
+            a = self.rng.uniform(0, math.tau)
+            r = self.rng.uniform(2.5, spread)
+            spots.append(self.clamp_to_lair(t.x + math.cos(a) * r, t.y + math.sin(a) * r * 0.8,
+                                            3.0))
+        self.lobs = [[self.x, self.y - 1.5, x, y, -0.1 * k, T] for k, (x, y) in enumerate(spots)]
+        while any(l[4] < l[5] for l in self.lobs):
+            for l in self.lobs:
+                if l[4] < l[5]:
+                    l[4] += self.dt
+                    if l[4] >= l[5]:
+                        self._blast(l[2], l[3], radius, damage)
+                        self.clouds.append([l[2], l[3], 0.0, life, cloud, 0.0])
+                        self.ctx.effects.append(Effect("impact", l[2], l[3]))
+            yield 0
+        self.lobs = []
+        self.ctx.events.append("fizzle")
+        yield 0.2
+
+    def m_squash(self):
+        """It squashes flat (the tell), then springs up: a shockwave and a
+        burst of spores all round."""
+        tell, radius, damage, spores = config.PUFF_SQUASH
+        self.tell = ("squash",)
+        self.squashed = True
+        yield self.tell_s(tell)
+        self.tell = None
+        self.squashed = False
+        self._blast(self.x, self.y, radius, damage)
+        self.ctx.effects.append(Effect("explosion", self.x, self.y + 1.0))
+        self.ctx.effects.append(Effect("nova", self.x, self.y, size=radius))
+        if self.room_for_shots():
+            patterns.radial(self, self.x, self.y, spores, self.shots["spore"],
+                            self.ctx.projectiles, self.rng.uniform(0, math.tau))
+        self.ctx.events.append("boulder")
+        yield 0.4
+
+
+class LegionPart(MycoPart):
+    """A shield skeleton of More than Life's phalanx (M27): it marches with
+    the line, and its shield takes no harm from in front."""
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec, x, y, rng, spawn_id)
+        self.march = 0.0                  # the way the line marches (its shields face it)
+
+    def take_damage(self, amount: float, source=None, from_angle=None) -> float:
+        if from_angle is not None and math.cos(from_angle - self.march) < -0.3:
+            return 0.0                    # (on the shield)
+        return super().take_damage(amount, source, from_angle)
+
+
+class Necromancer(Boss):
+    """The plains boss (M27, design/BOSSES.md section 30): More than Life, a
+    tall hooded necromancer -- and, beaten once, More than Death, the lich
+    his soul rises as (full health again). Much harder than the ring
+    bosses, by having many more abilities at once.
+
+    Background signatures (they run while he casts his moves):
+      RAISE THE DEAD (all fight): what dies in his arena leaves a corpse;
+        crush one by standing on it. Corpses glow, then rise as his dead.
+      CORPSE EXPLOSION (all fight): corpses near you glow red, then burst.
+      BONE WALLS (life 1 phase 2 on): cracks, then walls of bone rise round
+        you, penning you in; they crumble (or shoot them down).
+      THE LEGION (life 1 phase 3 on): archer volleys on marked zones, or a
+        phalanx of shield skeletons marching through you (shields front).
+      SOUL HARVEST (life 2): his hits spill souls that drift to him; each
+        powers his next move -- grab them first.
+      BONE CAGE (life 2 phase 3): ribs of bone round you that close in and
+        crush, unless one is broken.
+    Channelled signatures (moves of their own):
+      DEATH'S GAZE (life 1 phase 2 on): a beam sweeping once round him;
+        hide behind graves.
+      SOUL STORM (life 2): souls circling him while he drags you in.
+      POSSESSION (life 2 phase 2 on): he hides in one of his dead (its eyes
+        flash); kill it to force him out, stunned.
+    His moves: bone spears, skull fire (homing), grasping hands (rings that
+    root), the scythe reap (he blinks beside you). Life 2's signature
+    timers run NECRO_LICH_SLOW x slower; its moves come faster."""
+
+    def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
+                 spawn_id=None) -> None:
+        super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.NECRO_HIT_RADIUS)
+        self.max_hp = round(self.max_hp * config.NECRO_HP_LIVES)
+        self.hp = float(self.max_hp)
+        self.damage_mult *= config.NECRO_DMG
+        self.shots = config.NECRO_SHOTS
+        self.life = 1
+        self.reviving = False
+        self.banner_req: tuple | None = None     # (title, sub): Quests shows it
+        self.seeded = False
+        self.corpses: list[list[float]] = []     # [x, y, s stood on]
+        self.minions: list = []
+        self.raise_t = config.RAISE_EVERY * 0.4
+        self.raise_glow = 0.0                    # (corpses glowing green: about to rise)
+        self.blast_t = config.BLAST_EVERY * 0.8
+        self.blast_glow = 0.0                    # (corpses glowing red: about to burst)
+        self.blasting: list = []                 # the corpses about to burst
+        self.wall_t = config.WALL_EVERY * 0.4
+        self.cracks: list[tuple] = []            # walls' tell: tiles
+        self.crack_t = 0.0
+        self.walls: list[list] = []              # [tx, ty, tile it was, age]
+        self.gaze_t = config.GAZE_EVERY * 0.5
+        self.gaze: float | None = None           # the beam's angle (None: no beam)
+        self.gaze_on = False                     # (False: just the tell)
+        self.gaze_end: tuple | None = None       # where the beam stops (drawing)
+        self.gaze_hit: dict[int, float] = {}
+        self.legion_t = config.LEGION_EVERY * 0.3
+        self.legion_turn = 0
+        self.volley: list[list[float]] = []      # [x, y, s until the arrows]
+        self.shields: list = []
+        self.phalanx: dict | None = None
+        self.storm_t = config.STORM_EVERY * 0.4
+        self.storm = 0.0                         # s of soul storm left
+        self.storm_spin = 0.0
+        self.storm_hit: dict[int, float] = {}
+        self.wisps: list[list[float]] = []       # souls drifting to him: [x, y]
+        self.souls = 0
+        self.power = 1.0
+        self.possess_t = config.POSSESS_EVERY * 0.5
+        self.host = None                         # the risen dead he hides in
+        self.blink = 0.0                         # the host's eyes flashing (drawing)
+        self.cage_t = config.CAGE_EVERY * 0.5
+        self.cage_tell: tuple | None = None      # (x, y, s left, hero)
+        self.cage_x = self.cage_y = 0.0
+        self.ribs: list = []
+        self.caged = None
+        self.cage_age = 0.0
+        self.homers: list[list] = []             # skulls: [x, y, a, s circling, life, hit]
+        self.hands: list[tuple] = []             # rings' tell
+        self.reap_at: tuple | None = None
+        self.arc: tuple | None = None            # (angle, reach, half): a reap (drawing)
+        self.arc_t = 0.0
+        self.dashing = False
+        self.circle_dir = 1
+        self.circle_t = 0.0
+
+    # --- Helpers ------------------------------------------------------------------------
+
+    @property
+    def props(self) -> dict:
+        return self.lair.props if self.lair is not None else {}
+
+    @property
+    def lich(self) -> bool:
+        return self.life >= 2
+
+    @property
+    def hittable(self) -> bool:
+        return super().hittable and not self.reviving and self.host is None
+
+    def slow(self) -> float:
+        return config.NECRO_LICH_SLOW if self.lich else 1.0
+
+    def _solid(self, x: float, y: float) -> bool:
+        t = self.ctx.world.tile_at(math.floor(x), math.floor(y))
+        return t is None or t.solid
+
+    def _room(self, x: float, y: float) -> bool:
+        if self.lair is not None and not self.lair.inside(x, y + 1.2, 1.5):
+            return False
+        if self.lich:                            # (it floats over graves)
+            return True
+        return not any(self._solid(x + dx, y + dy) for dx, dy in
+                       ((0, 0), (0.7, 1.2), (-0.7, 1.2), (0, 1.2)))
+
+    def _move_round(self, t, dt: float, mult: float) -> None:
+        near, far, every, speed, _ = config.NECRO_FLOAT if self.lich else config.NECRO_WALK
+        self.circle_t -= dt
+        if self.circle_t <= 0:
+            self.circle_dir = -self.circle_dir
+            self.circle_t = self.rng.uniform(*every)
+        d = math.hypot(t.x - self.x, t.y - self.y)
+        out = math.atan2(self.y - t.y, self.x - t.x)
+        bend = 0.8 if d < near else (-0.8 if d > far else 0.0)
+        a = out + self.circle_dir * (math.pi / 2 - bend)
+        step = speed * mult * dt
+        for turn in (0.0, 0.5, -0.5, 1.0, -1.0):
+            nx, ny = self.x + math.cos(a + turn) * step, self.y + math.sin(a + turn) * step
+            if self._room(nx, ny):
+                self.x, self.y = nx, ny
+                return
+        self.circle_dir = -self.circle_dir
+
+    def _hit(self, h, damage: float, angle) -> float:
+        dealt = combat.strike(h, damage * self.damage_mult, self, angle, self.ctx.effects) or 0.0
+        if dealt:
+            self.on_shot_hit(h, dealt)
+        return dealt
+
+    def on_shot_hit(self, victim, dealt: float, angle=None) -> None:
+        """Soul harvest (life 2): a hit that lands spills a soul."""
+        if self.lich and dealt and len(self.wisps) < 24:
+            self.wisps.append([victim.x, victim.y])
+
+    def _blast(self, x: float, y: float, radius: float, damage: float) -> None:
+        for h in self.ctx.players:
+            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius:
+                self._hit(h, damage, None)
+
+    def shove_heroes(self, extra: float = 0.3) -> None:
+        if not self.dashing and not self.reviving and self.host is None and not self.lich:
+            super().shove_heroes(extra)
+
+    def take_damage(self, amount: float, source=None, from_angle=None) -> float:
+        if self.reviving or self.host is not None:
+            return 0.0
+        dealt = super().take_damage(amount, source, from_angle)
+        if not self.lich and self.hp <= 0:       # (the killing blow -- the first time)
+            self.hp = 1.0
+            self._begin_revive()
+        return dealt
+
+    def _begin_revive(self) -> None:
+        self.reviving = True
+        self._gen = None
+        self.move = None
+        self.tell = None
+        self.dashing = False
+        self.gaze = None
+        self.hands, self.reap_at, self.arc = [], None, None
+        self._start("revive")
+        self._wait = 0.0
+
+    def _start(self, name: str) -> None:
+        super()._start(name)
+        if self.lich and self.souls and name != "revive":
+            self.power = 1 + config.HARVEST_POWER * self.souls
+            self.damage_mult *= self.power
+            self.souls = 0
+
+    def _end_move(self) -> None:
+        super()._end_move()
+        if self.power != 1.0:
+            self.damage_mult /= self.power
+            self.power = 1.0
+        self.dashing = False
+        self.gaze = None
+        self.gaze_end = None
+        self.hands = []
+        self.reap_at = None
+
+    def _raise(self, x: float, y: float):
+        if self.recruit is None or sum(1 for m in self.minions if m.alive) >= config.MINION_MAX:
+            return None
+        m = self.recruit("risen_dead", x, y)
+        if m is not None:
+            m.summoner = self
+            m.alert = True
+            self.minions.append(m)
+            self.ctx.effects.append(Effect("eruption", x, y))
+        return m
+
+    # --- Every step ---------------------------------------------------------------------
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self.ctx = ctx
+        if not self.seeded and self.lair is not None:
+            self.seeded = True
+            self.corpses = [[x, y, 0.0] for x, y in self.props.get("corpses", [])]
+        self._tick_minions()
+        self._tick_corpses(dt)
+        self._tick_walls(dt)
+        self._tick_legion(dt)
+        self._tick_storm(dt)
+        self._tick_wisps(dt)
+        self._tick_cage(dt)
+        self._tick_homers(dt)
+        self.arc_t = max(0.0, self.arc_t - dt)
+        if not self.arc_t:
+            self.arc = None
+        g = self.drift_target()
+        if g is not None and self.dazed <= 0 and not self.dashing and not self.reviving \
+                and self.host is None and self.move not in ("gaze", "reap", "storm"):
+            mult = 1.0 if self._gen is None else \
+                (config.NECRO_FLOAT if self.lich else config.NECRO_WALK)[4]
+            self._move_round(g, dt, mult)
+            self.facing = math.atan2(g.y - self.y, g.x - self.x)
+        if not self.reviving:
+            self._tick_timers(dt)
+        super().think(ctx, dt)
+
+    def _tick_timers(self, dt: float) -> None:
+        """The signatures' timers (each at its own pace, slower for the lich);
+        background ones go off at once, channelled ones start when he's free."""
+        slow = self.slow()
+        p, lich = self.phase, self.lich
+        self.raise_t -= dt
+        if self.raise_t <= 0 and self.raise_glow <= 0:
+            self.raise_t = config.RAISE_EVERY * slow
+            self.raise_glow = self.tell_s(config.RAISE_TELL)
+        self.blast_t -= dt
+        if self.blast_t <= 0 and self.blast_glow <= 0:
+            self.blast_t = config.BLAST_EVERY * slow
+            heroes = [h for h in self.ctx.players if h.alive and self.in_arena(h)]
+            self.blasting = [c for c in self.corpses
+                             if any(math.hypot(c[0] - h.x, c[1] - h.y) <= config.BLAST_NEAR
+                                    for h in heroes)][:8]
+            if self.blasting:
+                self.blast_glow = self.tell_s(config.BLAST_TELL)
+        if lich or p >= 1:
+            self.wall_t -= dt
+            if self.wall_t <= 0 and not self.cracks:
+                self.wall_t = config.WALL_EVERY * slow
+                self._plan_walls()
+            self.gaze_t -= dt
+        if lich or p >= 2:
+            self.legion_t -= dt
+            if self.legion_t <= 0:
+                self.legion_t = config.LEGION_EVERY * slow
+                self._call_legion()
+        if lich:
+            self.storm_t -= dt
+            if p >= 1:
+                self.possess_t -= dt
+            if p >= 2:
+                self.cage_t -= dt
+                if self.cage_t <= 0 and self.caged is None and self.cage_tell is None:
+                    self.cage_t = config.CAGE_EVERY
+                    t = self.target_now()
+                    if t is not None:
+                        self.cage_tell = (t.x, t.y, self.tell_s(config.CAGE_TELL), t)
+        if self._gen is None and self.dazed <= 0:
+            start = None
+            if lich and p >= 1 and self.possess_t <= 0:
+                self.possess_t = config.POSSESS_EVERY
+                start = "possess"
+            elif lich and self.storm_t <= 0:
+                self.storm_t = config.STORM_EVERY
+                start = "storm"
+            elif (lich or p >= 1) and self.gaze_t <= 0:
+                self.gaze_t = config.GAZE_EVERY * slow
+                start = "gaze"
+            if start is not None:
+                self._start(start)
+                self._wait = 0.0
+
+    def on_phase(self, phase: int, ctx: AIContext) -> None:
+        if self.reviving:
+            return
+        labels = (("THE DEAD WALK THE WALLS...", "HIS LEGION MARCHES!") if not self.lich else
+                  ("HE HIDES AMONG HIS DEAD...", "BONES CLOSE IN!"))
+        if phase:
+            ctx.effects.append(Effect("toast", self.x, self.y - 4,
+                                      label=labels[min(phase, 2) - 1]))
+
+    def _tick_minions(self) -> None:
+        """His dead that fall leave corpses (in his arena)."""
+        keep = []
+        for m in self.minions:
+            if m.alive:
+                keep.append(m)
+            elif self.lair is None or self.lair.inside(m.x, m.y):
+                self.corpses.append([m.x, m.y, 0.0])
+        self.minions = keep
+
+    def _tick_corpses(self, dt: float) -> None:
+        """Stomping corpses; raising them; bursting them."""
+        heroes = [h for h in self.ctx.players if h.alive and self.in_arena(h)]
+        r, need = config.CORPSE_STOMP
+        keep = []
+        for c in self.corpses:
+            if any(math.hypot(h.x - c[0], h.y - c[1]) <= r for h in heroes):
+                c[2] += dt
+                if c[2] >= need:
+                    self.ctx.effects.append(Effect("toast", c[0], c[1] - 1.5, label="CRUSHED"))
+                    self.ctx.effects.append(Effect("debris", c[0], c[1]))
+                    if c in self.blasting:
+                        self.blasting.remove(c)
+                    continue
+            else:
+                c[2] = 0.0
+            keep.append(c)
+        self.corpses = keep
+        if self.raise_glow > 0:
+            self.raise_glow -= dt
+            if self.raise_glow <= 0:
+                self._rise()
+        if self.blast_glow > 0:
+            self.blast_glow -= dt
+            if self.blast_glow <= 0:
+                radius, damage = config.BLAST
+                for c in self.blasting:
+                    if c in self.corpses:
+                        self.corpses.remove(c)
+                        self._blast(c[0], c[1], radius, damage)
+                        self.ctx.effects.append(Effect("explosion", c[0], c[1]))
+                self.blasting = []
+                self.ctx.events.append("boulder")
+
+    def raising(self) -> list:
+        """The corpses that'll rise when the glow ends (drawing)."""
+        near = sorted((c for c in self.corpses
+                       if math.hypot(c[0] - self.x, c[1] - self.y) <= config.RAISE_RANGE),
+                      key=lambda c: math.hypot(c[0] - self.x, c[1] - self.y))
+        return near[:config.RAISE_MAX]
+
+    def _rise(self) -> None:
+        for c in self.raising():
+            if self._raise(c[0], c[1]) is not None:
+                self.corpses.remove(c)
+        t = self.target_now()
+        graves = self.props.get("graves", [])
+        if t is not None and graves:
+            near = sorted(graves, key=lambda g: math.hypot(g[0] - t.x, g[1] - t.y))[:6]
+            for gx, gy in self.rng.sample(near, min(config.RAISE_GRAVES, len(near))):
+                self._raise(gx, gy + 1.0)
+        self.ctx.events.append("orb")
+
+    def _plan_walls(self) -> None:
+        t = self.target_now()
+        if t is None:
+            return
+        tiles_ = []
+        a0 = self.rng.uniform(0, math.pi)
+        for k in range(config.WALL_LINES):
+            a = a0 + k * math.pi / config.WALL_LINES
+            off = self.rng.uniform(2.5, 5.0) * (1 if k % 2 else -1)
+            ox, oy = t.x + math.cos(a + math.pi / 2) * off, t.y + math.sin(a + math.pi / 2) * off
+            n = config.WALL_LEN
+            for j in range(n):
+                d = j - n / 2
+                tx, ty = math.floor(ox + math.cos(a) * d), math.floor(oy + math.sin(a) * d * 0.6)
+                if (tx, ty) not in tiles_ and (self.lair is None or
+                                               self.lair.inside(tx + 0.5, ty + 0.5, 1.5)):
+                    tiles_.append((tx, ty))
+        self.cracks = tiles_
+        self.crack_t = self.tell_s(config.WALL_TELL)
+
+    def _tick_walls(self, dt: float) -> None:
+        """Cracks become walls of bone; walls crumble WALL_LIFE s later."""
+        from ..world import tiles
+        world = self.ctx.world
+        if self.cracks:
+            self.crack_t -= dt
+            if self.crack_t <= 0:
+                heroes = [h for h in self.ctx.players if h.alive]
+                for tx, ty in self.cracks:
+                    old = world.tile_at(tx, ty)
+                    if old.solid or any(abs(h.x - tx - 0.5) < 1.2 and abs(h.y - ty - 0.5) < 1.2
+                                        for h in heroes):
+                        continue
+                    if hasattr(world, "set_tile"):
+                        world.set_tile(tx, ty, tiles.BONE_WALL)
+                        self.walls.append([tx, ty, old, 0.0])
+                self.cracks = []
+                self.ctx.events.append("boulder")
+        keep = []
+        for w in self.walls:
+            w[3] += dt
+            if w[3] >= config.WALL_LIFE:
+                if world.tile_at(w[0], w[1]) is tiles.BONE_WALL and hasattr(world, "set_tile"):
+                    world.set_tile(w[0], w[1], w[2])
+                continue
+            keep.append(w)
+        self.walls = keep
+
+    def _call_legion(self) -> None:
+        """By turns: an archer volley on marked zones, or a phalanx."""
+        t = self.target_now()
+        if t is None:
+            return
+        self.legion_turn += 1
+        if self.legion_turn % 2 == 1:
+            n, r, tell, _ = config.VOLLEY
+            heroes = [h for h in self.ctx.players if h.alive and self.in_arena(h)] or [t]
+            for k in range(n):
+                h = heroes[k % len(heroes)]
+                if k == 0:
+                    x, y = self.lead(h, h.x, h.y, secs=tell)
+                else:
+                    a = self.rng.uniform(0, math.tau)
+                    x, y = h.x + math.cos(a) * r * 1.6, h.y + math.sin(a) * r * 1.2
+                self.volley.append([x, y, self.tell_s(tell)])
+            self.ctx.events.append("swing")
+            return
+        if self.recruit is None or self.phalanx is not None:
+            return
+        n, gap_, holes, speed, far, _ = config.PHALANX
+        a = self.rng.uniform(0, math.tau)
+        dx, dy = math.cos(a), math.sin(a)
+        sx, sy = t.x - dx * far / 2, t.y - dy * far / 2
+        hole = self.rng.randint(1, n - holes - 1)
+        self.shields = []
+        for k in range(n):
+            if hole <= k < hole + holes:
+                continue
+            off = (k - (n - 1) / 2) * gap_
+            x, y = sx - dy * off, sy + dx * off
+            s = self.recruit("legion_shield", x, y)
+            if s is None:
+                continue
+            s.part_of = self
+            s.rooted = True
+            s.march = a
+            s.facing = a
+            self.shields.append(s)
+        self.phalanx = {"dx": dx, "dy": dy, "gone": 0.0, "hit": set()}
+        self.ctx.effects.append(Effect("toast", sx, sy - 2, label="THE LEGION!"))
+
+    def _tick_legion(self, dt: float) -> None:
+        """Arrows land on their zones; the phalanx marches, shoving and
+        hurting whoever it walks into, and crumbles at the end."""
+        n, r, tell, damage = config.VOLLEY
+        keep = []
+        for z in self.volley:
+            z[2] -= dt
+            if z[2] > 0:
+                keep.append(z)
+                continue
+            self._blast(z[0], z[1], r, damage)
+            self.ctx.effects.append(Effect("impact", z[0], z[1]))
+        self.volley = keep
+        ph = self.phalanx
+        if ph is None:
+            return
+        _, _, _, speed, far, damage = config.PHALANX
+        step = speed * dt
+        ph["gone"] += step
+        heroes = [h for h in self.ctx.players if h.alive]
+        for s in self.shields:
+            if not s.alive:
+                continue
+            s.x += ph["dx"] * step
+            s.y += ph["dy"] * step
+            for h in heroes:
+                if math.hypot(h.x - s.x, h.y - s.y) <= s.hit_radius + h.hit_radius + 0.3:
+                    combat.push(h, self.ctx.world, ph["dx"] * step * 1.5, ph["dy"] * step * 1.5)
+                    if id(h) not in ph["hit"] and h.hittable:
+                        ph["hit"].add(id(h))
+                        self._hit(h, damage, math.atan2(ph["dy"], ph["dx"]))
+        if ph["gone"] >= far or not any(s.alive for s in self.shields):
+            for s in self.shields:
+                if s.alive:
+                    s.dropped = True
+                    s.last_hit_by = None
+                    s.hp = 0.0
+                    self.ctx.effects.append(Effect("debris", s.x, s.y))
+            self.shields = []
+            self.phalanx = None
+
+    def _tick_storm(self, dt: float) -> None:
+        """The soul storm: heroes dragged in, souls circling and cutting."""
+        if self.storm <= 0:
+            return
+        self.storm -= dt
+        self.storm_spin += config.STORM_RING[2] * dt
+        heroes = [h for h in self.ctx.players if h.alive and self.in_arena(h)]
+        for h in heroes:
+            d = math.hypot(self.x - h.x, self.y - h.y)
+            if 1.5 < d <= config.STORM_REACH and not getattr(h, "rolling", False):
+                k = config.STORM_PULL * dt / d
+                combat.push(h, self.ctx.world, (self.x - h.x) * k, (self.y - h.y) * k)
+            k = id(h)
+            self.storm_hit[k] = self.storm_hit.get(k, 0.0) - dt
+            if self.storm_hit[k] <= 0 and any(math.hypot(h.x - x, h.y - y) <= 0.9 + h.hit_radius
+                                              for x, y in self.storm_souls()):
+                self.storm_hit[k] = 0.5
+                self._hit(h, config.STORM_HIT, None)
+
+    def storm_souls(self) -> list[tuple[float, float]]:
+        lo, hi, _ = config.STORM_RING
+        out = []
+        n = config.STORM_SOULS
+        for k in range(n):
+            a = self.storm_spin + k * math.tau / n
+            r = lo + (hi - lo) * (0.5 + 0.5 * math.sin(self.storm_spin * 1.3 + k))
+            out.append((self.x + math.cos(a) * r, self.y + math.sin(a) * r * 0.8))
+        return out
+
+    def _tick_wisps(self, dt: float) -> None:
+        """Souls drift to him; a hero who grabs one heals a little; each he
+        swallows powers his next move."""
+        speed, grab, heal = config.HARVEST
+        heroes = [h for h in self.ctx.players if h.alive]
+        keep = []
+        for w in self.wisps:
+            taker = next((h for h in heroes if math.hypot(h.x - w[0], h.y - w[1]) <= grab), None)
+            if taker is not None:
+                taker.heal(heal)
+                continue
+            d = math.hypot(self.x - w[0], self.y - w[1])
+            if d <= 1.0:
+                self.souls = min(config.HARVEST_MAX, self.souls + 1)
+                continue
+            step = min(d, speed * dt)
+            w[0] += (self.x - w[0]) / d * step
+            w[1] += (self.y - w[1]) / d * step
+            keep.append(w)
+        self.wisps = keep
+
+    def _tick_cage(self, dt: float) -> None:
+        """The bone cage: shadows (the tell), then ribs round its hero, who
+        can't walk; they close in and crush, unless one breaks."""
+        if self.cage_tell is not None:
+            x, y, left, h = self.cage_tell
+            left -= dt
+            if left > 0:
+                self.cage_tell = (x, y, left, h)
+            else:
+                self.cage_tell = None
+                if h.alive and self.recruit is not None and math.hypot(h.x - x, h.y - y) <= 2.5:
+                    self._close_cage(h)
+        if self.caged is None:
+            return
+        h = self.caged
+        self.cage_age += dt
+        if not h.alive or any(not r.alive for r in self.ribs):
+            self._open_cage("THE CAGE BREAKS!")
+            return
+        r0, r1 = config.CAGE_RADIUS
+        r = r0 + (r1 - r0) * min(1.0, self.cage_age / config.CAGE_TIME)
+        n = len(self.ribs)
+        for k, rib in enumerate(self.ribs):
+            a = k * math.tau / n
+            rib.x, rib.y = self.cage_x + math.cos(a) * r, self.cage_y + math.sin(a) * r * 0.8
+        h.slowed(0.0, 0.2)
+        if self.cage_age >= config.CAGE_TIME:
+            self._hit(h, config.CAGE_CRUSH, None)
+            self._open_cage("CRUSHED!")
+
+    def _close_cage(self, h) -> None:
+        self.caged = h
+        self.cage_age = 0.0
+        self.cage_x, self.cage_y = h.x, h.y
+        self.ribs = []
+        for k in range(config.CAGE_RIBS):
+            rib = self.recruit("cage_rib", h.x, h.y)
+            if rib is None:
+                continue
+            rib.part_of = self
+            rib.rooted = True
+            rib.max_hp = rib.hp = config.CAGE_HP * self.max_hp / 8000
+            self.ribs.append(rib)
+        self.ctx.effects.append(Effect("toast", h.x, h.y - 2, label="CAGED!"))
+        self.ctx.events.append("boulder")
+
+    def _open_cage(self, label: str) -> None:
+        if self.caged is not None:
+            self.ctx.effects.append(Effect("toast", self.caged.x, self.caged.y - 2, label=label))
+            self.caged.slow_t = 0.0
+        for rib in self.ribs:
+            if rib.alive:
+                rib.dropped = True
+                rib.last_hit_by = None
+                rib.hp = 0.0
+        self.ribs = []
+        self.caged = None
+
+    def _tick_homers(self, dt: float) -> None:
+        """Skull fire: each circles him first, then dives at the nearest hero."""
+        _, _, _, speed, turn, _, damage = config.NECRO_SKULLS
+        heroes = [h for h in self.ctx.players if h.alive and self.in_arena(h)]
+        keep = []
+        for m in self.homers:
+            x, y, a, circling, life, hit = m
+            life -= dt
+            if life <= 0 or hit:
+                continue
+            if circling > 0:
+                circling -= dt
+                a += 2.6 * dt
+                x, y = self.x + math.cos(a) * 2.6, self.y + math.sin(a) * 2.0
+                keep.append([x, y, a, circling, life, False])
+                if circling <= 0:
+                    keep[-1][2] = a + math.pi / 2
+                continue
+            t = min(heroes, key=lambda h: math.hypot(h.x - x, h.y - y), default=None)
+            if t is not None:
+                want = math.atan2(t.y - y, t.x - x)
+                diff = (want - a + math.pi) % math.tau - math.pi
+                a += max(-turn * dt, min(turn * dt, diff))
+            x, y = x + math.cos(a) * speed * dt, y + math.sin(a) * speed * dt
+            if self._solid(x, y) and self.ctx.world.tile_at(math.floor(x), math.floor(y)).blocks_shots:
+                self.ctx.effects.append(Effect("impact", x, y))
+                continue
+            for h in heroes:
+                if h.hittable and math.hypot(h.x - x, h.y - y) <= 0.7 + h.hit_radius:
+                    self._hit(h, damage, a)
+                    self.ctx.effects.append(Effect("explosion", x, y))
+                    hit = True
+                    break
+            if not hit:
+                keep.append([x, y, a, 0.0, life, False])
+        self.homers = keep
+
+    # --- The bar, the map ---------------------------------------------------------------
+
+    @property
+    def name_now(self) -> str:
+        return config.BOSSES["necromancer_lich" if self.lich else "necromancer"].name
+
+    @property
+    def bar_label(self) -> str:
+        name = self.name_now.upper()
+        if self.reviving:
+            return "MORE THAN LIFE FALLS... SOMETHING RISES"
+        if self.host is not None:
+            return f"{name} - HIDING IN HIS DEAD: FIND HIM!"
+        if self.dazed > 0:
+            return f"{name} - STUNNED, HIT HIM!"
+        out = name + (" - LIFE 2 OF 2" if self.lich else " - LIFE 1 OF 2")
+        if self.lich and self.souls:
+            out += f" - SOULS {self.souls}"
+        return out
+
+    def map_marks(self) -> list[tuple[float, float, str, str]]:
+        return []
+
+    def on_death(self, ctx: AIContext) -> None:
+        self.ctx = ctx
+        for m in self.minions + self.shields + self.ribs:
+            if m.alive:
+                m.hp = 0.0
+                m.last_hit_by = None
+                if hasattr(m, "dropped"):
+                    m.dropped = True
+                ctx.effects.append(Effect("debris", m.x, m.y))
+        self.minions, self.shields, self.ribs = [], [], []
+        self.caged = self.host = self.phalanx = None
+        self.corpses, self.wisps, self.homers, self.volley = [], [], [], []
+        from ..world import tiles
+        for w in self.walls:
+            if ctx.world.tile_at(w[0], w[1]) is tiles.BONE_WALL and hasattr(ctx.world, "set_tile"):
+                ctx.world.set_tile(w[0], w[1], w[2])
+        self.walls = []
+        for k in range(10):
+            a = k * math.tau / 10
+            ctx.effects.append(Effect("explosion", self.x + math.cos(a) * 3, self.y + math.sin(a) * 2))
+        ctx.effects.append(Effect("nova", self.x, self.y, size=8.0))
+        ctx.events.append(combat.BREAK)
+
+    # --- Signature moves ----------------------------------------------------------------
+
+    def m_revive(self):
+        """Beaten once: his body falls, his soul tears free and rises (every
+        corpse raised round it), and he comes back as the lich."""
+        self.banner_req = ("MORE THAN LIFE FALLS", "...his soul will not")
+        self.ctx.effects.append(Effect("nova", self.x, self.y, size=6.0))
+        self.tell = ("ritual",)
+        yield 2.0
+        for c in list(self.corpses):
+            if self._raise(c[0], c[1]) is not None:
+                self.corpses.remove(c)
+        yield max(0.5, config.NECRO_RITUAL - 2.0)
+        self.tell = None
+        self.life = 2
+        self.bspec = config.BOSSES["necromancer_lich"]
+        self.phase = 0
+        self.hp = float(self.max_hp)
+        self.reviving = False
+        self.storm_t = config.STORM_EVERY * 0.3
+        self.possess_t = config.POSSESS_EVERY
+        self.cage_t = config.CAGE_EVERY
+        self.banner_req = ("MORE THAN DEATH", "the necromancer rises again, as a lich")
+        self.ctx.effects.append(Effect("nova", self.x, self.y, size=8.0))
+        self.ctx.events.append("boulder")
+        yield 0.5
+
+    def m_gaze(self):
+        """Death's gaze: his eyes glow and the start of the beam shows (the
+        tell); then it sweeps once round him. Graves stop it."""
+        from ..systems.patterns import point_segment_distance
+        from ..systems.raycast import first_hit
+        t = self.target_now()
+        if t is None:
+            return
+        a0 = math.atan2(t.y - self.y, t.x - self.x)
+        way = self.rng.choice((-1, 1))
+        self.tell = ("gaze",)
+        self.gaze, self.gaze_on = a0, False
+        self.gaze_end = None
+        yield self.tell_s(config.GAZE_TELL)
+        self.tell = None
+        self.gaze_on = True
+        tt = 0.0
+        while tt < config.GAZE_TIME:
+            a = a0 + way * math.tau * tt / config.GAZE_TIME
+            self.gaze = a
+            x1, y1 = self.x + math.cos(a) * config.GAZE_LEN, self.y + math.sin(a) * config.GAZE_LEN
+            hit = first_hit(self.ctx.world.tile_at, self.x, self.y, x1, y1)
+            if hit is not None:
+                x1, y1 = hit.x, hit.y
+            self.gaze_end = (x1, y1)
+            for h in self.ctx.players:
+                if not h.hittable:
+                    continue
+                k = id(h)
+                self.gaze_hit[k] = self.gaze_hit.get(k, 0.0) - self.dt
+                if self.gaze_hit[k] <= 0 and point_segment_distance(
+                        h.x, h.y, self.x, self.y, x1, y1) <= config.GAZE_WIDTH + h.hit_radius:
+                    self.gaze_hit[k] = config.GAZE_TICK
+                    self._hit(h, config.GAZE_HIT, a)
+            tt += self.dt
+            yield 0
+        self.gaze = None
+        self.gaze_end = None
+
+    def m_storm(self):
+        """Soul storm: he gathers himself (the tell), then for STORM_TIME s
+        drags you in while souls circle him."""
+        self.tell = ("cast",)
+        yield self.tell_s(config.STORM_TELL)
+        self.tell = None
+        self.storm = config.STORM_TIME
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="SOUL STORM!"))
+        while self.storm > 0:
+            yield 0
+
+    def m_possess(self):
+        """Possession: he raises his dead (the tell) and hides in one -- his
+        body still and shielded, its eyes flashing now and then. Kill it and
+        he's forced back, stunned; else he comes back in a ring of souls."""
+        self.tell = ("cast",)
+        yield self.tell_s(config.POSSESS_TELL)
+        self.tell = None
+        hosts = [m for m in self.minions if m.alive and self.in_arena(m)]
+        t = self.target_now()
+        graves = self.props.get("graves", [])
+        while len(hosts) < config.POSSESS_HOSTS and t is not None:
+            if graves:
+                gx, gy = self.rng.choice(sorted(graves, key=lambda g: math.hypot(
+                    g[0] - t.x, g[1] - t.y))[:10])
+                m = self._raise(gx, gy + 1.0)
+            else:
+                a = self.rng.uniform(0, math.tau)
+                m = self._raise(t.x + math.cos(a) * 6, t.y + math.sin(a) * 4)
+            if m is None:
+                break
+            hosts.append(m)
+        if not hosts:
+            return
+        self.host = self.rng.choice(hosts)
+        self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="HE'S GONE INTO HIS DEAD!"))
+        on, every = config.POSSESS_BLINK
+        left, flash = config.POSSESS_TIME, every * 0.5
+        while left > 0:
+            if not self.host.alive:
+                hx, hy = self.host.x, self.host.y
+                self.host = None
+                self.blink = 0.0
+                self.hp = max(1.0, self.hp - config.POSSESS_HURT * self.max_hp)
+                self.hurt_flash = 0.3
+                self.dazed = config.POSSESS_STUN
+                self.ctx.effects.append(Effect("toast", self.x, self.y - 4, label="FORCED OUT!"))
+                self.ctx.effects.append(Effect("nova", hx, hy, size=2.0))
+                yield config.POSSESS_STUN
+                return
+            flash -= self.dt
+            if flash <= 0:
+                flash = every
+                self.blink = on
+            self.blink = max(0.0, self.blink - self.dt)
+            left -= self.dt
+            yield 0
+        hx, hy = self.host.x, self.host.y
+        self.host = None
+        self.blink = 0.0
+        if self.room_for_shots():
+            patterns.radial(self, hx, hy, config.POSSESS_NOVA, self.shots["soul"],
+                            self.ctx.projectiles, self.rng.uniform(0, math.tau))
+        self.ctx.effects.append(Effect("nova", self.x, self.y, size=3.0))
+        yield 0.3
+
+    # --- His moves ----------------------------------------------------------------------
+
+    def m_spears(self):
+        """Staff raised (the tell): a fan of bone spears where you're going,
+        then a line of them, one after another (three rounds for the lich)."""
+        tell, n, spread, line, gap, between = config.NECRO_SPEARS
+        self.tell = ("cast",)
+        yield self.tell_s(tell)
+        self.tell = None
+        for _ in range(3 if self.lich else 2):
+            t = self.target_now()
+            if t is None:
+                return
+            if self.room_for_shots():
+                patterns.fan(self, self.x, self.y, self.aim(t, self.x, self.y, 15.0), n, spread,
+                             self.shots["spear"], self.ctx.projectiles)
+            yield between
+            for _ in range(line):
+                if t.alive and self.room_for_shots():
+                    patterns.shoot(self, self.x, self.y, self.aim(t, self.x, self.y, 15.0),
+                                   self.shots["spear"], self.ctx.projectiles)
+                yield gap
+            yield between
+
+    def m_skulls(self):
+        """Skull fire: skulls kindle round him (the tell), circle him once,
+        then dive at you."""
+        tell, n, circle, _, _, life, _ = config.NECRO_SKULLS
+        self.tell = ("cast",)
+        yield self.tell_s(tell)
+        self.tell = None
+        for k in range(n + (2 if self.lich else 0)):
+            a = k * math.tau / (n + (2 if self.lich else 0))
+            self.homers.append([self.x + math.cos(a) * 2.6, self.y + math.sin(a) * 2.0, a,
+                                circle, life + circle, False])
+        self.ctx.events.append("orb")
+        yield 0.3
+
+    def m_hands(self):
+        """Grasping hands: rings round where you'll be (the tell), then hands
+        burst out of them, rooting whoever's caught."""
+        tell, n, radius, reach, damage, rooted = config.NECRO_HANDS
+        t = self.target_now()
+        if t is None:
+            return
+        wait = self.tell_s(tell)
+        cx, cy = self.lead(t, t.x, t.y, secs=wait)
+        spots = [(cx, cy)] + [(cx + math.cos(k * math.tau / n) * radius,
+                               cy + math.sin(k * math.tau / n) * radius * 0.8) for k in range(n)]
+        self.hands = spots
+        self.tell = ("cast",)
+        yield wait
+        self.tell = None
+        for x, y in spots:
+            for h in self.ctx.players:
+                if h.hittable and math.hypot(h.x - x, h.y - y) <= reach + h.hit_radius:
+                    self._hit(h, damage, None)
+                    h.slowed(0.0, rooted)
+            self.ctx.effects.append(Effect("eruption", x, y))
+        self.hands = []
+        self.ctx.events.append("boulder")
+        yield 0.3
+
+    def m_reap(self):
+        """The scythe reap: a shadow beside you (the tell), he blinks there,
+        winds up and reaps in a wide arc."""
+        tell, wind, reach, half_deg, damage = config.NECRO_REAP
+        t = self.target_now()
+        if t is None:
+            return
+        side = self.rng.choice((-1, 1))
+        a = math.atan2(t.y - self.y, t.x - self.x)
+        x, y = t.x - math.cos(a) * 2.5 + math.cos(a + side * math.pi / 2) * 2.0, \
+            t.y - math.sin(a) * 2.5 + math.sin(a + side * math.pi / 2) * 2.0
+        x, y = self.clamp_to_lair(x, y, 3.0)
+        self.reap_at = (x, y)
+        yield self.tell_s(tell)
+        self.reap_at = None
+        if self._room(x, y) or self.lich:
+            self.ctx.effects.append(Effect("nova", self.x, self.y, size=1.5))
+            self.x, self.y = x, y
+            self.ctx.effects.append(Effect("nova", x, y, size=1.5))
+        self.dashing = True
+        self.tell = ("reap",)
+        yield self.tell_s(wind)
+        self.tell = None
+        aim = math.atan2(t.y - self.y, t.x - self.x)
+        self.facing = aim
+        half = math.radians(half_deg)
+        self.arc = (aim, reach, half)
+        self.arc_t = 0.3
+        for h in self.ctx.players:
+            if not h.hittable:
+                continue
+            d = math.hypot(h.x - self.x, h.y - self.y)
+            off = abs((math.atan2(h.y - self.y, h.x - self.x) - aim + math.pi) % math.tau - math.pi)
+            if d <= reach + h.hit_radius and off <= half:
+                self._hit(h, damage, aim)
+        self.ctx.events.append("swing")
+        self.dashing = False
+        yield 0.4

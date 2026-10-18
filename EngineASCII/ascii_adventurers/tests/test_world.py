@@ -124,7 +124,10 @@ class SpawnTest(unittest.TestCase):
         permanent = {tiles.ROCK, tiles.MESA, tiles.WATER, tiles.BOG, tiles.VOID}
         for seed in (1, 11, 12, 16, 24, 26, 27, 29):
             w = ChunkedWorld(seed)
-            self.assertIs(w.tile_at(0, 0), tiles.WATER, seed)   # the trap is real
+            # The trap is real (the lake field; M27's necropolis now covers
+            # the centre, the start is south of it).
+            import numpy as np
+            self.assertTrue(w.layout.lake_mask(np.array([[0.5]]), np.array([[0.5]]))[0, 0], seed)
             sx, sy = w.layout.spawn
             R = config.SPAWN_ESCAPE_RADIUS
             seen = {(sx, sy)}

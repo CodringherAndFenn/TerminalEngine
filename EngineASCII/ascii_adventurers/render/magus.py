@@ -259,6 +259,32 @@ def draw_minion(text, bank: SpriteBank, camera: Camera, e) -> None:
 # --- The apprentice's star circles --------------------------------------------------------
 
 
+def _caches(batch, camera: Camera, quests, s, view) -> None:
+    """M25.2: a nut cache in view gets CACHE over it, and how broken it is
+    once it's been hit (M25.3: a marked tree, MARKED)."""
+    from ..world import tiles
+    tile, label = ((tiles.MARKED_TREE, "MARKED") if s.spec.kind == "fell"
+                   else (tiles.NUT_CACHE, "CACHE"))
+    x0, y0, x1, y1 = view
+    cw = batch.cw
+    hp_at = getattr(quests.world, "hp_at", None)
+    for i, (sx, sy) in enumerate(s.camp.spots):
+        if i in s.lit or i in s.opened or not (x0 - 6 <= sx <= x1 + 6 and y0 - 8 <= sy <= y1 + 6):
+            continue
+        px, py = camera.world_to_px(sx, sy)
+        batch.put_px(px - len(label) * cw / 2, py - 66, label, palette.NUT_CACHE_FG,
+                     palette.HUD_PANEL)
+        hp = hp_at(math.floor(sx), math.floor(sy)) if hp_at is not None else None
+        if hp is None:
+            continue
+        width = 8
+        filled = round(max(0.0, hp / tile.hp) * width)
+        left = px - (width + 2) * cw / 2
+        batch.put_px(left, py - 42, "[" + "█" * filled, palette.NUT_CACHE_FG, palette.HUD_PANEL)
+        batch.put_px(left + (1 + filled) * cw, py - 42, "░" * (width - filled) + "]",
+                     palette.NUT_SHELL_FG, palette.HUD_PANEL)
+
+
 def draw_seals(text, camera: Camera, quests, time: float) -> None:
     """A star circle being broken: its ring glowing, and how worn its seal
     is as a bar over it."""
@@ -267,10 +293,15 @@ def draw_seals(text, camera: Camera, quests, time: float) -> None:
     x1, y1 = camera.canvas_to_world(camera.view_w, camera.view_h)
     cw = text.display.cell_w
     for s in quests.states.values():
-        if s.spec.kind not in ("survive", "escort", "rescue", "cleanse") or s.stage != "hunt":
+        if s.spec.kind in ("destroy", "fell") and s.stage == "hunt":
+            _caches(batch, camera, quests, s, (x0, y0, x1, y1))
+            continue
+        if s.spec.kind not in ("survive", "escort", "rescue", "cleanse", "sever") \
+                or s.stage != "hunt":
             continue
         full = {"survive": config.SEAL_TIME, "escort": config.ESCORT_SETUP,
-                "rescue": config.RESCUE_THAW, "cleanse": config.CLEANSE_TIME}[s.spec.kind]
+                "rescue": config.RESCUE_THAW, "cleanse": config.CLEANSE_TIME,
+                "sever": config.SEVER_TIME}[s.spec.kind]
         for i, (sx, sy) in enumerate(s.camp.spots):
             if i in s.lit or not (x0 - 6 <= sx <= x1 + 6 and y0 - 8 <= sy <= y1 + 6):
                 continue
@@ -281,6 +312,9 @@ def draw_seals(text, camera: Camera, quests, time: float) -> None:
             if s.spec.kind == "survive":
                 _px_ring(batch, camera, sx, sy, config.SEAL_RADIUS, 24, "*",
                          palette.STAR_RING_FG if blink else palette.SEAL_FG, time)
+            elif s.spec.kind == "sever":              # (M26: a node being dug out)
+                _px_ring(batch, camera, sx, sy, config.SEVER_RADIUS, 20, "*",
+                         palette.MYC_NODE_FG if blink else palette.MYCELIUM_FG, time)
             elif s.spec.kind == "cleanse":            # (M25.1: the ring tightening)
                 r = circle_radius("cleanse", worn)
                 _px_ring(batch, camera, sx, sy, r, max(12, int(r * 6)), "*",

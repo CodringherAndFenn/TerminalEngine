@@ -91,7 +91,7 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
             for k in range(10):
                 a = k * math.tau / 10
                 batch.put_c(x + math.cos(a) * z.radius * grow * tw,
-                            y + math.sin(a) * z.radius * grow * th, "~", col)
+                            y + math.sin(a) * z.radius * grow * th, ":", col)
             batch.put_c(x, y, "@", col)
         elif z.kind == "gas":
             # P11: a bloated corpse's cloud, drifting puffs.
@@ -104,7 +104,7 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
         elif z.kind in ("pollen", "slime", "mold"):
             # P12: the myconid's healing pollen, a snail's slime, a core's mold.
             cols = {"pollen": palette.POLLEN, "slime": palette.SLIME, "mold": palette.MOLD}[z.kind]
-            glyph = {"pollen": "*", "slime": "~", "mold": "%"}[z.kind]
+            glyph = {"pollen": "*", "slime": ",", "mold": "%"}[z.kind]
             col = cols[0 if z.age < z.life * 0.75 else 1]
             n = 8 if z.kind == "pollen" else 5
             for k in range(n):

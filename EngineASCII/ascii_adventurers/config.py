@@ -1104,6 +1104,92 @@ ENEMIES = {
         name="Nettle, the Blighted", kind="nettle", max_hp=8000, sight=400,
         biomes=(), size_px=50, xp=400,
     ),
+    # M25.2: the forester's "destroy" quest and Love & Cuddles. Rabid
+    # squirrels guard its nut caches and pour out of the trees at its call.
+    "rabid_squirrel": EnemySpec(
+        name="rabid squirrel", kind="chaser", sprite="rabid_squirrel", scale=2,
+        max_hp=22, sight=18, biomes=(), speed=7.5,
+        damage=5, attack_radius=0.9, windup=0.2, cooldown=0.8, size_px=12, xp=2,
+    ),
+    "love_cuddles": EnemySpec(
+        name="Love & Cuddles", kind="love_cuddles", max_hp=8000, sight=400,
+        biomes=(), size_px=56, xp=400,
+    ),
+    # M25.3: the lumberjack's "fell" quest and The Fallen. Mimic saplings
+    # rip free of some marked trees; bark beetles crawl out of its bark.
+    "mimic_sapling": EnemySpec(
+        name="mimic sapling", kind="chaser", sprite="mimic_sapling", scale=3,
+        max_hp=90, sight=20, biomes=(), speed=4.2,
+        damage=10, attack_radius=1.3, windup=0.45, cooldown=1.2, size_px=24, xp=5,
+    ),
+    "bark_beetle": EnemySpec(
+        name="bark beetle", kind="chaser", sprite="bark_beetle", scale=2,
+        max_hp=16, sight=24, biomes=(), speed=6.5,
+        damage=4, attack_radius=0.8, windup=0.2, cooldown=0.8, size_px=12, xp=1,
+    ),
+    "the_fallen": EnemySpec(
+        name="The Fallen", kind="the_fallen", max_hp=8000, sight=400,
+        biomes=(), size_px=60, xp=400,
+    ),
+    # M26.1: Mycelium, the fly agaric (amanita muscaria). Every Mycelium is
+    # called just "Mycelium". Its warts and its flies are bodies too
+    # (ai/bosses.MycoPart: part of it, worth nothing).
+    "mycelium_amanita": EnemySpec(
+        name="Mycelium", kind="mycelium_amanita", max_hp=8000, sight=400,
+        biomes=(), size_px=60, xp=400,
+    ),
+    "amanita_wart": EnemySpec(
+        name="wart", kind="myco_part", max_hp=60, sight=400, biomes=(), size_px=10, xp=0,
+    ),
+    "myco_fly": EnemySpec(
+        name="fly", kind="myco_part", max_hp=6, sight=400, biomes=(), size_px=8, xp=0,
+    ),
+    # M26.2: Mycelium, the shaggy ink cap. Its ink-cap sprouts are parts of
+    # it (MycoPart); its scrawled letters may rise as ink imps.
+    "mycelium_inkcap": EnemySpec(
+        name="Mycelium", kind="mycelium_inkcap", max_hp=8000, sight=400,
+        biomes=(), size_px=60, xp=400,
+    ),
+    "ink_sprout": EnemySpec(
+        name="ink cap", kind="myco_part", max_hp=30, sight=400, biomes=(), size_px=14, xp=0,
+    ),
+    "ink_imp": EnemySpec(
+        name="ink imp", kind="chaser", sprite="ink_imp", scale=2,
+        max_hp=14, sight=24, biomes=(), speed=6.8,
+        damage=4, attack_radius=0.8, windup=0.2, cooldown=0.8, size_px=12, xp=1,
+    ),
+    # M26.3: Mycelium, the giant puffball. Its little puffball mines are
+    # parts of it (MycoPart); split, its two halves are bodies that pass
+    # their hits on to it (ai/bosses.PuffHalf).
+    "mycelium_puffball": EnemySpec(
+        name="Mycelium", kind="mycelium_puffball", max_hp=8000, sight=400,
+        biomes=(), size_px=70, xp=400,
+    ),
+    "puff_mine": EnemySpec(
+        name="puffball", kind="myco_part", max_hp=1, sight=400, biomes=(), size_px=12, xp=0,
+    ),
+    "puff_half": EnemySpec(
+        name="Mycelium", kind="puff_half", max_hp=1, sight=400, biomes=(), size_px=26, xp=0,
+    ),
+    # M27: the plains boss -- More than Life, the necromancer, who rises
+    # again as More than Death, the lich. His risen dead, his legion's
+    # shields and his bone cage's ribs are bodies too.
+    "necromancer": EnemySpec(
+        name="More than Life", kind="necromancer", max_hp=8000, sight=400,
+        biomes=(), size_px=64, xp=1200,
+    ),
+    "risen_dead": EnemySpec(
+        name="risen dead", kind="chaser", sprite="risen_dead", scale=2,
+        max_hp=30, sight=40, biomes=(), speed=4.6,
+        damage=7, attack_radius=1.0, windup=0.3, cooldown=1.0, size_px=14, xp=1,
+    ),
+    "legion_shield": EnemySpec(
+        name="shield skeleton", kind="legion_part", max_hp=40, sight=400, biomes=(),
+        size_px=16, xp=0,
+    ),
+    "cage_rib": EnemySpec(
+        name="bone rib", kind="myco_part", max_hp=25, sight=400, biomes=(), size_px=12, xp=0,
+    ),
 }
 
 # P7 enemy behaviour (ai/plains.py; design/BOSSES.md 24.5).
@@ -2321,6 +2407,23 @@ BESTIARY = {
     "blighted_sprite": (1500, "Rises round a blighted shrine to stop you cleansing it."),
     "rot_moth": (800, "Flutters in at Nettle's call and bites."),
     "nettle": (5000, "Only the real one casts a shadow. Growcaps undo her dust. Pull her seeds."),
+    # M25.2
+    "rabid_squirrel": (1500, "Guards the nut caches, and drops out of the trees in gangs."),
+    "love_cuddles": (5000, "Steal its acorns. Shake its tree. Shoot the wires. Wait out the frenzy."),
+    # M25.3
+    "mimic_sapling": (1500, "Hides among the lumberjack's marked trees. Chop one and it may bite."),
+    "bark_beetle": (800, "Crawls out of The Fallen's bark."),
+    "the_fallen": (5000, "Watch for the blinking eye. Stand by the fires. Stuff its maw or hold fire."),
+    # M26.1
+    "mycelium_amanita": (5000, "The fly agaric. Shoot its warts off; cut its network; roll off a trip."),
+    # M26.2
+    "mycelium_inkcap": (5000, "The shaggy ink cap. Watch where it bubbles; roll off blots; read fast."),
+    "ink_imp": (800, "A letter of Mycelium's scrawl, risen and running."),
+    # M26.3
+    "mycelium_puffball": (5000, "The giant puffball. Pop its mines next to it; mind the wind."),
+    # M27
+    "necromancer": (10000, "Twice-living. Crush the corpses; hide from his gaze; find the one he hides in."),
+    "risen_dead": (1500, "Raised by More than Life from whatever falls in his necropolis."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -2338,6 +2441,12 @@ ACHIEVEMENTS = {
     "snow_king": "defeat the Snow King, King of Loneliness",
     "fragile": "defeat Fragile, The Misunderstood",
     "nettle": "defeat Nettle, the Blighted",
+    "love_cuddles": "defeat Love & Cuddles",
+    "the_fallen": "defeat The Fallen",
+    "mycelium_amanita": "defeat Mycelium (the fly agaric)",
+    "mycelium_inkcap": "defeat Mycelium (the shaggy ink cap)",
+    "mycelium_puffball": "defeat Mycelium (the giant puffball)",
+    "necromancer": "defeat More than Death",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -2639,6 +2748,26 @@ RUINS_RUBBLE_CHANCE = 0.12
 # its boss at its lair (pinned from then on). A boss beaten in each of the
 # 5 ring biomes ("guardians") unlocks the plains boss, whose Adventurer's
 # Glory can end the run (later milestones).
+# The words every Mycelium quest shares (M26): nothing in them tells which
+# mushroom waits.
+MYCELIUM_LINES = (
+    ("offer", ("Something's growing under the whole biome.",
+               "Threads. Miles of them. All one thing.",
+               "Mycelium, the old folk call it.",
+               "The nodes pulse where the threads meet.",
+               "Stand on one till it's dug out. Sever four.",
+               "The sporelings will come up the threads at you.")),
+    ("progress", ("{left} more nodes to sever.",
+                  "Hold your ground on the node. It takes a while.")),
+    ("done", ("Four! It felt that. It's coming up.",
+              "Where? Where it fruits. Look for MYCELIUM on your map.",
+              "What does it look like? Nobody who's seen it says.",
+              "Watch what the nodes spilled, maybe.")),
+    ("fight", ("Mycelium's up! Go!",)),
+    ("cleared", ("It's quiet down there now.",
+                 "There's more than one, you know. There always is.")),
+)
+
 QUESTS = {
     "bad_trip": QuestSpec(
         title="Bad Trip", biome="swamp", giver="frog hunter", giver_sprite="frog_hunter",
@@ -2909,6 +3038,101 @@ QUESTS = {
                          "Poor Nettle. Maybe she can heal too, now.")),
         ),
     ),
+    # M25.2: a "destroy" quest (systems/quests._break_caches): the camp's
+    # spots hold nut caches, each at the end of a trail of nut shells and
+    # guarded by rabid squirrels; break one (it's a tile: shoot it, hit
+    # it) to count it. The lair is the hollow oak (world/landmarks._hollow_oak).
+    "forester": QuestSpec(
+        title="Break the Caches", biome="forest", giver="forester",
+        giver_sprite="forester", camp="forester_camp", lair="hollow_oak",
+        target="rabid_squirrel", count=4, boss="love_cuddles", goal="Caches broken {n}/{count}",
+        camp_name="FORESTER", lair_name="THE HOLLOW OAK", kind="destroy",
+        lines=(
+            ("offer", ("You there. Seen a squirrel? Pink. Fluffy. A bow.",
+                       "Cutest thing in the wood. Don't let it near you.",
+                       "It hoards. Nuts, mostly. Also my cleaver.",
+                       "Follow the nut shells to its caches and smash them.",
+                       "Break four and it'll come out of the hollow oak.",
+                       "The squirrels guarding them bite. Hard.")),
+            ("progress", ("{left} more caches to break.",
+                          "Follow the shells. Squirrels are messy eaters.")),
+            ("done", ("Four! Hear that screech? It's coming out.",
+                      "The hollow oak. Big trees all round it.",
+                      "It buries acorns. Steal them before it digs them up.",
+                      "Up a tree? Shoot the trunk till it falls out.",
+                      "And mind the wires that glint between the trees.")),
+            ("fight", ("Don't let it hug you!",)),
+            ("cleared", ("It's... gone? Good. Good.",
+                         "I'm sleeping with the lights on anyway.")),
+        ),
+    ),
+    # M25.3: a "fell" quest (systems/quests._fell_trees): the camp's spots
+    # hold trees marked with red paint; fell one (shoot it, chop it) to
+    # count it -- unless it was a mimic sapling, which rips free and must be
+    # killed. The lair is the still grove (world/landmarks._still_grove).
+    "lumberjack": QuestSpec(
+        title="Fell the Marked Trees", biome="forest", giver="lumberjack",
+        giver_sprite="lumberjack", camp="lumber_camp", lair="still_grove",
+        target="mimic_sapling", count=4, boss="the_fallen", goal="Marked trees felled {n}/{count}",
+        camp_name="LUMBERJACK", lair_name="THE STILL GROVE", kind="fell",
+        lines=(
+            ("offer", ("Trees in this wood move when you don't look.",
+                       "I marked the wrong ones. Red paint, see?",
+                       "Fell them. Four will do.",
+                       "Some aren't trees at all. Saplings, with teeth.",
+                       "If one rips free, finish it.")),
+            ("progress", ("{left} more to fell.",
+                          "Red paint. You can't miss it.")),
+            ("done", ("That's four. Now the big one's awake.",
+                      "The Fallen. In the still grove. It looks like a tree.",
+                      "It hides among the others. Watch for the eye.",
+                      "Its roots crawl under the leaves. Fire keeps them off.",
+                      "And when its trunk opens up, think before you shoot.")),
+            ("fight", ("Find the eye!",)),
+            ("cleared", ("Timber! Ha. Felled at last.",
+                         "The grove's just trees again. Probably.")),
+        ),
+    ),
+    # M26: the three Mycelium quests are one "sever" quest (systems/quests
+    # ._hold_seals, like "cleanse"), word for word; only the giver differs,
+    # and what a severed node spills (the quest's skin: M26.1 red specks).
+    # Mycelium nodes pulse under the mushroom biome; stand on one until it's
+    # dug out while sporelings crawl up the threads. The lair is just
+    # "MYCELIUM" on the map.
+    "truffle_hunter": QuestSpec(
+        title="Sever the Network", biome="mushroom", giver="truffle hunter",
+        giver_sprite="truffle_hunter", camp="spore_camp", lair="amanita_ring",
+        target="sporeling", count=4, boss="mycelium_amanita", goal="Nodes severed {n}/{count}",
+        camp_name="TRUFFLE HUNTER", lair_name="MYCELIUM", kind="sever", skin="amanita",
+        lines=MYCELIUM_LINES,
+    ),
+    # M26.2: the same quest; its severed nodes spill ink stains.
+    "mycologist": QuestSpec(
+        title="Sever the Network", biome="mushroom", giver="mycologist",
+        giver_sprite="mycologist", camp="spore_camp", lair="inkcap_ring",
+        target="sporeling", count=4, boss="mycelium_inkcap", goal="Nodes severed {n}/{count}",
+        camp_name="MYCOLOGIST", lair_name="MYCELIUM", kind="sever", skin="inkcap",
+        lines=MYCELIUM_LINES,
+    ),
+    # M26.3: the same quest; its severed nodes spill puffs of dust.
+    "forager": QuestSpec(
+        title="Sever the Network", biome="mushroom", giver="forager",
+        giver_sprite="forager", camp="spore_camp", lair="puffball_field",
+        target="sporeling", count=4, boss="mycelium_puffball", goal="Nodes severed {n}/{count}",
+        camp_name="FORAGER", lair_name="MYCELIUM", kind="sever", skin="puffball",
+        lines=MYCELIUM_LINES,
+    ),
+    # M27: the main quest's last step -- the plains boss. No giver: his
+    # necropolis (world/landmarks._necropolis) stands at the island's centre,
+    # its gate sealed with bone until a guardian has fallen in each of the
+    # GUARDIANS ring biomes ("finale": systems/quests). Beaten, he gives
+    # Adventurer's Glory (end the run from the pause menu) and water walking.
+    "necropolis": QuestSpec(
+        title="Gain Adventurer's Glory", biome="plains", giver="", giver_sprite="",
+        camp="none", lair="necropolis", target="risen_dead", count=5, boss="necromancer",
+        goal="Guardians {n}/{count}", camp_name="", lair_name="THE NECROPOLIS",
+        kind="finale", lines=(),
+    ),
 }
 # Developer / test: the quest key the dev keys (F6 to its giver, F7 finish
 # it, F8 to its lair) act on; run.py --boss sets it. None: the first quest
@@ -3036,6 +3260,32 @@ CLEANSE_WAVE = 5.0
 CLEANSE_WAVE_SIZE = (2, 3)
 CLEANSE_WAVE_RANGE = (8.0, 12.0)
 CAMP_WITCH_RADII = (20, 9)      # the hedge witch's camp: a black pond in the fog
+CAMP_FORESTER_RADII = (20, 9)   # the forester's camp: a log pond, woodpiles (M25.2)
+# "destroy" quests (M25.2): a nut cache (tiles.NUT_CACHE, CACHE_HP) at each
+# spot, at the end of a trail of nut shells CACHE_TRAIL = (fewest, most
+# tiles long) winding in from wherever, and CARGO_GUARDS of the quest's
+# target round it. Breaking one lets CACHE_BURST more out.
+CACHE_HP = 160
+CACHE_TRAIL = (30, 46)
+CACHE_BURST = 2
+CACHE_LOOK = 40.0         # (tiles from a hero: a cache is checked)
+CAMP_LUMBER_RADII = (20, 9)     # the lumberjack's camp: a pond, sawhorses (M25.3)
+# "fell" quests (M25.3): a marked tree (tiles.MARKED_TREE, MARKED_HP) at each
+# spot; 1 in SAPLING_EVERY of them (by the seed) is a mimic sapling that rips
+# free when felled and counts once it's dead.
+MARKED_HP = 120
+SAPLING_EVERY = 3
+CAMP_SPORE_RADII = (20, 9)      # a Mycelium quest giver's camp (M26)
+# "sever" quests (M26): a Mycelium node (tiles.MYC_NODE) at each spot. Stand
+# within SEVER_RADIUS tiles of it SEVER_TIME s (in total; nobody on it, it
+# heals back SEVER_HEAL x as fast); every SEVER_WAVE s of it, SEVER_WAVE_SIZE
+# of the quest's enemies crawl up SEVER_WAVE_RANGE tiles out.
+SEVER_RADIUS = 3.2
+SEVER_TIME = 16.0
+SEVER_HEAL = 0.5
+SEVER_WAVE = 5.0
+SEVER_WAVE_SIZE = (3, 5)
+SEVER_WAVE_RANGE = (6.0, 10.0)
 
 # A boss lair: an oval arena LAIR_RADII tiles (half-width, half-height) --
 # one screen shows ~86 x 30 tiles, so 125 x 50 is about 3 x 3 screens (room
@@ -3102,6 +3352,58 @@ GLADE_TOADSTOOLS = 26
 GLADE_RING = 0.5
 GLADE_GROWCAPS = 6
 GLADE_STUMPS = 24
+# Love & Cuddles' hollow oak (M25.2, world/landmarks._hollow_oak): the oval
+# in a wall of oak roots round dead leaves; the great hollow oak in the
+# middle (OAK_HOLLOW tiles, w x h); OAK_TREES big climbing oaks (2 x 2
+# trunks, a crown round each) on a ring OAK_RING of the way out, never
+# within OAK_GATE_GAP tiles of the gate (props["trees"], their middles);
+# OAK_STUMPS stumps.
+OAK_HOLLOW = (8, 4)
+OAK_TREES = 10
+OAK_RING = (0.42, 0.72)
+OAK_GATE_GAP = 22
+OAK_STUMPS = 22
+# The Fallen's still grove (M25.3, world/landmarks._still_grove): the oval in
+# a thicket round dead leaves and fog; a great fallen trunk across the middle
+# (GROVE_LOG tiles long, 2 high, cover); GROVE_TREES lookalike trees at least
+# GROVE_TREE_GAP tiles apart (props["trees"]: where each stands, its trunk the
+# tile 2 below); GROVE_FIRES fire bowls (props["fires"]); GROVE_STUMPS stumps.
+GROVE_LOG = 22
+GROVE_TREES = 40
+GROVE_TREE_GAP = 9.0
+GROVE_FIRES = 8
+GROVE_STUMPS = 12
+# Mycelium the fly agaric's fruiting ring (M26.1, world/landmarks._amanita_ring):
+# the oval in a wall of giant mushrooms round mycelium and spores; NET_RINGS
+# fruiting rings (props["rings"]: their nodes; the middle one first, the
+# rest round it on a ring NET_RING of the way out), joined by threads
+# (props["threads"]: index pairs -- the middle to each, and each to the next
+# round); AMANITA_SHROOMS giant mushrooms for cover.
+NET_RINGS = 7
+NET_RING = 0.55
+AMANITA_SHROOMS = 18
+# Mycelium the shaggy ink cap's lair (M26.2, world/landmarks._inkcap_ring):
+# the oval in a wall of giant mushrooms round mycelium, with patches of old
+# cracked paving (ink caps push up through stone) and ink stains, and
+# INKCAP_SHROOMS giant mushrooms for cover.
+INKCAP_SHROOMS = 16
+# Mycelium the giant puffball's lair (M26.3, world/landmarks._puffball_field):
+# the oval in a wall of giant mushrooms round mycelium and drifts of spore
+# dust, PUFF_BOULDERS clusters of boulders for cover (from the wind and the
+# bursts) and PUFF_SHROOMS giant mushrooms.
+PUFF_BOULDERS = 12
+PUFF_SHROOMS = 8
+# More than Life's necropolis (M27, world/landmarks._necropolis): at the
+# island's centre, NECRO_RADII (twice a ring lair), its gate to the south
+# (runs start NECRO_START tiles below its wall, in sight of the gate). Grave soil and bone litter;
+# NECRO_GRAVES gravestones in rows (cover from his gaze), NECRO_TOMBS
+# mausoleums (5 x 3), a ritual ring in the middle, NECRO_CORPSES old corpses
+# lying about (props["corpses"]); props["graves"]: every gravestone.
+NECRO_RADII = (250, 100)
+NECRO_START = 9
+NECRO_GRAVES = 24                # rows of graves (each 4-7 stones)
+NECRO_TOMBS = 10
+NECRO_CORPSES = 28
 # The gate seals (thorns) once a player is this far inside the stones, and
 # opens again when the boss falls.
 LAIR_SEAL_DEPTH = 6
@@ -3275,6 +3577,98 @@ BOSSES = {
                              ("dust", 2)), rest=0.6),
         ),
         loot=2500, achievement="nettle", pages=("nettle", "blighted_sprite", "rot_moth"),
+    ),
+    # M25.2 (ai/bosses.LoveCuddles, design/BOSSES.md section 25): the hoard
+    # (burying acorns, "bury") runs on a timer all fight; the treetops
+    # ("treetop") on one from phase 2; tripwires ("string") on one and the
+    # frenzy (a meter) in phase 3.
+    "love_cuddles": BossSpec(
+        name="Love & Cuddles",
+        phases=(
+            BossPhase(1.0, (("spin", 2), ("barrage", 3), ("pinecones", 2), ("gang", 1)),
+                      rest=1.0),
+            BossPhase(0.6, (("spin", 2), ("barrage", 3), ("pinecones", 2), ("gang", 1)),
+                      rest=0.85),
+            BossPhase(0.3, (("spin", 2), ("barrage", 3), ("pinecones", 2), ("gang", 1)),
+                      rest=0.6),
+        ),
+        loot=2500, achievement="love_cuddles", pages=("love_cuddles", "rabid_squirrel"),
+    ),
+    # M25.3 (ai/bosses.TheFallen, design/BOSSES.md section 26): it hides
+    # among its lookalike trees ("hide") on a timer all fight; its roots
+    # ("roots") on one from phase 2; its maw ("maw") on one in phase 3.
+    "the_fallen": BossSpec(
+        name="The Fallen",
+        phases=(
+            BossPhase(1.0, (("sweep", 3), ("uproot", 2), ("leaves", 3), ("sap", 2)), rest=1.0),
+            BossPhase(0.6, (("sweep", 3), ("uproot", 2), ("leaves", 3), ("sap", 2)), rest=0.85),
+            BossPhase(0.3, (("sweep", 3), ("uproot", 2), ("leaves", 3), ("sap", 2)), rest=0.6),
+        ),
+        loot=2500, achievement="the_fallen", pages=("the_fallen", "mimic_sapling", "bark_beetle"),
+    ),
+    # M26.1 (ai/bosses.Amanita, design/BOSSES.md section 27): it regrows its
+    # warts ("drink") on a timer all fight; travels its network ("network")
+    # on one from phase 2; puffs trip spores ("trip") and lures flies
+    # ("flies") on timers in phase 3.
+    "mycelium_amanita": BossSpec(
+        name="Mycelium",
+        phases=(
+            BossPhase(1.0, (("slam", 2), ("spores", 3), ("sprouts", 2), ("spin", 2)), rest=1.0),
+            BossPhase(0.6, (("slam", 2), ("spores", 3), ("sprouts", 2), ("spin", 2)), rest=0.85),
+            BossPhase(0.3, (("slam", 2), ("spores", 3), ("sprouts", 2), ("spin", 2)), rest=0.6),
+        ),
+        loot=2500, achievement="mycelium_amanita", pages=("mycelium_amanita", "sporeling"),
+    ),
+    # M26.2 (ai/bosses.InkCap, design/BOSSES.md section 28): it melts into
+    # ink ("melt") on a timer all fight; throws ink blots ("blots") on one
+    # from phase 2; scrawls ("scrawl") and pushes up ink-cap clusters
+    # ("clusters") on timers in phase 3.
+    "mycelium_inkcap": BossSpec(
+        name="Mycelium",
+        phases=(
+            BossPhase(1.0, (("scales", 2), ("spray", 2), ("burst", 2), ("shake", 2)), rest=1.0),
+            BossPhase(0.6, (("scales", 2), ("spray", 2), ("burst", 2), ("shake", 2)), rest=0.85),
+            BossPhase(0.3, (("scales", 2), ("spray", 2), ("burst", 2), ("shake", 2)), rest=0.6),
+        ),
+        loot=2500, achievement="mycelium_inkcap",
+        pages=("mycelium_inkcap", "sporeling", "ink_imp"),
+    ),
+    # M26.3 (ai/bosses.Puffball, design/BOSSES.md section 29): it scatters
+    # mines ("mines") on a timer all fight; bounds ("bound") between moves
+    # from phase 2; breathes spores on the wind ("breath") and splits
+    # ("split") on timers in phase 3.
+    "mycelium_puffball": BossSpec(
+        name="Mycelium",
+        phases=(
+            BossPhase(1.0, (("roll", 2), ("rings", 2), ("mortars", 2), ("squash", 2)), rest=1.0),
+            BossPhase(0.6, (("roll", 2), ("rings", 2), ("mortars", 2), ("squash", 2)), rest=0.85),
+            BossPhase(0.3, (("roll", 2), ("rings", 2), ("mortars", 2), ("squash", 2)), rest=0.6),
+        ),
+        loot=2500, achievement="mycelium_puffball", pages=("mycelium_puffball", "sporeling"),
+    ),
+    # M27 (ai/bosses.Necromancer, design/BOSSES.md section 30): two lives.
+    # "necromancer" is More than Life (life 1): raise the dead + corpse
+    # explosion all life; bone walls + death's gaze from phase 2; the legion
+    # in phase 3. "necromancer_lich" is More than Death (life 2): all of
+    # those (slower), plus soul storm + soul harvest, then possession, then
+    # the bone cage. The reward and pages are the first spec's.
+    "necromancer": BossSpec(
+        name="More than Life",
+        phases=(
+            BossPhase(1.0, (("spears", 3), ("skulls", 2), ("hands", 2), ("reap", 2)), rest=0.9),
+            BossPhase(0.66, (("spears", 3), ("skulls", 2), ("hands", 2), ("reap", 2)), rest=0.8),
+            BossPhase(0.33, (("spears", 3), ("skulls", 2), ("hands", 2), ("reap", 2)), rest=0.7),
+        ),
+        loot=8000, achievement="necromancer", pages=("necromancer", "risen_dead"),
+    ),
+    "necromancer_lich": BossSpec(
+        name="More than Death",
+        phases=(
+            BossPhase(1.0, (("spears", 3), ("skulls", 2), ("hands", 2), ("reap", 2)), rest=0.7),
+            BossPhase(0.66, (("spears", 3), ("skulls", 2), ("hands", 2), ("reap", 2)), rest=0.6),
+            BossPhase(0.33, (("spears", 3), ("skulls", 2), ("hands", 2), ("reap", 2)), rest=0.5),
+        ),
+        loot=0, achievement="necromancer", pages=(),
     ),
 }
 
@@ -3734,6 +4128,517 @@ NETTLE_SHOTS = {
                      look="glitter", sound="fizzle"),
     "thorn": ShellSpec(speed=12.0, damage=7, max_range=18.0, damages_terrain=False,
                        look="thorn", sound="fizzle"),
+}
+# Love & Cuddles (ai/bosses.LoveCuddles, M25.2): a fluffy pink squirrel
+# with a cleaver behind its back, in the hollow oak. It scuttles round its
+# target LOVE_SCUTTLE = (nearest, farthest tiles, (s, s) between turning
+# about, tiles/s, x that speed during its moves). Damages are per hit at
+# level 1 (x the enemy damage scaling).
+# Signature 1, THE HOARD (all fight): every HOARD_EVERY s it buries
+# HOARD_MOUNDS acorns (HOARD_TELL s digging; mounds HOARD_NEAR tiles from
+# its target; at most HOARD_MOUNDS_MAX). Between moves it goes for the
+# nearest mound and digs it up (HOARD_DIG s, standing still): one more
+# acorn held (at most HOARD_MAX): +HOARD_DMG damage and +HOARD_SPEED speed
+# per acorn. A hero within HOARD_STEAL tiles of a mound steals it (and
+# heals HOARD_HEAL). Shaken out of a tree or collapsing after its frenzy,
+# it spills HOARD_SPILL of its hoard (rounded up).
+# Signature 2, TREETOPS (phase 2+): every TREE_EVERY s it scurries
+# (TREE_RUN tiles/s) up the nearest big oak: out of reach, pelting acorns
+# (TREE_PELT = s between volleys, acorns a volley, fan degrees) and every
+# TREE_LEAP[0] s leaping to another oak (a TREE_LEAP[1] s line first,
+# TREE_LEAP[2] tiles/s). Damage its tree (its trunk: shots, hits; a shot
+# into its crown, TREE_CROWN tiles round the trunk, counts too) for
+# TREE_SHAKE x its max HP (kept as it leaps) and it falls out: TREE_FALL x
+# its max HP lost and
+# dazed TREE_DAZE s. After TREE_STAY s it comes down by itself, pouncing on
+# its target (TREE_POUNCE = ring (tell) s, damage, radius).
+# Signature 3, TRIPWIRES (phase 3): every WIRE_EVERY s (a WIRE_TELL s tell)
+# it strings WIRES glinting wires between oaks near its target (at most
+# WIRE_MAX). A hero walking across one (not rolling) trips it: a log
+# swings down along it (WIRE_LOG = creak (tell) s, tiles/s, damage, width).
+# A hero's shot crossing a wire within WIRE_CUT tiles cuts it.
+# Signature 4, FRENZY (phase 3): a madness meter (0..1) fills FRENZY_TIME a
+# second, FRENZY_HIT for each hit it lands and FRENZY_HURT x (damage taken
+# / max HP). Full: FRENZY_DASH = (line (tell) s, dashes, tiles/s, longest,
+# damage, width) zigzag cleaver dashes, then it collapses panting
+# FRENZY_PANT s, taking FRENZY_VULN x damage.
+LOVE_HIT_RADIUS = 2.0
+LOVE_SCUTTLE = (7.0, 11.0, (3.0, 6.0), 5.0, 0.5)
+HOARD_EVERY = 13.0
+HOARD_TELL = 0.8
+HOARD_MOUNDS = 3
+HOARD_MOUNDS_MAX = 6
+HOARD_NEAR = (5.0, 13.0)
+HOARD_DIG = 1.3
+HOARD_STEAL = 1.6
+HOARD_HEAL = 8
+HOARD_MAX = 8
+HOARD_DMG = 0.07
+HOARD_SPEED = 0.05
+HOARD_SPILL = 0.5
+TREE_EVERY = 20.0
+TREE_RUN = 13.0
+TREE_PELT = (0.6, 3, 24.0)
+TREE_LEAP = (6.0, 0.7, 26.0)
+TREE_SHAKE = 0.02
+TREE_CROWN = 3.6
+TREE_FALL = 0.03
+TREE_DAZE = 4.0
+TREE_STAY = 13.0
+TREE_POUNCE = (0.8, 18, 2.6)
+WIRE_EVERY = 16.0
+WIRE_TELL = 0.8
+WIRES = 3
+WIRE_MAX = 6
+WIRE_LOG = (0.5, 34.0, 18, 1.3)
+WIRE_CUT = 0.6
+FRENZY_TIME = 0.015
+FRENZY_HIT = 0.05
+FRENZY_HURT = 6.0
+FRENZY_DASH = (0.45, 5, 32.0, 24.0, 16, 1.4)
+FRENZY_PANT = 4.5
+FRENZY_VULN = 1.5
+# Its moves.
+LOVE_SPIN = (0.6, 6, 2.8, 2.6, 7.5, 12, 0.7)  # cleaver up (tell) s, blades, ring radius, s
+                                         # scuttling, tiles/s, damage, s between hits
+LOVE_BARRAGE = (0.7, 3, 7, 50.0, 0.28, 14.0)  # cheeks puffed (tell) s, fans, acorns a fan,
+                                         # fan degrees, s between fans, degrees each turns
+LOVE_CONES = (1.1, 4, 2.0, 15, 6, 7.0)   # flight (tell) s, pinecones, burst radius, damage,
+                                         # splinters each, spread round the target
+LOVE_GANG = (0.8, (4, 6), 10)            # tell s, squirrels (fewest, most), most alive
+LOVE_SHOTS = {
+    "acorn": ShellSpec(speed=12.0, damage=9, max_range=30.0, damages_terrain=False,
+                       look="acorn", sound="fizzle"),
+    "splinter": ShellSpec(speed=10.0, damage=6, max_range=9.0, damages_terrain=False,
+                          look="splinter", sound="fizzle"),
+    "cleaver": ShellSpec(speed=11.0, damage=10, max_range=16.0, damages_terrain=False,
+                         look="cleaver", sound="fizzle"),
+}
+# The Fallen (ai/bosses.TheFallen, M25.3): a tall, thin, branchy tree with
+# one big eye, in the still grove among lookalike trees. It stalks round its
+# target FALLEN_STALK = (nearest, farthest tiles, (s, s) between turning
+# about, tiles/s, x that speed during its moves). Damages are per hit at
+# level 1 (x the enemy damage scaling).
+# The grove's trees (props["trees"]) are solid at the foot (a trunk tile)
+# and catch any hero's shot that flies into them (TREE_BODY: the tiles round
+# the line from its top to its foot).
+# Signature 1, WHICH TREE? (all fight): every HIDE_EVERY s (a HIDE_TELL s
+# tell, then a flurry of leaves over every tree near its target) it becomes
+# one of the HIDE_AMONG trees nearest its target (none within HIDE_CLEAR of
+# a hero): it can't be hit, and every HIDE_LASH s one of those trees (it or
+# a fake) lashes a fan of HIDE_FAN splinters at the nearest hero. Its tell:
+# its eye opens for HIDE_BLINK[0] s every HIDE_BLINK[1] s (give or take
+# HIDE_BLINK[2]). A shot into a fake makes it spit HIDE_SPIT splinters back
+# at the shooter (once a HIDE_SPIT_GAP s per tree). A hit on its tree drags
+# it out: HIDE_FOUND x its max HP lost, dazed HIDE_STUN s. Not found after
+# HIDE_TIME s, it bursts out: HIDE_BURST = (ring shards, blast radius, damage).
+# Signature 2, ROOT WEB (phase 2+): every ROOT_EVERY s (a ROOT_TELL s tell)
+# ROOT_LINES roots grow from its feet (one at its target, the rest spread
+# ROOT_SPREAD degrees apart) at ROOT_GROW tiles/s up to ROOT_LEN tiles, and
+# stay ROOT_LIFE s. A hero (not rolling) within ROOT_WIDTH of a root is
+# grabbed: held ROOT_HOLD s, squeezed ROOT_SQUEEZE every 0.5 s, then free
+# from roots for ROOT_IMMUNE s. A shot at the root holding someone cuts it.
+# A root reaching within FIRE_SEAR tiles of a fire bowl burns away there.
+# Signature 3, SWALLOW & SPIT (phase 3): every MAW_EVERY s its trunk splits
+# open (MAW_TELL s) for MAW_OPEN s: shots that hit it are swallowed (no
+# damage; its SAP fills by their damage). Stuffed with MAW_CHOKE x its max
+# HP it chokes: dazed MAW_STUN s, coughing a few back at random. Otherwise
+# it spits them all back: MAW_SPIT = (fewest, most shots, fans, fan degrees).
+FALLEN_HIT_RADIUS = 1.6
+FALLEN_STALK = (6.0, 10.0, (3.0, 6.0), 3.6, 0.5)
+TREE_BODY = 0.9
+HIDE_EVERY = 24.0
+HIDE_TELL = 0.8
+HIDE_AMONG = 7
+HIDE_CLEAR = 5.0
+HIDE_TIME = 12.0
+HIDE_LASH = 1.6
+HIDE_FAN = 4
+HIDE_BLINK = (0.4, 2.2, 0.6)
+HIDE_SPIT = 3
+HIDE_SPIT_GAP = 0.8
+HIDE_FOUND = 0.04
+HIDE_STUN = 3.5
+HIDE_BURST = (14, 3.2, 16)
+ROOT_EVERY = 12.0
+ROOT_TELL = 0.6
+ROOT_LINES = 4
+ROOT_SPREAD = 50.0
+ROOT_GROW = 12.0
+ROOT_LEN = 30.0
+ROOT_LIFE = 9.0
+ROOT_WIDTH = 0.55
+ROOT_HOLD = 1.5
+ROOT_SQUEEZE = 6
+ROOT_IMMUNE = 2.0
+FIRE_SEAR = 3.0
+MAW_EVERY = 15.0
+MAW_TELL = 0.7
+MAW_OPEN = 4.0
+MAW_CHOKE = 0.02
+MAW_STUN = 3.5
+MAW_SPIT = (8, 28, 3, 50.0)
+# Its moves.
+FALLEN_SWEEP = (0.7, 8.0, 65.0, 16, 0.25, 7.0)  # arm drawn back (tell) s, reach, half arc
+                                         # degrees, damage, s the sweep takes (phase 3: two
+                                         # arms), tiles/s it strides in during the tell
+FALLEN_CHARGE = (0.7, 20.0, 26.0, 14, 1.6, 3.2, 12, 10)  # line (tell) s, tiles/s, longest,
+                                         # damage, width, landing radius, landing damage, shards
+FALLEN_LEAVES = (0.6, 3, 2.4, 0.12, 2.0, 3, 5, 40.0)  # tell s, arms, lasts s, s between,
+                                         # turn rad/s, splinter fans, a fan, fan degrees
+FALLEN_SAP = (1.0, 3, 2.4, 7.0, 0.45, 6.0, (3, 4), 8)  # flight (tell) s, globs, radius, lasts s,
+                                         # your speed x in it, spread, beetles, most beetles
+FALLEN_SHOTS = {
+    "leaf": ShellSpec(speed=10.0, damage=8, max_range=30.0, damages_terrain=False,
+                      look="leaf", sound="fizzle"),
+    "splinter": ShellSpec(speed=12.0, damage=8, max_range=22.0, damages_terrain=False,
+                          look="splinter", sound="fizzle"),
+    "spit": ShellSpec(speed=13.0, damage=8, max_range=30.0, damages_terrain=False,
+                      look="sap_spit", sound="fizzle"),
+}
+# Mycelium, the fly agaric (ai/bosses.Amanita, M26.1): a huge red-capped
+# toadstool on root-threads, in its fruiting ring. It waddles round its
+# target AMANITA_WALK = (nearest, farthest tiles, (s, s) between turning
+# about, tiles/s, x that speed during its moves). Its body (AMANITA_HIT_RADIUS)
+# is its stem; its cap's warts are their own bodies. Damages are per hit at
+# level 1 (x the enemy damage scaling).
+# Signature 1, WARTS (all fight): WART_SPOTS warts on its cap (tiles from
+# its middle), each a body with WART_HP x (its max HP / 8000) HP. While n of
+# the N are on, it takes WART_ARMOR + (1 - WART_ARMOR) x (1 - n / N) of any
+# hit. A wart shot off falls as a little toadstool that puffs WART_SPROUT =
+# (s later, spores, radius, damage). Every WART_REGROW[0] s, missing warts,
+# it drinks from the ground (WART_REGROW[1] s, standing still) and regrows
+# WART_REGROW[2].
+# Signature 2, MYCELIAL NETWORK (phase 2+): every NET_EVERY s it sinks (can't
+# be hit) and travels the threads -- to its nearest live ring, along the
+# threads, to the ring nearest its target -- the whole path lit NET_TELL s
+# first, at NET_SPEED tiles/s, and erupts there (NET_ERUPT = radius, damage,
+# spores). A lit thread burns: NET_BURN = (width, damage, s between). A ring's
+# node (NODE_HP) can be broken: that ring's out of the network until it
+# regrows NODE_REGROW s later.
+# Signature 3, TRIP SPORES (phase 3): every TRIP_EVERY s (a TRIP_TELL s
+# tell) TRIP_CLOUDS clouds (TRIP_CLOUD = radius, lasts s) on and round its
+# target. TRIP_IN s in one and you trip for TRIP_TIME s: you drift sideways
+# (TRIP_DRIFT tiles/s, turning) and see fake shots beside its real ones
+# (see-through, flickering, harmless). A roll clears your head.
+# Signature 4, FLY LURE (phase 3): every FLY_EVERY s (a FLY_TELL s stench)
+# FLIES flies (at most FLY_MAX) circle it (FLY_ORBIT = radius, rad/s),
+# soaking up shots. Every FLY_DROP[0] s one drops dead, bursting (radius,
+# damage).
+AMANITA_HIT_RADIUS = 1.4
+AMANITA_WALK = (6.0, 10.0, (3.0, 6.0), 3.2, 0.5)
+WART_SPOTS = ((-1.7, -1.3), (-1.1, -1.9), (-0.4, -2.2), (0.4, -2.2), (1.1, -1.9), (1.7, -1.3),
+              (-0.8, -1.5), (0.8, -1.5))
+WART_HP = 45
+WART_ARMOR = 0.4
+WART_SPROUT = (3.0, 4, 1.4, 7)
+WART_REGROW = (20.0, 1.5, 2)
+NET_EVERY = 14.0
+NET_TELL = 0.9
+NET_SPEED = 22.0
+NET_BURN = (0.7, 5, 0.5)
+NET_ERUPT = (3.0, 16, 12)
+NODE_HP = 150
+NODE_REGROW = 30.0
+TRIP_EVERY = 13.0
+TRIP_TELL = 0.7
+TRIP_CLOUDS = 3
+TRIP_CLOUD = (2.6, 7.0)
+TRIP_IN = 0.6
+TRIP_TIME = 5.0
+TRIP_DRIFT = 2.2
+FLY_EVERY = 18.0
+FLY_TELL = 0.8
+FLIES = 12
+FLY_MAX = 16
+FLY_ORBIT = (3.2, 2.2)
+FLY_DROP = (1.5, 1.4, 6)
+# Its moves.
+AMANITA_SLAM = (0.9, 3.0, 12, 10, 8)    # up in the air (tell) s, blast radius, damage,
+                                         # spores in the first ring, in the second
+AMANITA_SPORES = (0.6, 3, 7, 50.0, 0.3, 3, 2.4, 0.12, 2.2)  # tell s, fans, spores a fan, fan
+                                         # degrees, s between fans; spiral arms, lasts s,
+                                         # s between, turn rad/s
+AMANITA_SPROUTS = (0.8, 3, 18.0, 1.8, 0.06, 0.5, 1.4, 9, 24.0)  # cracks (tell) s, lines,
+                                         # length, spacing, s between sprouts, s before each
+                                         # pops, radius, damage, degrees between lines
+AMANITA_SPIN = (0.6, 3.0, 6.5, 0.25, 3, 8, 0.6)  # tell s, lasts s, tiles/s, s between spore
+                                         # bursts, spores a burst, contact damage, s between hits
+AMANITA_SHOTS = {
+    "spore": ShellSpec(speed=10.0, damage=6, max_range=30.0, damages_terrain=False,
+                       look="red_spore", sound="fizzle"),
+    "white": ShellSpec(speed=8.0, damage=5, max_range=22.0, damages_terrain=False,
+                       look="white_spore", sound="fizzle"),
+}
+# Mycelium, the shaggy ink cap (ai/bosses.InkCap, M26.2): a tall white
+# shaggy cap whose hem melts into black ink, in its ring. It stalks round its
+# target INKCAP_WALK = (nearest, farthest tiles, (s, s) between turning
+# about, tiles/s, x that speed during its moves). Damages are per hit at
+# level 1 (x the enemy damage scaling).
+# Ink on the floor -- puddles and pools -- slows whoever's in it (x INK_SLOW)
+# and stings (INK_STING every INK_TICK s).
+# Signature 1, INK POOLS (all fight): every POOL_EVERY s it melts (POOL_TELL
+# s) into a pool (POOL_RADIUS; can't be hit) and flows at POOL_SPEED tiles/s
+# to where it'll reform -- a bubbling spot POOL_AWAY tiles beside its target,
+# shown from the start -- leaving puddles (PUDDLE = radius, lasts s) every
+# PUDDLE_GAP tiles; it reforms there in a splash of POOL_SPLASH ink drops.
+# Signature 2, INK BLOTS (phase 2+): every BLOT_EVERY s (a BLOT_TELL s tell)
+# BLOTS blots are lobbed (BLOT_FLIGHT s, rings where they land) onto and
+# round its target (BLOT_RADIUS, lasting BLOT_LIFE s). In one, you're inked:
+# blind beyond INK_SIGHT tiles for INKED s (kept up while you stand in it).
+# A roll wipes it off.
+# Signature 3, SCRAWL (phase 3): every SCRAWL_EVERY s it writes one of
+# SCRAWL_WORDS across the floor through its target, a letter every
+# SCRAWL_PEN s, SCRAWL_GAP tiles apart; SCRAWL_HOLD s after the last, the
+# letters burst in order (SCRAWL_BURST = s apart, radius, damage) -- or, every
+# other word, rise as ink imps (at most SCRAWL_IMPS out).
+# Signature 4, INK-CAP CLUSTERS (phase 3): every CLUSTER_EVERY s (a
+# CLUSTER_TELL s tell) CLUSTER ink-cap sprouts (bodies, CLUSTER_HP x its
+# max HP / 8000) push up CLUSTER_NEAR tiles round its target. Not broken in
+# CLUSTER_GROW s, each melts into a spreading pool (CLUSTER_POOL = radius
+# it grows to, s it lasts).
+INKCAP_HIT_RADIUS = 1.5
+INKCAP_WALK = (6.0, 10.0, (3.0, 6.0), 3.4, 0.5)
+INK_SLOW = 0.55
+INK_STING = 3
+INK_TICK = 0.6
+POOL_EVERY = 14.0
+POOL_TELL = 0.8
+POOL_RADIUS = 2.2
+POOL_SPEED = 7.0
+POOL_AWAY = (5.0, 8.0)
+POOL_SPLASH = 12
+PUDDLE = (1.4, 8.0)
+PUDDLE_GAP = 2.0
+BLOT_EVERY = 12.0
+BLOT_TELL = 0.6
+BLOTS = 3
+BLOT_FLIGHT = 0.9
+BLOT_RADIUS = 2.6
+BLOT_LIFE = 8.0
+INK_SIGHT = 4.5
+INKED = 2.0
+SCRAWL_EVERY = 13.0
+SCRAWL_WORDS = ("GROW", "ROT", "SPORE", "DEEPER", "HUNGER", "MYCELIUM", "SEEP")
+SCRAWL_PEN = 0.12
+SCRAWL_GAP = 2.4
+SCRAWL_HOLD = 0.7
+SCRAWL_BURST = (0.1, 1.5, 12)
+SCRAWL_IMPS = 6
+CLUSTER_EVERY = 15.0
+CLUSTER_TELL = 0.5
+CLUSTER = 5
+CLUSTER_HP = 30
+CLUSTER_NEAR = (4.0, 9.0)
+CLUSTER_GROW = 6.0
+CLUSTER_POOL = (3.0, 10.0)
+# Its moves.
+INKCAP_SCALES = (0.6, 3, 7, 50.0, 0.3, 2, 1.8, 0.15, 2.4)  # tell s, fans, scales a fan, fan
+                                         # degrees, s between fans; spiral arms, lasts s,
+                                         # s between, turn rad/s
+INKCAP_SPRAY = (1.0, 4, 1.5, 10, 6.0)    # flight (tell) s, globs, splash radius, damage, spread
+INKCAP_BURST = (1.0, 2.8, 12, 10)        # cracks (tell) s, blast radius, damage, ink drops
+INKCAP_SHAKE = (0.6, 3, 14, 40.0, 0.35)  # tell s, rings, scales a ring, gap degrees,
+                                         # s between rings
+INKCAP_SHOTS = {
+    "scale": ShellSpec(speed=11.0, damage=5, max_range=28.0, damages_terrain=False,
+                       look="scale", sound="fizzle"),
+    "ink": ShellSpec(speed=9.0, damage=6, max_range=20.0, damages_terrain=False,
+                     look="ink_drop", sound="fizzle"),
+}
+# Mycelium, the giant puffball (ai/bosses.Puffball, M26.3): a huge round
+# white puffball, cracking open as the fight goes on, in its field. It rolls
+# round its target PUFF_WALK = (nearest, farthest tiles, (s, s) between
+# turning about, tiles/s, x that speed during its moves). Damages are per hit
+# at level 1 (x the enemy damage scaling).
+# Spore clouds (mortars', its breath's) choke whoever's in one: CLOUD_CHOKE
+# every CLOUD_TICK s. Clouds that drift into something solid stop there.
+# Signature 1, PUFFBALL MINEFIELD (all fight): every MINE_EVERY s (a
+# MINE_TELL s tell) it scatters MINES little puffballs (bodies, 1 HP) round
+# its target (MINE_NEAR tiles; at most MINE_MAX). A hero within MINE_TRIGGER
+# lights one's fuse (MINE_FUSE s); a shot pops one at once. A pop: MINE_BURST
+# = (radius, damage), and every mine within MINE_CHAIN tiles pops MINE_GAP s
+# later. A pop within MINE_STAGGER tiles of it: MINE_HURT x its max HP, and
+# it's dazed MINE_DAZE s.
+# Signature 2, BOUNDING (phase 2+): between moves it bounds every BOUND_EVERY
+# s: a shadow where it'll land (BOUND_TELL s in the air, can't be hit),
+# BOUND_NEAR tiles from its target; landing, BOUND_LAND = (radius, damage,
+# spores).
+# Signature 3, SPORE WIND (phase 3): a wind blows (WIND_SPEED tiles/s), turning
+# WIND_TURN degrees every WIND_EVERY s. Every BREATH_EVERY s (a BREATH_TELL s
+# tell) it breathes out BREATH_CLOUDS clouds (BREATH_CLOUD = radius, lasts s)
+# that drift with the wind.
+# Signature 4, SPLIT (phase 3): every SPLIT_EVERY s (a SPLIT_TELL s tell) it
+# splits into two halves (PuffHalf bodies, hit radius SPLIT_HALF[0]) that
+# bound on their own (every SPLIT_HALF[1] s, landing SPLIT_HALF[2] radius,
+# SPLIT_HALF[3] damage, SPLIT_HALF[4] spores), sharing its health; after
+# SPLIT_TIME s they roll back together (SPLIT_JOIN tiles/s) and merge.
+PUFF_HIT_RADIUS = 1.8
+PUFF_WALK = (6.0, 10.0, (3.0, 6.0), 3.4, 0.5)
+CLOUD_CHOKE = 4
+CLOUD_TICK = 0.5
+MINE_EVERY = 12.0
+MINE_TELL = 0.6
+MINES = 8
+MINE_NEAR = (3.5, 11.0)
+MINE_MAX = 18
+MINE_TRIGGER = 1.4
+MINE_FUSE = 0.45
+MINE_BURST = (2.0, 10)
+MINE_CHAIN = 3.6
+MINE_GAP = 0.15
+MINE_STAGGER = 3.6
+MINE_HURT = 0.006
+MINE_DAZE = 1.5
+BOUND_EVERY = 2.2
+BOUND_TELL = 0.65
+BOUND_NEAR = (5.0, 9.0)
+BOUND_LAND = (2.4, 12, 6)
+WIND_SPEED = 3.0
+WIND_EVERY = 10.0
+WIND_TURN = 90.0
+BREATH_EVERY = 9.0
+BREATH_TELL = 0.6
+BREATH_CLOUDS = 5
+BREATH_CLOUD = (2.4, 7.0)
+SPLIT_EVERY = 22.0
+SPLIT_TELL = 0.8
+SPLIT_TIME = 12.0
+SPLIT_HALF = (1.2, 1.8, 2.0, 10, 5)
+SPLIT_JOIN = 8.0
+# Its moves.
+PUFF_ROLL = (0.6, 16.0, 30.0, 14, 1.8)   # line (tell) s, tiles/s, how far, damage, width
+PUFF_RINGS = (0.6, 3, 16, 40.0, 0.5)     # tell s, rings, puffs a ring, gap degrees, s between
+PUFF_MORTARS = (1.0, 4, 1.6, 8, 2.2, 5.0, 6.0)  # flight (tell) s, mortars, burst radius,
+                                         # damage, cloud radius, cloud lasts s, spread
+PUFF_SQUASH = (0.7, 3.2, 14, 14)         # squashed (tell) s, blast radius, damage, spores
+PUFF_SHOTS = {
+    "puff": ShellSpec(speed=6.0, damage=6, max_range=26.0, damages_terrain=False,
+                      look="puff", sound="fizzle"),
+    "spore": ShellSpec(speed=10.0, damage=6, max_range=24.0, damages_terrain=False,
+                       look="dust_spore", sound="fizzle"),
+}
+# More than Life / More than Death (ai/bosses.Necromancer, M27): the plains
+# boss, much harder than the ring bosses -- by having many more abilities.
+# Two lives of NECRO_HP_LIVES x the usual health each. Life 1 walks round its
+# target NECRO_WALK = (nearest, farthest, (s, s), tiles/s, x during moves);
+# life 2 floats (over graves) NECRO_FLOAT likewise. Life 2's signature timers
+# are NECRO_LICH_SLOW x longer (it has so many more). Damages are per hit at
+# level 1 (x the enemy damage scaling).
+# DYING the first time: at 1 HP he can't be hurt; his body falls, his soul
+# tears free and rises (NECRO_RITUAL s, every corpse raised round it), and he
+# comes back as the lich with full health.
+# RAISE THE DEAD (life 1 on): whatever dies in the arena leaves a corpse
+# (the arena starts with some). Stand CORPSE_STOMP[0] tiles from one for
+# CORPSE_STOMP[1] s to crush it. Every RAISE_EVERY s (a RAISE_TELL s glow)
+# up to RAISE_MAX corpses within RAISE_RANGE of him rise as risen dead (at
+# most MINION_MAX out), plus RAISE_GRAVES from graves near his target.
+# CORPSE EXPLOSION (life 1 on): every BLAST_EVERY s the corpses within
+# BLAST_NEAR tiles of a hero glow (BLAST_TELL s) and burst (BLAST = radius,
+# damage).
+# BONE WALLS (phase 2 on): every WALL_EVERY s (WALL_TELL s of cracks)
+# WALL_LINES walls of bone (WALL_LEN tiles, through and round his target)
+# rise; they crumble WALL_LIFE s later (tiles.BONE_WALL, breakable).
+# DEATH'S GAZE (phase 2 on): every GAZE_EVERY s (a GAZE_TELL s glow) a beam
+# (GAZE_LEN tiles, stopped by anything that stops shots: hide behind graves)
+# sweeps once round him in GAZE_TIME s, from his target: GAZE_HIT every
+# GAZE_TICK s to whoever it's on (GAZE_WIDTH).
+# THE LEGION (phase 3 on): every LEGION_EVERY s, by turns: an archer volley
+# (VOLLEY = zones, radius, rings (tell) s, damage) on and round heroes, or a
+# phalanx (PHALANX = shields, spacing, gap slots, tiles/s, how far, contact
+# damage) marching through its target, shields to the front (they take no
+# harm from in front).
+# SOUL STORM (lich): every STORM_EVERY s (STORM_TELL s) for STORM_TIME s
+# heroes within STORM_REACH are pulled toward him (STORM_PULL tiles/s) while
+# STORM_SOULS souls circle him (STORM_RING = nearest, farthest, rad/s),
+# cutting (STORM_HIT every 0.5 s).
+# SOUL HARVEST (lich): each hit of his that lands spills a soul that drifts to
+# him (HARVEST = tiles/s, grab radius, heal); each he swallows (at most
+# HARVEST_MAX) powers his next move (+HARVEST_POWER damage each).
+# POSSESSION (lich phase 2 on): every POSSESS_EVERY s (POSSESS_TELL s) he
+# hides in one of his risen dead (raising up to POSSESS_HOSTS first): his
+# body still and shielded; the host's eyes flash (POSSESS_BLINK = on s,
+# every s). Kill it: he's back, dazed POSSESS_STUN s, losing POSSESS_HURT x
+# max HP. Not found in POSSESS_TIME s: he's back in a ring of POSSESS_NOVA
+# souls.
+# BONE CAGE (lich phase 3): every CAGE_EVERY s (rib shadows, CAGE_TELL s)
+# CAGE_RIBS ribs (bodies, CAGE_HP x max HP / 8000) round his target, who
+# can't walk; they close in from CAGE_RADIUS[0] to [1] over CAGE_TIME s and
+# crush (CAGE_CRUSH). Break one rib to break the cage.
+NECRO_HP_LIVES = 1.0
+NECRO_HIT_RADIUS = 1.6
+NECRO_WALK = (7.0, 12.0, (3.0, 6.0), 3.4, 0.5)
+NECRO_FLOAT = (7.0, 12.0, (3.0, 6.0), 4.6, 0.6)
+NECRO_LICH_SLOW = 1.35
+NECRO_RITUAL = 6.0
+NECRO_DMG = 1.25
+CORPSE_STOMP = (1.1, 0.5)
+RAISE_EVERY = 11.0
+RAISE_TELL = 1.0
+RAISE_RANGE = 30.0
+RAISE_MAX = 4
+RAISE_GRAVES = 1
+MINION_MAX = 7
+BLAST_EVERY = 9.0
+BLAST_NEAR = 8.0
+BLAST_TELL = 1.0
+BLAST = (2.4, 15)
+WALL_EVERY = 15.0
+WALL_TELL = 1.0
+WALL_LINES = 2
+WALL_LEN = 18
+WALL_LIFE = 12.0
+NECRO_BONE_WALL_HP = 80
+GAZE_EVERY = 20.0
+GAZE_TELL = 1.2
+GAZE_LEN = 70.0
+GAZE_TIME = 5.0
+GAZE_HIT = 7
+GAZE_TICK = 0.25
+GAZE_WIDTH = 0.9
+LEGION_EVERY = 16.0
+VOLLEY = (3, 3.2, 1.3, 14)
+PHALANX = (12, 1.6, 2, 4.0, 34.0, 12)
+STORM_EVERY = 16.0
+STORM_TELL = 0.8
+STORM_TIME = 6.0
+STORM_REACH = 20.0
+STORM_PULL = 3.0
+STORM_SOULS = 10
+STORM_RING = (4.0, 9.0, 1.6)
+STORM_HIT = 8
+HARVEST = (8.0, 1.3, 3)
+HARVEST_MAX = 12
+HARVEST_POWER = 0.05
+POSSESS_EVERY = 30.0
+POSSESS_TELL = 0.8
+POSSESS_HOSTS = 6
+POSSESS_BLINK = (0.4, 2.0)
+POSSESS_STUN = 4.0
+POSSESS_HURT = 0.03
+POSSESS_TIME = 10.0
+POSSESS_NOVA = 16
+CAGE_EVERY = 13.0
+CAGE_TELL = 0.9
+CAGE_RIBS = 10
+CAGE_HP = 25
+CAGE_RADIUS = (2.2, 0.9)
+CAGE_TIME = 5.0
+CAGE_CRUSH = 28
+# Its moves.
+NECRO_SPEARS = (0.6, 7, 40.0, 6, 0.08, 0.35)  # tell s, spears a fan, fan degrees, spears in
+                                         # the line, s between them, s between volleys
+NECRO_SKULLS = (0.7, 4, 1.2, 9.0, 2.0, 6.0, 12)  # tell s, skulls, s circling first, speed,
+                                         # turn rad/s, life s, damage
+NECRO_HANDS = (1.0, 8, 3.2, 1.3, 10, 1.0)  # rings (tell) s, hands round the middle, ring
+                                         # radius, hit radius, damage, s rooted
+NECRO_REAP = (0.7, 0.25, 4.5, 75.0, 18)  # shadow (tell) s, wind-up s, reach, half arc
+                                         # degrees, damage
+NECRO_SHOTS = {
+    "spear": ShellSpec(speed=15.0, damage=8, max_range=32.0, damages_terrain=False,
+                       look="bone_spear", sound="fizzle"),
+    "soul": ShellSpec(speed=9.0, damage=8, max_range=30.0, damages_terrain=False,
+                      look="soul", sound="fizzle"),
 }
 # The golden scarab (ai/creatures.GoldenScarab): spooked within
 # GOLDEN_SCARAB[0] tiles, it flees; after GOLDEN_SCARAB[1] s of running it

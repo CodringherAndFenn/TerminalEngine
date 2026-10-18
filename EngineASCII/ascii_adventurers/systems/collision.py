@@ -135,3 +135,24 @@ def move_hull(
         else:
             y += dy
     return x, y, blocked_x, blocked_y
+
+
+# Water a hero with Adventurer's Glory walks on (M27): lakes, the ocean, bogs
+# and ponds of every kind.
+WATERY = {"water", "bog", "pond", "blood pool", "stagnant water", "oasis", "frozen pond"}
+
+
+class WaterWalk:
+    """A world as one who walks on water sees it (M27): every watery tile is
+    open ground; anything else is as it is."""
+
+    def __init__(self, world) -> None:
+        self.world = world
+
+    def tile_at(self, tx: int, ty: int) -> TileType:
+        t = self.world.tile_at(tx, ty)
+        if t.solid and t.name in WATERY:
+            from ..world import tiles
+            return tiles.GROUND
+        return t
+

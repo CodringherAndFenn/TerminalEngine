@@ -70,7 +70,8 @@ class LandmarkTest(unittest.TestCase):
         gap = config.QUEST_SITE_GAP
         for seed in SEEDS:
             big = [m for m in world(seed).layout.landmarks if m.kind != "spot"]
-            self.assertEqual(len(big), 2 * len(config.QUESTS), seed)
+            none = sum(1 for q in config.QUESTS.values() if q.camp == "none")   # (M27)
+            self.assertEqual(len(big), 2 * len(config.QUESTS) - none, seed)
             for i, a in enumerate(big):
                 for b in big[i + 1:]:
                     apart_x = abs(a.x0 + a.w / 2 - b.x0 - b.w / 2) >= (a.w + b.w) / 2 + gap - 6
@@ -326,7 +327,8 @@ class QuestFlowTest(unittest.TestCase):
         self.assertEqual(st.stage, "hunt")                  # out from the start (M22.5)...
         self.assertFalse(st.taken)
         # ...hidden but for the givers (P2: always pinned, round, biome colour).
-        self.assertEqual({k for _, _, k, _ in q.pins()}, {f"giver_{x.biome}" for x in q.states.values()})
+        self.assertEqual({k for _, _, k, _ in q.pins()},
+                         {f"giver_{x.biome}" for x in q.states.values() if x.npc is not None})
         self.assertEqual(len(q.log()), 1)                   # (only the main quest)
         # Talk: E queues it, the next step delivers it.
         teleport(s, st.npc.x, st.npc.y)

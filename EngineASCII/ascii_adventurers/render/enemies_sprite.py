@@ -20,8 +20,9 @@ import math
 import pygame
 
 from .. import config, palette
-from ..ai.bosses import (FalloutKing, Fragile, Glamour, Khepri, LeechPart, LeechSwarm, Magus,
-                         Nettle, OlSpitter, Proboscia, SnowKing)
+from ..ai.bosses import (FalloutKing, Fragile, Glamour, Khepri, LeechPart, LeechSwarm,
+                         LoveCuddles, Magus, MycoPart, Nettle, OlSpitter, Proboscia,
+                         SnowKing, TheFallen, Amanita, InkCap, Puffball, Necromancer)
 from ..ai.creatures import (Boar, Burrower, Camel, DustDevil, FrostWraith, Ghoul, GoldenScarab,
                             Hourglass,
                             IsotopeRod, Leech, Mosquito, Puffer, SandElemental, SandGolem, Scarab,
@@ -36,6 +37,12 @@ from .magus import draw_magus, draw_minion
 from .snowking import draw_snow_king, draw_wraith
 from .fragile import draw_bat, draw_fragile
 from .nettle import draw_glamour, draw_moth, draw_nettle, draw_sprite
+from .squirrel import draw_love
+from .fallen import draw_fallen
+from .amanita import draw_amanita
+from .inkcap import draw_inkcap
+from .puffball import draw_puffball
+from .necro import draw_necro
 from .bosses import draw_froggy
 from .characters import draw_body, draw_character, walk_frame
 from .leeches import draw_leech_creature, draw_leech_part, draw_swarm
@@ -223,6 +230,26 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
         return
     if isinstance(e, Glamour):
         draw_glamour(text, bank, camera, e)
+        return
+    if isinstance(e, LoveCuddles):             # M25.2
+        draw_love(text, bank, camera, e)
+        return
+    if isinstance(e, TheFallen):               # M25.3
+        draw_fallen(text, bank, camera, e)
+        return
+    if isinstance(e, Amanita):                 # M26.1
+        draw_amanita(text, bank, camera, e)
+        return
+    if isinstance(e, InkCap):                  # M26.2
+        draw_inkcap(text, bank, camera, e)
+        return
+    if isinstance(e, Necromancer):             # M27
+        draw_necro(text, bank, camera, e)
+        return
+    if isinstance(e, Puffball):                # M26.3
+        draw_puffball(text, bank, camera, e)
+        return
+    if isinstance(e, MycoPart):                # (drawn with its Mycelium)
         return
     if is_plains(e):                           # P7: the plains' new enemies
         draw_plains(text, bank, camera, e)

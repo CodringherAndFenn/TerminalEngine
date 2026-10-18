@@ -148,6 +148,25 @@ SHOT_LOOKS = {
     "thorn": ("^", (":", "'"), palette.SHOT_THORN),
     "slash": (")", ("-", "."), palette.SHOT_SLASH),
     "bat": ("v", (".", "."), palette.SHOT_BAT),
+    # M25.2: Love & Cuddles' acorns, pinecone splinters, flung cleaver blades.
+    "acorn": ("o", ("'", None), palette.SHOT_ACORN),
+    "splinter": ("-", ("'", None), palette.SHOT_SPLINTER),
+    "cleaver": ("x", ("+", None), palette.SHOT_CLEAVER),
+    # M25.3: The Fallen's leaves and spat-back sap.
+    "leaf": ("*", ("'", None), palette.SHOT_LEAF),
+    "sap_spit": ("@", (":", None), palette.SHOT_SAP_SPIT),
+    # M26.1: Mycelium the fly agaric's red and white spores.
+    "red_spore": ("@", ("'", None), palette.SHOT_RED_SPORE),
+    "white_spore": ("*", ("'", None), palette.SHOT_WHITE_SPORE),
+    # M26.2: the shaggy ink cap's scales and ink drops.
+    "scale": ("v", ("'", None), palette.SHOT_SCALE),
+    "ink_drop": ("@", ("'", None), palette.SHOT_INK_DROP),
+    # M26.3: the giant puffball's puffs and dusty spores.
+    "puff": ("O", ("'", None), palette.SHOT_PUFF),
+    "dust_spore": ("*", ("'", None), palette.SHOT_DUST_SPORE),
+    # M27: More than Life's bone spears and souls.
+    "bone_spear": ("=", ("-", None), palette.SHOT_BONE_SPEAR),
+    "soul": ("o", ("'", None), palette.SHOT_SOUL),
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).
@@ -336,7 +355,7 @@ def _frame(e: Effect) -> list:
         col = palette.HOWL[min(1, int(p * 2))]
         r = e.size * p
         return [(math.cos(k * math.tau / 20) * r * config.TILE_PX_W,
-                 math.sin(k * math.tau / 20) * r * config.TILE_PX_H, "~", col) for k in range(20)]
+                 math.sin(k * math.tau / 20) * r * config.TILE_PX_H, "o", col) for k in range(20)]
     if e.kind == "implode":                     # (P4: closes in, the reverse of a burst)
         r = e.size * (1.0 - 0.8 * p)
         col = palette.RUNE[min(1, int(p * 2))]
@@ -379,7 +398,7 @@ def draw_effects(text: TextRenderer, camera: Camera, world, effects: list[Effect
             n = max(2, int(math.hypot(tx - x, ty - y) / 10))
             for k in range(1, n + 1):
                 batch.put_c(x + (tx - x) * k / n, y + (ty - y) * k / n,
-                            "~" if e.value else "=", col)
+                            "-" if e.value else "=", col)
             continue
         if e.kind == "heal_beam":                   # (P7: dotted green, a "+" on the healed)
             tx, ty = camera.world_to_px(e.x2, e.y2)

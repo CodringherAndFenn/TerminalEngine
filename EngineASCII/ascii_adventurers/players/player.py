@@ -68,6 +68,7 @@ class Player:
     kill_times: list = field(default_factory=list)   # recent kills (achievement)
     phoenix_used: int = 0
     revives_used: int = 0             # Second Chance
+    glory: bool = False               # M27: Adventurer's Glory (may end the run as a victory)
 
     @property
     def alive(self) -> bool:

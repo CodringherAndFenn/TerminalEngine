@@ -167,16 +167,29 @@ class IslandLayout:
         return lake & np.isin(smooth_ids, LAKE_BIOMES)
 
     def _find_spawn(self) -> tuple[int, int]:
+        """(M27: the search starts just outside the necropolis's gate, south
+        of the centre, when the plains boss is in the game; it never starts
+        inside the necropolis's clearing.)"""
         step = config.SPAWN_SEARCH_STEP
+        ox, oy = 0, 0
+        keep_out = None
+        if any(q.kind == "finale" for q in config.QUESTS.values()):
+            a, b = config.NECRO_RADII
+            reach_x = a + config.LAIR_WALL
+            reach_y = b + config.LAIR_WALL
+            oy = reach_y + config.NECRO_START
+            keep_out = (reach_x + config.SPAWN_CLEAR_RADIUS, reach_y + config.SPAWN_CLEAR_RADIUS)
         for ring in range(0, 60):
             # Candidates on the square ring `ring` steps out, nearest first.
-            pts = {(x * step, y * step)
+            pts = {(ox + x * step, oy + y * step)
                    for x in range(-ring, ring + 1) for y in range(-ring, ring + 1)
                    if max(abs(x), abs(y)) == ring}
-            for x, y in sorted(pts, key=lambda p: (p[0] ** 2 + p[1] ** 2, p)):
+            for x, y in sorted(pts, key=lambda p: ((p[0] - ox) ** 2 + (p[1] - oy) ** 2, p)):
+                if keep_out is not None and abs(x) <= keep_out[0] and abs(y) <= keep_out[1]:
+                    continue
                 if self._can_escape(x, y):
                     return x, y
-        return 0, 0   # nothing found (can't happen with sane settings)
+        return ox, oy   # nothing found (can't happen with sane settings)
 
     def _can_escape(self, cx: int, cy: int) -> bool:
         """Flood-fill dry tiles from (cx, cy) within a square of radius

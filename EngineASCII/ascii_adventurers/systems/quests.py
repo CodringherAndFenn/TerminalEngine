@@ -27,7 +27,15 @@ a player takes one from its giver. Stages:
              blocks -- shatter one, then stay close while they thaw, with
              the quest's enemies trying to re-freeze them; a "cleanse"
              quest, M25.1: a "survive" quest's circles as blighted shrines,
-             whose ring tightens as it cleans; a "fetch" quest,
+             whose ring tightens as it cleans; a "destroy" quest, M25.2:
+             nut caches at the end of trails of nut shells, guarded like
+             cargo -- break one (shoot it, hit it) and it counts, and a
+             couple more squirrels burst out; a "fell" quest, M25.3:
+             trees marked with red paint -- fell one and it counts, unless
+             it's a mimic sapling, which rips free and counts once it's
+             dead; a "sever" quest, M26: every Mycelium's -- a
+             "survive" quest's circles as Mycelium nodes (what a severed one
+             spills hints which mushroom waits); a "fetch" quest,
              M24.3: guarded pieces to carry back to the giver -- and then,
              sewn whole, Mr. Buttons the bear, carried into the fight and
              given back to Fragile after it);
@@ -132,7 +140,8 @@ class QuestState:
     damage_taken: float = 0.0          # by the players during the fight (dev report)
     lit: set = field(default_factory=set)       # light / collect / survive / escort: spots done
     stuck: float = 0.0                 # escort: s the giver has been blocked following
-    opened: set = field(default_factory=set)    # rescue: captives whose block is shattered
+    opened: set = field(default_factory=set)    # rescue: captives whose block is shattered;
+                                                # fell: marked trees whose sapling is out
     wraiths: dict = field(default_factory=dict) # rescue: spot -> the enemies sent at it
     carry: dict = field(default_factory=dict)   # fetch: player index -> pieces carried
     bear: int | None = None            # fetch: the player carrying the finished bear
@@ -169,8 +178,15 @@ class Quests:
         self.states: dict[str, QuestState] = {}     # config.QUESTS key -> its state
         if layout is not None:
             from ..world.landmarks import quest_marks
+            from ..world.landmarks import Landmark
             for key, spec in config.QUESTS.items():
                 camp, lair = quest_marks(layout, key)
+                if spec.kind == "finale" and lair is not None:
+                    # (M27: the plains boss -- no giver, no camp: an empty
+                    # stand-in; "hunt" means its gate is still sealed)
+                    stand_in = Landmark("none", "camp", spec.biome, "", 0, 0, [])
+                    self.states[key] = QuestState(key, spec, stand_in, lair, None)
+                    continue
                 if camp is None or lair is None or camp.npc is None:
                     continue
                 npc = Npc(spec.giver, spec.giver_sprite, *camp.npc, spec.biome, quest=key)
@@ -183,13 +199,26 @@ class Quests:
 
     @property
     def npcs(self) -> list[Npc]:
-        return [s.npc for s in self.states.values()] + \
+        return [s.npc for s in self.states.values() if s.npc is not None] + \
             [s.crying for s in self.states.values() if s.crying is not None]
 
     @property
     def guardians(self) -> int:
-        """Ring biomes with a boss beaten (one per biome counts)."""
-        return len({s.biome for s in self.states.values() if s.stage == "cleared"})
+        """Ring biomes with a boss beaten (one per biome counts; not the
+        plains boss)."""
+        return len({s.biome for s in self.states.values()
+                    if s.stage == "cleared" and s.spec.kind != "finale"})
+
+    @property
+    def finale(self) -> QuestState | None:
+        """The plains boss's quest (M27), if this island has it."""
+        return next((s for s in self.states.values() if s.spec.kind == "finale"), None)
+
+    @property
+    def glory(self) -> bool:
+        """Adventurer's Glory won (M27): the plains boss is beaten."""
+        f = self.finale
+        return f is not None and f.stage == "cleared"
 
     @property
     def fights(self) -> list[QuestState]:
@@ -231,8 +260,17 @@ class Quests:
         """The quest log: (label, text, done) lines -- the main quest, then
         a counter for each quest taken from its giver until its boss falls.
         Quests nobody took stay hidden (M22.5)."""
-        out = [("GLORY", f"guardians {self.guardians}/{config.GUARDIANS}", False)]
+        f = self.finale
+        if f is not None and f.stage == "cleared":
+            glory = ("GLORY", "obtained - end the run any time", True)
+        elif f is not None and f.stage in ("awake", "fight"):
+            glory = ("GLORY", f"defeat {config.BOSSES[f.spec.boss].name}", False)
+        else:
+            glory = ("GLORY", f"guardians {self.guardians}/{config.GUARDIANS}", False)
+        out = [glory]
         for s in self.states.values():
+            if s.spec.kind == "finale":
+                continue
             if s.crying is not None and not s.gifted:            # (M24.3)
                 out.append((s.biome.upper(), "give Fragile her bear", False))
                 continue
@@ -265,12 +303,15 @@ class Quests:
         dev = self.dev_quest() if every_target else None
         for s in self.states.values():
             giver_done = s.stage == "cleared"
-            out.append((s.npc.x, s.npc.y, "giver_done" if giver_done else f"giver_{s.biome}",
-                        s.spec.camp_name or s.spec.giver.upper()))
+            if s.npc is not None:
+                out.append((s.npc.x, s.npc.y, "giver_done" if giver_done else f"giver_{s.biome}",
+                            s.spec.camp_name or s.spec.giver.upper()))
             if s.stage == "hunt" and (s.taken or every_target):
                 label = {"light": "BRAZIER", "collect": "CARGO", "survive": "SEAL",
                          "escort": "BEACON", "rescue": "CAPTIVE",
-                         "fetch": "PIECE", "cleanse": "SHRINE"}.get(s.spec.kind) \
+                         "fetch": "PIECE", "cleanse": "SHRINE",
+                         "destroy": "CACHE", "fell": "MARKED",
+                         "sever": "NODE"}.get(s.spec.kind) \
                     or config.ENEMIES[s.spec.target].name.split()[-1].upper()
                 if every_target and not s.taken and s is not dev:
                     label = ""
@@ -321,17 +362,28 @@ class Quests:
                 self._tend_braziers(s, players, dt)
             elif s.stage == "hunt" and s.spec.kind == "collect":
                 self._collect(s, players)
-            elif s.stage == "hunt" and s.spec.kind in ("survive", "cleanse"):
+            elif s.stage == "hunt" and s.spec.kind in ("survive", "cleanse", "sever"):
                 self._hold_seals(s, players, dt)
             elif s.stage == "hunt" and s.spec.kind == "escort":
                 self._escort(s, players, dt)
             elif s.stage == "hunt" and s.spec.kind == "rescue":
                 self._rescue(s, players, dt)
+            elif s.stage == "hunt" and s.spec.kind == "destroy":
+                self._break_caches(s, players)
+            elif s.stage == "hunt" and s.spec.kind == "fell":
+                self._fell_trees(s, players)
+            elif s.stage == "hunt" and s.spec.kind == "finale":
+                if self.guardians >= config.GUARDIANS:
+                    self._unseal(s)
             elif s.stage == "awake":
                 self._maybe_start_fight(s, players)
             elif s.stage == "fight":
                 s.fight_time += dt
                 self._seal(s)
+                req = getattr(s.boss, "banner_req", None)       # (M27: his second life)
+                if req:
+                    self.banner = Banner(*req)
+                    s.boss.banner_req = None
         if self.banner is not None:
             self.banner.t += dt
             if self.banner.t >= self.banner.duration:
@@ -369,7 +421,7 @@ class Quests:
         if s.spec.kind == "hunt":
             for i, (x, y) in enumerate(s.camp.spots):
                 sp.place((QUEST_SID, s.qid, i, 0), s.spec.target, x, y)
-        elif s.spec.kind in ("collect", "fetch"):
+        elif s.spec.kind in ("collect", "fetch", "destroy"):
             n = config.CARGO_GUARDS
             for i, (x, y) in enumerate(s.camp.spots):
                 for k in range(n):
@@ -444,6 +496,81 @@ class Quests:
             if s.stage != "hunt":
                 return
 
+    # --- Destroy quests (M25.2) ---------------------------------------------------------
+
+    def _break_caches(self, s: QuestState, players) -> None:
+        """A nut cache (a destructible tile) broken by anything counts; the
+        caches are only looked at near a hero (their chunks are loaded)."""
+        heroes = [p.hero for p in players if p.alive and not p.ghost]
+        for i, (x, y) in enumerate(s.camp.spots):
+            if i in s.lit:
+                continue
+            near = [h for h in heroes if math.hypot(h.x - x, h.y - y) <= config.CACHE_LOOK]
+            if not near or self.world.tile_at(math.floor(x), math.floor(y)) is tiles.NUT_CACHE:
+                continue
+            s.lit.add(i)
+            self.scene.effects.append(Effect("nova", x, y, size=2.0))
+            self.scene.effects.append(Effect("toast", x, y - 2, label="CACHE BROKEN!"))
+            self._burst_out(s, i, x, y)
+            self._found(s, min(near, key=lambda h: math.hypot(h.x - x, h.y - y)))
+            if s.stage != "hunt":
+                return
+
+    def _burst_out(self, s: QuestState, i: int, x: float, y: float) -> None:
+        """CACHE_BURST more of the quest's enemies leap out of a broken cache."""
+        sp = self.scene.spawner
+        if sp is None:
+            return
+        rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0xCAC4, s.qid, i))
+        for _ in range(config.CACHE_BURST):
+            a = rng.uniform(0, math.tau)
+            ex, ey = free_spot(self.world, x + math.cos(a) * 1.5, y + math.sin(a) * 1.5, 6.0)
+            e = sp.wake(s.spec.target, ex, ey, None, random.Random(rng.random()))
+            e.alert = True
+            self.scene.enemies.append(e)
+
+    # --- Fell quests (M25.3) ------------------------------------------------------------
+
+    def is_sapling(self, s: QuestState, i: int) -> bool:
+        """Is marked tree i a mimic sapling (1 in SAPLING_EVERY, by the seed)?"""
+        seed = getattr(self.world, "seed", 0) or 0
+        return hash_coords(seed, 0x5A91, s.qid, i) % config.SAPLING_EVERY == 0
+
+    def _fell_trees(self, s: QuestState, players) -> None:
+        """A marked tree felled (by anything) counts -- or, a sapling, rips
+        free as a mimic sapling (spawn id (QUEST_SID, quest, spot, 1)) and
+        counts once that's dead. Looked at only near a hero."""
+        heroes = [p.hero for p in players if p.alive and not p.ghost]
+        sp = self.scene.spawner
+        for i, (x, y) in enumerate(s.camp.spots):
+            if i in s.lit:
+                continue
+            sid = (QUEST_SID, s.qid, i, 1)
+            if i in s.opened:                       # (a sapling out: dead yet?)
+                if sp is None or sid in sp.dead:
+                    s.lit.add(i)
+                    self.scene.effects.append(Effect("toast", x, y - 2, label="FELLED!"))
+                    self._found(s, min(heroes, key=lambda h: math.hypot(h.x - x, h.y - y),
+                                       default=s.npc))
+                    if s.stage != "hunt":
+                        return
+                continue
+            near = [h for h in heroes if math.hypot(h.x - x, h.y - y) <= config.CACHE_LOOK]
+            if not near or self.world.tile_at(math.floor(x), math.floor(y)) is tiles.MARKED_TREE:
+                continue
+            if self.is_sapling(s, i) and sp is not None:
+                s.opened.add(i)
+                sp.place(sid, s.spec.target, x, y + 1.0)
+                self.scene.effects.append(Effect("toast", x, y - 2, label="IT'S ALIVE!"))
+                self.scene.effects.append(Effect("eruption", x, y))
+                continue
+            s.lit.add(i)
+            self.scene.effects.append(Effect("toast", x, y - 2, label="TIMBER!"))
+            self.scene.effects.append(Effect("debris", x, y))
+            self._found(s, min(near, key=lambda h: math.hypot(h.x - x, h.y - y)))
+            if s.stage != "hunt":
+                return
+
     # --- Survive quests (M23.3) ---------------------------------------------------------
 
     def _hold_seals(self, s: QuestState, players, dt: float) -> None:
@@ -454,7 +581,7 @@ class Quests:
         rises round it (each wave once). Worn through, the seal breaks /
         the shrine is clean. A shrine's ring shrinks as it cleans."""
         heroes = [p.hero for p in players if p.alive and not p.ghost]
-        rules = circle_rules(s.spec.kind)
+        rules = circle_rules(s.spec.kind, s.spec.skin)
         full = rules["time"]
         for i, (x, y) in enumerate(s.camp.spots):
             if i in s.lit:
@@ -491,7 +618,7 @@ class Quests:
             return
         rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0x5EA1, s.qid, i,
                                         wave))
-        rules = circle_rules(s.spec.kind)
+        rules = circle_rules(s.spec.kind, s.spec.skin)
         lo, hi = rules["range"]
         for _ in range(rng.randint(*rules["size"])):
             a = rng.uniform(0, math.tau)
@@ -858,6 +985,15 @@ class Quests:
             self.world.set_tile(tx, ty, tiles.THORN_GATE)
         s.pending = still
 
+    def _unseal(self, s: QuestState) -> None:
+        """M27: a guardian beaten in every ring biome -- the necropolis's
+        bone gate opens, and its pin goes up."""
+        s.stage = "awake"
+        self._open_gate(s)
+        self.banner = Banner("THE NECROPOLIS OPENS",
+                             f"{config.BOSSES[s.spec.boss].name} waits at the island's centre")
+        self.scene._sounds.append("boulder")
+
     def _open_gate(self, s: QuestState) -> None:
         s.pending = []
         if hasattr(self.world, "set_tile"):
@@ -865,6 +1001,9 @@ class Quests:
                 self.world.set_tile(tx, ty, s.lair.floor or tiles.MUD)
 
     def _win(self, s: QuestState, killer) -> None:
+        if s.spec.kind == "finale":
+            self._win_glory(s, killer)
+            return
         first = s.biome not in {o.biome for o in self.states.values() if o.stage == "cleared"}
         s.stage = "cleared"
         self._open_gate(s)
@@ -908,6 +1047,53 @@ class Quests:
             print(f"[dev] {boss.espec.name}: beaten in {s.fight_time:.1f} s, "
                   f"max hp {boss.max_hp}, level {boss.level}")
 
+    def _win_glory(self, s: QuestState, killer) -> None:
+        """M27: the plains boss is beaten for good. Adventurer's Glory: every
+        player can now end the run as a victory (the pause menu), and walk
+        on water. The usual rewards too."""
+        s.stage = "cleared"
+        self._open_gate(s)
+        boss = s.boss
+        spec = config.BOSSES[s.spec.boss]
+        scene = self.scene
+        self.banner = Banner("ADVENTURER'S GLORY",
+                             "end the run from the pause menu any time -- and walk on water")
+        self.banner.duration = config.BOSS_BANNER_TIME * 1.6
+        scene._sounds.append("chime")
+        level = getattr(scene, "difficulty", 0)
+        loot = round(spec.loot * (1 + config.DIFFICULTY_LOOT * level))
+        guild = scene.app.guild
+        for p in scene.players:
+            if p.ghost:
+                continue
+            p.glory = True
+            p.hero.water_walk = True
+            p.stats.loot += loot
+            p.stats.victory = True
+            scene.effects.append(Effect("loot", boss.x, boss.y, target=p.hero, value=loot))
+            prog = p.progress
+            prog.picks += 1
+            rarities = config.RARITIES
+            want = config.BOSS_CARD_RARITY
+            if prog.decree is None or rarities.index(prog.decree) < rarities.index(want):
+                prog.decree = want
+            scene.rules.award(p, spec.achievement)
+            if p.hero.bestiary is not None:
+                p.hero.bestiary.update(spec.pages)
+        guild.pages.update(spec.pages)
+        if guild.open_difficulty(level):
+            name = config.DIFFICULTIES[guild.difficulty_open].upper()
+            scene.effects.append(Effect("toast", boss.x, boss.y - 3,
+                                        label=f"DIFFICULTY {name} UNLOCKED"))
+        guild.record_quest(s.key, [p.stats.hero for p in scene.players if not p.ghost],
+                           s.fight_time)
+        scene.app.save_guild()
+        if hasattr(scene, "on_glory"):
+            scene.on_glory()
+        if scene.app.dev:
+            print(f"[dev] {boss.espec.name}: beaten in {s.fight_time:.1f} s, "
+                  f"max hp {boss.max_hp}, level {boss.level}")
+
     # --- Developer mode ---------------------------------------------------------------
 
     def dev_quest(self) -> QuestState | None:
@@ -936,13 +1122,18 @@ class Quests:
         s = self.dev_quest()
         if s is None or s.stage != "hunt":
             return False
+        if s.spec.kind == "finale":                # (M27: the gate opens, as if the
+            self._unseal(s)                        # guardians had fallen)
+            return True
         s.taken = True
         s.found = s.spec.count
         s.lit = set(range(len(s.camp.spots)))
         done = {"light": tiles.BRAZIER_LIT, "collect": tiles.SAND,
                 "survive": tiles.SEAL_BROKEN, "escort": tiles.BEACON,
                 "rescue": tiles.SLUSH, "fetch": tiles.CONCRETE,
-                "cleanse": tiles.SHRINE_CLEAN}.get(s.spec.kind)
+                "cleanse": tiles.SHRINE_CLEAN, "destroy": tiles.NUT_SPILL,
+                "fell": tiles.FELLED,
+                "sever": SEVER_SPILL.get(s.spec.skin, tiles.NODE_SPILL_RED)}.get(s.spec.kind)
         if s.spec.kind == "fetch":
             s.bear = self.scene.me.index           # (dev: the bear's yours)
         if done is not None and hasattr(self.world, "set_tile"):
@@ -954,7 +1145,7 @@ class Quests:
             for i in range(len(s.camp.spots)):
                 for k in range(config.CARGO_GUARDS + 1):
                     sid = (QUEST_SID, s.qid, i, k)
-                    if k and s.spec.kind not in ("collect", "fetch"):
+                    if k and s.spec.kind not in ("collect", "fetch", "destroy", "fell"):
                         break
                     sp.dead.add(sid)
                     e = sp.awake.pop(sid, None)
@@ -971,7 +1162,7 @@ class Quests:
         gate."""
         s = self.dev_quest()
         if s is not None:
-            if which == "giver":
+            if which == "giver" and s.npc is not None:
                 return s.npc.x, s.npc.y         # (free_spot finds room beside them)
             if which == "target":
                 left = self.open_targets(s) if s.stage == "hunt" else []
@@ -987,10 +1178,21 @@ class Quests:
         return None
 
 
-def circle_rules(kind: str) -> dict:
+# What a severed Mycelium node spills, by the quest's skin (M26: the hint).
+SEVER_SPILL = {"amanita": tiles.NODE_SPILL_RED, "inkcap": tiles.NODE_SPILL_INK,
+               "puffball": tiles.NODE_SPILL_DUST}
+
+
+def circle_rules(kind: str, skin: str = "") -> dict:
     """A "survive" quest's star circles / a "cleanse" quest's shrines
-    (M25.1): how long to hold one, how fast it heals back with nobody in
-    it, its waves, the tile it leaves and what it says."""
+    (M25.1) / a "sever" quest's Mycelium nodes (M26): how long to hold one,
+    how fast it heals back with nobody in it, its waves, the tile it
+    leaves and what it says."""
+    if kind == "sever":
+        return {"time": config.SEVER_TIME, "heal": config.SEVER_HEAL,
+                "wave": config.SEVER_WAVE, "size": config.SEVER_WAVE_SIZE,
+                "range": config.SEVER_WAVE_RANGE,
+                "done": SEVER_SPILL.get(skin, tiles.NODE_SPILL_RED), "toast": "SEVERED!"}
     if kind == "cleanse":
         return {"time": config.CLEANSE_TIME, "heal": config.CLEANSE_HEAL,
                 "wave": config.CLEANSE_WAVE, "size": config.CLEANSE_WAVE_SIZE,
@@ -1005,6 +1207,8 @@ def circle_radius(kind: str, worn: float) -> float:
     """How far out a hero still counts as inside: a star circle's fixed
     SEAL_RADIUS, or a shrine's ring tightening from CLEANSE_RADIUS[0] to
     [1] as it cleans."""
+    if kind == "sever":
+        return config.SEVER_RADIUS
     if kind == "cleanse":
         r0, r1 = config.CLEANSE_RADIUS
         return r0 + (r1 - r0) * min(1.0, worn / config.CLEANSE_TIME)

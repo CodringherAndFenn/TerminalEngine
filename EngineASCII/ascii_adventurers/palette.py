@@ -773,6 +773,110 @@ SHOT_GLITTER = ((255, 245, 170), ((230, 200, 110), (170, 140, 80)))
 SHOT_THORN = ((170, 200, 110), ((120, 150, 70), (80, 100, 50)))
 MOTH_COL = ((170, 160, 120), (120, 110, 84))
 SPRITE_COL = ((150, 230, 110), (90, 160, 70))
+# Love & Cuddles' hollow oak and the forester's nut caches (M25.2).
+NUT_SHELL_FG = (176, 136, 88)
+NUT_CACHE_FG = (226, 176, 100)
+NUT_CACHE_BG = (64, 42, 24)
+WOODPILE_FG = (170, 116, 62)
+OAK_ROOTS_FG = (128, 96, 64)
+OAK_ROOTS_BG = (30, 22, 16)
+OAK_TRUNK_FG = (124, 94, 66)
+OAK_CROWN_FG = (84, 104, 70)
+MAP_TILE.update({"nut shells": (176, 136, 88), "spilt nuts": (176, 136, 88),
+                 "nut cache": (226, 176, 100), "woodpile": (170, 116, 62),
+                 "oak roots": (128, 96, 64), "climbing oak": (124, 94, 66),
+                 "oak crown": (84, 104, 70)})
+PIN_MOUND = ((236, 176, 96), (70, 40, 10))
+PIN_OAK = ((150, 220, 120), (30, 60, 20))
+# Mycelium (M26): the sever quests' nodes, the fly agaric's fruiting ring.
+MYC_NODE_FG = (210, 130, 255)
+SPILL_RED_FG = (236, 70, 70)
+SHROOM_WALL_FG = (190, 90, 150)
+RING_SHROOM_FG = (236, 96, 96)
+NET_NODE_FG = (240, 180, 255)
+MAP_TILE.update({"mycelium node": (210, 130, 255), "severed node": (236, 70, 70),
+                 "mushroom thicket": (190, 90, 150), "fruiting ring": (236, 96, 96),
+                 "broken node": (110, 80, 130), "network node": (240, 180, 255)})
+PIN_NODE = ((240, 180, 255), (60, 20, 70))
+# More than Life's necropolis (M27; render/necro.py).
+GRAVE_SOIL_FG = (84, 78, 70)
+GRAVE_SOIL_BG = (18, 16, 18)
+BONE_FG = (214, 206, 184)
+BONE_LITTER_FG = (128, 120, 104)
+RITUAL_FG = (110, 230, 140)
+GRAVESTONE_FG = (150, 150, 160)
+MAUSOLEUM_FG = (96, 96, 108)
+CRYPT_FG = (70, 72, 82)
+CRYPT_BG = (26, 26, 32)
+MAP_TILE.update({"grave soil": (84, 78, 70), "bone litter": (214, 206, 184),
+                 "ritual ring": (110, 230, 140), "gravestone": (150, 150, 160),
+                 "mausoleum": (96, 96, 108), "crypt wall": (70, 72, 82),
+                 "bone gate": (214, 206, 184), "bone wall": (214, 206, 184)})
+NECRO_TELL = ((140, 255, 160), (80, 170, 100))     # his tells: bright, dim
+NECRO_GLOW = ((150, 255, 170), (90, 200, 120), (255, 90, 90))   # green, deep, red (blast)
+GAZE_COL = ((180, 255, 190), (60, 200, 100))
+SOUL_COL = ((190, 255, 220), (120, 220, 170))
+CORPSE_COL = ((200, 192, 170), (140, 132, 112))
+SHOT_BONE_SPEAR = ((236, 228, 206), ((180, 172, 150), (120, 114, 100)))
+SHOT_SOUL = ((170, 255, 200), ((110, 210, 150), (70, 150, 100)))
+# The giant puffball (M26.3; render/puffball.py).
+SPILL_DUST_FG = (150, 140, 90)
+MAP_TILE.update({"dusty node": (150, 140, 90), "spore dust": (150, 140, 90)})
+DUST_COL = ((170, 160, 100), (120, 112, 70), (210, 200, 150))   # dust, deep, light
+PUFF_TELL = ((255, 250, 220), (190, 180, 140))
+WIND_COL = (110, 120, 140)
+MINE_COL = ((246, 244, 232), (255, 120, 90))            # a mine, its fuse lit
+SHOT_PUFF = ((236, 230, 200), ((180, 172, 130), (130, 124, 90)))
+SHOT_DUST_SPORE = ((200, 186, 110), ((150, 140, 80), (100, 94, 56)))
+# The shaggy ink cap (M26.2; render/inkcap.py).
+SPILL_INK_FG = (90, 96, 160)
+PAVING_FG = (120, 110, 128)
+PAVING_BG = (40, 34, 46)
+MAP_TILE.update({"inky node": (90, 96, 160), "old paving": (120, 110, 128),
+                 "ink stain": (90, 96, 160)})
+INK_COL = ((70, 76, 140), (30, 32, 60), (130, 140, 220))   # ink, deep ink, glint
+INKCAP_TELL = ((210, 220, 255), (120, 130, 190))
+SCRAWL_COL = ((150, 160, 255), (220, 228, 255))
+INK_DARK = (6, 6, 14, 236)
+SHOT_SCALE = ((236, 226, 206), ((190, 176, 150), (130, 120, 100)))
+SHOT_INK_DROP = ((110, 120, 220), ((70, 76, 150), (40, 44, 90)))
+# The fly agaric (render/amanita.py).
+AMANITA_TELL = ((255, 150, 150), (180, 80, 80))     # its tells: bright, dim
+THREAD_COL = ((90, 60, 110), (240, 170, 255), (255, 120, 220))   # thread, lit, burning
+TRIP_COL = ((255, 120, 200), (160, 230, 255), (255, 240, 120), (170, 255, 150))
+TRIP_CLOUD_COL = ((240, 120, 140), (250, 220, 220), (170, 100, 120))
+FLY_COL = ((170, 190, 150), (110, 130, 100))
+WART_COL = ((250, 248, 236), (200, 196, 186))
+SHOT_RED_SPORE = ((240, 70, 70), ((200, 50, 60), (130, 30, 40)))
+SHOT_WHITE_SPORE = ((250, 246, 236), ((210, 206, 196), (150, 146, 140)))
+# The Fallen's still grove and the lumberjack's marked trees (M25.3).
+MARKED_FG = (214, 70, 60)
+THICKET_FG = (70, 92, 70)
+THICKET_BG = (18, 24, 18)
+FALLEN_TRUNK_FG = (112, 90, 72)
+MAP_TILE.update({"felled tree": (150, 80, 60), "marked tree": (214, 70, 60),
+                 "sawhorse": (170, 116, 62), "thicket": (70, 92, 70),
+                 "grove tree": (88, 70, 66), "fallen trunk": (112, 90, 72),
+                 "fire bowl": (255, 170, 60)})
+# The Fallen (render/fallen.py).
+FALLEN_TELL = ((190, 255, 150), (110, 170, 90))      # its tells: bright, dim
+LEAF_FLURRY = ((150, 170, 90), (110, 120, 70), (170, 120, 70))
+ROOT_COL = ((150, 230, 120), (90, 140, 70), (60, 80, 50))   # growing tip, live, fading
+ROOT_HELD = (255, 120, 90)
+SAP_COL = ((220, 170, 60), (150, 110, 40))
+MAW_COL = ((255, 90, 70), (150, 40, 40))
+SHOT_LEAF = ((150, 200, 90), ((110, 150, 70), (80, 100, 50)))
+SHOT_SAP_SPIT = ((240, 190, 70), ((190, 140, 50), (130, 90, 30)))
+# Love & Cuddles (render/squirrel.py).
+LOVE_TELL = ((255, 150, 200), (190, 90, 140))       # its tells: bright, dim
+MADNESS_COL = ((255, 60, 80), (130, 30, 44))
+MOUND_COL = ((150, 106, 64), (236, 176, 96))        # dirt, the acorn peeking out
+WIRE_COL = ((230, 236, 248), (150, 160, 178))       # glint, wire
+LOG_COL = ((160, 112, 64), (100, 70, 40))
+LOVE_SHADOW = (0, 0, 0, 110)
+SHOT_ACORN = ((222, 160, 86), ((160, 110, 56), (110, 76, 40)))
+SHOT_SPLINTER = ((226, 196, 146), ((166, 136, 96), (116, 96, 66)))
+SHOT_CLEAVER = ((232, 238, 248), ((176, 180, 196), (116, 120, 136)))
 
 # The painted figures (render/painted.py, M24.4): a soft shadow under them,
 # then each figure's colors.
@@ -803,6 +907,42 @@ NETTLE = {"edge": (14, 16, 12), "aura": (170, 255, 110, 34), "wing": (150, 140, 
           "leaf": (150, 92, 52), "leaf_dark": (100, 60, 36), "rot": (110, 150, 60),
           "hair": (40, 84, 54), "twig": (110, 80, 50), "thorn": (200, 220, 160),
           "glow": (210, 255, 140, 170)}
+NECROMANCER = {"edge": (8, 6, 12), "robe": (62, 46, 84), "robe_hi": (96, 74, 124),
+               "robe_dark": (40, 30, 56), "trim": (150, 100, 190), "hood": (50, 38, 68),
+               "face": (6, 6, 10), "eye": (150, 255, 170), "eye_hot": (220, 255, 230),
+               "bone": (216, 208, 186), "bone_dark": (160, 150, 128), "staff": (70, 56, 46),
+               "blade": (180, 190, 200), "glow": (120, 255, 150), "flame": (110, 255, 140),
+               "flame_hi": (220, 255, 210), "skin": (150, 150, 140)}
+PUFFBALL = {"edge": (60, 54, 40), "skin": (246, 242, 230), "skin_hi": (255, 255, 248),
+            "skin_shade": (214, 206, 186), "skin_dark": (180, 170, 146), "crack": (90, 80, 50),
+            "dust": (150, 136, 80), "dust_hi": (190, 176, 110), "eye": (40, 34, 26),
+            "mouth": (70, 60, 40), "shine": (255, 255, 255)}
+INKCAP = {"edge": (24, 22, 30), "cap": (240, 236, 226), "cap_shade": (206, 198, 186),
+          "scale": (190, 170, 140), "scale_dark": (150, 130, 104), "ink": (34, 34, 52),
+          "ink_hi": (90, 96, 160), "stem": (236, 232, 222), "stem_shade": (196, 190, 180),
+          "face": (40, 36, 46), "eye": (180, 190, 255), "mouth": (20, 18, 26),
+          "base": (210, 204, 194)}
+AMANITA = {"edge": (40, 12, 16), "cap": (214, 36, 40), "cap_hi": (244, 90, 80),
+           "cap_dark": (150, 20, 30), "cap_rim": (236, 200, 170), "gills": (226, 206, 180),
+           "gills_dark": (70, 40, 40), "stem": (240, 232, 214), "stem_shade": (196, 186, 168),
+           "skirt": (250, 246, 236), "bulb": (226, 214, 192), "thread": (200, 170, 220),
+           "vein": (190, 120, 230), "eye": (255, 230, 120), "eye_red": (255, 70, 60),
+           "pore": (255, 220, 220)}
+THE_FALLEN = {"edge": (14, 12, 14), "bark": (92, 80, 74), "bark_hi": (128, 114, 102),
+              "bark_dark": (58, 50, 48), "lichen": (150, 168, 140), "moss": (78, 102, 66),
+              "hollow": (18, 12, 14), "eye": (255, 200, 70), "eye_hot": (255, 120, 40),
+              "pupil": (30, 16, 10), "lid": (70, 60, 56), "twig": (76, 66, 62),
+              "leaf": (96, 112, 70), "leaf_dark": (66, 80, 52), "maw": (120, 24, 30),
+              "maw_deep": (40, 8, 12), "tooth": (220, 210, 180), "sap": (230, 170, 60),
+              "glow": (255, 170, 60)}
+LOVE_CUDDLES = {"edge": (56, 26, 44), "fur": (248, 194, 214), "fur_hi": (255, 226, 236),
+                "fur_shade": (222, 154, 186), "fur_dark": (184, 116, 150),
+                "matted": (196, 140, 160), "belly": (255, 238, 224), "cheek": (255, 128, 160),
+                "eye": (34, 22, 44), "shine": (255, 255, 255), "eye_red": (236, 30, 44),
+                "nose": (224, 92, 126), "mouth": (110, 24, 46), "teeth": (255, 250, 236),
+                "bow": (255, 96, 156), "bow_dark": (210, 60, 116), "heart": (196, 18, 60),
+                "blade": (204, 210, 222), "blade_hi": (244, 248, 255), "handle": (110, 70, 40),
+                "blood": (156, 12, 28), "blood_dark": (104, 6, 18), "claw": (90, 50, 60)}
 MR_BUTTONS = {"edge": (60, 36, 20), "fur": (200, 146, 88), "shade": (160, 110, 64),
               "inner": (232, 186, 150), "muzzle": (236, 206, 160), "button": (90, 140, 225),
               "patch": (150, 104, 160), "stitch": (90, 56, 30), "bow": (214, 36, 58)}

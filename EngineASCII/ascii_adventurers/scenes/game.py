@@ -86,6 +86,7 @@ from ..render.magus import draw_seals
 from ..render.mosquito import draw_braziers
 from ..render.characters import draw_body
 from ..render.enemies_sprite import draw_enemy
+from ..render.fallen import draw_groves
 from ..render.haunt import draw_wisps
 from ..render.slash import draw_slashes
 from ..render.spell_fx import draw_gems, draw_spells, draw_statuses, draw_summons
@@ -105,7 +106,7 @@ from ..ui.card_picker import CardPicker
 from ..ui.hud import HudInfo, draw_hud
 from ..ui.maps import BigMap, Minimap
 from ..ui.quest_log import draw_quest_log
-from ..ui.overlays import GameOverPanel, PauseMenu
+from ..ui.overlays import GameOverPanel, PauseMenu, VictoryPanel
 from ..ui.settings_panel import SettingsPanel
 from ..world import make_world
 from ..world.rng import hash_coords
@@ -303,7 +304,8 @@ class GameScene(Scene):
             self._pause_menu = PauseMenu(
                 self.manager, self.stats, resume=lambda: self._set_overlay(None),
                 settings=self._open_settings, abandon=self._abandon, quit_game=self._quit,
-                details=self._where)
+                details=self._where,
+                victory=self._victory if self.me.glory else None)
         self._set_overlay(self._pause_menu)
 
     def _where(self) -> str:
@@ -316,6 +318,19 @@ class GameScene(Scene):
         seed = getattr(self.world, "seed", None)
         return (f"{biome}   {dist:.0f} tiles out" + (f"   seed {seed}" if seed is not None else "")
                 + f"   {self.diff['name'].upper()}")
+
+    def on_glory(self) -> None:
+        """M27: Adventurer's Glory won -- the pause menu gets its victory."""
+        self._pause_menu = None
+
+    def _victory(self) -> None:
+        """M27: end the run as a victory (with Adventurer's Glory)."""
+        self.stats.victory = True
+        self._end_run()
+        self._set_overlay(VictoryPanel(
+            self.manager, self.stats, self.app.records, self.broken,
+            again=self._restart, change_hero=self._change_hero, title=self._abandon,
+            guild_hall=self._guild_hall, purse=self.app.guild.loot))
 
     def _open_settings(self) -> None:
         self._set_overlay(SettingsPanel(self.manager, self._pause))
@@ -965,6 +980,7 @@ class GameScene(Scene):
         margin = 3
         x0, y0 = cam.canvas_to_world(0, 0)
         x1, y1 = cam.canvas_to_world(cam.view_w, cam.view_h)
+        draw_groves(text, self.sprites, cam, self.quests, self.steps / config.SIM_HZ)  # (M25.3)
         for e in self.enemies:
             # (A boss is always drawn: its tells reach far beyond its body.)
             if getattr(e, "boss", False) or (x0 - margin <= e.x <= x1 + margin
@@ -996,7 +1012,8 @@ class GameScene(Scene):
         if fight is not None and fight.boss is not None and fight.boss.alive and not self.map_open:
             b = fight.boss
             dist = math.hypot(b.x - me.hero.x, b.y - me.hero.y)
-            draw_pointer(text, self.sprites, cam, b.x, b.y, f"{dist:.0f}")
+            if not getattr(b, "hidden", False):        # (M25.3: no arrow to a hiding tree)
+                draw_pointer(text, self.sprites, cam, b.x, b.y, f"{dist:.0f}")
             if hasattr(b, "map_marks") and me.alive:   # (M24.1+: the arena's fixtures)
                 draw_fight_marks(text, self.sprites, cam, b, me.hero, self.steps / config.SIM_HZ)
         if me.alive and not self.map_open:            # (M24.3: quest errands)

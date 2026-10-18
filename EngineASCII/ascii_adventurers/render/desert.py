@@ -32,7 +32,7 @@ def draw_desert_tells(batch, camera, e) -> None:
             n = max(2, int(math.hypot(h.x - e.x, h.y - e.y) / 0.5))
             for k in range(1, n):
                 x, y = camera.world_to_px(e.x + (h.x - e.x) * k / n, e.y + (h.y - e.y) * k / n)
-                batch.put_c(x, y, "~", palette.BANDAGE[k % 2])
+                batch.put_c(x, y, "=", palette.BANDAGE[k % 2])
     if isinstance(e, DjinnLamp):
         radius = config.LAMP[1]
         for k in range(24):

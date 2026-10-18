@@ -242,11 +242,31 @@ def draw_hall_marks(text, bank: SpriteBank, camera: Camera, boss, hero, time: fl
 
 def draw_fight_marks(text, bank: SpriteBank, camera: Camera, boss, hero, time: float) -> None:
     """The markers for whichever boss's fixtures this is (M24.1 vault,
-    M24.2 hall, M24.3 ballroom, M25.1 glade)."""
-    from ..ai.bosses import FalloutKing, Fragile, Nettle, SnowKing
+    M24.2 hall, M24.3 ballroom, M25.1 glade, M25.2 hollow oak, M25.3 still
+    grove)."""
+    from ..ai.bosses import (Amanita, FalloutKing, Fragile, InkCap, LoveCuddles, Necromancer,
+                             Nettle, Puffball, SnowKing, TheFallen)
+    from .necro import draw_necro_marks
+    from .puffball import draw_puff_marks
+    from .amanita import draw_ring_marks
+    from .inkcap import draw_ink_marks
+    from .fallen import draw_grove_marks
     from .fragile import draw_ballroom_marks
     from .nettle import draw_glade_marks
-    if isinstance(boss, Nettle):
+    from .squirrel import draw_oak_marks
+    if isinstance(boss, Necromancer):
+        draw_necro_marks(text, bank, camera, boss, hero, time)
+    elif isinstance(boss, Puffball):
+        draw_puff_marks(text, bank, camera, boss, hero, time)
+    elif isinstance(boss, InkCap):
+        draw_ink_marks(text, bank, camera, boss, hero, time)
+    elif isinstance(boss, Amanita):
+        draw_ring_marks(text, bank, camera, boss, hero, time)
+    elif isinstance(boss, TheFallen):
+        draw_grove_marks(text, bank, camera, boss, hero, time)
+    elif isinstance(boss, LoveCuddles):
+        draw_oak_marks(text, bank, camera, boss, hero, time)
+    elif isinstance(boss, Nettle):
         draw_glade_marks(text, bank, camera, boss, hero, time)
     elif isinstance(boss, Fragile):
         draw_ballroom_marks(text, bank, camera, boss, hero, time)

@@ -73,9 +73,14 @@ class PauseMenu(_Box):
     width = 52
 
     def __init__(self, manager, stats: RunStats, *, resume, settings, abandon, quit_game,
-                 details=None) -> None:
-        super().__init__(manager, [("Resume", resume), ("Settings", settings),
-                                   ("Abandon run", abandon), ("Quit game", quit_game)])
+                 details=None, victory=None) -> None:
+        buttons = [("Resume", resume), ("Settings", settings)]
+        if victory is not None:                    # (M27: Adventurer's Glory)
+            buttons.append(("End run (victory)", victory))
+        buttons += [("Abandon run", abandon), ("Quit game", quit_game)]
+        super().__init__(manager, buttons)
+        if victory is not None:
+            self.height = 16
         self.stats = stats
         self.details = details        # () -> str: where you are (biome, distance, seed)
 
@@ -114,9 +119,12 @@ class GameOverPanel(_Box):
         if record in self.broken:
             text.put(left + 44, row, "NEW RECORD!", palette.RECORD)
 
+    heading = ("YOU HAVE FALLEN", colors.RED)
+
     def draw(self, text: TextRenderer) -> None:
         left, top, width, height = self.geometry()
-        draw_box(text, left, top, width, height, colors.RED, "YOU HAVE FALLEN", colors.RED)
+        title, col = self.heading
+        draw_box(text, left, top, width, height, col, title, col)
         s, rec = self.stats, self.records
         island = f"island {s.seed}" if s.seed is not None else "test map"
         center(text, top + 2, f"{s.hero.upper()} on {island}, {config.DIFFICULTIES[s.difficulty]}",
@@ -142,6 +150,12 @@ class GameOverPanel(_Box):
         center(text, top + 13, loot, palette.LOOT_TEXT, left, width)
         self.ui().draw(text)
         center(text, top + height - 2, "R: go again", colors.GREY, left, width)
+
+
+class VictoryPanel(GameOverPanel):
+    """M27: the run ended by choice, with Adventurer's Glory -- a victory."""
+
+    heading = ("VICTORY - ADVENTURER'S GLORY", palette.RECORD)
 
 
 def _fit(s: str, width: int) -> str:

@@ -10,7 +10,10 @@ ai -- enemy behaviour.
                 Ol' Spitter (M23.2), the Nameless Magus (M23.3),
                 the Fallout King (M24.1),
                 the Snow King (M24.2),
-                Fragile (M24.3), Nettle (M25.1)
+                Fragile (M24.3), Nettle (M25.1), Love & Cuddles (M25.2),
+                The Fallen (M25.3), Mycelium the fly agaric (M26.1),
+                Mycelium the shaggy ink cap (M26.2), Mycelium the giant puffball (M26.3),
+                More than Life / More than Death (M27, the plains boss)
   plains.py     the plains' P7 enemies: chasers (rats, farmhands, geese,
                 mole rats, crows), hounds, hawk, molehill, bull, lancer,
                 shieldbearer, priest, straw golem, scarecrow, drummer
@@ -38,8 +41,9 @@ from __future__ import annotations
 import random
 
 from .. import config
-from .bosses import (FalloutKing, Fragile, Froggy, Glamour, Khepri, LeechSwarm, Magus, Nettle,
-                     OlSpitter, Proboscia, SnowKing)
+from .bosses import (Amanita, FalloutKing, Fragile, Froggy, Glamour, InkCap, Khepri,
+                     LeechSwarm, LoveCuddles, Magus, MycoPart, Nettle, OlSpitter, Proboscia,
+                     LegionPart, Necromancer, PuffHalf, Puffball, SnowKing, TheFallen)
 from .creatures import (Boar, Burrower, Camel, DustDevil, FrostWraith, Ghoul, GoldenScarab,
                         Hourglass, IsotopeRod, Leech, Mosquito, Puffer, SandElemental, SandGolem, Scarab,
                         Sigil, ToxicBarrel, Warrior)
@@ -105,6 +109,21 @@ KINDS = {
     # M25.1
     "glamour": Glamour,
     "nettle": Nettle,
+    # M25.2
+    "love_cuddles": LoveCuddles,
+    # M25.3
+    "the_fallen": TheFallen,
+    # M26.1
+    "mycelium_amanita": Amanita,
+    "myco_part": MycoPart,
+    # M26.2
+    "mycelium_inkcap": InkCap,
+    # M26.3
+    "mycelium_puffball": Puffball,
+    "puff_half": PuffHalf,
+    # M27
+    "necromancer": Necromancer,
+    "legion_part": LegionPart,
     # P7: the plains
     "chaser": Chaser,
     "crow": Crow,

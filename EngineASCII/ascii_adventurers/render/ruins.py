@@ -36,7 +36,7 @@ def draw_ruins_tells(batch, camera, e) -> None:
               palette.SNIPER_LINE[1 if locked else 0], step=0.9)
     if isinstance(e, Colossus):
         for r, _ in e.rings:
-            _ring(batch, camera, e.x, e.y, r, max(12, int(r * 7)), "~", palette.STOMP)
+            _ring(batch, camera, e.x, e.y, r, max(12, int(r * 7)), "o", palette.STOMP)
     if isinstance(e, FlailBrute) and e.spin > 0:
         r = e.ring
         _ring(batch, camera, e.x, e.y, r, max(10, int(r * 8)), ".", palette.PLAINS_TELL[1])
