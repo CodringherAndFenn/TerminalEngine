@@ -12,7 +12,8 @@ Units:
 import math
 from dataclasses import replace
 
-from .specs import (BossPhase, BossSpec, CardSpec, CharacterSpec, EnemySpec, PactSpec, QuestSpec,
+from .specs import (BossPhase, BossSpec, CardSpec, CharacterSpec, EnemySpec, GearSpec, PactSpec,
+                    QuestSpec,
                     ShellSpec, SpellSpec, StatusSpec, UpgradeSpec, WeaponSpec)
 
 # --- Display / layout --------------------------------------------------------
@@ -1917,13 +1918,8 @@ CARDS = {
                               ("tag:poison", "add", "X"), ("tag:lightning", "add", "X")),
                              tiers=(10, 15, 22, 30, 40), max_stacks=_T,
                              needs=("element",), code="T10"),
-    "arcane_mastery": CardSpec("Arcane Mastery", "+{X}% arcane damage",
-                               (("tag:arcane", "add", "X"),), tiers=(10, 15, 22, 30, 40),
-                               max_stacks=_T, needs=("arcane",), tags=("arcane",), code="T11"),
-    "weapons_master": CardSpec("Weapons Master", "+{X}% physical damage",
-                               (("tag:physical", "add", "X"),), tiers=(10, 15, 22, 30, 40),
-                               max_stacks=_T, needs=("physical",), tags=("physical",),
-                               code="T12"),
+    # T11 Arcane Mastery and T12 Weapons Master were cut in M28.1 (design/GEAR.md
+    # section 8, user: "simplify" -- only "+damage" and "+elemental damage").
     "thermal_shock": CardSpec("Thermal Shock",
                               "burning and chilled enemies explode (10 per burn stack)",
                               (("thermal_shock", "flag", 1),), rarity="epic", max_stacks=1,
@@ -2097,6 +2093,757 @@ CARDS = {
                               heroes=("dwarf",), tags=("projectile", "physical"), code="D7"),
 }
 
+# --- Gear (players/gear.py; design/GEAR.md, M28.1) -----------------------------------
+#
+# The cards became gear (user, 2026-10-13/18). A hero starts a run with
+# nothing worn and every level is one gear pick: GEAR_OFFER_SIZE pieces
+# (CARD_OFFER_SIZE, kept for Fortune / Encore Tour), each a new piece for an
+# empty slot, +1 to a piece you wear, or a swap for a full slot -- or
+# UPGRADE: +1 to any worn piece instead. Swapped-out pieces go to the bag.
+#
+# Slots: one each of these, GEAR_RINGS rings, and as many trinkets as the
+# hero's spell slots (SPELL_SLOTS, the Guild's Arcane Wing adds one).
+GEAR_SLOTS = ("main", "off", "head", "chest", "feet", "ring", "trinket")
+GEAR_SLOT_NAMES = {"main": "MAIN HAND", "off": "OFF-HAND", "head": "HEAD", "chest": "CHEST",
+                   "feet": "FEET", "ring": "RING", "trinket": "TRINKET"}
+GEAR_SLOT_SHORT = {"main": "M", "off": "O", "head": "H", "chest": "C", "feet": "F",
+                   "ring": "R", "trinket": "T"}
+GEAR_RINGS = 2
+GEAR_MAX_LEVEL = 9
+# Each +1 adds GEAR_LEVEL_GROWTH of the power's main number (a "mul" grows
+# its distance from 1); a spell's first +4 are its own levels II-V, then
+# GEAR_LEVEL_GROWTH of its SPELL_GROW number a level. Powers with no number
+# grow GEAR_FLAT_GROWTH damage a level (bucket A). (GEAR.md 15.3)
+GEAR_LEVEL_GROWTH = 0.10
+GEAR_FLAT_GROWTH = 0.05
+# Rarity makes the power stronger too (M28.3a, GEAR.md 7): the main number
+# x GEAR_RARITY_POWER on top of the level's growth (they multiply); a power
+# with no number gets GEAR_RARITY_FLAT of the rarity's extra as damage
+# (legendary +50%); a spell's SPELL_GROW number grows by it, a radius by its
+# square root (the area grows by it). A shrinking "mul" (Focus) goes no
+# lower than GEAR_MUL_FLOOR. Trick numbers don't grow.
+GEAR_RARITY_POWER = {"common": 1.0, "uncommon": 1.15, "rare": 1.3, "epic": 1.5, "legendary": 2.0}
+GEAR_RARITY_FLAT = 0.5
+GEAR_MUL_FLOOR = 0.1
+SPELL_GROW = {"daggers": "damage", "ember_aura": "radius", "frost_nova": "damage",
+              "spirit_wolf": "damage", "rune_trap": "damage", "poison_flask": "radius",
+              "storm_cloud": "damage", "healing_totem": "heal", "ward_charm": "shield",
+              "fire_wand": "damage", "bone_turret": "damage", "thorn_mail": "share",
+              "chain_lightning": "damage", "split_arrow": "damage"}
+# Affixes: the plain stat cards as lines on a piece, sized by the card's
+# tier for the piece's rarity (fixed cards: their own value, only on pieces
+# of their rarity or better). GEAR_AFFIXES lines by rarity; no two alike on
+# one piece; across everything worn a stat counts at most its card's
+# max_stacks lines. AFFIX_SLOTS: affixes that only roll in those slots.
+AFFIXES = ("sharpened", "quick_hands", "iron_skin", "swift_boots", "long_reach", "keen_eye",
+           "brutal", "broad_strokes", "lingering", "thick_hide", "nimble", "second_wind",
+           "vampiric", "magnet", "scholar", "lucky_charm", "piercing", "potency", "quickened",
+           "multishot", "affliction", "elementalist", "prospector", "quick_recovery",
+           "extra_roll")
+GEAR_AFFIXES = {"common": 0, "uncommon": 1, "rare": 2, "epic": 3, "legendary": 3}
+AFFIX_SLOTS = {"quick_recovery": ("feet",), "extra_roll": ("feet",)}
+# Offers: once GEAR_LEAN_FILLED slots are filled, swaps get x GEAR_SWAP_WEIGHT
+# (user, N6: "more swaps than +1, since we have the upgrade button"). The
+# run's first offer always holds a main-hand piece (N7).
+GEAR_LEAN_FILLED = 6
+GEAR_SWAP_WEIGHT = 1.5
+GEAR_BAG = 3
+# Salvage: loot = GEAR_SALVAGE[rarity] x (1 + GEAR_SALVAGE_LEVEL x level).
+GEAR_SALVAGE = {"common": 20, "uncommon": 40, "rare": 80, "epic": 160, "legendary": 320}
+GEAR_SALVAGE_LEVEL = 0.5
+
+# --- Tricks: +3 / +6 / +9 (players/gear.py; design/GEAR.md 17, M28.2) ---------------
+# Each built piece's three tricks: (name, what it does), unlocked at +3, +6
+# and +9 on top of the +10% a level. A worn piece at those levels gives the
+# flags "<key>+3" / "+6" / "+9" (HeroStats.flags), which the game reads.
+# Pieces not listed get their tricks in later M28.2 steps.
+GEAR_TRICK_LEVELS = (3, 6, 9)
+GEAR_TRICKS = {
+    # M28.2a: the off-hand (GEAR.md 17.1).
+    "cross_fire": (("Needle", "each cross turns 45 degrees from the last, so they alternate + and x"),
+                   ("North star", "cross shots destroy the first enemy shot they touch"),
+                   ("Cardinal", "the cross comes every 2nd attack")),
+    "starburst": (("Pinwheel", "the burst's shots curve as they fly, sweeping like a pinwheel"),
+                  ("Pain turns the wheel", "every hit you take counts as 2 attacks toward the next burst"),
+                  ("Corona", "a second ring of 8 fires 0.3 s later, set between the first ring's shots")),
+    "rear_guard": (("Over the shoulder", "the rear shot aims at the nearest enemy in your back half"),
+                   ("Watchful", "an enemy within 2 tiles behind you is shot at once (once a second at most)"),
+                   ("Eyes in the back", "the rear shot is a full copy of your attack at 100%")),
+    "spiral": (("Growing shell", "the spiral shot grows as it flies: x2 size and +30% damage at the end of its range"),
+               ("Double helix", "two spiral shots, turning opposite ways"),
+               ("Golden angle", "the spiral turns 137.5 degrees a shot, +1 shot for every 3 enemies within 8 tiles (up to +3)")),
+    "twin_lanes": (("Linked", "twins that hit two different enemies link them for 2 s: damage one takes, the other takes 25% of"),
+                   ("Drift", "the twins drift apart as they fly, from 0.5 to 2 tiles"),
+                   ("Triplets", "every shot flies as three lanes")),
+    "echo": (("Reverb", "the echo goes at the nearest enemy that isn't the one you aimed at"),
+             ("Rolling echo", "a kill by an echo brings the next echo 1 attack sooner"),
+             ("Canyon", "every echo comes three times: the attack, its echo, and an echo of the echo at 60%")),
+    "frenzy": (("Drumroll", "each kill during a frenzy adds 1 s to it (up to 6 s)"),
+               ("Unshaken", "in a frenzy you can't be slowed or rooted"),
+               ("War dance", "the -20% range is gone, and each frenzy starts with a drum beat that dazes enemies within 3 tiles for 0.5 s")),
+    "spray_and_pray": (("Second barrel", "the halves split once more, at three-quarter range"),
+                       ("Powder flash", "each split flashes: enemies within 1 tile of it take 30% of the shot"),
+                       ("Buckshot", "the -25% range is gone, and each later piece of a shot that hits an enemy it already hit deals +25%")),
+    # M28.2b: the head (GEAR.md 17.2).
+    "kindling": (("Kindle", "your 4th hit in a row on one enemy always burns"),
+                 ("Smoke", "burning enemies can't see you past 6 tiles: they stop shooting and walk closer"),
+                 ("Pyre", "an enemy reaching 5 burn stacks burns twice as fast for 3 s")),
+    "wildfire": (("Fanned flames", "your hits on a burning enemy restart its burn's clock"),
+                 ("Heat haze", "burning enemies' shots fly 25% slower"),
+                 ("Bonfire", "the bonus grows with the fire: +10% per burn stack (up to +50%) instead of +30%")),
+    "venom": (("Fang", "your crits poison with 2 stacks"),
+              ("Toxic blood", "an enemy that hits you takes 2 poison stacks"),
+              ("Neurotoxin", "an enemy at 5 poison stacks is rooted for 1 s (once every 4 s; not bosses)")),
+    "virulence": (("Incubation", "at 8 or more stacks, poison ticks 50% faster"),
+                  ("Plague doctor", "toxic ground can't hurt you: toxic clouds, mold, the Fallout King's goo"),
+                  ("Black death", "at 10 stacks, poison also takes 5% of the enemy's HP a second (1% for bosses)")),
+    "frostbite": (("Cold snap", "your first hit on each enemy always chills"),
+                  ("Hoarfrost", "frozen enemies can't be pushed and block enemy shots like a wall"),
+                  ("Permafrost", "a frozen enemy chills every enemy touching it, 1 stack a second")),
+    "shatter": (("Brittle", "chilled enemies (not frozen yet) take x1.15 from you"),
+                ("Splinters", "the burst also throws 6 ice shards that fly 5 tiles and chill what they hit"),
+                ("Shatterpoint", "hitting a frozen enemy shatters it: it takes the hit again and throws its shards")),
+    "static": (("Build-up", "each hit on a shocked enemy adds +5% to its shock, up to +30% more"),
+               ("Ground fault", "a shocked enemy standing in water, a bog or mud takes 20 a second"),
+               ("Tempest", "an enemy shocked 3 times within 6 s is struck from the sky: 60 to it and all within 1.5 tiles")),
+    "serrated": (("Rend", "the first time an enemy reaches 5 bleed stacks, it takes 40 at once"),
+                 ("Open wounds", "bleeding enemies can't heal"),
+                 ("Exsanguinate", "a bleeding enemy below 15% HP dies at once (a boss takes 200 instead, once every 10 s)")),
+    "hemorrhage": (("Panic", "bleeding enemies below half HP run from you for 1 s (once each)"),
+                   ("Spurt", "a bleeding enemy that dashes, leaps or charges takes its bleed x4 while it does"),
+                   ("Bloodhound", "bleed ticks x3 while the enemy moves, and bleeding enemies show on your minimap")),
+    "thermal_shock": (("Scald", "everything the burst hits gets 1 burn stack"),
+                      ("Pressure", "the burst is 0.5 tiles wider for every burn stack it used"),
+                      ("Geyser", "the burst no longer uses up the chill: an enemy can burst every 2 s while it burns and is chilled")),
+    "toxic_current": (("Live wire", "the spread poison also shocks what it lands on"),
+                      ("Battery", "each spread gives you a charge (up to 5); at 5, your next attack shocks everything it hits"),
+                      ("Galvanize", "the poison spreads to every enemy within 3 tiles")),
+    # M28.2c: the feet (GEAR.md 17.3).
+    "riposte": (("Disarm", "the riposte hit cancels that enemy's next attack (a wind-up in progress stops)"),
+                ("Second thrust", "the first two attacks after a roll crit, not one"),
+                ("En garde", "a riposte crit that kills gives the roll charge back at once")),
+    "slipstream": (("Draft", "while slipstreaming, bosses' bodies don't shove you and bumping enemies pass through you"),
+                   ("Afterimage", "each roll leaves an image of you for 1 s; enemies attack it instead"),
+                   ("Jet stream", "the slipstream lasts as long as you keep moving, ending 0.5 s after you stop")),
+    "close_call": (("Graze", "each shot you roll through heals you 1 HP"),
+                   ("Deflect", "shots you roll through fly back at whoever shot them, at 50% of their damage"),
+                   ("Untouchable", "a roll through 5 or more shots keeps you untouchable 1 s after it ends")),
+    "scorched_trail": (("Creeping fire", "each patch lights one more next to it, once, toward the nearest enemy"),
+                       ("Bellows", "a roll across one of your old patches makes it flare: 30 to everything on it"),
+                       ("Firewalk", "rolls go 50% farther and leave a solid line of fire, each patch lasting 5 s")),
+    "momentum": (("Charge", "after 2 s of walking without stopping, your next attack deals +40%"),
+                 ("Hoofbeats", "every 10 tiles you walk, the ground cracks under the nearest enemy within 6 tiles: 25 damage"),
+                 ("Full gallop", "the bonus counts your whole move speed bonus, not half, and riding counts as +50%")),
+    "fleet_strike": (("Quickstep", "each crit gives +10% move speed for 1 s (stacks to +30%)"),
+                     ("Featherweight", "pushes and pulls on you are halved"),
+                     ("Air step", "at +40% move speed or more you skim the ground: shockwaves, pools, stomps and other ground attacks miss you")),
+    "blink": (("Displacement", "the spot you left gets a nova too, at 50%"),
+              ("Swap", "blinking onto an enemy (landing within 1 tile of it) swaps you two"),
+              ("Blink storm", "one roll can blink up to 3 times within 1 s, each with its nova, before the cooldown starts")),
+    "shoulder_charge": (("Bowling", "an enemy shoved into another knocks it too: both take 25"),
+                        ("Battering ram", "the charge breaks walls, trees and crates it runs into"),
+                        ("Rampage", "each enemy the charge hits carries it 1 tile farther (up to +4)")),
+    "backflip": (("Double flip", "a second fan comes as the roll ends"),
+                 ("Quick draw", "backflip arrows have double your crit chance"),
+                 ("Aerial", "while you roll and 0.5 s after, your bow fires twice as fast")),
+    "pirouette": (("Encore spin", "a second, smaller ring (5 shots) comes as the roll ends"),
+                  ("Dizzy", "enemies hit by the ring aim 90 degrees off with their next shot"),
+                  ("Prima", "the ring has 1 more shot for every enemy within 5 tiles (up to 20)")),
+    "drop_the_beat": (("Double drop", "the free beat also comes as the roll starts"),
+                      ("Crowd surf", "each enemy you roll past adds +10% to the free beat (up to +50%)"),
+                      ("Amplifier", "the free beat leaves an amp on the ground for 4 s; your beats go off from it too, at 60%")),
+    # M28.2d: the chest (GEAR.md 17.4).
+    "thorn_mail": (("Barbs", "an enemy your thorns hurt bleeds (1 stack)"),
+                   ("Overgrowth", "stand still 1 s and a bramble ring grows round you (1.5 tiles): 10 a second to enemies in it"),
+                   ("Wild hedge", "thorns also hurt every enemy within 2 tiles of the attacker")),
+    "ward_charm": (("Static weave", "when the shield breaks, it shocks everything within 2 tiles"),
+                   ("Overcharge", "while the shield is full, your attacks deal +15%"),
+                   ("Second ward", "once the shield has been full for 3 s, a second layer (half its size) forms on top")),
+    "heavy_plate": (("Tempered", "each hit the plate caps gives +1 armor for 5 s (up to +10)"),
+                    ("Lighter steel", "the -15% move is gone"),
+                    ("Anvil stance", "after standing still 0.5 s, hits are capped at 5% instead of 10%")),
+    "glass_cannon": (("Crystal clear", "you see where enemy shots will go, a faint line 0.3 s ahead of each"),
+                     ("Prism skin", "after 6 s without being hit, the next hit is blocked completely"),
+                     ("Diamond", "the multiplier is x1.6 (not x1.4) while you haven't been hit for 5 s")),
+    "retaliation": (("Recoil", "the shockwave also throws you 1 tile away from whoever hit you"),
+                    ("Rising grudge", "each hit you take while it's cooling down adds +10 to the next shockwave (up to +50)"),
+                    ("Seething", "no cooldown, but it only goes off on hits of 10 or more")),
+    "untouched": (("Clean getaway", "dropping below 90% HP gives +30% move speed for 2 s"),
+                  ("Dress code", "above 90% HP, you take 25% less from the ground: zones, stomps, eruptions, pools"),
+                  ("Immaculate", "between 50% and 90% HP the bonus still counts, at half")),
+    "berserker": (("Thick fur", "below 50% HP you take 10% less damage"),
+                  ("Bloodrage", "below 30% HP you attack 30% faster"),
+                  ("Last stand", "below 15% HP you can't drop under 1 HP for 3 s (once every 30 s)")),
+    "bulwark": (("Fortify", "every 10 max HP above your hero's base also gives 0.1 HP a second"),
+                ("Garrison", "within 2 tiles of a wall, you deal +20%"),
+                ("Citadel", "your shield counts as max HP for the bonus")),
+    "juggernaut": (("Glance", "enemy shots that hit you glance off 1% of the time per armor (up to 30%)"),
+                   ("Tremor", "your steps shake the ground: 5 a second to enemies within 1.5 tiles while you walk"),
+                   ("Peak", "armor counts twice for the damage bonus")),
+    "aegis": (("Radiant", "while you have a shield, enemies within 1.5 tiles burn (1 stack a second)"),
+              ("Corona burst", "when your shield breaks, it bursts for its full size as damage within 3 tiles"),
+              ("Eternal day", "your shield slowly fills itself (2% of max HP a second) up to a quarter of your max HP")),
+    "phoenix": (("Ashes", "rising leaves a ring of burning ground round you for 6 s"),
+                ("Rebirth", "after rising you're untouchable for 2 s"),
+                ("Undying flame", "you rise twice a run, not once")),
+    # M28.2e: the rings (GEAR.md 17.5).
+    "volatile": (("Big bang", "elites and bigger always explode"),
+                 ("Short fuse", "each kill that doesn't explode adds +5% to the next one's chance (back to 15% on a bang)"),
+                 ("Powder keg", "an explosion deals 40% of the killing hit plus 10% of the enemy's max HP")),
+    "chain_reaction": (("Fuse line", "chain explosions go off 0.1 s apart, each +10% bigger than the last"),
+                       ("Clean sweep", "a chain of 5 or more drops a gem worth 5 kills' XP"),
+                       ("Domino effect", "an enemy hit by 2 explosions of one chain explodes too, dead or not")),
+    "soul_harvest": (("Reap", "elite kills heal 10"),
+                     ("Grim", "kills within 1 s of the last one heal double"),
+                     ("Reaper", "kills heal 1% of your max HP if that's more than 1")),
+    "surge": (("Rising", "the blast also deals 10 per level you have"),
+              ("Ascend", "an UPGRADE pick sets off a surge too"),
+              ("Apotheosis", "every 5th level also gives a free extra gear pick")),
+    "bloodlust": (("Feeding frenzy", "a kill in one hit (an enemy at full HP) counts twice"),
+                  ("Slow fade", "after the 10 s, the stacks fall off one a second instead of all at once"),
+                  ("Apex", "the cap is +50%, and at the cap your hits make enemies bleed")),
+    "giant_slayer": (("Long odds", "+1% more for every 100 HP the enemy has over you (up to +30% more)"),
+                     ("Toppled giant", "a big enemy you kill drops a loot cache worth 5 kills"),
+                     ("Goliath's bane", "against bosses the bonus is doubled (+80%)")),
+    "veteran": (("Hard-won", "from level 20 on, each level counts twice"),
+                ("Drilled", "every 10th level also gives a free UPGRADE (it doesn't cost the pick)"),
+                ("Legend", "+1% max HP per level too")),
+    "golden_hoard": (("Miser", "loot from salvaging gear counts double for the hoard"),
+                     ("Golden armor", "every 500 loot of the hoard gives +1 armor (up to +10)"),
+                     ("Dragon's hoard", "no cap")),
+    "bounty": (("Big game", "a cache from an elite kill is worth double"),
+               ("Hunter's pay", "a cache holds a piece of gear 10% of the time (it goes in your bag)"),
+               ("Dead or alive", "the enemy speed-up is gone")),
+    "beacon": (("Rally", "the extra enemies drop 50% more XP"),
+               ("Moth to flame", "the extra enemies run straight at you, archers included"),
+               ("Lighthouse", "every 60 s a wave comes for you; clear it within 20 s for a free gear pick")),
+    "fortune": (("Clover", "one piece of every offer is rare or better"),
+                ("Charmed", "+1 reroll for every 5 levels you gain"),
+                ("Four leaves", "offers hold 5 pieces")),
+    "overflow": (("Brim", "a crit on an enemy at full HP applies crit damage twice"),
+                 ("Splash", "crits splash 25% of their damage onto enemies within 1 tile"),
+                 ("Deluge", "each crit adds +2% crit damage for 5 s (up to +50%)")),
+    "pandemic": (("Airborne", "the spread reaches enemies up to 5 tiles away"),
+                 ("Mutation", "each spread adds 1 stack"),
+                 ("Plague", "statuses spread while the enemy lives too, to 1 nearby every 3 s")),
+    "pack_leader": (("Alpha", "your summons deal +25% to enemies you hit in the last 2 s"),
+                    ("Loyal", "a turret whose time runs out stands again 3 s later, once"),
+                    ("The pack", "+1 more wolf and turret; when you're hit, your wolves rush whoever hit you")),
+    # Trinkets (M28.2f, GEAR.md 17.6): on top of the spell's levels.
+    "chain_lightning": (("Grounding", "a bolt with nobody left to jump to strikes the ground: a 1.5-tile burst at 50%"),
+                        ("Overload", "every 5th cast jumps twice as many times"),
+                        ("Eternal arc", "bolts may jump back to an enemy they already hit, once each")),
+    "daggers": (("Fling", "when you roll, the daggers shoot out along it and come back"),
+                ("Breathing ring", "every 3 s the orbit swells to twice its width and back"),
+                ("Blade storm", "+2 daggers, in two rings turning opposite ways")),
+    "ember_aura": (("Warmth", "each pulse heals you 1 HP for every 5 enemies it burns"),
+                   ("Flare-up", "every 5th pulse is a blast of 3 stacks"),
+                   ("Sunfire", "the aura grows 0.2 tiles for every enemy burning in it (up to +2)")),
+    "frost_nova": (("Cold heart", "when you're hit, the next nova comes 1 s sooner"),
+                   ("Ice armor", "each nova gives you 5 shield for every enemy it chills (up to 25)"),
+                   ("Avalanche", "every 3rd nova is twice as wide and freezes at once (not bosses)")),
+    "spirit_wolf": (("Scent", "wolves go for the enemy you hit last"),
+                    ("Howl", "every 10 s: enemies within 4 tiles of a wolf deal 20% less for 3 s"),
+                    ("Dire wolves", "wolves twice as big, bite twice as hard, and make their prey bleed")),
+    "rune_trap": (("Rune lines", "runes within 3 tiles link with a line; enemies crossing it take 10"),
+                  ("Seeking runes", "runes drift toward the nearest enemy within 4 tiles"),
+                  ("Runeburst", "when you roll, every rune bursts at once")),
+    "poison_flask": (("Bubbling", "the pool grows 50% over its life"),
+                     ("Witch's brew", "one flask in 4 is a random brew: fire, frost or shock"),
+                     ("Cauldron", "pools that touch merge into one, lasting as long as the newest")),
+    "storm_cloud": (("Downpour", "the cloud rains: the ground under it is a puddle"),
+                    ("Thunderhead", "the cloud strikes whoever hit you last, first"),
+                    ("Eye of the storm", "a second cloud circles you, striking 0.75 s after the first")),
+    "healing_totem": (("Cleansing light", "stepping into its ring ends slows, stone, rads, ice and shrinking"),
+                      ("Carried", "the totem follows you slowly instead of staying put"),
+                      ("Tree of life", "the totem stays until the next one is planted")),
+    "fire_wand": (("Glow", "an enemy hit by a bolt lights up: +10% crit chance against it for 2 s"),
+                  ("Moth", "bolts go for burning enemies first"),
+                  ("Will-o'-wisps", "every 5th bolt leaves a wisp for 3 s, burning all within 1.5 tiles")),
+    "bone_turret": (("Ossuary", "turrets rise from the body of your last kill, not next to you"),
+                    ("Calcify", "when a turret's time ends, it bursts into 8 bone shards (15 each)"),
+                    ("Bone legion", "+1 turret at a time, and turrets stay until replaced")),
+    # The wizard's main hand (M28.2g, GEAR.md 17.7).
+    "storm_caller": (("Conducting darts", "a dart on an enemy your bolt hit in the last 2 s jumps on once, at 50%"),
+                     ("Through walls", "lightning may jump to enemies out of sight"),
+                     ("Thunderlord", "+1 jump; a bolt that jumps 5+ times strikes all it hit again, at 30%")),
+    "conductor": (("Resistor", "the first jump doesn't fade at all"),
+                  ("Overcurrent", "a jump to an enemy near the end of its reach deals +40%"),
+                  ("Superconductor", "jumps never fade")),
+    "supercell": (("Charged air", "your darts deal +10% to shocked enemies"),
+                  ("Downdraft", "with 3+ shocked enemies within 5 tiles, Chain Lightning casts twice"),
+                  ("Superstorm", "each bolt hit also shocks every enemy within 1.5 tiles of it")),
+    "ball_lightning": (("Sticky", "the crackle clings to the enemy it hit and moves with it"),
+                       ("Crackling chain", "every jump leaves a crackle, not just the first hit"),
+                       ("Thunderball", "every 5th cast, a big ball rolls along the bolt's path for 3 s")),
+    "phase_darts": (("Haunt", "a dart that went through a wall deals +25%"),
+                    ("Spectral", "darts go through shields and armoured fronts"),
+                    ("Ghost sight", "enemies behind walls show; darts with nothing near the aim go for them")),
+    "seeker": (("Persistence", "a dart that loses its target flies 30% faster from then on"),
+               ("Hunter-seeker", "darts go for the enemy with the least HP in reach"),
+               ("Endless hunt", "a dart goes on to a new target after its hit: 3 hits (70% after the 1st)")),
+    "resonance": (("Sustain", "the window is 2 s, not 1"),
+                  ("Resonant ring", "at +60%, the enemy gives off a ring: 30 to all within 2 tiles (1 a s)"),
+                  ("Perfect pitch", "the cap is +120%")),
+    "implosion": (("Crush", "enemies dragged into each other take 10"),
+                  ("Event horizon", "enemy shots within 1.5 tiles of the hit are dragged in too"),
+                  ("Singularity", "every 6th cast's first hit opens a well that pulls for 1.5 s")),
+    "arcane_storm": (("Squall", "the new dart goes for the enemy nearest to you"),
+                     ("Tempest", "up to 5 new darts a cast"),
+                     ("Maelstrom", "new darts fire new darts too, with no cap; each 80% of the last")),
+    "orbiting_darts": (("Planets", "swinging darts hit the enemies they pass on the way round"),
+                       ("Epicycle", "they try twice, not once"),
+                       ("Gravity assist", "a dart that swung round you comes back 50% faster, +50% damage")),
+    # The dwarf's and the huntress's main hands (M28.2h, GEAR.md 17.8).
+    "ricochet": (("Bank shot", "each bounce adds +20% damage"),
+                 ("Pinball", "axes also bounce off big enemies (elites, bosses), once a throw"),
+                 ("Carom", "5 bounces, and after the last the axe flies straight home")),
+    "hang_time": (("Saw", "each hit while hovering adds +10% to the next"),
+                  ("Hold it there", "while you hold the attack, a hovering axe stays up to 2 s longer"),
+                  ("Buzzsaw", "the hovering axe hits everything within 1.5 tiles")),
+    "homeward_fury": (("Homing", "on the way back, the axe bends toward enemies within 2 tiles of its path"),
+                      ("Welcome home", "each catch: +10% attack speed for 2 s (up to +30%)"),
+                      ("Hearth", "the way back always crits")),
+    "tether": (("Taut", "the chain deals 40% while its axe is near full range"),
+               ("Shackle", "the first enemy the chain touches each throw is dragged with the axe for 0.5 s"),
+               ("Flail", "the axe swings once round you on its chain before coming back")),
+    "cyclone": (("Spin cycle", "the rethrow goes for the enemy with the most HP in reach"),
+                ("Gale force", "up to twice a throw"),
+                ("Eye of the cyclone", "each rethrow also throws a second axe at the next enemy")),
+    "splitting_axe": (("Reunite", "pieces that meet on the way back become one axe, +30%"),
+                      ("Crossing", "the halves cross over once on the way back, in an X"),
+                      ("Quartering", "the axe splits into four quarters at 40% instead")),
+    "arrow_rain": (("Monsoon", "the rain falls round the enemy nearest your aim"),
+                   ("Thunder rain", "+20% to a rain arrow for each other one landing within 1 tile"),
+                   ("Squall line", "every 5th shot rains twice, 0.4 s apart")),
+    "broadhead": (("Gathering speed", "each enemy passed makes the arrow 10% faster"),
+                  ("Run-through", "an arrow that passes 4+ enemies comes back once along its path"),
+                  ("Broadside", "+30% per enemy passed, not 15%")),
+    "hunters_mark": (("Old scent", "the last mark stays 2 s after the next one, so two are marked"),
+                     ("Next quarry", "killing the mark marks the enemy nearest to where it fell"),
+                     ("Pack hunt", "when the mark dies, enemies within 3 tiles of it are marked for 3 s")),
+    "steady_aim": (("Held breath", "after 1 s still, your next arrow flies twice as fast"),
+                   ("Zen", "after 2 s still, crits deal +50% crit damage"),
+                   ("Still waters", "Steady Aim holds for 1 s after you start moving")),
+    "deadeye": (("Follow-through", "a crit that pierces 3+ enemies makes your next arrow come at once"),
+                ("Second sight", "every 6th arrow is a sure crit"),
+                ("Lightning arrow", "crit arrows strike at once: no flight time")),
+    "split_arrow": (("Canopy", "the split arrows go for the nearest enemies instead of a fan"),
+                    ("Bough", "arrows split on walls too"),
+                    ("Seed storm", "every split throws 3 seeds that sprout thorns for 2 s: 10 a s")),
+    # The princess's and the bard's main hands (M28.2i, GEAR.md 17.9).
+    "prism": (("Full spectrum", "a hit by every color of one shot is a crit"),
+              ("Afterglow", "the bonus stays on the enemy 1 s, for your next shot"),
+              ("Rainbow's end", "+30% for each other color")),
+    "focus": (("Lens", "the middle color deals +25%"),
+              ("Pinpoint", "the fan keeps narrowing while you stand still, down to half"),
+              ("Beam", "after 1 s still, the fan is one beam of every color, through enemies")),
+    "spectrum": (("Saturated", "each color's chance is 30%"),
+                 ("Color theory", "enemies with 2 or more of your colors' statuses take +15%"),
+                 ("Chromatic", "each color's hit gives its status twice")),
+    "point_blank": (("Face to face", "within 2 tiles, +20% more on top"),
+                    ("Duel", "the first enemy hit up close is your duelist: +25% from you, 25% less to you"),
+                    ("Bladework", "point blank reaches 6 tiles and gives +60%")),
+    "refraction": (("Shards of light", "the split pieces go for the nearest enemies"),
+                   ("Radiant split", "split pieces are 50% bigger"),
+                   ("Infinite mirror", "split pieces that hit split again into 2, up to 3 times")),
+    "converge": (("Focal point", "enemies at the crossing take +40%"),
+                 ("Second crossing", "after crossing, the colors curve back and cross again 3 tiles on"),
+                 ("Lockstep", "the crossing follows the enemy nearest your aim")),
+    "crescendo": (("Fermata", "a miss drops it one step instead of resetting"),
+                  ("Climax", "at +50%, beats reach 25% farther"),
+                  ("Forte", "the cap is +100%")),
+    "lullaby": (("Lullabied", "an enemy hit by 5 beats in a row sleeps up to 3 s (bosses don't)"),
+                ("Nothing wasted", "heal a beat can't give adds +4% per HP to the next beat"),
+                ("Mother's song", "2 HP per enemy, up to 10")),
+    "syncopation": (("Swing", "the loud beat comes 20% sooner after a soft one"),
+                    ("Polyrhythm", "every 3rd beat is both at once"),
+                    ("The drop", "the loud beat is x2.2")),
+    "dissonance": (("Clash", "an enemy pushed into a wall takes 15"),
+                   ("Tritone", "chilled enemies are pushed twice as far"),
+                   ("Shriek", "beats chill twice (2 stacks)")),
+    "grand_finale": (("Overture", "the first beat after 5 s without hitting anything is a finale"),
+                     ("Curtain call", "dropping below 30% HP sets off a finale at once (every 20 s)"),
+                     ("Magnum opus", "every 6th beat, not 8th")),
+    "sheet_music": (("Birdsong", "notes curve round walls to their target"),
+                    ("Chorus", "every 4th beat flings twice as many notes"),
+                    ("Aria", "each note hits everything within 1 tile of where it lands")),
+}
+# A power's downside (its negative numbers) is gone from this level on.
+GEAR_DROP_DOWNSIDE = {"frenzy": 9, "spray_and_pray": 9, "heavy_plate": 6}
+# The off-hand tricks' numbers.
+NEEDLE_TURN = 45.0           # Compass Orb +3: degrees each cross turns from the last
+CARDINAL_EVERY = 2           # Compass Orb +9: the cross every Nth attack
+NORTH_STAR_RADIUS = 0.45     # Compass Orb +6: how close an enemy shot must come to be cut
+PINWHEEL_TURN = 0.09         # Sunwheel +3: radians the burst's shots turn per tile flown
+PAIN_WHEEL = 2               # Sunwheel +6: attacks each hit you take counts as
+CORONA = 0.3                 # Sunwheel +9: s before the second ring
+WATCHFUL = (2.0, 1.0)        # Hindsight Orb +6: tiles behind you, s between shots
+GROWING_SHELL = (0.35, 0.30)  # Nautilus Shell +3: tiles of hit radius added, +damage, at full range
+GOLDEN_ANGLE = 137.5         # Nautilus Shell +9
+GOLDEN_EXTRA = (3, 8.0, 3)   # ...+1 shot per this many enemies within this many tiles, up to
+LINKED = (2.0, 0.25)         # Twinned Quiver +3: s a link lasts, share of the damage passed on
+DRIFT_APART = 2.0            # Twinned Quiver +6: tiles between the twins at the end of their range
+ECHO_THIRD = 0.6             # Canyon Horn +9: x damage of the echo's echo
+DRUMROLL = (1.0, 6.0)        # War Drum +3: s a kill adds, most s
+WAR_DANCE = (3.0, 0.5)       # War Drum +9: daze radius (tiles), s
+POWDER_FLASH = (1.0, 0.30)   # Pepperbox +6: radius, x the shot's damage
+BUCKSHOT = 0.25              # Pepperbox +9: + damage of a later piece on an enemy already hit
+# The head tricks' numbers (M28.2b).
+KINDLE = 4                   # Cinderveil Hood +3: the Nth hit in a row on one enemy burns
+SMOKE = 6.0                  # Cinderveil Hood +6: tiles a burning enemy can still see you
+PYRE = (2.0, 3.0)            # Cinderveil Hood +9: x burn speed, s
+HEAT_HAZE = 0.75             # Blazecrown +6: x speed of a burning enemy's shots
+BONFIRE = (0.10, 0.50)       # Blazecrown +9: bonus per burn stack, most (at +0; they grow with Wildfire's +10%)
+FANG = 2                     # Viper Mask +3: poison stacks a crit puts on
+TOXIC_BLOOD = 2              # Viper Mask +6: poison stacks on an enemy that hits you
+NEUROTOXIN = (5, 1.0, 4.0)   # Viper Mask +9: poison stacks, s rooted, s before it can be again
+INCUBATION = (8, 1.5)        # Plaguebeak +3: poison stacks, x tick speed
+PLAGUE_DOCTOR = ("gas", "mold")   # Plaguebeak +6: enemy zones that can't hurt you (and goo)
+BLACK_DEATH = (10, 0.05, 0.01)   # Plaguebeak +9: poison stacks, x current HP a second (bosses)
+PERMAFROST = (1.0, 0.15)     # Rime Hood +9: s between chills, tiles of gap that count as touching
+BRITTLE = 1.15               # Glassfrost Helm +3: x damage on chilled (not frozen) enemies
+SPLINTERS = (6, 5.0)         # Glassfrost Helm +6: shards, tiles they fly (damage: SHATTER[2])
+ICE_SHARD_SHOT = ShellSpec(speed=14.0, damage=15, max_range=5.0, damages_terrain=False,
+                           look="shard", sound="fizzle")
+BUILD_UP = (0.05, 0.30)      # Stormvane Helm +3: + shock a hit, most
+GROUND_FAULT = 20.0          # Stormvane Helm +6: damage a second (x your status strength)
+WET_TILES = ("water", "bog", "pond", "mud", "reeds", "lily pads", "scum", "stagnant water",
+             "blood pool", "clots", "oasis")
+TEMPEST = (3, 6.0, 60, 1.5)  # Stormvane Helm +9: shocks, within s; damage, radius
+REND = (5, 40)               # Thornhelm +3: bleed stacks, damage (x your status strength)
+EXSANGUINATE = (0.15, 200, 10.0)  # Thornhelm +9: HP fraction; a boss's damage, s between
+PANIC = (0.5, 1.0)           # Bloodtrail Cowl +3: HP fraction, s it runs
+SPURT = (4.0, 1.6)           # Bloodtrail Cowl +6: x bleed; moving faster than x its walk is a dash
+BLOODHOUND = 3.0             # Bloodtrail Cowl +9: x bleed while moving (not x2)
+SCALD = 1                    # Steamcrown +3: burn stacks
+PRESSURE = 0.5               # Steamcrown +6: tiles wider per burn stack
+GEYSER = 2.0                 # Steamcrown +9: s between one enemy's bursts
+BATTERY = 5                  # Galvanic Mask +6: charges for a shocking attack
+GALVANIZE = 3.0              # Galvanic Mask +9: tiles
+# The feet tricks' numbers (M28.2c).
+DISARM = 3.0                 # Fencer's Boots +3: s a disarmed enemy waits to waste its next attack
+SECOND_THRUST = 2            # Fencer's Boots +6: sure crits after a roll
+AFTERIMAGE = 1.0             # Windrunners +6: s the image lasts
+JET_STREAM = 0.5             # Windrunners +9: s the slipstream lasts after you stop
+GRAZE = 1.0                  # Hairsbreadth +3: HP per shot rolled through
+DEFLECT = 0.5                # Hairsbreadth +6: x a deflected shot's damage
+UNTOUCHABLE = (5, 1.0)       # Hairsbreadth +9: shots in one roll, s untouchable after it
+CREEPING_FIRE = (0.5, 8.0)   # Ashwalkers +3: s before a patch creeps, tiles it looks for an enemy
+BELLOWS = 30.0               # Ashwalkers +6: damage of a flare
+FIREWALK = (1.5, 5.0)        # Ashwalkers +9: x roll distance, s each patch lasts
+CHARGE = (2.0, 0.40)         # Gallopers +3: s of walking, + damage of the next attack
+HOOFBEATS = (10.0, 6.0, 25.0)   # Gallopers +6: tiles walked, reach, damage
+FULL_GALLOP = 0.5            # Gallopers +9: move bonus a mount counts as
+QUICKSTEP = (0.10, 1.0, 3)   # Wingheel +3: + move speed a crit, s, most stacks
+FEATHERWEIGHT = 0.5          # Wingheel +6: x pushes and pulls on you
+AIR_STEP = 0.40              # Wingheel +9: move speed bonus needed
+DISPLACEMENT = 0.5           # Phasewalkers +3: x the nova at the spot you left
+SWAP = 1.0                   # Phasewalkers +6: tiles from the landing an enemy is swapped from
+BLINK_STORM = (3, 1.0)       # Phasewalkers +9: blinks in a roll, s to use them
+BOWLING = 25.0               # Ramhorn Boots +3: damage to both
+BATTERING_RAM = 10000.0      # Ramhorn Boots +6: damage the charge does to what it runs into
+RAMPAGE = (1.0, 4)           # Ramhorn Boots +9: tiles per enemy hit, most
+QUICK_DRAW = 2.0             # Tumbler Boots +6: x crit chance of backflip arrows
+AERIAL = (2.0, 0.5)          # Tumbler Boots +9: x fire speed, s after the roll
+ENCORE_SPIN = 5              # Dancing Slippers +3: shots in the second ring
+DIZZY = (90.0, 3.0)          # Dancing Slippers +6: degrees off, s it lasts unused
+PRIMA = (5.0, 20)            # Dancing Slippers +9: tiles, most shots in the ring
+CROWD_SURF = (1.0, 0.10, 0.50)   # Stompers +6: tiles you pass within, + per enemy, most
+AMPLIFIER = (4.0, 0.6)       # Stompers +9: s the amp lasts, x its beats
+# The chest tricks' numbers (M28.2d).
+STILL_SPEED = 0.1            # tiles/s: slower than this counts as standing still
+BARBS = 1                    # Brambleguard +3: bleed stacks
+OVERGROWTH = (1.0, 1.5, 10.0)   # Brambleguard +6: s still, radius, damage a second
+WILD_HEDGE = 2.0             # Brambleguard +9: tiles round the attacker
+STATIC_WEAVE = 2.0           # Wardweave Robe +3: tiles
+OVERCHARGE = 0.15            # Wardweave Robe +6: + damage
+SECOND_WARD = (3.0, 0.5)     # Wardweave Robe +9: s full, x the shield on top
+TEMPERED = (1.0, 5.0, 10)    # Anvil Plate +3: armor a capped hit, s, most
+ANVIL_STANCE = (0.5, 0.05)   # Anvil Plate +9: s still, cap (x max HP)
+CRYSTAL_CLEAR = 0.3          # Shattercoat +3: s of flight shown ahead
+PRISM_SKIN = 6.0             # Shattercoat +6: s unhit
+DIAMOND = (5.0, 1.6 / 1.4)   # Shattercoat +9: s unhit, x on top of Glass Cannon's x1.4
+RECOIL = 1.0                 # Grudge Mail +3: tiles
+RISING_GRUDGE = (10.0, 50.0)   # Grudge Mail +6: + damage a hit, most
+SEETHING = 10.0              # Grudge Mail +9: smallest hit that sets it off
+CLEAN_GETAWAY = (0.30, 2.0)  # Spotless Tunic +3: + move speed, s
+DRESS_CODE = 0.75            # Spotless Tunic +6: x ground damage
+IMMACULATE = 0.5             # Spotless Tunic +9: HP fraction it still counts down to (at half)
+THICK_FUR = (0.5, 0.9)       # Wolfpelt +3: below this HP, x damage taken
+BLOODRAGE = (0.3, 1.3)       # Wolfpelt +6: below this HP, x attack speed
+LAST_STAND = (0.15, 3.0, 30.0)   # Wolfpelt +9: HP fraction, s, s between
+FORTIFY = 0.1                # Bastion Plate +3: HP a second per 10 max HP above the base
+GARRISON = (2.0, 0.20)       # Bastion Plate +6: tiles from a wall, + damage
+GLANCE = (0.01, 0.30)        # Mountainhide +3: chance per armor, most
+TREMOR = (5.0, 1.5)          # Mountainhide +6: damage a second, radius
+RADIANT = (1.5, 1.0)         # Sunward Aegis +3: radius, s between burn stacks
+CORONA_BURST = 3.0           # Sunward Aegis +6: radius
+ETERNAL_DAY = (0.02, 0.25)   # Sunward Aegis +9: x max HP a second, up to x max HP
+ASHES = (10, 2.5, 6.0)       # Phoenix Mantle +3: patches, ring radius, s
+REBIRTH = 2.0                # Phoenix Mantle +6: s untouchable
+# The ring tricks' numbers (M28.2e).
+SHORT_FUSE = 0.05            # Powderkeg Ring +6: + chance a kill that didn't explode
+POWDER_KEG = 0.10            # Powderkeg Ring +9: + x the enemy's max HP
+FUSE_LINE = (0.1, 0.10)      # Domino Ring +3: s between a chain's explosions, + size each
+CLEAN_SWEEP = (5, 5)         # Domino Ring +6: explosions in a chain, kills' XP in the gem
+REAP = 10.0                  # Reaper's Band +3: HP an elite kill heals
+GRIM = (1.0, 2.0)            # Reaper's Band +6: s since the last kill, x heal
+REAPER = 0.01                # Reaper's Band +9: x max HP a kill heals (if more than the power's)
+RISING = 10.0                # Ascendant Band +3: damage per level
+APOTHEOSIS = 5               # Ascendant Band +9: every Nth level, +1 gear pick
+APEX = (50, 1)               # Fang Ring +9: most stacks, bleed stacks a hit at the cap
+SLOW_FADE = 1.0              # Fang Ring +6: s between stacks falling off
+LONG_ODDS = (100.0, 0.01, 0.30)   # Slingstone Ring +3: per HP over you, +, most
+TOPPLED_GIANT = 5            # Slingstone Ring +6: kills a cache is worth
+GOLIATH = 2.0                # Slingstone Ring +9: x the bonus on bosses
+HARD_WON = 20                # Grizzled Signet +3: from this level on, levels count twice
+DRILLED = 10                 # Grizzled Signet +6: every Nth level, a free UPGRADE
+LEGEND = 0.01                # Grizzled Signet +9: + max HP per level
+MISER = 2.0                  # Hoarder's Ring +3: x salvage loot for the hoard
+GOLDEN_ARMOR = (500.0, 10)   # Hoarder's Ring +6: hoard per armor, most
+HUNTERS_PAY = 0.10           # Bountymark Ring +6: chance a cache holds a piece
+BIG_GAME = 2                 # Bountymark Ring +3: x an elite's cache
+RALLY = 1.5                  # Beckoning Ring +3: x the extra enemies' XP
+MOTH = (1.0, 2.0)            # Beckoning Ring +6: the tiles the extra enemies keep from you
+LIGHTHOUSE = (60.0, 20.0, 6, (9.0, 13.0))   # Beckoning Ring +9: s between waves, s to clear, size, tiles away
+CHARMED = 5                  # Fourleaf Ring +6: every Nth level, +1 reroll
+BRIM_HP = 1.0                # Brimful Ring +3: "at full HP" (fraction)
+SPLASH = (0.25, 1.0)         # Brimful Ring +6: x the crit, tiles
+DELUGE = (0.02, 5.0, 0.50)   # Brimful Ring +9: + crit damage a crit, s, most
+AIRBORNE = 5.0               # Contagion Ring +3: tiles the spread reaches
+MUTATION = 1                 # Contagion Ring +6: + stacks a spread
+PLAGUE = (3.0, 1)            # Contagion Ring +9: s between, enemies
+ALPHA = (2.0, 0.25)          # Packmaster Ring +3: s since your hit, + summon damage
+LOYAL = 3.0                  # Packmaster Ring +6: s before a turret stands again
+PACK_RUSH = 5.0              # Packmaster Ring +9: s the wolves go for whoever hit you
+# The trinkets' tricks (M28.2f, GEAR.md 17.6).
+GROUNDING = (1.5, 0.50)      # Chainbolt Charm +3: burst radius (tiles), x the bolt's damage
+OVERLOAD = 5                 # Chainbolt Charm +6: every Nth cast jumps twice as many times
+FLING = (6.0, 0.6)           # Bladewheel Charm +3: tiles out along the roll, s out and back
+BREATHING = (3.0, 1.0, 2.0)  # Bladewheel Charm +6: every s, a swell lasting s, to x the width
+BLADE_STORM = (2, 1.5)       # Bladewheel Charm +9: + daggers, the outer ring at x the radius
+WARMTH = 5                   # Ember Amulet +3: 1 HP a pulse for every N enemies burned
+FLARE_UP = (5, 3)            # Ember Amulet +6: every Nth pulse, stacks
+SUNFIRE = (0.2, 2.0)         # Ember Amulet +9: + tiles per burning enemy in it, up to
+COLD_HEART = 1.0             # Winterheart +3: s off the next nova when you're hit
+ICE_ARMOR = (5.0, 25.0)      # Winterheart +6: shield per enemy chilled, up to (over the ward)
+AVALANCHE = (3, 2.0)         # Winterheart +9: every Nth nova, x its width (freezes at once)
+HOWL = (10.0, 4.0, 0.80, 3.0)   # Wolfcall +6: every s, tiles round a wolf, x their damage, s
+DIRE_WOLVES = (2.0, 2.0, 1)  # Wolfcall +9: x size, x bite, bleed stacks
+RUNE_LINES = (3.0, 10.0, 1.0)   # Runestone +3: link within tiles, damage, s before it hurts the same enemy again
+SEEKING_RUNES = (4.0, 2.0)   # Runestone +6: tiles it notices an enemy in, tiles/s it drifts
+BUBBLING = 0.50              # Witch's Flask +3: the pool grows this much over its life
+WITCHS_BREW = (4, ("burn", "chill", "shock"))   # Witch's Flask +6: one flask in N
+CAULDRON_MAX = 3.0           # Witch's Flask +9: a merged pool's radius, at most x the pool's
+DOWNPOUR = 2.5               # Stormjar +3: the puddle's radius (tiles)
+EYE_OF_THE_STORM = (0.75, 2.5, 1.5)   # Stormjar +9: s after the first, orbit tiles, rad/s
+CARRIED = 1.5                # Mender's Totem +6: tiles/s it follows you at
+GLOW = (0.10, 2.0)           # Firefly Lantern +3: + crit chance, s
+WISPS = (5, 3.0, 1.5)        # Firefly Lantern +9: every Nth bolt, s, radius
+OSSUARY_REACH = 15.0         # Skull Sentry +3: the last kill counts this close to you (tiles)
+CALCIFY = (8, 15.0)          # Skull Sentry +6: shards, damage each
+BONE_LEGION = 1              # Skull Sentry +9: + turrets at a time
+# The wizard's main-hand tricks (M28.2g, GEAR.md 17.7).
+CONDUCTING = (2.0, 0.50)     # Stormcaller +3: s since your bolt hit it, x the dart's damage
+THUNDERLORD = (1, 5, 0.30)   # Stormcaller +9: + jumps, jumps for the strike again, x the bolt's damage
+OVERCURRENT = (0.75, 0.40)   # Copperwire +6: past this share of the reach, + damage
+CHARGED_AIR = 0.10           # Thunderhead +3: + dart damage to shocked enemies
+DOWNDRAFT = (3, 5.0)         # Thunderhead +6: shocked enemies, within tiles of you
+SUPERSTORM = 1.5             # Thunderhead +9: tiles round a bolt's hit that get shocked
+THUNDERBALL = (5, 3.0, 2.5)  # Crackle Staff +9: every Nth cast, s rolling, radius
+HAUNT = 0.25                 # Ghostwood +3: + damage after going through a wall
+GHOSTWOOD_SIGHT = 12.0       # Ghostwood +9: tiles round you
+PERSISTENCE = 1.3            # Wyrmseeker +3: x speed once its target is lost
+ENDLESS_HUNT = (3, 0.70, 8.0)   # Wyrmseeker +9: hits, x damage after the first, tiles more flight
+SUSTAIN = 2.0                # Humming Staff +3: the window (s)
+RESONANT_RING = (30.0, 2.0, 1.0)   # Humming Staff +6: damage, radius, s between rings per enemy
+PERFECT_PITCH = 8            # Humming Staff +9: darts counted at most (x RESONANCE[1])
+CRUSH = 10.0                 # Gravewell +3: damage
+EVENT_HORIZON = 1.5          # Gravewell +6: enemy shots this close to the hit
+SINGULARITY = (6, 1.5, 2.0)  # Gravewell +9: every Nth cast, s, tiles/s pulled
+STORM_TEMPEST = 5            # Stormheart +6: new darts a cast
+MAELSTROM = 0.80             # Stormheart +9: x the damage of the dart before
+EPICYCLE = 2                 # Orrery +6: swings at most
+GRAVITY_ASSIST = (1.5, 0.50) # Orrery +9: x speed, + damage
+# The dwarf's and the huntress's main-hand tricks (M28.2h, GEAR.md 17.8).
+BANK_SHOT = 0.20             # Rebound Axe +3: + damage a bounce
+CAROM = 5                    # Rebound Axe +9: bounces, then home
+SAW = 0.10                   # Hoverhead +3: + damage for each hit while hovering
+HOLD_IT = 2.0                # Hoverhead +6: s more it may hover while you hold the attack
+BUZZSAW = 1.5                # Hoverhead +9: tiles round the hovering axe
+HOMING_BACK = 2.0            # Homesick +3: tiles off its way home it bends for
+WELCOME_HOME = (0.10, 2.0, 3)   # Homesick +6: + attack speed a catch, s, most
+TAUT = (0.8, 0.40)           # Chainlink +3: this share of its range from you, x the axe's damage
+SHACKLE = 0.5                # Chainlink +6: s dragged
+GALE_FORCE = 2               # Whirlwind +6: rethrows a throw
+REUNITE = (0.5, 0.30)        # Doublebit +3: tiles apart they meet at, + damage
+CROSSING = 3.0               # Doublebit +6: tiles apart the halves start, crossing over
+QUARTERING = (4, 0.40)       # Doublebit +9: pieces, x damage each
+THUNDER_RAIN = (1.0, 0.20)   # Cloudburst +6: tiles, + damage per other arrow that close
+SQUALL_LINE = 0.4            # Cloudburst +9: s before the second rain
+GATHERING_SPEED = 1.10       # Broadleaf +3: x speed per enemy passed
+RUN_THROUGH = 4              # Broadleaf +6: enemies passed
+OLD_SCENT = 2.0              # Bloodhound +3: s the last mark stays
+PACK_HUNT = (3.0, 3.0)       # Bloodhound +9: tiles round the fallen mark, s marked
+HELD_BREATH = (1.0, 2.0)     # Stillwater +3: s still, x arrow speed
+ZEN = (2.0, 0.50)            # Stillwater +6: s still, + crit damage
+STILL_WATERS = 1.0           # Stillwater +9: s Steady Aim holds after you move
+FOLLOW_THROUGH = 3           # Farsight +3: enemies a crit passes
+SECOND_SIGHT = 6             # Farsight +6: every Nth arrow
+LIGHTNING_ARROW = 60.0       # Farsight +9: x a crit arrow's speed (across its range in a frame)
+SEED_STORM = (3, 2.0, 1.0, 10.0, 1.5)   # Splitbranch +9: seeds, s, radius, damage/s, tiles thrown
+# The princess's and the bard's main-hand tricks (M28.2i, GEAR.md 17.9).
+FULL_SPECTRUM = 5            # Prismatic +3: colors (or all of a smaller shot's) on one enemy -> crit
+AFTERGLOW = 1.0              # Prismatic +6: s the bonus stays on the enemy
+RAINBOWS_END = 1.5           # Prismatic +9: x the Prism bonus (+30% for +20%)
+LENS = 0.25                  # Spyglass +3: + damage of the middle color
+PINPOINT = (2.0, 0.5)        # Spyglass +6: s still to narrow fully, x the fan at the narrowest
+BEAM = (1.0, 0.2)            # Spyglass +9: s still, s the beam shows
+SATURATED = 0.30             # Chroma +3: a color's status chance
+COLOR_THEORY = (2, 0.15)     # Chroma +6: your statuses on it, + damage
+CHROMATIC = 2                # Chroma +9: stacks a color gives
+FACE_TO_FACE = (2.0, 0.20)   # Duelist's +3: tiles, + damage on top
+DUEL = (0.25, 0.75)          # Duelist's +6: + damage to the duelist, x damage it deals you
+BLADEWORK = (6.0, 1.5)       # Duelist's +9: tiles, x the Point Blank bonus (+60% for +40%)
+RADIANT_SPLIT = 0.25         # Kaleido +6: tiles a split piece's hit reach grows (half a color)
+INFINITE_MIRROR = (2, 3, 25.0)   # Kaleido +9: pieces, times, degrees apart
+FOCAL_POINT = (1.5, 0.40)    # Crossbeam +3: tiles round the crossing, + damage
+SECOND_CROSSING = 3.0        # Crossbeam +6: tiles past the first crossing
+CLIMAX = 1.25                # Fortissimo +6: x reach at the top of the crescendo
+FORTE = 10                   # Fortissimo +9: beats in a row (+100%)
+LULLABIED = (5, 3.0)         # Cradlesong +3: beats in a row, s asleep at most
+NOTHING_WASTED = 0.04        # Cradlesong +6: + damage of the next beat per HP not healed
+MOTHERS_SONG = (2, 10)       # Cradlesong +9: HP per enemy, at most this many HP a beat
+SWING_BEAT = 0.20            # Offbeat +3: share of the wait cut before the loud beat
+POLYRHYTHM = 3               # Offbeat +6: every Nth beat is both
+THE_DROP = 2.2               # Offbeat +9: x damage of the loud beat
+CLASH = 15.0                 # Sourstring +3: damage pushed into a wall
+TRITONE = 2.0                # Sourstring +6: x push on chilled enemies
+SHRIEK = 2                   # Sourstring +9: chill stacks a beat
+OVERTURE = 5.0               # Showstopper +3: s without hitting anything
+CURTAIN_CALL = (0.30, 20.0)  # Showstopper +6: HP share, s between
+MAGNUM_OPUS = 6              # Showstopper +9: every Nth beat
+BIRDSONG = 16.0              # Songbird +3: tiles of path a note may fly round walls
+CHORUS = (4, 2)              # Songbird +6: every Nth beat, x notes
+ARIA = 1.0                   # Songbird +9: tiles round where a note lands
+
+# The 100 bases (GEAR.md 15.6). Keys are the card keys whose effect each
+# one's power is; the card's name stays as the power's name.
+_W = "main"
+GEAR = {
+    # Main hand: the hero's own weapon line (hero-only: the card's `heroes`).
+    "storm_caller": GearSpec("Stormcaller Rod", _W),
+    "conductor": GearSpec("Copperwire Staff", _W),
+    "supercell": GearSpec("Thunderhead Rod", _W),
+    "phase_darts": GearSpec("Ghostwood Staff", _W),
+    "ball_lightning": GearSpec("Crackle Staff", _W),
+    "seeker": GearSpec("Wyrmseeker Staff", _W),
+    "resonance": GearSpec("Humming Staff", _W),
+    "implosion": GearSpec("Gravewell Staff", _W),
+    "arcane_storm": GearSpec("Stormheart Staff", _W),
+    "orbiting_darts": GearSpec("Orrery Staff", _W),
+    "ricochet": GearSpec("Rebound Axe", _W),
+    "hang_time": GearSpec("Hoverhead Axe", _W),
+    "homeward_fury": GearSpec("Homesick Axe", _W),
+    "tether": GearSpec("Chainlink Axe", _W),
+    "cyclone": GearSpec("Whirlwind Axe", _W),
+    "splitting_axe": GearSpec("Doublebit Axe", _W),
+    "arrow_rain": GearSpec("Cloudburst Bow", _W),
+    "broadhead": GearSpec("Broadleaf Bow", _W),
+    "hunters_mark": GearSpec("Bloodhound Bow", _W),
+    "steady_aim": GearSpec("Stillwater Bow", _W),
+    "deadeye": GearSpec("Farsight Bow", _W),
+    "split_arrow": GearSpec("Splitbranch Bow", _W),
+    "prism": GearSpec("Prismatic Wand", _W),
+    "focus": GearSpec("Spyglass Wand", _W),
+    "spectrum": GearSpec("Chroma Wand", _W),
+    "point_blank": GearSpec("Duelist's Wand", _W),
+    "refraction": GearSpec("Kaleido Scepter", _W),
+    "converge": GearSpec("Crossbeam Wand", _W),
+    "crescendo": GearSpec("Fortissimo Lute", _W),
+    "lullaby": GearSpec("Cradlesong Lute", _W),
+    "syncopation": GearSpec("Offbeat Lute", _W),
+    "dissonance": GearSpec("Sourstring Lute", _W),
+    "grand_finale": GearSpec("Showstopper Lute", _W),
+    "sheet_music": GearSpec("Songbird Lute", _W),
+    # Off-hand: shot patterns and attack rhythm.
+    "cross_fire": GearSpec("Compass Orb", "off"),
+    "starburst": GearSpec("Sunwheel", "off"),
+    "rear_guard": GearSpec("Hindsight Orb", "off"),
+    "spiral": GearSpec("Nautilus Shell", "off"),
+    "twin_lanes": GearSpec("Twinned Quiver", "off"),
+    "echo": GearSpec("Canyon Horn", "off"),
+    "frenzy": GearSpec("War Drum", "off"),
+    "spray_and_pray": GearSpec("Pepperbox", "off"),
+    # Head: statuses and elements.
+    "kindling": GearSpec("Cinderveil Hood", "head"),
+    "wildfire": GearSpec("Blazecrown", "head"),
+    "venom": GearSpec("Viper Mask", "head"),
+    "virulence": GearSpec("Plaguebeak", "head"),
+    "frostbite": GearSpec("Rime Hood", "head"),
+    "shatter": GearSpec("Glassfrost Helm", "head"),
+    "static": GearSpec("Stormvane Helm", "head"),
+    "serrated": GearSpec("Thornhelm", "head"),
+    # Serrated (bleed) is its only source and shares the head slot, so the
+    # cowl brings its own bleed (M28.1).
+    "hemorrhage": GearSpec("Bloodtrail Cowl", "head", mods=(("bleed", "status", 1),), needs=()),
+    "thermal_shock": GearSpec("Steamcrown", "head"),
+    "toxic_current": GearSpec("Galvanic Mask", "head"),
+    # Chest: defence and trade-offs.
+    "thorn_mail": GearSpec("Brambleguard", "chest"),
+    "ward_charm": GearSpec("Wardweave Robe", "chest"),
+    "heavy_plate": GearSpec("Anvil Plate", "chest"),
+    "glass_cannon": GearSpec("Shattercoat", "chest"),
+    "retaliation": GearSpec("Grudge Mail", "chest"),
+    "untouched": GearSpec("Spotless Tunic", "chest"),
+    "berserker": GearSpec("Wolfpelt", "chest"),
+    "bulwark": GearSpec("Bastion Plate", "chest"),
+    "juggernaut": GearSpec("Mountainhide", "chest"),
+    "aegis": GearSpec("Sunward Aegis", "chest"),
+    "phoenix": GearSpec("Phoenix Mantle", "chest", grow="damage"),   # one revival, always
+    # Feet: movement and the roll (the hero rolls are hero-only).
+    "riposte": GearSpec("Fencer's Boots", "feet"),
+    "slipstream": GearSpec("Windrunners", "feet"),
+    "close_call": GearSpec("Hairsbreadth", "feet"),
+    "scorched_trail": GearSpec("Ashwalkers", "feet"),
+    "momentum": GearSpec("Gallopers", "feet"),
+    "fleet_strike": GearSpec("Wingheel Sandals", "feet"),
+    "blink": GearSpec("Phasewalkers", "feet"),
+    "shoulder_charge": GearSpec("Ramhorn Boots", "feet"),
+    "backflip": GearSpec("Tumbler Boots", "feet"),
+    "pirouette": GearSpec("Dancing Slippers", "feet"),
+    "drop_the_beat": GearSpec("Stompers", "feet"),
+    # Rings: triggers, scaling and the economy.
+    "volatile": GearSpec("Powderkeg Ring", "ring"),
+    "chain_reaction": GearSpec("Domino Ring", "ring"),
+    "soul_harvest": GearSpec("Reaper's Band", "ring"),
+    "surge": GearSpec("Ascendant Band", "ring"),
+    "bloodlust": GearSpec("Fang Ring", "ring"),
+    "giant_slayer": GearSpec("Slingstone Ring", "ring"),
+    "veteran": GearSpec("Grizzled Signet", "ring"),
+    "golden_hoard": GearSpec("Hoarder's Ring", "ring"),
+    "bounty": GearSpec("Bountymark Ring", "ring"),
+    "beacon": GearSpec("Beckoning Ring", "ring"),
+    "fortune": GearSpec("Fourleaf Ring", "ring", grow="damage"),     # one extra card, always
+    "overflow": GearSpec("Brimful Ring", "ring"),
+    "pandemic": GearSpec("Contagion Ring", "ring"),
+    "pack_leader": GearSpec("Packmaster Ring", "ring"),
+    # Trinkets: the spells. Chain Lightning is the wizard's (its four payoffs
+    # are main-hand pieces, so it can't share their slot; M28.1).
+    "chain_lightning": GearSpec("Chainbolt Charm", "trinket"),
+    "daggers": GearSpec("Bladewheel Charm", "trinket"),
+    "ember_aura": GearSpec("Ember Amulet", "trinket"),
+    "frost_nova": GearSpec("Winterheart", "trinket"),
+    "spirit_wolf": GearSpec("Wolfcall Whistle", "trinket"),
+    "rune_trap": GearSpec("Runestone Pouch", "trinket"),
+    "poison_flask": GearSpec("Witch's Flask", "trinket"),
+    "storm_cloud": GearSpec("Stormjar", "trinket"),
+    "healing_totem": GearSpec("Mender's Totem", "trinket"),
+    "fire_wand": GearSpec("Firefly Lantern", "trinket"),
+    "bone_turret": GearSpec("Skull Sentry", "trinket"),
+}
+
 # Spells whose things last a while, so Lingering (+duration) does something
 # for them (statuses count too, see players/cards._gate_met).
 DURATION_SPELLS = ("poison_flask", "healing_totem", "bone_turret")
@@ -2113,7 +2860,7 @@ ARCHETYPES = {
     "poison": ("T03", "S06", "P3", "T04", "G18", "T10", "T14", "K02"),
     "frost": ("T05", "S03", "B4", "P3", "T06", "G09", "T13"),
     "shock": ("W3", "T07", "S07", "W1", "W2", "W5", "W7", "T14", "W6"),
-    "missiles": ("W4", "W8", "W9", "W10", "W11", "W12", "G20", "T11"),
+    "missiles": ("W4", "W8", "W9", "W10", "W11", "W12", "G20"),
     "bleed": ("T08", "T09", "G18", "D5", "K02"),
     "volley": ("G20", "D1", "H1", "P1", "X03", "R06", "C06", "G02", "P5", "D5", "H6",
                "M01", "M02", "M03", "M04", "M05", "B7", "H7", "P7", "D7", "P6"),
@@ -4157,7 +4904,7 @@ NETTLE_SHOTS = {
 # WIRE_MAX). A hero walking across one (not rolling) trips it: a log
 # swings down along it (WIRE_LOG = creak (tell) s, tiles/s, damage, width).
 # A hero's shot crossing a wire within WIRE_CUT tiles cuts it.
-# Signature 4, FRENZY (phase 3): a madness meter (0..1) fills FRENZY_TIME a
+# Signature 4, FRENZY (phase 3): a madness meter (0..1) fills FRENZY_FILL a
 # second, FRENZY_HIT for each hit it lands and FRENZY_HURT x (damage taken
 # / max HP). Full: FRENZY_DASH = (line (tell) s, dashes, tiles/s, longest,
 # damage, width) zigzag cleaver dashes, then it collapses panting
@@ -4192,7 +4939,7 @@ WIRES = 3
 WIRE_MAX = 6
 WIRE_LOG = (0.5, 34.0, 18, 1.3)
 WIRE_CUT = 0.6
-FRENZY_TIME = 0.015
+FRENZY_FILL = 0.015         # (was FRENZY_TIME, which overwrote the War Drum's 3 s until M28.2a)
 FRENZY_HIT = 0.05
 FRENZY_HURT = 6.0
 FRENZY_DASH = (0.45, 5, 32.0, 24.0, 16, 1.4)

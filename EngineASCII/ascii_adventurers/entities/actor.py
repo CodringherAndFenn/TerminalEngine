@@ -47,6 +47,7 @@ class Actor:
             self.last_hit_by = source
             if source.lifesteal > 0 and source.alive:
                 source.heal(min(amount, self.hp) * source.lifesteal)
+        self.one_hit = self.hp >= self.max_hp       # (Fang Ring +3: a kill from full HP)
         self.hp = max(0.0, self.hp - amount)
         self.last_damage = amount
         self.hurt_flash = 0.12
@@ -56,6 +57,8 @@ class Actor:
         """Regain HP (never past max). Returns what was healed."""
         if not self.alive or amount <= 0:
             return 0.0
+        if self.status is not None and self.status.wounded:
+            return 0.0                      # (Thornhelm +6, Open wounds: bleeding)
         before = self.hp
         self.hp = min(float(self.max_hp), self.hp + amount)
         return self.hp - before

@@ -42,8 +42,8 @@ BLURBS = {"guild": "Upgrades for every adventurer of the guild.",
           "archive": "Knowledge, bought with loot.",
           "gate": "Pacts make the dungeon far deadlier, for a little more loot."}
 SHELVES = ("cards", "spells", "pacts", "bestiary", "journal")
-SHELF_BLURBS = {"cards": "Cards bought here can be offered on level-ups.",
-                "spells": "Spells bought here can be offered on level-ups.",
+SHELF_BLURBS = {"cards": "Gear bought here can be offered on level-ups.",
+                "spells": "Spell trinkets bought here can be offered on level-ups.",
                 "pacts": "Buy a pact here; switch it on at the dungeon gate.",
                 "bestiary": f"A page is yours after {config.BESTIARY_KILLS} kills, or bought: "
                             f"+{round(config.BESTIARY_BONUS * 100)}% damage to that enemy.",
@@ -118,6 +118,9 @@ class GuildPanel:
                 continue
             rarity = rarities_of(c)[0]
             name, effect = card_text(key, rarity)
+            if key in config.GEAR:                       # (M28.1: the piece of gear it is)
+                g = config.GEAR[key]
+                name, effect = g.name, f"{config.GEAR_SLOT_NAMES[g.slot].lower()}: {effect}"
             who = c.heroes[0].upper() if len(c.heroes) == 1 else "ANYONE"
             owned = self.guild.unlocked(key)
             out.append(Row(key, name, who, effect, None if owned else card_price(key), "OWNED",
@@ -309,7 +312,9 @@ class GuildPanel:
         if self.mode in ("hero", "archive"):
             tabs = list(config.HERO_UPGRADES) if self.mode == "hero" else list(SHELVES)
             on = self.hero if self.mode == "hero" else SHELVES[self.shelf]
-            line = "  ".join(f"[{t.upper()}]" if t == on else t.upper() for t in tabs)
+            names = {"cards": "gear"}                 # (M28.1: the cards are gear now)
+            line = "  ".join(f"[{names.get(t, t).upper()}]" if t == on else names.get(t, t).upper()
+                             for t in tabs)
             center(text, top + 3, line, colors.AMBER, left, width)
         rows = self.rows()
         vis = self.visible_rows()

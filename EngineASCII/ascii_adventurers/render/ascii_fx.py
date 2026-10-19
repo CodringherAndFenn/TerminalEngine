@@ -178,7 +178,10 @@ BOMB_ARC_PX = 46          # how high a lobbed bomb flies at the top of its arc
 def _draw_lobbed(batch, camera: Camera, p: Projectile) -> None:
     """A bomb in the air: its shadow on the ground, the bomb above it on
     an arc (highest half way), and a ring on the ground where it'll land --
-    blinking faster as it comes down."""
+    blinking faster as it comes down. One still waiting (the Cloudburst
+    Bow's second rain) isn't drawn yet."""
+    if p.hold > 0:
+        return
     f = p.travelled / p.flight if p.flight > 0 else 1.0
     gx, gy = camera.world_to_px(p.x, p.y)
     batch.put_c(gx, gy, ".", palette.BOMB_SHADOW)
@@ -400,6 +403,15 @@ def draw_effects(text: TextRenderer, camera: Camera, world, effects: list[Effect
                 batch.put_c(x + (tx - x) * k / n, y + (ty - y) * k / n,
                             "-" if e.value else "=", col)
             continue
+        if e.kind == "beam":                        # (M28.2i: the Spyglass Wand, every color)
+            tx, ty = camera.world_to_px(e.x2, e.y2)
+            n = max(2, int(math.hypot(tx - x, ty - y) / 10))
+            shade = 0 if e.progress < 0.5 else 1
+            for k in range(1, n + 1):
+                head, trail = palette.RAINBOW_SHOTS[k % len(palette.RAINBOW_SHOTS)]
+                batch.put_c(x + (tx - x) * k / n, y + (ty - y) * k / n, "=",
+                            head if shade == 0 else trail[0])
+            continue
         if e.kind == "heal_beam":                   # (P7: dotted green, a "+" on the healed)
             tx, ty = camera.world_to_px(e.x2, e.y2)
             col = palette.HEAL_BEAM[0 if e.progress < 0.5 else 1]
@@ -437,7 +449,7 @@ def draw_effects(text: TextRenderer, camera: Camera, world, effects: list[Effect
                         palette.TOAST if e.progress < 0.75 else palette.TOAST_DIM)
             continue
         if e.kind == "evade":
-            batch.put_c(x, y - 20 - 20 * e.progress, "evade", palette.EVADE)
+            batch.put_c(x, y - 20 - 20 * e.progress, e.label or "evade", palette.EVADE)
             continue
         for dx, dy, glyph, color in _frame(e):
             batch.put_c(x + dx, y + dy, glyph, color)

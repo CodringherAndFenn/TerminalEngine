@@ -124,6 +124,101 @@ class Character(Actor):
         # speed for this many s more (the strongest slow wins).
         self.slow_mult = 1.0
         self.slow_t = 0.0
+        # M28.2a: hits taken (the Sunwheel's +6 counts them), and Unshaken
+        # (the War Drum's +6, set by systems/run_rules while in a frenzy):
+        # slows and roots don't hold.
+        self.hits_taken = 0
+        self.unshaken = False
+        # M28.2b: Kindle's count (the enemy, hits in a row on it), and
+        # Battery's charges and whether this attack shocks (Galvanic Mask).
+        self.kindle: tuple = (None, 0)
+        self.battery = 0
+        self.shocking = False
+        # M28.2c, the feet's tricks: sure crits left after a roll and whether
+        # this attack is one (Fencer's Boots); s left untouchable and shots
+        # rolled through this roll (Hairsbreadth); rolls so far (Ashwalkers'
+        # patches know their roll); s walked without stopping, a charged
+        # attack, and the distance of the next hoofbeat (Gallopers); the s
+        # left on each Quickstep (Wingheel); blinks left in a storm and s to
+        # use them (Phasewalkers); tiles the charge was carried (Ramhorn);
+        # s of fast shooting left (Tumbler); enemies passed (Stompers); the
+        # amps on the ground and the images left behind.
+        self.riposte_left = 0
+        self.riposte_now = False
+        self.riposting = False
+        self.spectral = False         # (Ghostwood Staff +6: a dart's hit, through fronts)
+        # M28.2h: the attack held this step (Hoverhead +6); catches' attack
+        # speed (Homesick +6); s still toward the next fast arrow and when
+        # last steady (Stillwater +3, +9); marks besides the main one, each
+        # (enemy, until) (Bloodhound +3, +9).
+        self.trigger = False
+        self.welcome: list[float] = []
+        self.breath = 0.0
+        self.calm = 0.0
+        self.marks: list[tuple] = []
+        # M28.2i: the duelist (Duelist's Wand +6); HP a beat couldn't heal,
+        # for the next (Cradlesong +6); when a beat last hit something
+        # (Showstopper +3), the last Curtain call and whether HP was below
+        # its line (+6); during a beat, its hits don't wake (Cradlesong +3).
+        self.duelist = None
+        self.unspent = 0.0
+        self.beat_hit = -math.inf
+        self.curtain_t = -math.inf
+        self.low = False
+        self.lulling = False
+        self.untouchable = 0.0
+        self.roll_grazes = 0
+        self.rolls = 0
+        self.walk_t = 0.0
+        self.charged = False
+        self.hoof = config.HOOFBEATS[0]
+        self.quick: list[float] = []
+        self.storm_blinks = 0
+        self.storm_t = 0.0
+        self.rampage = 0.0
+        self.aerial = 0.0
+        self.surfed: set[int] = set()
+        self.amps: list[list[float]] = []
+        self.images: list = []
+        # M28.2d, the chest's tricks: s standing still (Overgrowth, Anvil
+        # stance); Tempered's armor (s left on each point); what this
+        # step's hits leave for systems/run_rules (Grudge Mail: how many,
+        # the biggest, where from; a shield that broke and its size; thorn
+        # hits for Wild hedge); hits blocked (Prism skin); Clean getaway's
+        # s; Last stand's s and its cooldown; Grudge Mail's built-up grudge;
+        # whether you were above 90% HP; the clocks of the auras and the
+        # second ward; next to a wall (Garrison).
+        # M28.2e, the rings' tricks: Golden armor's armor; Slow fade's
+        # clock; Deluge's crits (when each runs out); who your wolves rush
+        # (The pack: the attacker, until when).
+        self.hoard_armor = 0
+        self.fade_t = 0.0
+        self.deluge: list[float] = []
+        self.rush: tuple | None = None
+        # M28.2f, the trinkets' tricks: the enemy you hit last (Scent), the
+        # enemy that hit you last (Thunderhead), where your last kill fell
+        # (Ossuary).
+        self.scent = None
+        self.struck_by = None
+        self.kill_spot: tuple[float, float] | None = None
+        self.still_t = 0.0
+        self.temper: list[float] = []
+        self.retaliate_hits = 0
+        self.retaliate_big = 0.0
+        self.retaliate_from: tuple[float, float] | None = None
+        self.shield_broke = 0.0
+        self.hedge: list = []
+        self.blocked = 0
+        self.getaway = 0.0
+        self.last_stand = 0.0
+        self.stand_cd = 0.0
+        self.grudge = 0.0
+        self.above90 = True
+        self.bramble_t = 0.0
+        self.tremor_t = 0.0
+        self.radiant_t = 0.0
+        self.ward_full_t = 0.0
+        self.near_wall = False
         self.petrified = 0.0              # P9: s left turned to stone (a basilisk's gaze)
         # P6 riding (systems/mount.py): the mount ridden ("" on foot), s left
         # until a called one arrives, s before it can be called again, the
@@ -161,8 +256,8 @@ class Character(Actor):
 
     @property
     def hittable(self) -> bool:
-        """Mid-roll, nothing can touch a hero."""
-        return self.alive and self.roll_t <= 0
+        """Mid-roll (and Untouchable after one), nothing can touch a hero."""
+        return self.alive and self.roll_t <= 0 and self.untouchable <= 0
 
     @property
     def facing_left(self) -> bool:
@@ -193,37 +288,98 @@ class Character(Actor):
         is scaled by the spec's front_armor. A hero's evasion may make
         the hit miss outright, and armor `a` scales it by 1 - a / (|a| + ARMOR_K)
         (40 armor halves it; negative armor makes hits hurt more)."""
-        if from_angle is not None and self.spec.front_armor != 1.0:
+        if from_angle is not None and self.spec.front_armor != 1.0 \
+                and not getattr(source, "spectral", False):
             came_from = from_angle + math.pi     # a hit comes *from* opposite its travel
             if abs(wrap_angle(came_from - self.aim_angle)) < FRONT_ARC:
                 amount *= self.spec.front_armor
         st = self.stats
-        if self.roll_t > 0:                             # i-frames
+        if self.roll_t > 0 or self.untouchable > 0:     # i-frames (Hairsbreadth +9 too)
+            return 0.0
+        if st is not None and source is not None and getattr(source, "disarmed", 0) > 0:
+            source.disarmed = 0.0                       # (Fencer's Boots +3: it fizzles)
             return 0.0
         if st is None or not self.alive or self.invulnerable:
             return super().take_damage(amount, source, from_angle)
+        howled = getattr(source, "howled", None)
+        if howled is not None and howled[0].time < howled[1]:
+            amount *= config.HOWL[2]                    # (Wolfcall Whistle +6: Howl)
+        if source is not None and source is self.duelist and st.has("point_blank+6"):
+            amount *= config.DUEL[1]                    # (Duelist's Wand +6: Duel)
+        if st.has("glass_cannon+6") and self.since_hit >= config.PRISM_SKIN:
+            self.since_hit = 0.0                        # (Shattercoat +6: Prism skin)
+            self.blocked += 1
+            return 0.0
         if st.evasion > 0 and self.rng.random() < st.evasion:
             self.evaded += 1
             return 0.0
-        if st.armor:
-            amount *= 1 - st.armor / (abs(st.armor) + config.ARMOR_K)
+        armor = st.armor + len(self.temper) + self.hoard_armor   # (Tempered, Golden armor)
+        if armor:
+            amount *= 1 - armor / (abs(armor) + config.ARMOR_K)
+        if st.has("berserker+3") and self.hp < self.max_hp * config.THICK_FUR[0]:
+            amount *= config.THICK_FUR[1]               # (Wolfpelt +3: Thick fur)
         if st.has("hit_cap"):                           # Heavy Plate
-            amount = min(amount, self.max_hp * 0.10)
+            stance = st.has("heavy_plate+9") and self.still_t >= config.ANVIL_STANCE[0]
+            cap = self.max_hp * (config.ANVIL_STANCE[1] if stance else 0.10)
+            if amount > cap:
+                amount = cap
+                if st.has("heavy_plate+3"):
+                    per, seconds, most = config.TEMPERED
+                    self.temper = (self.temper + [seconds])[-most:]
         self.since_hit = 0.0
+        self.hits_taken += 1
+        if source is not None and source is not self \
+                and getattr(source, "faction", None) == "enemy" and source.alive:
+            self.struck_by = source                     # (Stormjar +6: Thunderhead)
+        if st.has("pack_leader+9") and source is not None and source is not self \
+                and getattr(source, "faction", None) == "enemy" and source.alive:
+            self.rush = (source, self.time + config.PACK_RUSH)   # (Packmaster +9: The pack)
+        if st.has("venom+6") and source is not None and source is not self \
+                and getattr(source, "faction", None) == "enemy" and source.alive:
+            from ..systems.statuses import inflict         # Viper Mask +6 (Toxic blood)
+            inflict(source, "poison", self, config.TOXIC_BLOOD)
         if self.shield > 0:                             # Ward Charm, Aegis
+            before = self.shield
             absorbed = min(self.shield, amount)
             self.shield -= absorbed
             amount -= absorbed
+            if self.shield <= 1e-9:
+                self.shield = 0.0
+                self.shield_broke = max(self.shield_broke, before)   # (run_rules: M28.2d)
         if st.has("retaliation"):
             self.retaliate = True
+            self.retaliate_hits += 1
+            self.retaliate_big = max(self.retaliate_big, amount)
+            if source is not None and source is not self:
+                self.retaliate_from = (source.x, source.y)
         flat, share = st.thorns                         # Thorn Mail
         if (flat or share) and source is not None and source is not self \
                 and source.faction != "player" and source.alive:
-            source.take_damage(flat + share * amount, self, None)
+            dealt = source.take_damage(flat + share * amount, self, None)
+            if dealt > 0 and st.has("thorn_mail+3") and source.alive:
+                from ..systems.statuses import inflict     # Brambleguard +3 (Barbs)
+                inflict(source, "bleed", self, config.BARBS)
+            if dealt > 0 and st.has("thorn_mail+9"):
+                self.hedge.append((source, dealt))          # (Wild hedge: run_rules)
         if amount <= 0:
             self.hurt_flash = 0.12
             return 0.0
+        if self.last_stand > 0 or (st.has("berserker+9")
+                                   and self.hp - amount < self.max_hp * config.LAST_STAND[0]):
+            amount = self._last_stand(amount)               # Wolfpelt +9 (Last stand)
         return super().take_damage(amount, source, from_angle)
+
+    def _last_stand(self, amount: float) -> float:
+        """Wolfpelt +9: dropping below LAST_STAND[0] of max HP starts it (if
+        it's ready); while it runs, HP can't go under 1."""
+        st = self.stats
+        if self.last_stand <= 0 and self.stand_cd <= 0 and st is not None \
+                and st.has("berserker+9"):
+            self.last_stand = config.LAST_STAND[1]
+            self.stand_cd = config.LAST_STAND[2]
+        if self.last_stand > 0:
+            amount = min(amount, max(0.0, self.hp - 1.0))
+        return amount
 
     def heal(self, amount: float) -> float:
         """Aegis (a card): healing past full HP becomes shield, up to
@@ -258,10 +414,12 @@ class Character(Actor):
             self.vx = self.vy = 0.0
             return
         n = math.hypot(ax, ay)
-        top = spec.max_speed * self.speed_mult * self.time_mult * self.mount_mult
+        time_mult = max(1.0, self.time_mult) if self.unshaken else self.time_mult
+        top = spec.max_speed * self.speed_mult * time_mult * self.mount_mult
         if self.slow_t > 0:                   # (P8: webs, howls, a phantom's touch)
             self.slow_t -= dt
-            top *= self.slow_mult
+            if not self.unshaken:             # (M28.2a: the War Drum's Unshaken)
+                top *= self.slow_mult
         if self.shrunk > 0:                   # (tiny: quicker on your feet, M25.1)
             top *= config.SHRINK[1]
         if n > 0:

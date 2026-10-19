@@ -14,6 +14,7 @@ import pygame
 from ascii_adventurers import config
 from ascii_adventurers.meta.guild import Guild
 from ascii_adventurers.players import cards
+from ascii_adventurers.tests.gear_helpers import offerable, use_cards
 from ascii_adventurers.players.stats import HeroStats
 from ascii_adventurers.systems import combat, statuses
 from ascii_adventurers.systems.spells import SpellState, update_spells
@@ -46,9 +47,8 @@ def game(hero="wizard", guild=None, seed=31):
 
 
 def take(s, *taken):
-    for k, r in taken:
-        s.me.progress.take(k, r)
-    s._apply_loadout(s.me)
+    """These cards' effects on the hero (M28.1: straight on, ignoring slots)."""
+    use_cards(s, *taken)
 
 
 class StatusChanceTest(unittest.TestCase):
@@ -304,7 +304,7 @@ class TradeOffAndTriggerTest(unittest.TestCase):
         s.hero.hp = 10
         s._gain_xp(s.me, s.me.progress.needed)                      # level-up: Surge
         self.assertAlmostEqual(s.hero.hp, 10 + s.hero.max_hp * config.SURGE_HEAL)
-        s.hero.attacks, s.me.echo_timer = 0, 0.0
+        s.hero.attacks, s.me.echo_timer, s.me.echo_count = 0, 0.0, 0   # (M28.2a: its own count)
         for _ in range(config.ECHO_EVERY - 1):
             s.rules.attack_mods(s.me)
         self.assertEqual(s.me.echo_timer, 0)
@@ -426,19 +426,19 @@ class SpellRev2Test(unittest.TestCase):
 class GateTest(unittest.TestCase):
     def test_capstones_wait_for_level_15(self):
         w = config.WEAPONS["arcane_missiles"]
-        self.assertNotIn("arcane_storm", cards.eligible("wizard", w, Counter(), level=14))
-        self.assertIn("arcane_storm", cards.eligible("wizard", w, Counter(), level=15))
+        self.assertNotIn("arcane_storm", offerable("wizard", w, Counter(), level=14))
+        self.assertIn("arcane_storm", offerable("wizard", w, Counter(), level=15))
 
     def test_card_and_stat_gates(self):
         w = config.WEAPONS["lute"]
-        self.assertNotIn("chain_reaction", cards.eligible("bard", w, Counter()))
-        self.assertIn("chain_reaction", cards.eligible("bard", w, Counter(volatile=1)))
-        self.assertNotIn("juggernaut", cards.eligible("bard", w, Counter(), level=20))
+        self.assertNotIn("chain_reaction", offerable("bard", w, Counter()))
+        self.assertIn("chain_reaction", offerable("bard", w, Counter(volatile=1)))
+        self.assertNotIn("juggernaut", offerable("bard", w, Counter(), level=20))
         armored = cards.hero_stats([("thick_hide", "common")])
-        self.assertIn("juggernaut", cards.eligible("bard", w, Counter(), armored, level=20))
-        self.assertNotIn("elementalist", cards.eligible("bard", w, Counter()))
+        self.assertIn("juggernaut", offerable("bard", w, Counter(), armored, level=20))
+        self.assertNotIn("elementalist", offerable("bard", w, Counter()))
         fiery = cards.hero_stats([("kindling", "uncommon")])
-        self.assertIn("elementalist", cards.eligible("bard", w, Counter(), fiery))
+        self.assertIn("elementalist", offerable("bard", w, Counter(), fiery))
 
     def test_achievement_cards(self):
         g = Guild()
@@ -501,7 +501,7 @@ class GuildRev2Test(unittest.TestCase):
         prog = s.me.progress
         self.assertEqual((prog.level, prog.picks), (2, 2))
         s.update(1 / 60)
-        self.assertTrue(all(config.RARITIES.index(r) >= 2 for _, r in prog.offer))
+        self.assertTrue(all(config.RARITIES.index(o.rarity) >= 2 for o in prog.offer))
         s._choose_card(0)
         self.assertIsNone(prog.decree)
         pygame.mouse.set_visible(True)

@@ -2,7 +2,7 @@
 
 Status: **rev 2, approved and BUILT in M16 (2026-10-01): all 101 cards. M18 (2026-10-02) added the dodge roll and 11 roll cards (section 6.10, 112 in all), gated Lingering, replaced three spell levels and added the archetype lean (section 14). M19 (2026-10-02) added multiple projectiles for every hero: 5 pattern cards, 4 hero cards (6.11, 121 in all) and the fan rule (section 15). M20 (2026-10-02) gave the wizard arcane missiles and redid his cards (6.2 and section 16, 127 in all).** Rev 1's first 48 cards were built in M14. Rev 2 applies the "no repeating upgrades" rule (section 0, enforced by a test); every change is listed in section 12, and section 13 notes the choices made while building.
 
-> **Planned rework (user, 2026-10-13; M28 in `BOSSES.md` section 8):** the card system becomes a **gear** system. Heroes get gear slots and start with no gear; the abilities and effects below will come from pieces of gear that level up (+1, +2...), gained with levels and perhaps from quests and bosses. It gets its own design doc (`GEAR.md`) first. Until then this catalog is what's built.
+> **The cards are gear now (M28.1, 2026-10-18; `GEAR.md`).** There are no card offers any more: every card below is either the **power** of one piece of gear (100 of them, each with its home slot; `config.GEAR`) or a **plain-stat affix** that rolls on pieces (the 21 generic stats, Elementalist, Prospector, Quick Recovery, Extra Roll). The effects, gates, tags and numbers below are still what the gear does. **T11 Arcane Mastery and T12 Weapons Master are cut** (`GEAR.md` 8). The pool rules in section 5 (offers, rerolls, the lean) now apply to gear picks (`GEAR.md` 15.2).
 
 Based on `../../survivorlike_upgrade_design_guide.md` (section numbers below refer to it).
 

@@ -53,6 +53,9 @@ class AIContext:
     spawned: list = field(default_factory=list)
     zones: list | None = None     # the game's ground zones (P7: a straw golem's fire)
     gems: list | None = None      # the XP gems on the ground (P10: the gem thief)
+    # M28.2c: the heroes' afterimages (Windrunners +6) -- enemies go for
+    # these first (bosses don't fall for them).
+    decoys: list = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not isinstance(self.players, (list, tuple)):
@@ -110,6 +113,15 @@ class Brain:
         if self.grudge is not None and not self.grudge.alive:
             self.grudge = None
         self.target = self.grudge if self.grudge is not None else self._pick_player(ctx)
+        drawn = getattr(self, "drawn_to", None)        # (Beckoning Ring +6 / +9, M28.2e)
+        if drawn is not None and self.grudge is None:
+            if drawn.alive:
+                self.target = drawn                   # it knows where that hero is
+                self.alert = True
+                self.last_known = (drawn.x, drawn.y)
+                self.forget_timer = config.FORGET_TIME
+            else:
+                self.drawn_to = None
         if self.forget_timer > 0:
             self.forget_timer -= dt
             if self.forget_timer <= 0:
@@ -122,7 +134,8 @@ class Brain:
             return
         self._sense_timer += SENSE_INTERVAL
         was_seeing = self.sees_target
-        self.sees_target = self.target is not None and self.can_see(ctx.world, self.target)
+        self.sees_target = self.target is not None and self.can_see(ctx.world, self.target) \
+            and not self.smoked(self.target)
         if self.sees_target:
             if not was_seeing and not self.alert:
                 self.reaction = config.REACTION_TIME
@@ -134,6 +147,9 @@ class Brain:
         """Which hero to go after. Stay on the current one while it's alive
         and not much farther than another (no flip-flopping between two
         players at similar range); otherwise the nearest living hero."""
+        images = [d for d in ctx.decoys if d.alive and self.dist_to(d) <= self.espec.sight]
+        if images:
+            return min(images, key=self.dist_to)
         alive = [p for p in ctx.players if p.alive]
         if not alive:
             return None
@@ -145,6 +161,13 @@ class Brain:
             if d_cur <= d_near + config.TARGET_SWITCH_MARGIN:
                 return cur
         return nearest
+
+    def smoked(self, other: Actor) -> bool:
+        """Cinderveil Hood +6 (Smoke): burning, it can't see that hero past
+        SMOKE tiles (so it stops shooting and goes where it last saw them)."""
+        st, stats = self.status, getattr(other, "stats", None)
+        return (st is not None and st.has("burn") and stats is not None
+                and stats.has("kindling+6") and self.dist_to(other) > config.SMOKE)
 
     def can_see(self, world, other: Actor) -> bool:
         if math.hypot(other.x - self.x, other.y - self.y) > self.espec.sight:

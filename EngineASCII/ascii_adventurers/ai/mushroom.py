@@ -105,7 +105,7 @@ class FungalBrute(Chaser):
 
     def think(self, ctx: AIContext, dt: float) -> None:
         self.unhit += dt
-        if self.regrowing:
+        if self.regrowing and not (self.status is not None and self.status.wounded):
             self.hp = min(float(self.max_hp), self.hp + self.max_hp * config.REGROW[1] * dt)
         super().think(ctx, dt)
 
@@ -131,7 +131,7 @@ class Rootweaver(PlainsCreature):
             r[3] -= dt
             if r[3] <= 0 < r[3] + dt:
                 combat.blast(r[0], r[1], width, self.espec.damage * self.damage_mult, self,
-                             ctx.actors, effects=ctx.effects)
+                             ctx.actors, effects=ctx.effects, ground=True)
                 ctx.effects.append(Effect("eruption", r[0], r[1]))
         self.roots = [r for r in self.roots if r[3] > -0.4]
         t = self.target
@@ -244,7 +244,7 @@ class Pillbug(PlainsCreature):
         self._moved = math.hypot(self.x - x0, self.y - y0)
         self.walked += self._moved
         for a in ctx.actors:
-            if a is self or not a.hittable:
+            if a is self or not a.hittable or combat.drafting(a):
                 continue
             if math.hypot(a.x - self.x, a.y - self.y) <= self.hit_radius + a.hit_radius \
                     and self.clock - self.bumped.get(id(a), -99.0) >= every:

@@ -193,7 +193,8 @@ class Burrower(Creature):
             if self.timer <= 0:
                 self.state, self.timer = "up", 1.8
                 combat.blast(self.x, self.y, self.espec.attack_radius,
-                             self.espec.damage * self.damage_mult, self, ctx.actors, effects=ctx.effects)
+                             self.espec.damage * self.damage_mult, self, ctx.actors, effects=ctx.effects,
+                             ground=True)
                 ctx.effects.append(Effect("eruption", self.x, self.y))
                 ctx.events.append(combat.BREAK)
             return
@@ -747,7 +748,7 @@ class SandGolem(Creature):
                 combat.blast(self.x, self.y, self.espec.attack_radius,
                              self.espec.damage * self.damage_mult, self,
                              [a for a in ctx.actors if getattr(a, "faction", "") == "player"],
-                             effects=ctx.effects)
+                             effects=ctx.effects, ground=True)
                 ctx.effects.append(Effect("nova", self.x, self.y, size=self.espec.attack_radius))
                 ctx.events.append(combat.BREAK)
                 self.cooldown = self.espec.cooldown

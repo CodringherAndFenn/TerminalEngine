@@ -23,6 +23,8 @@ by the same name.
 
 from __future__ import annotations
 
+import math
+
 import pygame
 
 from .. import config, palette
@@ -816,3 +818,48 @@ def draw_body(bank: SpriteBank, camera, c) -> None:
     x, y = camera.world_to_px(c.x, c.y)
     draw_character(bank, x, y, c.spec.sprite, body_scale(c), c.facing_left,
                    walk_frame(c), c.hurt_flash > 0)
+
+
+def draw_feet_marks(text, bank: SpriteBank, camera, players, steps: int) -> None:
+    """The feet gear's marks on the ground (M28.2c): a hero's afterimage
+    (Windrunners +6, a blinking copy) and the bard's amps (Stompers +9)."""
+    cw, ch = text.display.cell_w, text.display.cell_h
+    for p in players:
+        h = p.hero
+        if (steps // 4) % 2 == 0:
+            for im in h.images:
+                x, y = camera.world_to_px(im.x, im.y)
+                draw_character(bank, x, y, h.spec.sprite, body_scale(h), h.facing_left, 0, True)
+        for amp in h.amps:
+            x, y = camera.world_to_px(amp[0], amp[1])
+            text.put_px(x - 1.5 * cw, y - ch / 2, "(o)", palette.AMP, None)
+
+
+def draw_chest_marks(text, camera, me, projectiles, steps: int) -> None:
+    """The chest gear's marks (M28.2d): your bramble ring while it grows
+    (Brambleguard +6), and where enemy shots are going (Shattercoat +3,
+    a faint line CRYSTAL_CLEAR s ahead of each -- only for you)."""
+    h = me.hero
+    st = h.stats
+    if st is None or not me.alive:
+        return
+    cw, ch = text.display.cell_w, text.display.cell_h
+    if st.has("thorn_mail+6") and h.still_t >= config.OVERGROWTH[0]:
+        r = config.OVERGROWTH[1]
+        turn = steps * 0.02
+        for k in range(12):
+            a = turn + k * math.tau / 12
+            x, y = camera.world_to_px(h.x + math.cos(a) * r, h.y + math.sin(a) * r)
+            text.put_px(x - cw / 2, y - ch / 2, "*" if k % 2 else "x", palette.BRAMBLE, None)
+    if st.has("glass_cannon+3"):
+        canvas = text.display.canvas
+        for q in projectiles:
+            if not q.alive or q.spec.lob or q.hold > 0 or getattr(q.owner, "faction", None) == "player":
+                continue
+            ahead = q.spec.speed * q.time_scale * q.pace * config.CRYSTAL_CLEAR
+            ahead = min(ahead, q.max_range - q.travelled)
+            if ahead <= 0:
+                continue
+            x0, y0 = camera.world_to_px(q.x, q.y)
+            x1, y1 = camera.world_to_px(q.x + q.dir_x * ahead, q.y + q.dir_y * ahead)
+            pygame.draw.line(canvas, palette.SHOT_PATH, (round(x0), round(y0)), (round(x1), round(y1)))

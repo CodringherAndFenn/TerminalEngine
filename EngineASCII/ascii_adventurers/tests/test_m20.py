@@ -14,6 +14,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 from ascii_adventurers import config
 from ascii_adventurers.meta.guild import VERSION, Guild
 from ascii_adventurers.players import cards
+from ascii_adventurers.tests.gear_helpers import offerable, use_cards
 from ascii_adventurers.systems import combat
 from ascii_adventurers.tests.test_m14 import carded
 from ascii_adventurers.tests.test_m16 import SpellRev2Test, fly
@@ -105,14 +106,14 @@ class ChainLightningTest(unittest.TestCase):
 
     def test_lightning_cards_need_it(self):
         w = config.WEAPONS["arcane_missiles"]
-        plain = cards.eligible("wizard", w, Counter())
+        plain = offerable("wizard", w, Counter())
         for k in ("storm_caller", "conductor", "supercell", "ball_lightning"):
             self.assertNotIn(k, plain)
-        lit = cards.eligible("wizard", w, Counter({"chain_lightning": 1}),
+        lit = offerable("wizard", w, Counter({"chain_lightning": 1}),
                              cards.hero_stats([("chain_lightning", "uncommon")]))
         for k in ("storm_caller", "conductor", "supercell", "ball_lightning"):
             self.assertIn(k, lit)
-        self.assertNotIn("chain_lightning", cards.eligible("bard", config.WEAPONS["lute"],
+        self.assertNotIn("chain_lightning", offerable("bard", config.WEAPONS["lute"],
                                                            Counter()))
 
     def test_storm_caller_adds_a_jump_to_the_spell(self):

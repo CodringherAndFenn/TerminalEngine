@@ -44,7 +44,7 @@ from ..specs import CharacterSpec
 from ..world.tiles import Damage
 from .collision import move_hull, screen_angle
 from .raycast import RayHit, first_hit
-from .statuses import inflict, roll_on_hit
+from .statuses import combos, inflict, on_hero_hit, roll_on_hit, statuses_of
 
 # Sound events returned to the scene (it owns the audio).
 SHOT, HIT, BREAK, FIZZLE, THUD = "shot", "hit", "break", "fizzle", "thud"
@@ -80,7 +80,7 @@ def attack(
     return fire(shooter, world, projectiles, effects,
                 angle=shooter.aim_angle + angle_offset if angle_offset else None, mult=mult,
                 extra_chain=extra_chain, extra_pellets=extra_pellets, spread_add=spread_add,
-                sure_crit=sure_crit)
+                sure_crit=sure_crit, actors=actors)
 
 
 # --- Hero damage ---------------------------------------------------------------------
@@ -88,80 +88,280 @@ def attack(
 
 def strike(victim: Actor, base: float, source: Actor | None, angle: float | None,
            effects: list[Effect], tags=(), extra: float = 0.0, mult: float = 1.0,
-           on_hit: bool = True, can_crit: bool = True, sure_crit: bool = False) -> float:
+           on_hit: bool = True, can_crit: bool = True, sure_crit: bool = False,
+           crit_x: float = 1.0, pet: bool = False) -> float:
     """One hit of `base` damage on `victim`. From a hero (an actor with
     `stats`) it goes through the damage buckets and may crit and apply the
     hero's on-hit statuses; from anyone else it's plain damage. `extra`
     adds to bucket A (conditionals), `mult` is a per-hit "xN". Summons'
     hits pass on_hit / can_crit False (unless Pack Leader); `sure_crit`
-    makes a hit that may crit always crit (Riposte). Returns the
-    damage dealt; whether it crit is left in source.last_crit."""
+    makes a hit that may crit always crit (Riposte); `crit_x` scales its
+    crit chance (Tumbler Boots +6); `pet`: a summon's hit (a wolf's bite,
+    a turret's bolt: Packmaster +3). Returns the damage dealt; whether it
+    crit is left in source.last_crit."""
     if getattr(source, "shrunk", 0) > 0:              # tiny (Nettle's dust, M25.1)
         mult *= config.SHRINK[2]
+    if victim.status is not None and victim.status.asleep > 0 \
+            and not getattr(source, "lulling", False):
+        victim.status.asleep = 0.0                    # (Cradlesong +3: a hit wakes it)
     stats = getattr(source, "stats", None)
     if stats is None:
         dealt = victim.take_damage(base * mult, source, angle)
         _number(effects, victim, dealt)
         return dealt
     a = stats.damage + extra + situational_bonus(stats, source, victim)
+    if not pet and stats.has("spirit_wolf+3"):
+        source.scent = victim                       # Wolfcall Whistle +3 (Scent)
+    if stats.has("pack_leader+3"):                  # Packmaster +3 (Alpha)
+        marks = victim.__dict__.setdefault("alpha", {})
+        if not pet:
+            marks[id(source)] = source.time
+        elif source.time - marks.get(id(source), -1e9) <= config.ALPHA[0]:
+            a += config.ALPHA[1]
     m = stats.damage_mult * mult
-    if victim is getattr(source, "marked", None):
+    if marked(source, victim):
         m *= config.MARK_MULT
     st = victim.status
-    if stats.has("shatter") and st is not None and st.frozen > 0:
+    frozen = st is not None and st.frozen > 0
+    if stats.has("shatter") and frozen:
         m *= config.SHATTER[0]
-    crit = can_crit and (sure_crit or source.rng.random() < crit_chance(stats, source))
+    elif st is not None and stats.has("shatter+3") and st.has("chill"):
+        m *= config.BRITTLE                         # Glassfrost Helm +3 (Brittle)
+    if stats.has("glass_cannon+9") and getattr(source, "since_hit", 0.0) >= config.DIAMOND[0]:
+        m *= config.DIAMOND[1]                      # Shattercoat +9 (Diamond)
+    chance = crit_chance(stats, source)
+    lit = getattr(victim, "lit", None)
+    if lit and lit.get(id(source), -1e9) > source.time:
+        chance += config.GLOW[0]                    # Firefly Lantern +3 (Glow)
+    crit = can_crit and (sure_crit or source.rng.random() < chance * crit_x)
     source.last_crit = crit
     amount = base * (1 + a) * (1 + stats.tag_bonus(tags)) * m
     if crit:
-        amount *= stats.crit_damage
+        boost = stats.crit_damage + len(getattr(source, "deluge", ())) * config.DELUGE[0]
+        if stats.has("steady_aim+6") and getattr(source, "still_t", 0.0) >= config.ZEN[0]:
+            boost += config.ZEN[1]                  # Stillwater Bow +6 (Zen)
+        amount *= boost
+        if stats.has("overflow+3") and victim.hp >= victim.max_hp * config.BRIM_HP:
+            amount *= boost                         # Brimful Ring +3 (Brim)
+        if stats.has("overflow+9"):                 # Deluge
+            per, seconds, most = config.DELUGE
+            source.deluge = (source.deluge + [source.time + seconds])[-round(most / per):]
     dealt = victim.take_damage(amount, source, angle)
     _number(effects, victim, dealt, "crit" if crit else "")
-    if on_hit and dealt > 0 and stats.statuses:
-        roll_on_hit(victim, source, stats)
+    if dealt > 0 and stats.point_blank:
+        _duel(victim, source, stats)
+    if crit and dealt > 0 and stats.has("overflow+6"):
+        combos.append(("splash", victim, source, dealt))   # Brimful Ring +6 (run_rules)
+    if on_hit and dealt > 0 and victim.alive and stats.has("bloodlust+9") \
+            and len(getattr(source, "bloodlust", ())) >= config.APEX[0]:
+        inflict(victim, "bleed", source, config.APEX[1])   # Fang Ring +9 (Apex)
+    if on_hit and dealt > 0:
+        if frozen and stats.has("shatter+9") and victim.alive:
+            # Glassfrost Helm +9 (Shatterpoint): the freeze ends in a
+            # shatter -- the hit again, and its shards (run_rules).
+            st.frozen = 0.0
+            _number(effects, victim, victim.take_damage(amount, source, angle), "chill")
+            combos.append(("shatterpoint", victim, source))
+        on_hero_hit(victim, source, stats, crit)
+        if stats.statuses:
+            roll_on_hit(victim, source, stats)
+    if dealt > 0:
+        _feet_on_hit(victim, source, stats, crit)
+    link = getattr(victim, "link", None)
+    if link is not None and dealt > 0:             # Twinned Quiver +3: linked enemies
+        other, until = link
+        if until > getattr(source, "time", 0.0) and other.alive and other is not victim:
+            shared = other.take_damage(dealt * config.LINKED[1], source, None)
+            _number(effects, other, shared)
+        else:
+            victim.link = None
     return dealt
+
+
+def _feet_on_hit(victim, source, stats, crit: bool) -> None:
+    """The feet tricks a hero's hit sets off (M28.2c)."""
+    if getattr(source, "riposting", False):
+        if stats.has("riposte+3") and victim.alive:                 # Disarm
+            if getattr(victim, "windup", 0) > 0 and not getattr(victim, "boss", False):
+                victim.windup = 0.0                                 # (the wind-up stops)
+                if hasattr(victim, "tell"):
+                    victim.tell = 0.0
+            else:
+                victim.disarmed = config.DISARM
+        if crit and not victim.alive and stats.has("riposte+9"):    # En garde
+            source.roll_charges = min(stats.max_rolls, source.roll_charges + 1)
+    if crit and stats.has("fleet_strike+3"):                        # Quickstep
+        _, seconds, most = config.QUICKSTEP
+        source.quick = (source.quick + [seconds])[-most:]
+
+
+def move_bonus(hero) -> float:
+    """A hero's move speed bonus right now: the stat plus what's on for a
+    moment (Slipstream, Quickstep)."""
+    st = getattr(hero, "stats", None)
+    return (st.move if st is not None else 0.0) + getattr(hero, "speed_mult", 1.0) - 1.0
+
+
+def drafting(actor) -> bool:
+    """Windrunners +3 (Draft): slipstreaming, a hero slips through bodies --
+    a boss's doesn't shove them, bumping enemies pass through them."""
+    st = getattr(actor, "stats", None)
+    return st is not None and getattr(actor, "slipstream", 0) > 0 and st.has("slipstream+3")
+
+
+def skims(actor) -> bool:
+    """Wingheel Sandals +9 (Air step): a hero fast enough skims over the
+    ground -- ground attacks and hazards miss them."""
+    st = getattr(actor, "stats", None)
+    return st is not None and st.has("fleet_strike+9") and move_bonus(actor) >= config.AIR_STEP - 1e-9
+
+
+def ground_cut(actor) -> float:
+    """Spotless Tunic +6 (Dress code): x the damage a hero above
+    UNTOUCHED_HP takes from the ground -- the hazards and attacks Air step
+    skims (zones, stomps, eruptions...)."""
+    st = getattr(actor, "stats", None)
+    if st is None or not st.has("untouched+6") or not actor.max_hp \
+            or actor.hp / actor.max_hp < config.UNTOUCHED_HP:
+        return 1.0
+    return config.DRESS_CODE
+
+
+def bonus_armor(hero) -> float:
+    """Armor a hero has on top of the stat right now: Anvil Plate +3
+    (Tempered) and Hoarder's Ring +6 (Golden armor)."""
+    return len(getattr(hero, "temper", ())) + getattr(hero, "hoard_armor", 0)
 
 
 def situational_bonus(stats, source: Actor, victim: Actor) -> float:
     """Bucket A from the cards that depend on the moment (catalog 6.5,
     Point Blank, Wildfire, Golden Hoard, Juggernaut, the bestiary)."""
     a = 0.0
-    if stats.point_blank and math.hypot(victim.x - source.x, victim.y - source.y) \
-            <= config.POINT_BLANK_RANGE:
-        a += stats.point_blank
+    if stats.point_blank:
+        a += _point_blank(stats, source, victim)
     hp = source.hp / source.max_hp if source.max_hp else 0.0
     if stats.untouched and hp >= config.UNTOUCHED_HP:
         a += stats.untouched
+    elif stats.untouched and hp >= config.IMMACULATE and stats.has("untouched+9"):
+        a += stats.untouched / 2                    # (Spotless Tunic +9: Immaculate)
     flags = stats.flags
     if flags:
         if "berserker" in flags:
             a += max(0.0, 1 - hp)
         if "bulwark" in flags:
-            a += source.max_hp / 10 * 0.01
+            body = source.max_hp + (getattr(source, "shield", 0.0) if "bulwark+9" in flags else 0.0)
+            a += body / 10 * 0.01                  # (Bastion Plate +9, Citadel: the shield too)
+            if "bulwark+6" in flags and getattr(source, "near_wall", False):
+                a += config.GARRISON[1]            # Bastion Plate +6 (Garrison)
         if "momentum" in flags:
-            a += max(0.0, stats.move) / 2
+            if "momentum+9" in flags:              # Gallopers +9 (Full gallop)
+                a += max(0.0, stats.move) + (config.FULL_GALLOP if getattr(source, "mount", "") else 0.0)
+            else:
+                a += max(0.0, stats.move) / 2
         if "bloodlust" in flags:
             a += len(getattr(source, "bloodlust", ())) * 0.01
         if "giant_slayer" in flags and victim.max_hp > source.max_hp:
-            a += config.GIANT_SLAYER
+            slayer = config.GIANT_SLAYER
+            if "giant_slayer+9" in flags and getattr(victim, "boss", False):
+                slayer *= config.GOLIATH                # Slingstone Ring +9 (Goliath's bane)
+            if "giant_slayer+3" in flags:               # Long odds
+                per, each, most = config.LONG_ODDS
+                slayer += min(most, (victim.max_hp - source.max_hp) / per * each)
+            a += slayer
         if "veteran" in flags:
-            a += getattr(source, "level", 1) * 0.01
+            a += stats.veteran_levels(getattr(source, "level", 1)) * 0.01   # (+3: Hard-won)
         if "golden_hoard" in flags:
             per, cap = config.GOLDEN_HOARD
-            a += min(cap, getattr(source, "run_loot", 0.0) / per * 0.01)
+            hoard = getattr(source, "run_loot", 0.0) / per * 0.01
+            a += hoard if "golden_hoard+9" in flags else min(cap, hoard)   # (+9: Dragon's hoard)
         if "juggernaut" in flags:
-            a += max(0.0, stats.armor) * config.JUGGERNAUT
+            armor = max(0.0, stats.armor + bonus_armor(source))
+            a += armor * config.JUGGERNAUT * (2 if "juggernaut+9" in flags else 1)   # (Peak)
+        if "spectrum+6" in flags and _colors_on(victim, source) >= config.COLOR_THEORY[0]:
+            a += config.COLOR_THEORY[1]                 # Chroma Wand +6 (Color theory)
     if stats.wildfire and victim.status is not None and victim.status.has("burn"):
-        a += stats.wildfire
+        if "wildfire+9" in flags:                    # Blazecrown +9 (Bonfire): by the stack
+            per, most = config.BONFIRE
+            grow = stats.wildfire / config.WILDFIRE  # (the piece's +10% a level)
+            a += min(most, per * victim.status.stacks("burn")) * grow
+        else:
+            a += stats.wildfire
     kind = getattr(victim, "kind_key", None)
     if kind is not None and kind in getattr(source, "bestiary", ()):
         a += config.BESTIARY_BONUS
     return a
 
 
+def point_blank_range(stats) -> float:
+    """Point Blank's reach (Duelist's Wand +9, Bladework: farther)."""
+    return config.BLADEWORK[0] if stats.has("point_blank+9") else config.POINT_BLANK_RANGE
+
+
+def _point_blank(stats, source, victim) -> float:
+    """Point Blank (a card): bucket A up close. The Duelist's Wand: +3 (Face
+    to face) more yet within FACE_TO_FACE[0] tiles; +6 (Duel) on the
+    duelist, wherever it is; +9 (Bladework) farther, and more."""
+    a = 0.0
+    d = math.hypot(victim.x - source.x, victim.y - source.y)
+    if d <= point_blank_range(stats):
+        a += stats.point_blank * (config.BLADEWORK[1] if stats.has("point_blank+9") else 1)
+        if d <= config.FACE_TO_FACE[0] and stats.has("point_blank+3"):
+            a += config.FACE_TO_FACE[1]
+    if victim is getattr(source, "duelist", None) and stats.has("point_blank+6"):
+        a += config.DUEL[0]
+    return a
+
+
+def _duel(victim, source, stats) -> None:
+    """Duelist's Wand +6 (Duel): the first enemy hit up close, while there's
+    no duelist, becomes it -- until one of them falls."""
+    if not stats.has("point_blank+6") or not victim.alive:
+        return
+    duelist = getattr(source, "duelist", None)
+    if duelist is not None and duelist.alive:
+        return
+    if math.hypot(victim.x - source.x, victim.y - source.y) <= point_blank_range(stats):
+        source.duelist = victim
+
+
+def _colors_on(victim, source) -> int:
+    """How many of the princess's colors' statuses (Spectrum) of hers the
+    enemy carries; frozen counts as chilled."""
+    st = victim.status
+    if st is None:
+        return 0
+    n = 0
+    for name in config.SPECTRUM_STATUS:
+        s = st.active.get(name) if name is not None else None
+        if s is not None and s.source is source:
+            n += 1
+        elif name == "chill" and st.frozen > 0 and st.frozen_by is source:
+            n += 1
+    return n
+
+
+def marked(source, victim) -> bool:
+    """Whether `victim` bears `source`'s Hunter's Mark: the mark, or one of
+    the Bloodhound Bow's others (Old scent, Pack hunt) still on."""
+    if victim is getattr(source, "marked", None):
+        return True
+    marks = getattr(source, "marks", None)
+    return bool(marks) and any(e is victim and until > source.time for e, until in marks)
+
+
+def steady(source) -> bool:
+    """Standing still for Steady Aim -- or, Stillwater Bow +9 (Still
+    waters), not moving for longer than STILL_WATERS yet."""
+    if source.speed < config.STEADY_SPEED:
+        return True
+    st = getattr(source, "stats", None)
+    return st is not None and st.has("steady_aim+9") \
+        and source.time - getattr(source, "calm", -math.inf) <= config.STILL_WATERS
+
+
 def crit_chance(stats, source: Actor) -> float:
     chance = stats.crit_chance
-    if stats.steady_crit and source.speed < config.STEADY_SPEED:
+    if stats.steady_crit and steady(source):
         chance += stats.steady_crit
     if stats.has("fleet_strike"):
         chance += max(0.0, stats.move) / 4
@@ -177,11 +377,18 @@ def outgoing(source: Actor | None, base: float, tags=()) -> float:
     return base * (1 + stats.damage) * (1 + stats.tag_bonus(tags)) * stats.damage_mult
 
 
-def push(actor: Actor, world, dx: float, dy: float) -> None:
+def push(actor: Actor, world, dx: float, dy: float, full: bool = False) -> None:
     """Shove an actor (tiles), stopping at walls. Things that never move
-    (towers, spitters) and bosses stay put."""
+    (towers, spitters) and bosses stay put. A hero with Wingheel Sandals
+    +6 (Featherweight) is moved half as far -- unless `full` (a boss's body
+    putting them back outside it)."""
     if getattr(actor, "half", None) is None or getattr(actor, "boss", False):
         return
+    st = getattr(actor, "stats", None)
+    if not full and st is not None and st.has("fleet_strike+6"):
+        dx, dy = dx * config.FEATHERWEIGHT, dy * config.FEATHERWEIGHT
+    if actor.status is not None and actor.status.walls():
+        return                                        # (Rime Hood +6: frozen fast)
     spec = getattr(actor, "spec", None)
     speed = spec.max_speed if isinstance(spec, CharacterSpec) else \
         getattr(getattr(actor, "espec", None), "speed", 0.0)
@@ -196,6 +403,7 @@ def fire(
     angle: float | None = None, damage: float | None = None,
     target: tuple[float, float] | None = None, mult: float = 1.0, extra_chain: int = 0,
     extra_pellets: int = 0, spread_add: float = 0.0, sure_crit: bool = False,
+    actors=(),
 ) -> list[str]:
     """Fire the shooter's weapon along its aim (or `angle`, for aim error).
     A weapon with several pellets fans them evenly over its spread, the
@@ -222,20 +430,71 @@ def fire(
     n = max(1, spec.pellets + extra_pellets)
     if extra_pellets > 0:
         spread_add = max(spread_add, config.MIN_PELLET_GAP * extra_pellets)
-    return volley(shooter, world, projectiles, effects, angle, n, spec.spread_deg + spread_add,
-                  shell, spec.tags, dmg, mult=mult, extra_chain=extra_chain, sure_crit=sure_crit)
+    spread = spec.spread_deg + spread_add
+    beam = _beaming(shooter, shell)
+    if beam:
+        spread = 0.0                                  # (Spyglass Wand +9: one beam)
+    else:
+        spread *= _pinpoint(shooter, shell)
+    before = len(projectiles)
+    events = volley(shooter, world, projectiles, effects, angle, n, spread,
+                    shell, spec.tags, dmg, mult=mult, extra_chain=extra_chain, sure_crit=sure_crit,
+                    actors=actors)
+    if beam:
+        _beam(shooter, world, projectiles[before:], effects)
+    return events
+
+
+def _pinpoint(shooter, shell) -> float:
+    """Spyglass Wand +6 (Pinpoint): x the princess's fan -- it narrows
+    while she stands still, down to PINPOINT[1] after PINPOINT[0] s."""
+    stats = getattr(shooter, "stats", None)
+    if stats is None or shell.look != "prism" or not stats.has("focus+6"):
+        return 1.0
+    full, least = config.PINPOINT
+    return 1 - (1 - least) * min(1.0, getattr(shooter, "still_t", 0.0) / full)
+
+
+def _beaming(shooter, shell) -> bool:
+    """Spyglass Wand +9 (Beam): still for BEAM[0] s, the fan is a beam."""
+    stats = getattr(shooter, "stats", None)
+    return stats is not None and shell.look == "prism" and stats.has("focus+9") \
+        and getattr(shooter, "still_t", 0.0) >= config.BEAM[0] - 1e-9
+
+
+def _beam(shooter, world, shots: list[Projectile], effects: list[Effect]) -> None:
+    """The colors as one beam: all on the aim's line, through every enemy,
+    across their reach in one frame (only walls stop it)."""
+    if not shots:
+        return
+    for p in shots:
+        p.angle = p.base_angle = shooter.aim_angle
+        p.dir_x, p.dir_y = math.cos(p.angle), math.sin(p.angle)
+        p.curve = p.curve_left = 0.0                  # (no Converge bend: it's straight)
+        p.lock, p.focal, p.crossings = None, None, 0
+        p.pierce_left = 10 ** 6
+        p.pace = max(1.0, p.max_range / (p.spec.speed / 60.0))
+        p.beam = True
+    p = shots[0]
+    ex, ey = p.x + p.dir_x * p.max_range, p.y + p.dir_y * p.max_range
+    hit = first_hit(world.tile_at, p.x, p.y, ex, ey)
+    if hit is not None:
+        ex, ey = hit.x, hit.y
+    effects.append(Effect("beam", p.x, p.y, p.angle, x2=ex, y2=ey))
 
 
 def volley(shooter: Character, world, projectiles: list[Projectile], effects: list[Effect],
            angle: float, n: int, spread_deg: float, shell, tags=(), damage: float | None = None,
            mult: float = 1.0, extra_chain: int = 0, sure_crit: bool = False,
-           hold: float = 0.0, origin: tuple[float, float] | None = None) -> list[str]:
+           hold: float = 0.0, origin: tuple[float, float] | None = None,
+           actors=()) -> list[str]:
     """`n` shots of `shell` fanned evenly over `spread_deg` around `angle`,
     from the shooter's hand (or `origin`). The weapon's own fire and the
     pattern cards (systems/run_rules.patterns) both come through here.
     Twin Lanes (a card) turns each shot into two side by side; Converge
     (P4) bends the princess's fan to cross at the aim point. `hold`: the
-    shots wait this long before flying."""
+    shots wait this long before flying. `actors`: who Lockstep may
+    follow (Crossbeam Wand +9)."""
     mx, my = origin if origin is not None else shot_origin(shooter)
     effects.append(Effect("muzzle", mx, my, angle))
     dmg = shell.damage if damage is None else damage
@@ -250,10 +509,15 @@ def volley(shooter: Character, world, projectiles: list[Projectile], effects: li
     size = stats.shot_size * config.SHOT_SIZE_PX / config.TILE_PX_W if stats is not None else 0.0
     lanes = (0.0,)
     lane_mult = 1.0
+    linked = drift = False
     if stats is not None and stats.has("twin_lanes"):
         gap, lane_mult = config.TWIN_LANES
-        lanes = (-gap / 2, gap / 2)
+        lanes = (-gap, 0.0, gap) if stats.has("twin_lanes+9") else (-gap / 2, gap / 2)   # Triplets
+        linked, drift = stats.has("twin_lanes+3"), stats.has("twin_lanes+6")
     group: dict = {}                  # Prism: which colors of this shot hit whom
+    if stats is not None and shell.seek_turn > 0 and stats.has("implosion+9") \
+            and shooter.attacks and shooter.attacks % config.SINGULARITY[0] == 0:
+        group["well"] = True          # (Gravewell Staff +9: this cast's first hit)
     seek_point = None
     if shell.seek_turn > 0:
         # Homing shots look round the aim point when they go off roughly
@@ -266,8 +530,19 @@ def volley(shooter: Character, world, projectiles: list[Projectile], effects: li
             reach = math.hypot(aim[0] - mx, aim[1] - my) if aim is not None else shell.max_range / 2
             seek_point = (mx + math.cos(angle) * reach, my + math.sin(angle) * reach)
     meet = _converge_distance(shooter, shell, angle, n, spread_deg, mx, my)
+    prism = stats is not None and shell.look == "prism"
+    lens = prism and stats.has("focus+3")
+    if prism and stats.has("prism+3"):
+        group["colors"] = min(config.FULL_SPECTRUM, n)   # (Prismatic Wand +3: Full spectrum)
+    lock = None
+    if meet is not None and stats.has("converge+9"):
+        lock = _lockstep_target(shooter, shell, mx, my, actors)
+        if lock is not None:                          # (Crossbeam Wand +9: Lockstep)
+            angle = math.atan2(lock.y - my, lock.x - mx)
+            meet = max(config.CONVERGE_MIN, math.hypot(lock.x - mx, lock.y - my))
     for i in range(n):
         a = angle + (spread * (i / (n - 1) - 0.5) if n > 1 else 0.0)
+        pair: dict | None = {} if linked else None        # Linked: who each twin hit
         for side in lanes:
             # Lanes sit side by side, across the shot's own heading.
             ox, oy = -math.sin(a) * side, math.cos(a) * side
@@ -281,10 +556,76 @@ def volley(shooter: Character, world, projectiles: list[Projectile], effects: li
             p.group = group
             p.hold = hold
             p.seek_point = seek_point
+            p.twin = pair
+            if drift and side:                             # Drift: apart as they fly
+                room = max(0.0, config.DRIFT_APART / 2 - abs(side))
+                p.drift = math.copysign(room / max(1.0, shell.max_range), side)
+                p.drift_left = room
+            if lens and abs(i - (n - 1) / 2) < 0.6:
+                p.middle = True                            # (Spyglass Wand +3: Lens)
             if meet is not None:
                 _converge(p, wrap_angle(a - angle), meet)
+                p.mid, p.origin = angle, (mx, my)
+                p.focal = [(mx + math.cos(angle) * meet, my + math.sin(angle) * meet)]
+                p.lock = lock
+                p.crossings = 1 if stats.has("converge+6") else 0
             projectiles.append(p)
     return [shell.sound]
+
+
+def _lockstep_target(shooter, shell, mx: float, my: float, actors):
+    """Crossbeam Wand +9 (Lockstep): the enemy nearest the aim point among
+    those within the colors' reach -- the crossing follows it."""
+    aim = getattr(shooter, "aim_point", None)
+    if aim is None:
+        return None
+    best, best_d = None, math.inf
+    for a in actors:
+        if not a.alive or not a.hittable or not _may_hurt(shooter, a) \
+                or math.hypot(a.x - mx, a.y - my) > shell.max_range * 0.9:
+            continue
+        d = math.hypot(a.x - aim[0], a.y - aim[1])
+        if d < best_d:
+            best, best_d = a, d
+    return best
+
+
+def _cross_again(p: Projectile) -> None:
+    """Where a converged color has crossed: Lockstep stops following, and
+    Crossbeam +6 (Second crossing) bends it back to cross the middle line
+    again SECOND_CROSSING tiles on."""
+    if p.lock is not None:
+        ox, oy = p.origin
+        p.focal = [(p.lock.x, p.lock.y)]          # (where it crossed)
+        p.mid = math.atan2(p.lock.y - oy, p.lock.x - ox)
+        p.lock = None
+    if p.crossings <= 0:
+        return
+    p.crossings -= 1
+    off = wrap_angle(p.angle - p.mid)
+    dist = config.SECOND_CROSSING
+    _converge(p, off, dist)
+    fx, fy = p.focal[-1]
+    p.focal.append((fx + math.cos(p.mid) * dist, fy + math.sin(p.mid) * dist))
+
+
+def _follow(p: Projectile) -> None:
+    """Lockstep: bend this step for the arc through where the enemy is now
+    (an arc from the shot's heading meeting a point d tiles off, at an angle
+    th to that heading, turns 2*sin(th)/d radians a tile, 2*th in all)."""
+    t = p.lock
+    if not t.alive:
+        p.lock = None
+        return
+    d = math.hypot(t.x - p.x, t.y - p.y)
+    th = wrap_angle(math.atan2(t.y - p.y, t.x - p.x) - p.angle)
+    if d < 0.5 or abs(th) > math.pi / 2:
+        p.curve = 0.0
+        p.curve_left = 0.0
+        _cross_again(p)
+        return
+    p.curve = 2.0 * math.sin(th) / d
+    p.curve_left = 2.0 * abs(th)
 
 
 def _converge_distance(shooter, shell, angle: float, n: int, spread_deg: float,
@@ -372,55 +713,63 @@ def swing(shooter: Character, world, actors: list[Actor], effects: list[Effect],
 
 
 def pulse(shooter: Character, world, actors: list[Actor], effects: list[Effect],
-          mult: float = 1.0, reach_mult: float = 1.0, sure_crit: bool = False) -> list[str]:
+          mult: float = 1.0, reach_mult: float = 1.0, sure_crit: bool = False,
+          origin: tuple[float, float] | None = None) -> list[str]:
     """A burst all around: everything within `reach` tiles that isn't
     behind a wall is hit, and destructible terrain in reach is worn down at
     PULSE_TERRAIN_FACTOR of the damage. Cards: Dissonance (each one hit is
     pushed back and chilled), Crescendo (beats in a row that hit grow
-    stronger), Lullaby (heal per enemy hit)."""
+    stronger), Lullaby (heal per enemy hit). `origin`: it goes off there
+    instead (Stompers +9: an amp), without Crescendo's or Lullaby's count."""
     spec = shooter.weapon.spec
     reach = spec.reach * reach_mult
-    effects.append(Effect("pulse", shooter.x, shooter.y, size=reach))
+    ox, oy = origin if origin is not None else (shooter.x, shooter.y)
+    effects.append(Effect("pulse", ox, oy, size=reach))
     events = ["pulse"]
     stats = getattr(shooter, "stats", None)
-    dissonance = stats is not None and stats.has("dissonance")
-    crescendo = stats is not None and stats.has("crescendo")
-    extra = config.CRESCENDO_STEP * getattr(shooter, "streak", 0) if crescendo else 0.0
+    has = stats.has if stats is not None else (lambda flag: False)
+    dissonance = has("dissonance")
+    crescendo = has("crescendo")
+    streak = getattr(shooter, "streak", 0)
+    extra = config.CRESCENDO_STEP * streak if crescendo else 0.0
+    if crescendo and has("crescendo+6") and streak >= config.CRESCENDO_MAX:
+        reach *= config.CLIMAX                        # (Fortissimo Lute +6: Climax)
+    if origin is None and has("lullaby+6"):
+        extra += config.NOTHING_WASTED * shooter.unspent   # (Cradlesong +6: Nothing wasted)
+        shooter.unspent = 0.0
+    shooter.lulling = has("lullaby+3")                # (Cradlesong +3: beats don't wake)
     hits = 0
     for a in actors:
         if not a.hittable or not _may_hurt(shooter, a):
             continue
-        if math.hypot(a.x - shooter.x, a.y - shooter.y) > reach + a.hit_radius:
+        if math.hypot(a.x - ox, a.y - oy) > reach + a.hit_radius:
             continue
-        if first_hit(world.tile_at, shooter.x, shooter.y, a.x, a.y) is not None:
+        if first_hit(world.tile_at, ox, oy, a.x, a.y) is not None:
             continue
-        angle = math.atan2(a.y - shooter.y, a.x - shooter.x)
+        angle = math.atan2(a.y - oy, a.x - ox)
+        chilled = a.status is not None and (a.status.has("chill") or a.status.frozen > 0)
         strike(a, spec.damage, shooter, angle, effects, spec.tags, extra=extra, mult=mult,
                sure_crit=sure_crit)
         hits += 1
         if dissonance and a.alive:
-            inflict(a, "chill", shooter)
-            push(a, world, math.cos(angle) * config.DISSONANCE_PUSH,
-                 math.sin(angle) * config.DISSONANCE_PUSH)
+            _dissonance(a, shooter, world, angle, chilled, effects, has)
+        if origin is None and has("lullaby+3"):
+            _lull(a, shooter)
         events.append(HIT)
-    # Walls, trees...: every destructible tile in reach whose way from the
-    # shooter isn't blocked by another tile, at a fraction of the damage.
-    if crescendo:
-        shooter.streak = min(config.CRESCENDO_MAX, shooter.streak + 1) if hits else 0
-    if hits and stats is not None and stats.has("lullaby"):
-        per, most = config.LULLABY_HEAL
-        shooter.heal(per * min(most, hits))
+    shooter.lulling = False
+    if origin is None and stats is not None:
+        _beat_done(shooter, stats, hits)
     wear = outgoing(shooter, spec.damage, spec.tags) * mult * config.PULSE_TERRAIN_FACTOR
     if wear > 0:
         r = reach
-        for ty in range(math.floor(shooter.y - r), math.floor(shooter.y + r) + 1):
-            for tx in range(math.floor(shooter.x - r), math.floor(shooter.x + r) + 1):
+        for ty in range(math.floor(oy - r), math.floor(oy + r) + 1):
+            for tx in range(math.floor(ox - r), math.floor(ox + r) + 1):
                 cx, cy = tx + 0.5, ty + 0.5
-                if math.hypot(cx - shooter.x, cy - shooter.y) > r:
+                if math.hypot(cx - ox, cy - oy) > r:
                     continue
                 if not world.tile_at(tx, ty).destructible:
                     continue
-                block = first_hit(world.tile_at, shooter.x, shooter.y, cx, cy)
+                block = first_hit(world.tile_at, ox, oy, cx, cy)
                 if block is not None and (block.tx, block.ty) != (tx, ty):
                     continue                   # hidden behind another tile
                 result = world.damage_tile(tx, ty, wear)
@@ -432,43 +781,195 @@ def pulse(shooter: Character, world, actors: list[Actor], effects: list[Effect],
     return events
 
 
+def _dissonance(a, shooter, world, angle: float, chilled: bool, effects: list[Effect],
+                has) -> None:
+    """Dissonance (a card): a beat pushes the enemy back and chills it. The
+    Sourstring Lute: +3 (Clash) pushed into a wall, it takes CLASH; +6
+    (Tritone) chilled already, it's pushed TRITONE x as far; +9 (Shriek)
+    two stacks."""
+    inflict(a, "chill", shooter, config.SHRIEK if has("dissonance+9") else 1)
+    push_by = config.DISSONANCE_PUSH * (config.TRITONE if chilled and has("dissonance+6") else 1)
+    x, y = a.x, a.y
+    push(a, world, math.cos(angle) * push_by, math.sin(angle) * push_by)
+    moved = math.hypot(a.x - x, a.y - y)
+    if has("dissonance+3") and moved < push_by * 0.9 and _pushable(a) and a.alive:
+        strike(a, config.CLASH, shooter, angle, effects, ("physical",), on_hit=False)
+
+
+def _pushable(a) -> bool:
+    """Whether combat.push moves this actor at all (not a boss, a thing
+    that never moves, or one frozen fast)."""
+    if getattr(a, "half", None) is None or getattr(a, "boss", False):
+        return False
+    if a.status is not None and a.status.walls():
+        return False
+    spec = getattr(a, "spec", None)
+    speed = spec.max_speed if isinstance(spec, CharacterSpec) else \
+        getattr(getattr(a, "espec", None), "speed", 0.0)
+    return speed > 0
+
+
+def _lull(a, shooter) -> None:
+    """Cradlesong Lute +3 (Lullabied): an enemy hit by LULLABIED[0] beats in
+    a row falls asleep (not a boss), until something other than a beat
+    hits it, LULLABIED[1] s at most. Asleep, its beats don't count."""
+    if not a.alive or getattr(a, "boss", False):
+        return
+    st = statuses_of(a)
+    if st.asleep > 0:
+        return
+    beats, most = config.LULLABIED
+    lull = a.__dict__.setdefault("lull", {})
+    n, count = lull.get(id(shooter), (-2, 0))
+    count = count + 1 if n == shooter.attacks - 1 else 1
+    if count >= beats:
+        st.asleep = most
+        count = 0
+    lull[id(shooter)] = (shooter.attacks, count)
+
+
+def _beat_done(shooter, stats, hits: int) -> None:
+    """After a beat of the hero's own (not an amp's): Crescendo's count
+    (Fortissimo Lute +3 Fermata: a miss drops one; +9 Forte: a higher
+    cap), Lullaby's heal (Cradlesong +9 Mother's song: more; +6 Nothing
+    wasted: what it can't heal is kept for the next beat) and when a beat
+    last hit (Showstopper +3, Overture)."""
+    if hits:
+        shooter.beat_hit = shooter.time
+    if stats.has("crescendo"):
+        cap = config.FORTE if stats.has("crescendo+9") else config.CRESCENDO_MAX
+        if hits:
+            shooter.streak = min(cap, shooter.streak + 1)
+        else:
+            shooter.streak = max(0, shooter.streak - 1) if stats.has("crescendo+3") else 0
+    if hits and stats.has("lullaby"):
+        per, most = config.MOTHERS_SONG if stats.has("lullaby+9") else config.LULLABY_HEAL
+        amount = min(most, per * hits)
+        healed = shooter.heal(amount)
+        if stats.has("lullaby+6"):
+            shooter.unspent = max(0.0, amount - healed)
+
+
 def chain_from(first: Actor, shell, damage: float, source: Actor | None, world,
                actors: list[Actor], effects: list[Effect], tags=(), extra_jumps: int = 0,
-               mult: float = 1.0) -> list[str]:
+               mult: float = 1.0, charm: bool = False, zones: list | None = None,
+               path: list | None = None) -> list[str]:
     """Lightning jumping on from `first` (already hit) to up to shell.chain
     (+ extra_jumps) more enemies: each jump goes to the nearest one within
     chain_range with a clear line, not hit yet, for chain_falloff of the
     previous damage. Supercell (a card): shocked enemies in range are
-    picked first, and take SUPERCELL_BONUS more."""
+    picked first, and take SUPERCELL_BONUS more. `charm`: a Chainbolt Charm
+    bolt -- +9 (Eternal arc) it may jump back to an enemy it hit, once
+    each (new ones first); +3 (Grounding) when nobody's left to jump to, it
+    strikes the ground by the last one: GROUNDING[1] of its damage round it.
+    The main hand's tricks (M28.2g): Stormcaller +6 (jumps through walls)
+    and +9 (Thunderlord: a long chain strikes all it hit again), the
+    Copperwire Staff's fading (+3, +9) and far jumps (+6), Superstorm,
+    Crackling chain (a crackle where each jump lands, into `zones`).
+    `path`: where the bolt went, for a Thunderball (Crackle Staff +9)."""
     stats = getattr(source, "stats", None)
-    supercell = stats is not None and stats.has("supercell")
+    has = stats.has if stats is not None else (lambda flag: False)
+    supercell = has("supercell")
+    arc = charm and has("chain_lightning+9")
+    walls = not has("storm_caller+6")                        # (Through walls)
+    fade = 1.0 if has("conductor+9") else shell.chain_falloff   # (Superconductor)
     events = []
-    current, hit = first, {id(first)}
-    for _ in range(shell.chain + extra_jumps):
-        damage *= shell.chain_falloff
+    current, hit = first, {id(first): 1}
+    order = [first]
+    start = last = damage
+    jumps = 0
+    _bolted(first, source)
+    for n in range(shell.chain + extra_jumps):
+        if not (n == 0 and has("conductor+3")):                 # (Resistor: the 1st doesn't)
+            damage *= fade
         best, best_key = None, None
         for a in actors:
-            if id(a) in hit or not a.hittable or not _may_hurt(source, a):
+            times = hit.get(id(a), 0)
+            if times >= (2 if arc else 1) or a is current or not a.hittable \
+                    or not _may_hurt(source, a):
                 continue
             d = math.hypot(a.x - current.x, a.y - current.y)
             if d > shell.chain_range:
                 continue
-            key = (not (supercell and _shocked(a)), d)
-            if (best_key is None or key < best_key) \
-                    and first_hit(world.tile_at, current.x, current.y, a.x, a.y) is None:
+            key = (times, not (supercell and _shocked(a)), d)
+            if (best_key is None or key < best_key) and \
+                    (not walls or first_hit(world.tile_at, current.x, current.y, a.x, a.y) is None):
                 best, best_key = a, key
         if best is None:
+            if charm and has("chain_lightning+3"):
+                _grounding(current, last, source, actors, effects, tags, mult)
             break
         effects.append(Effect("arc", current.x, current.y, x2=best.x, y2=best.y))
         angle = math.atan2(best.y - current.y, best.x - current.x)
         extra = config.SUPERCELL_BONUS if supercell and _shocked(best) else 0.0
+        far, more = config.OVERCURRENT
+        if has("conductor+6") and best_key[2] >= shell.chain_range * far:
+            extra += more                                        # (Overcurrent)
         strike(best, damage, source, angle, effects, tags, extra=extra, mult=mult)
+        _bolted(best, source)
         if supercell and best.alive:
             inflict(best, "shock", source)
-        hit.add(id(best))
-        current = best
+        if has("supercell+9"):
+            _superstorm(best, source, actors)
+        if zones is not None and has("ball_lightning+6"):
+            _crackle(zones, best, damage, source, tags)          # (Crackling chain)
+        if path is not None:
+            path.append((best.x, best.y))
+        if id(best) not in hit:
+            order.append(best)
+        hit[id(best)] = hit.get(id(best), 0) + 1
+        current, last = best, damage
+        jumps += 1
+        events.append("zap")
+    _, most, share = config.THUNDERLORD
+    if jumps >= most and has("storm_caller+9"):                  # Thunderlord
+        for a, b in zip(order, order[1:]):
+            effects.append(Effect("arc", a.x, a.y, x2=b.x, y2=b.y))
+        for a in order:
+            if a.alive and a.hittable:
+                strike(a, start * share, source, None, effects, tags, mult=mult, on_hit=False)
         events.append("zap")
     return events
+
+
+def _bolted(victim: Actor, source) -> None:
+    """Stormcaller Rod +3 (Conducting darts): when `source`'s bolt hit it."""
+    stats = getattr(source, "stats", None)
+    if stats is not None and stats.has("storm_caller+3"):
+        victim.__dict__.setdefault("bolted", {})[id(source)] = source.time
+
+
+def _superstorm(at: Actor, source, actors) -> None:
+    """Thunderhead Rod +9 (Superstorm): everything round a bolt's hit is shocked."""
+    radius = config.SUPERSTORM
+    for a in actors:
+        if a is not at and a.alive and a.hittable and _may_hurt(source, a) \
+                and math.hypot(a.x - at.x, a.y - at.y) <= radius + a.hit_radius:
+            inflict(a, "shock", source)
+
+
+def _crackle(zones: list, at: Actor, damage: float, source, tags, x=None, y=None) -> None:
+    """Ball Lightning's crackle where a bolt hit `at` (at x, y if given);
+    Crackle Staff +3 (Sticky): it moves with `at`."""
+    from .zones import Zone
+    sticky = source.stats.has("ball_lightning+3")
+    zones.append(Zone("crackle", at.x if x is None else x, at.y if y is None else y,
+                      config.BALL_LIGHTNING_RADIUS, config.BALL_LIGHTNING_TIME,
+                      config.BALL_LIGHTNING_EVERY, damage * config.BALL_LIGHTNING_DAMAGE, source,
+                      tags, follow=at if sticky and at.alive else None))
+
+
+def _grounding(at: Actor, damage: float, source, actors, effects: list[Effect], tags,
+               mult: float) -> None:
+    """Grounding (Chainbolt Charm +3): the bolt strikes the ground by `at`."""
+    radius, share = config.GROUNDING
+    radius *= source.stats.area_scale
+    effects.append(Effect("pulse", at.x, at.y, size=radius))
+    for a in list(actors):
+        if a.hittable and _may_hurt(source, a) \
+                and math.hypot(a.x - at.x, a.y - at.y) <= radius + a.hit_radius:
+            strike(a, damage * share, source, math.atan2(a.y - at.y, a.x - at.x), effects, tags,
+                   mult=mult)
 
 
 def _shocked(a: Actor) -> bool:
@@ -550,12 +1051,18 @@ def update_projectiles(
     spawned: list[Projectile] = []
     for p in projectiles:
         if p.spec.lob:
+            if p.hold > 0:                # (Cloudburst Bow +9: the second rain waits)
+                p.hold -= dt
+                continue
             events += _fly_lobbed(p, world, effects, dt, actors)
             continue
         if p.spec.returns:
-            _tether(p, actors, effects, dt)
+            _tether(p, actors, effects, dt, world)
         if p.hang > 0:
             events += _hover(p, grid, world, effects, dt, actors, spawned, zones)
+            continue
+        if p.flail > 0:                   # (Chainlink Axe +9: round you on its chain)
+            events += _swing_round(p, grid, world, effects, dt, actors, spawned, zones)
             continue
         if p.returning:
             events += _fly_back(p, grid, world, effects, dt, actors, spawned, zones)
@@ -567,33 +1074,64 @@ def update_projectiles(
             _weave(p)
         if p.seek_turn > 0:
             _home(p, actors, dt)
-        step = p.spec.speed * dt * p.time_scale
+        step = p.spec.speed * dt * p.time_scale * p.pace
+        if p.lock is not None:                # (Crossbeam Wand +9: Lockstep)
+            _follow(p)
+        if p.path:                            # (Songbird Lute +3: Birdsong)
+            _walk_path(p, step)
         if p.curve:
             _bend(p, step)
+            if not p.curve and p.mid is not None and p.lock is None:
+                _cross_again(p)               # (Crossbeam Wand +6: Second crossing)
         remaining = p.max_range - p.travelled
         last_leg = step >= remaining
         if last_leg:
             step = remaining
         dx, dy = p.dir_x * step, p.dir_y * step
+        if p.drift_left > 0:                  # (Twinned Quiver +6: drifting apart)
+            side = min(abs(p.drift) * step, p.drift_left)
+            p.drift_left -= side
+            side = math.copysign(side, p.drift)
+            dx, dy = dx - p.dir_y * side, dy + p.dir_x * side
 
         tile_hit = first_hit(world.tile_at, p.x, p.y, p.x + dx, p.y + dy)
         if tile_hit is not None and p.seek_turn > 0 and _phases(p):
             tile_hit = None                   # Phase Darts: through walls and trees
+            p.haunted = True                  # (Ghostwood Staff +3: Haunt)
         best_t = tile_hit.t if tile_hit is not None else math.inf
         best_t, victim = _first_actor(grid, p, dx, dy, best_t)
 
+        if victim is not None and _ice_wall(p, victim):
+            # Rime Hood +6 (Hoarfrost): a frozen enemy stops enemy shots.
+            effects.append(Effect("fizzle", p.x + dx * best_t, p.y + dy * best_t))
+            p.alive = False
+            continue
         if victim is not None:
             hx, hy = p.x + dx * best_t, p.y + dy * best_t
-            events += _hit_actor(p, victim, hx, hy, world, actors, effects, spawned, zones)
-            if p.spec.returns or p.pierce_left > 0:
+            planet = _planet(p, victim)
+            events += _hit_actor(p, victim, hx, hy, world, actors, effects, spawned, zones,
+                                 projectiles)
+            through = p.spec.returns or planet
+            if not through and p.pierce_left > 0:
+                p.pierce_left -= 1
+                through = True
+                _passing(p, victim)
+            if p.spec.returns and not p.returning:
+                _pinball(p, victim, hx, hy)
+            if through or _hunt_on(p, victim):
                 # Through it: carry on from the hit point next step (the
                 # rest of this step's distance is dropped -- a fraction of
-                # a tile). Boomerangs pass through everything.
-                if not p.spec.returns:
-                    p.pierce_left -= 1
+                # a tile). Boomerangs pass through everything; a swinging
+                # dart past what isn't its target (Planets); a dart hunting
+                # on (Endless hunt).
+                if planet:
+                    p.passed.add(id(victim))
                 p.hit.add(id(victim))
                 p.x, p.y = hx, hy
                 p.travelled += step * best_t
+                continue
+            p.hit.add(id(victim))
+            if _run_through(p, hx, hy, step * best_t, victim):
                 continue
             p.alive = False
             continue
@@ -614,29 +1152,215 @@ def update_projectiles(
                 p.travelled += step * tile_hit.t
                 p.x = tile_hit.x - p.dir_x * 0.05
                 p.y = tile_hit.y - p.dir_y * 0.05
-                if not _ricochet(p, tile_hit) and not _hang(p):
+                if not _ricochet(p, tile_hit):
+                    _end_throw(p, spawned)
+                elif _carom_home(p):
                     _turn_back(p, spawned)
+                continue
+            wx, wy = tile_hit.x - p.dir_x * 0.05, tile_hit.y - p.dir_y * 0.05
+            _split_on_wall(p, wx, wy, tile_hit, spawned, actors, zones)
+            _aria(p, wx, wy, actors, effects)
+            if _run_through(p, wx, wy, step * tile_hit.t):
                 continue
             p.alive = False
             continue
+        if p.cancels:
+            _cut_shot(p, projectiles, effects, dx, dy, dt)
         p.x += dx
         p.y += dy
         p.travelled += step
-        if _split(p, spawned):
+        if _split(p, spawned, actors, effects):
             continue
         if last_leg:
             if p.spec.returns:
-                if not _hang(p):
-                    _turn_back(p, spawned)
+                _end_throw(p, spawned)
                 continue
-            if _orbit_again(p, actors):
+            if _orbit_again(p, actors) or _run_through(p, p.x, p.y, 0.0):
                 continue
+            _aria(p, p.x, p.y, actors, effects)
             effects.append(Effect("fizzle", p.x, p.y))
             events.append(FIZZLE)
             p.alive = False
+    _reunite(projectiles)
     _shot_ends([p for p in projectiles if not p.alive], spawned, zones, world, actors)
     projectiles[:] = [p for p in projectiles if p.alive] + spawned
     return events
+
+
+def _big(a) -> bool:
+    """An elite or a boss (Rebound Axe +6, Pinball)."""
+    spec = getattr(a, "espec", None)
+    return bool(getattr(a, "boss", False) or getattr(spec, "elite", False))
+
+
+def _passing(p: Projectile, victim: Actor) -> None:
+    """A shot piercing through an enemy: Broadleaf +3 (Gathering speed)
+    speeds it up; Farsight +3 (Follow-through) readies the next arrow once
+    a crit has gone through FOLLOW_THROUGH enemies."""
+    p.pierced += 1
+    stats = _stats_of(p)
+    if stats is None or p.summon:
+        return
+    if stats.has("broadhead+3"):
+        p.pace *= config.GATHERING_SPEED
+    if p.deadeye and not p.followed and p.pierced >= config.FOLLOW_THROUGH \
+            and stats.has("deadeye+3") and getattr(p.owner, "weapon", None) is not None:
+        p.followed = True
+        p.owner.weapon.cooldown = min(p.owner.weapon.cooldown, 0.0)
+
+
+def _run_through(p: Projectile, x: float, y: float, moved: float, victim=None) -> bool:
+    """Broadleaf Bow +6 (Run-through): an arrow that went through
+    RUN_THROUGH or more enemies turns round where it stops (an enemy, a
+    wall, the end of its range) and flies back along its path, once, as
+    far as it came, through what it passed."""
+    stats = _stats_of(p)
+    if p.came_back or p.spec.returns or p.summon or stats is None \
+            or not stats.has("broadhead+6") or p.pierced < config.RUN_THROUGH:
+        return False
+    p.came_back = True
+    p.travelled += moved
+    p.x, p.y = x, y
+    p.dir_x, p.dir_y = -p.dir_x, -p.dir_y
+    p.angle = math.atan2(p.dir_y, p.dir_x)
+    p.pierce_left = max(p.pierce_left, p.pierced)
+    p.max_range = p.travelled * 2
+    p.hit = {id(victim)} if victim is not None else set()
+    return True
+
+
+def _pinball(p: Projectile, victim: Actor, hx: float, hy: float) -> None:
+    """Rebound Axe +6 (Pinball): an axe on its way out glances off an elite
+    or a boss, once a throw, as off a wall (round its body)."""
+    stats = _stats_of(p)
+    if p.pinballed or p.summon or stats is None or not stats.has("ricochet+6") \
+            or not _big(victim):
+        return
+    nx, ny = hx - victim.x, hy - victim.y
+    n = math.hypot(nx, ny)
+    if n < 1e-6:
+        nx, ny, n = -p.dir_x, -p.dir_y, 1.0
+    nx, ny = nx / n, ny / n
+    dot = p.dir_x * nx + p.dir_y * ny
+    if dot < 0:
+        p.dir_x -= 2 * dot * nx
+        p.dir_y -= 2 * dot * ny
+    else:                                       # (struck from inside: straight back)
+        p.dir_x, p.dir_y = -p.dir_x, -p.dir_y
+    p.angle = math.atan2(p.dir_y, p.dir_x)
+    p.pinballed = True
+    p.hit.clear()
+
+
+def _carom_home(p: Projectile) -> bool:
+    """Rebound Axe +9 (Carom): after its last bounce the axe flies home."""
+    stats = _stats_of(p)
+    return stats is not None and stats.has("ricochet+9") and p.bounces >= config.CAROM
+
+
+def _end_throw(p: Projectile, spawned) -> None:
+    """Where an axe's throw ends (full range, or a wall it doesn't bounce
+    off): it hangs (Hang Time), swings round (Flail) or turns home."""
+    if not _hang(p) and not _flail(p):
+        _turn_back(p, spawned)
+
+
+def _flail(p: Projectile) -> bool:
+    """Chainlink Axe +9 (Flail): at the end of its throw the axe swings once
+    round its thrower on its chain, at its distance, before coming back."""
+    stats = _stats_of(p)
+    owner = p.owner
+    if p.flailed or p.summon or p.halved or stats is None or not stats.has("tether+9") \
+            or owner is None:
+        return False
+    r = math.hypot(p.x - owner.x, p.y - owner.y)
+    if r < 1.0:
+        return False
+    p.flailed = True
+    p.flail, p.flail_r = math.tau, r
+    p.flail_a = math.atan2(p.y - owner.y, p.x - owner.x)
+    p.hit.clear()
+    return True
+
+
+def _swing_round(p: Projectile, grid: ActorGrid, world, effects: list[Effect], dt: float,
+                 actors: list[Actor], spawned, zones) -> list[str]:
+    """A flailing axe this step: round its thrower, hitting what it meets
+    (each once a swing), over walls (it's on a chain); then home."""
+    owner = p.owner
+    if owner is None or not owner.alive:
+        p.flail = 0.0
+        _turn_back(p, spawned)
+        return []
+    turn = min(p.flail, p.spec.speed * dt / p.flail_r)
+    p.flail -= turn
+    p.flail_a += turn
+    nx = owner.x + math.cos(p.flail_a) * p.flail_r
+    ny = owner.y + math.sin(p.flail_a) * p.flail_r
+    dx, dy = nx - p.x, ny - p.y
+    p.spin += p.spec.speed * dt
+    events: list[str] = []
+    while True:
+        t, victim = _first_actor(grid, p, dx, dy, math.inf)
+        if victim is None:
+            break
+        p.hit.add(id(victim))
+        events += _hit_actor(p, victim, p.x + dx * t, p.y + dy * t, world, actors, effects,
+                             spawned, zones)
+    p.x, p.y = nx, ny
+    p.angle = p.flail_a + math.pi / 2
+    p.dir_x, p.dir_y = math.cos(p.angle), math.sin(p.angle)
+    if p.flail <= 1e-9:
+        p.flail = 0.0
+        _turn_back(p, spawned)
+    return events
+
+
+def _reunite(projectiles: list[Projectile]) -> None:
+    """Doublebit Axe +3 (Reunite): two pieces of one axe that meet on the
+    way back (within REUNITE[0] tiles) become one: their damage added, and
+    +REUNITE[1] on its hits (see _hit_actor)."""
+    groups: dict[int, list[Projectile]] = {}
+    for q in projectiles:
+        if q.alive and q.pieces is not None and q.returning:
+            groups.setdefault(id(q.pieces), []).append(q)
+    for qs in groups.values():
+        for i, a in enumerate(qs):
+            if not a.alive:
+                continue
+            for b in qs[i + 1:]:
+                if b.alive and math.hypot(a.x - b.x, a.y - b.y) <= config.REUNITE[0]:
+                    a.damage += b.damage
+                    a.reunited = True
+                    a.hit |= b.hit
+                    a.child = a.child and b.child
+                    a.cross = None
+                    b.alive = False
+
+
+def _ice_wall(p: Projectile, victim: Actor) -> bool:
+    owner = p.owner
+    return (victim.status is not None and owner is not None
+            and getattr(owner, "faction", None) != "player" and victim.status.walls())
+
+
+def _cut_shot(p: Projectile, projectiles: list[Projectile], effects: list[Effect],
+              dx: float, dy: float, dt: float) -> None:
+    """Compass Orb +6 (North star): the first enemy shot this one touches
+    along this step (dx, dy) is destroyed -- the reach grows by how far the
+    other shot moves in a step, so two fast shots can't pass through each
+    other between frames. Lobbed ones are in the air, out of reach."""
+    for q in projectiles:
+        if q is p or not q.alive or q.spec.lob or q.owner is None \
+                or getattr(q.owner, "faction", None) == "player":
+            continue
+        reach = config.NORTH_STAR_RADIUS + p.size + q.spec.speed * dt * q.time_scale
+        if segment_circle_t(p.x, p.y, dx, dy, q.x, q.y, reach) is not None \
+                or math.hypot(q.x - p.x, q.y - p.y) <= reach:
+            q.alive = False
+            p.cancels = False
+            effects.append(Effect("fizzle", q.x, q.y))
+            return
 
 
 def _shot_ends(ended: list[Projectile], spawned: list[Projectile], zones, world=None,
@@ -649,6 +1373,15 @@ def _shot_ends(ended: list[Projectile], spawned: list[Projectile], zones, world=
     (not on a body, not on what's already solid), then the ground again."""
     for p in ended:
         look = p.spec.look
+        if p.ball is not None:                        # (Crackle Staff +9: it missed)
+            p.ball.append((p.x, p.y))
+            _roll_ball(p, zones)
+        if p.wisp and zones is not None and getattr(p.owner, "stats", None) is not None:
+            from .zones import Zone                   # (Firefly Lantern +9: Will-o'-wisps)
+            _, life, radius = config.WISPS
+            zones.append(Zone("wisp", p.x, p.y, radius * p.owner.stats.area_scale, life, 0.5,
+                              0.0, p.owner, p.tags, "burn", 1))
+            continue
         if look == "javelin" and zones is not None and world is not None \
                 and hasattr(world, "set_tile"):
             from ..world import tiles
@@ -676,12 +1409,12 @@ def _shot_ends(ended: list[Projectile], spawned: list[Projectile], zones, world=
                 spawned.append(c)
 
 
-def _nearest_foe(x: float, y: float, radius: float, actors, owner, skip=None):
+def _nearest_foe(x: float, y: float, radius: float, actors, owner, skip=None, skip_ids=()):
     """The hittable actor `owner` may hurt nearest (x, y), within `radius`
-    (plus its body), or None."""
+    (plus its body), or None. Not `skip`, nor any whose id is in `skip_ids`."""
     best, best_d = None, math.inf
     for a in actors:
-        if a is skip or not a.hittable or not _may_hurt(owner, a):
+        if a is skip or not a.hittable or not _may_hurt(owner, a) or id(a) in skip_ids:
             continue
         d = math.hypot(a.x - x, a.y - y)
         if d <= radius + a.hit_radius and d < best_d:
@@ -702,11 +1435,13 @@ def _home(p: Projectile, actors, dt: float) -> None:
         stats = _stats_of(p)
         if stats is not None and stats.has("seeker"):
             p.seek, p.seek_point, t = None, None, None
+            if stats.has("seeker+3") and not p.persisted:     # Wyrmseeker +3 (Persistence)
+                p.persisted = True
+                p.pace *= config.PERSISTENCE
         else:
             p.seek = t = False
     if t is None:
-        cx, cy = p.seek_point if p.seek_point is not None else (p.x, p.y)
-        t = p.seek = _nearest_foe(cx, cy, p.spec.seek_radius, actors, p.owner) or False
+        t = p.seek = _seek(p, actors) or False
     if t is False:
         return
     want = math.atan2(t.y - p.y, t.x - p.x)
@@ -716,19 +1451,75 @@ def _home(p: Projectile, actors, dt: float) -> None:
     p.dir_x, p.dir_y = math.cos(p.angle), math.sin(p.angle)
 
 
+def _seek(p: Projectile, actors):
+    """Who a homing dart goes for: the enemy nearest its seek point (or
+    itself), not one it already hit hunting on (Endless hunt). The
+    wizard's main hand: Wyrmseeker +6 (Hunter-seeker) the one with the
+    least HP there instead; Ghostwood +9 (Ghost sight) with nobody there,
+    the nearest within GHOSTWOOD_SIGHT of its owner, walls or not."""
+    stats = _stats_of(p)
+    has = stats.has if stats is not None and not p.summon else (lambda flag: False)
+    cx, cy = p.seek_point if p.seek_point is not None else (p.x, p.y)
+    skip = p.hit if p.hunts else ()
+    radius = p.spec.seek_radius
+    if has("seeker+6"):
+        t = None
+        for a in actors:
+            if a.hittable and _may_hurt(p.owner, a) and id(a) not in skip \
+                    and math.hypot(a.x - cx, a.y - cy) <= radius + a.hit_radius \
+                    and (t is None or a.hp < t.hp):
+                t = a
+    else:
+        t = _nearest_foe(cx, cy, radius, actors, p.owner, skip_ids=skip)
+    if t is None and has("phase_darts+9") and p.owner is not None:
+        t = _nearest_foe(p.owner.x, p.owner.y, config.GHOSTWOOD_SIGHT, actors, p.owner, skip_ids=skip)
+    return t
+
+
+def _planet(p: Projectile, victim: Actor) -> bool:
+    """Orrery Staff +3 (Planets): a dart swinging round toward its target
+    hits what it passes on the way and flies on."""
+    stats = _stats_of(p)
+    t = p.seek
+    return (p.orbits > 0 and t is not None and t is not False and t is not victim
+            and stats is not None and not p.summon and stats.has("orbiting_darts+3"))
+
+
+def _hunt_on(p: Projectile, victim: Actor) -> bool:
+    """Wyrmseeker Staff +9 (Endless hunt): after its hit a dart looks for a
+    new target and flies on, ENDLESS_HUNT[0] hits in all, the ones after the
+    first at ENDLESS_HUNT[1]; it gets ENDLESS_HUNT[2] tiles more flight."""
+    stats = _stats_of(p)
+    most, share, more = config.ENDLESS_HUNT
+    if p.seek_turn <= 0 or p.summon or stats is None or not stats.has("seeker+9") \
+            or p.hunts + 1 >= most:
+        return False
+    if p.hunts == 0:
+        p.mult *= share
+    p.hunts += 1
+    p.seek, p.seek_point = None, None
+    p.max_range = max(p.max_range, p.travelled + more)
+    return True
+
+
 def _orbit_again(p: Projectile, actors) -> bool:
     """Orbiting Darts (a card): a dart that reaches the end of its flight
     without hitting anything swings round toward the enemy nearest its
     owner (within ORBIT_REACH) and gets its range again -- enough to reach
-    that enemy at least -- once."""
+    that enemy at least -- once. Orrery Staff +6 (Epicycle): twice; +9
+    (Gravity assist): it comes back faster (and harder, see _hit_actor)."""
     stats = _stats_of(p)
-    if p.seek_turn <= 0 or p.orbits or p.hit or stats is None \
-            or not stats.has("orbiting_darts") or p.owner is None:
+    if p.seek_turn <= 0 or stats is None or not stats.has("orbiting_darts") or p.owner is None:
+        return False
+    if p.orbits >= (config.EPICYCLE if stats.has("orbiting_darts+6") else 1) \
+            or p.hit - p.passed:
         return False
     t = _nearest_foe(p.owner.x, p.owner.y, config.ORBIT_REACH, actors, p.owner)
     if t is None:
         return False
     p.orbits += 1
+    if p.orbits == 1 and stats.has("orbiting_darts+9"):
+        p.pace *= config.GRAVITY_ASSIST[0]
     p.seek = t
     p.travelled = 0.0
     # Enough to turn round (half a circle at its turn rate) and reach it.
@@ -757,6 +1548,24 @@ def _bend(p: Projectile, step: float) -> None:
     p.dir_x, p.dir_y = math.cos(p.angle), math.sin(p.angle)
 
 
+def _walk_path(p: Projectile, step: float) -> None:
+    """Birdsong: a note heads for the next corner of its way round the
+    walls, and on once it's there."""
+    while p.path:
+        wx, wy = p.path[0]
+        if math.hypot(wx - p.x, wy - p.y) > max(step, 0.3):
+            break
+        p.path.pop(0)
+    if p.path:
+        wx, wy = p.path[0]
+    elif p.bird is not None and p.bird.alive:
+        wx, wy = p.bird.x, p.bird.y
+    else:
+        return
+    p.angle = math.atan2(wy - p.y, wx - p.x)
+    p.dir_x, p.dir_y = math.cos(p.angle), math.sin(p.angle)
+
+
 def _phases(p: Projectile) -> bool:
     """Phase Darts (P4): the wizard's darts fly through walls and trees."""
     stats = _stats_of(p)
@@ -773,6 +1582,9 @@ def _child(p: Projectile, x: float, y: float, angle: float, factor: float) -> Pr
     for name in ("variant", "tags", "mult", "size", "summon", "inflicts"):
         setattr(c, name, getattr(p, name))
     c.child = True
+    c.gen = p.gen + 1
+    c.family = p.family
+    c.echo = p.echo
     c.max_range = p.max_range
     c.hit = set(p.hit)
     c.pierce_left = p.pierce_left
@@ -784,7 +1596,8 @@ def _ricochet(p: Projectile, hit: RayHit) -> bool:
     RICOCHET_BOUNCES times per throw. The face it hit is the one the
     entry point is closest to; the motion across that face flips."""
     stats = _stats_of(p)
-    if stats is None or not stats.has("ricochet") or p.bounces >= config.RICOCHET_BOUNCES:
+    most = config.CAROM if stats is not None and stats.has("ricochet+9") else config.RICOCHET_BOUNCES
+    if stats is None or not stats.has("ricochet") or p.bounces >= most:
         return False
     _reflect(p, hit)
     p.bounces += 1
@@ -795,24 +1608,55 @@ def _ricochet(p: Projectile, hit: RayHit) -> bool:
 def _reflect(p: Projectile, hit: RayHit) -> None:
     """Turn a shot off the wall it hit: the face is the one the entry point
     is closest to; the motion across that face flips."""
-    fx, fy = hit.x - hit.tx, hit.y - hit.ty
-    if min(fx, 1 - fx) < min(fy, 1 - fy):
+    if _side_face(hit):
         p.dir_x = -p.dir_x
     else:
         p.dir_y = -p.dir_y
     p.angle = math.atan2(p.dir_y, p.dir_x)
 
 
-def _split(p: Projectile, spawned: list[Projectile]) -> bool:
+def _side_face(hit: RayHit) -> bool:
+    """Whether the face a shot hit is a tile's left or right side."""
+    fx, fy = hit.x - hit.tx, hit.y - hit.ty
+    return min(fx, 1 - fx) < min(fy, 1 - fy)
+
+
+def _reflected(p: Projectile, hit: RayHit) -> float:
+    """The heading a shot would turn to off the wall it hit (see _reflect)."""
+    if _side_face(hit):
+        return math.atan2(p.dir_y, -p.dir_x)
+    return math.atan2(-p.dir_y, p.dir_x)
+
+
+def _split(p: Projectile, spawned: list[Projectile], actors=(), effects=None) -> bool:
     """Spray and Pray (a card): half way along its range a shot splits in
-    two, each SPLIT_DAMAGE of it, SPLIT_SPREAD degrees apart."""
+    two, each SPLIT_DAMAGE of it, SPLIT_SPREAD degrees apart. The Pepperbox's
+    tricks (M28.2a): +3 the halves split once more at three-quarter range;
+    +6 each split flashes (POWDER_FLASH); +9 a shot's pieces are one family
+    (Buckshot, see _hit_actor)."""
     stats = _stats_of(p)
-    if stats is None or not stats.has("split") or p.child or p.spec.returns \
-            or p.travelled < p.max_range / 2:
+    if stats is None or not stats.has("split") or p.spec.returns:
         return False
+    if p.gen == 0:
+        if p.travelled < p.max_range / 2:
+            return False
+    elif not (p.gen == 1 and stats.has("spray_and_pray+3") and p.travelled >= p.max_range * 0.25):
+        # (a half's own flight starts over at the split, half way: three
+        # quarters of the shot's range is a quarter into the half's)
+        return False
+    if p.family is None and stats.has("spray_and_pray+9"):
+        p.family = {}
     half = math.radians(config.SPLIT_SPREAD) / 2
     for side in (-1, 1):
         spawned.append(_child(p, p.x, p.y, p.angle + side * half, config.SPLIT_DAMAGE))
+    if stats.has("spray_and_pray+6") and effects is not None:      # Powder flash
+        radius, share = config.POWDER_FLASH
+        effects.append(Effect("pulse", p.x, p.y, size=radius))
+        for a in actors:
+            if a.alive and a.hittable and _may_hurt(p.owner, a) and id(a) not in p.hit \
+                    and math.hypot(a.x - p.x, a.y - p.y) <= radius + a.hit_radius:
+                strike(a, p.damage * share, p.owner, None, effects, p.tags, mult=p.mult,
+                       on_hit=False)
     p.alive = False
     return True
 
@@ -834,44 +1678,179 @@ def _first_actor(grid: ActorGrid, p: Projectile, dx: float, dy: float,
 
 def _hit_actor(p: Projectile, victim: Actor, hx: float, hy: float, world,
                actors: list[Actor], effects: list[Effect], spawned: list | None = None,
-               zones: list | None = None) -> list[str]:
+               zones: list | None = None, shots: list | None = None) -> list[str]:
     owner = p.owner
     stats = getattr(owner, "stats", None)
     extra = 0.0
+    whole = False                                  # (Prismatic Wand +3: Full spectrum)
     if stats is not None:
         # Broadhead: more damage for every enemy this arrow has already passed.
-        extra += stats.broadhead * len(p.hit)
+        extra += stats.broadhead * len(p.hit) * (2 if stats.has("broadhead+9") else 1)
         if p.returning:
             extra += stats.homeward                # Homeward Fury / Homecoming
+        if p.spec.returns and not p.summon:
+            extra += _axe_bonus(p, stats)
         if stats.prism and p.group is not None:    # Prism: colors on one enemy
-            seen = p.group.get(id(victim), 0)
-            extra += stats.prism * seen
-            p.group[id(victim)] = seen + 1
+            bonus, whole = _prism(p, victim, owner, stats)
+            extra += bonus
+        if p.middle:
+            extra += config.LENS                   # (Spyglass Wand +3: Lens)
+        if p.focal and stats.has("converge+3") and _at_focus(p, victim):
+            extra += config.FOCAL_POINT[1]         # (Crossbeam Wand +3: Focal point)
     dart = p.spec.seek_turn > 0 and stats is not None and not p.summon
+    hum = 0.0
     if dart and stats.has("resonance"):
-        extra += _resonance(victim, owner)
+        hum = _resonance(victim, owner)
+        extra += hum
+    if dart:
+        extra += _dart_bonus(p, victim, stats)
+    mult = p.mult
+    if p.grow:                                     # Nautilus Shell +3: bigger further out
+        mult *= 1 + config.GROWING_SHELL[1] * min(1.0, p.travelled / max(0.1, p.max_range))
+    if p.family is not None:                       # Pepperbox +9 (Buckshot)
+        if p.family.get(id(victim)):
+            mult *= 1 + config.BUCKSHOT
+        p.family[id(victim)] = p.family.get(id(victim), 0) + 1
+    vst = getattr(victim, "stats", None)
+    if vst is not None and vst.has("juggernaut+3") and getattr(owner, "faction", None) != "player":
+        armor = max(0.0, vst.armor + bonus_armor(victim))          # Mountainhide +3 (Glance)
+        if victim.rng.random() < min(config.GLANCE[1], config.GLANCE[0] * armor):
+            victim.blocked += 1
+            effects.append(Effect("impact", hx, hy, p.angle))
+            return []
+    if p.plain:                                    # (Hairsbreadth +6: a shot thrown back)
+        dealt = victim.take_damage(p.damage * mult, owner, p.angle)
+        _number(effects, victim, dealt)
+        effects.append(Effect("impact", hx, hy, p.angle))
+        return [HIT]
     full = not p.summon or (stats is not None and stats.has("pack_leader"))
-    dealt = strike(victim, p.damage, owner, p.angle, effects, p.tags, extra=extra, mult=p.mult,
-                   on_hit=full, can_crit=full, sure_crit=p.sure_crit)
+    if p.riposte:                                  # (Fencer's Boots: a riposte's shot)
+        owner.riposting = True
+    spectral = dart and stats.has("phase_darts+6")
+    if spectral:                                   # (Ghostwood Staff +6: through fronts)
+        owner.spectral = True
+    hearth = p.returning and full and stats is not None and stats.has("homeward_fury+9")
+    dealt = strike(victim, p.damage, owner, p.angle, effects, p.tags, extra=extra, mult=mult,
+                   on_hit=full, can_crit=full, sure_crit=p.sure_crit or hearth or whole,
+                   crit_x=p.crit_x, pet=p.summon and not p.child)
+    if p.riposte:
+        owner.riposting = False
+    if spectral:
+        owner.spectral = False
+    if hum >= config.RESONANCE[1] * config.RESONANCE[2] - 1e-9 and stats.has("resonance+6"):
+        _resonant_ring(victim, owner, actors, effects, p.tags)
+    if p.dizzy and victim.alive and not getattr(victim, "boss", False):
+        victim.dizzy = config.DIZZY[1]             # (Dancing Slippers +6)
+    if p.echo and not victim.alive:                # (Canyon Horn +6: an echo's kill)
+        victim.echo_kill = True
+    if p.twin is not None and victim.alive:        # Twinned Quiver +3 (Linked)
+        _link_twins(p.twin, victim, owner)
     hook = getattr(owner, "on_shot_hit", None)      # (M24.1: the Fallout King's rads)
     if hook is not None and dealt:
         hook(victim, dealt)
     if dart:
-        _dart_hit(p, victim, hx, hy, owner, stats, world, actors, effects, spawned)
+        _dart_hit(p, victim, hx, hy, owner, stats, world, actors, effects, spawned, zones, shots)
+    _aria(p, hx, hy, actors, effects, victim)
     effects.append(Effect("impact", hx, hy, p.angle))
     if p.inflicts is not None and victim.alive:
         inflict(victim, p.inflicts[0], owner, p.inflicts[1])
+    if p.glow and victim.alive:                    # (Firefly Lantern +3: Glow)
+        victim.__dict__.setdefault("lit", {})[id(owner)] = owner.time + config.GLOW[1]
+    if p.shocks and victim.alive:                  # (Galvanic Mask +6: Battery's attack)
+        inflict(victim, "shock", owner)
     if stats is not None and not p.summon:
         if victim.alive:
             _card_effects(p, victim, owner, stats)
-        _capstones(p, victim, hx, hy, owner, stats, spawned, zones)
+        if p.spec.chain and stats.has("supercell+9"):
+            _superstorm(victim, owner, actors)     # (Thunderhead Rod +9)
+        _capstones(p, victim, hx, hy, owner, stats, spawned, zones, actors)
         if stats.arrow_split and spawned is not None:
-            _split_arrow(p, victim, hx, hy, stats, spawned)
+            _split_arrow(p, victim, hx, hy, stats, spawned, actors, zones)
     events = [HIT]
     if p.spec.chain or p.extra_chain:
+        if p.ball is not None:
+            p.ball.append((hx, hy))
         events += chain_from(victim, p.spec, p.damage, owner, world, actors, effects, p.tags,
-                             p.extra_chain, p.mult)
+                             p.extra_chain, p.mult, charm=p.charm, zones=zones, path=p.ball)
+        _roll_ball(p, zones)
     return events
+
+
+def _aria(p: Projectile, x: float, y: float, actors, effects: list[Effect],
+          victim=None) -> None:
+    """Songbird Lute +9 (Aria): where a note lands (an enemy, a wall, the
+    end of its flight) it hits everything else within ARIA tiles."""
+    stats = _stats_of(p)
+    if p.spec.look != "note" or p.summon or stats is None or not stats.has("sheet_music+9"):
+        return
+    effects.append(Effect("pulse", x, y, size=config.ARIA))
+    for a in list(actors):
+        if a is victim or not a.alive or not a.hittable or not _may_hurt(p.owner, a) \
+                or math.hypot(a.x - x, a.y - y) > config.ARIA + a.hit_radius:
+            continue
+        strike(a, p.damage, p.owner, math.atan2(a.y - y, a.x - x), effects, p.tags,
+               mult=p.mult, on_hit=False)
+
+
+def _prism(p: Projectile, victim: Actor, owner, stats) -> tuple[float, bool]:
+    """Prism (a card): +stats.prism for each other color of this shot that
+    hit this enemy before (bucket A), and whether this hit must crit:
+    Prismatic Wand +3 (Full spectrum), the color that makes it every color
+    of the shot (FULL_SPECTRUM at most); +6 (Afterglow): the bonus the last shot reached on this
+    enemy holds AFTERGLOW s for the next; +9 (Rainbow's end): x RAINBOWS_END."""
+    seen = p.group.get(id(victim), 0)
+    p.group[id(victim)] = seen + 1
+    full = False
+    colors = p.group.get("colors")
+    if colors is not None:
+        got = p.group.setdefault(("got", id(victim)), set())
+        got.add(p.variant % len(config.SPECTRUM_STATUS))
+        if len(got) >= colors and not p.group.get(("full", id(victim))):
+            p.group[("full", id(victim))] = full = True
+    if stats.has("prism+6"):
+        glow = victim.__dict__.setdefault("afterglow", {})
+        last = glow.get(id(owner))
+        held = last[1] if last is not None and (last[0] is p.group or last[2] > owner.time) else 0
+        seen = max(seen, held)
+        glow[id(owner)] = (p.group, seen, owner.time + config.AFTERGLOW)
+    bonus = stats.prism * seen
+    return (bonus * config.RAINBOWS_END if stats.has("prism+9") else bonus), full
+
+
+def _at_focus(p: Projectile, victim: Actor) -> bool:
+    """Focal point: the enemy is at a crossing of the colors (or is what
+    Lockstep follows)."""
+    if p.lock is not None and victim is p.lock:
+        return True
+    r = config.FOCAL_POINT[0]
+    return any(math.hypot(victim.x - fx, victim.y - fy) <= r + victim.hit_radius
+               for fx, fy in p.focal)
+
+
+def _roll_ball(p: Projectile, zones) -> None:
+    """Crackle Staff +9 (Thunderball): the ball rolls the bolt's way, from
+    where it was cast through each enemy it jumped to."""
+    if p.ball is not None and zones is not None:
+        from .zones import Zone
+        _, life, radius = config.THUNDERBALL
+        (x, y) = p.ball[0]
+        zones.append(Zone("ball", x, y, radius, life, config.BALL_LIGHTNING_EVERY,
+                          p.damage * config.BALL_LIGHTNING_DAMAGE, p.owner, p.tags,
+                          path=list(p.ball)))
+    p.ball = None
+
+
+def _link_twins(pair: dict, victim: Actor, owner) -> None:
+    """Linked: once the twins of one shot have hit two different enemies,
+    those two are linked for LINKED[0] s (see strike)."""
+    hit = pair.setdefault("hit", [])
+    if victim in hit:
+        return
+    hit.append(victim)
+    if len(hit) == 2:
+        a, b = hit
+        until = getattr(owner, "time", 0.0) + config.LINKED[0]
+        a.link, b.link = (b, until), (a, until)
 
 
 def _card_effects(p: Projectile, victim: Actor, owner: Actor, stats) -> None:
@@ -879,38 +1858,122 @@ def _card_effects(p: Projectile, victim: Actor, owner: Actor, stats) -> None:
     if stats.has("supercell") and p.spec.chain:
         inflict(victim, "shock", owner)              # the wizard's bolts shock
     if stats.has("spectrum") and p.spec.look == "prism":
+        # Chroma Wand +3 (Saturated): a likelier status; +9 (Chromatic): two.
         name = config.SPECTRUM_STATUS[p.variant % len(config.SPECTRUM_STATUS)]
-        if name is not None and owner.rng.random() < config.SPECTRUM_CHANCE:
-            inflict(victim, name, owner)
+        chance = config.SATURATED if stats.has("spectrum+3") else config.SPECTRUM_CHANCE
+        if name is not None and owner.rng.random() < chance:
+            inflict(victim, name, owner, config.CHROMATIC if stats.has("spectrum+9") else 1)
 
 
 def _capstones(p: Projectile, victim: Actor, hx: float, hy: float, owner: Actor, stats,
-               spawned, zones) -> None:
+               spawned, zones, actors=()) -> None:
     """Capstone cards that change what a shot does once it hits."""
     if stats.has("deadeye") and getattr(owner, "last_crit", False):
+        p.deadeye = True                             # (Farsight Bow +3: Follow-through)
         p.pierce_left = 10 ** 6                      # Deadeye: through everything...
         p.max_range = max(p.max_range, p.spec.max_range * 2)   # ...and twice as far
-    if stats.has("refraction") and p.spec.look == "prism" and not p.child \
-            and spawned is not None:
-        n, spread = config.REFRACTION_SPLIT, math.radians(config.REFRACTION_SPREAD)
-        for i in range(n):
-            a = p.angle + spread * (i / (n - 1) - 0.5)
-            c = _child(p, hx, hy, a, config.REFRACTION_DAMAGE)
-            c.hit.add(id(victim))
-            c.max_range = max(1.0, p.max_range - p.travelled)
-            spawned.append(c)
+    if stats.has("refraction") and p.spec.look == "prism" and spawned is not None:
+        _refract(p, victim, hx, hy, owner, stats, spawned, actors)
     if stats.has("ball_lightning") and p.spec.chain and zones is not None:
-        from .zones import Zone
-        zones.append(Zone("crackle", hx, hy, config.BALL_LIGHTNING_RADIUS,
-                          config.BALL_LIGHTNING_TIME, config.BALL_LIGHTNING_EVERY,
-                          p.damage * config.BALL_LIGHTNING_DAMAGE, owner, p.tags))
+        _crackle(zones, victim, p.damage, owner, p.tags, hx, hy)
+
+
+def _refract(p: Projectile, victim: Actor, hx: float, hy: float, owner, stats, spawned,
+             actors) -> None:
+    """Refraction: a color that hits splits into REFRACTION_SPLIT pieces
+    (a beam only on its first enemy). The Kaleido Scepter: +3 (Shards of
+    light) as many pieces as there are enemies in reach go for the nearest
+    ones; +6 (Radiant split) pieces hit from farther; +9 (Infinite mirror)
+    a piece that hits splits again into 2, up to 3 times."""
+    if p.beam and p.pierced:
+        return
+    if p.refracted:
+        pieces, times, fan = config.INFINITE_MIRROR
+        if not stats.has("refraction+9") or p.refracted > times:
+            return
+        n, spread = pieces, math.radians(fan)
+    elif p.child:
+        return
+    else:
+        n, spread = config.REFRACTION_SPLIT, math.radians(config.REFRACTION_SPREAD)
+    reach = max(1.0, p.max_range - p.travelled)
+    aims = []
+    if stats.has("refraction+3"):
+        near = sorted((math.hypot(a.x - hx, a.y - hy), i, a) for i, a in enumerate(actors)
+                      if a is not victim and a.alive and a.hittable and _may_hurt(owner, a)
+                      and math.hypot(a.x - hx, a.y - hy) <= reach)
+        aims = [math.atan2(a.y - hy, a.x - hx) for _, _, a in near[:n]]
+    for i in range(n):
+        a = aims[i] if i < len(aims) else p.angle + spread * (i / (n - 1) - 0.5)
+        c = _child(p, hx, hy, a, config.REFRACTION_DAMAGE)
+        c.hit.add(id(victim))
+        c.max_range = reach
+        c.refracted = p.refracted + 1
+        if p.beam:
+            c.pierce_left = p.spec.pierce              # (a piece of the beam is a plain color)
+        if stats.has("refraction+6") and p.refracted == 0:
+            c.size += config.RADIANT_SPLIT
+        spawned.append(c)
+
+
+def _axe_bonus(p: Projectile, stats) -> float:
+    """Bucket A an axe gets from the dwarf's main hand: Rebound Axe +3 (Bank
+    shot: a bounce, Pinball's too), Hoverhead +3 (Saw: each hit so far
+    while hovering), Doublebit +3 (Reunite)."""
+    a = 0.0
+    if stats.has("ricochet+3"):
+        a += config.BANK_SHOT * (p.bounces + p.pinballed)
+    if p.hang > 0 and stats.has("hang_time+3"):
+        a += config.SAW * p.saws
+        p.saws += 1
+    if p.reunited:
+        a += config.REUNITE[1]
+    return a
+
+
+def _dart_bonus(p: Projectile, victim: Actor, stats) -> float:
+    """Bucket A a dart gets from the main hand's tricks: Thunderhead +3
+    (Charged air: shocked enemies), Ghostwood +3 (Haunt: through a wall
+    first), Orrery +9 (Gravity assist: after a swing round you)."""
+    a = 0.0
+    if stats.has("supercell+3") and _shocked(victim):
+        a += config.CHARGED_AIR
+    if p.haunted and stats.has("phase_darts+3"):
+        a += config.HAUNT
+    if p.orbits and stats.has("orbiting_darts+9"):
+        a += config.GRAVITY_ASSIST[1]
+    return a
+
+
+def _resonant_ring(victim: Actor, owner, actors, effects: list[Effect], tags) -> None:
+    """Humming Staff +6 (Resonant ring): an enemy hit at +60% gives off a
+    ring, everything within RESONANT_RING[1] tiles (x area) taking
+    RESONANT_RING[0] -- at most once each RESONANT_RING[2] s an enemy."""
+    damage, radius, gap = config.RESONANT_RING
+    rung = victim.__dict__.setdefault("rung", {})
+    if owner.time - rung.get(id(owner), -math.inf) < gap - 1e-9:
+        return
+    rung[id(owner)] = owner.time
+    radius *= owner.stats.area_scale
+    effects.append(Effect("pulse", victim.x, victim.y, size=radius))
+    for a in list(actors):
+        if a.alive and a.hittable and _may_hurt(owner, a) \
+                and math.hypot(a.x - victim.x, a.y - victim.y) <= radius + a.hit_radius:
+            strike(a, damage, owner, math.atan2(a.y - victim.y, a.x - victim.x), effects, tags,
+                   on_hit=False)
 
 
 def _resonance(victim: Actor, owner) -> float:
     """Resonance (a card): each earlier dart of this hero on the same enemy
     within the last RESONANCE[0] s adds to this one (bucket A), up to
-    RESONANCE[2] darts' worth."""
+    RESONANCE[2] darts' worth. Humming Staff +3 (Sustain): a longer
+    window; +9 (Perfect pitch): more darts counted."""
     window, per, most = config.RESONANCE
+    stats = owner.stats
+    if stats.has("resonance+3"):
+        window = config.SUSTAIN
+    if stats.has("resonance+9"):
+        most = config.PERFECT_PITCH
     now = getattr(owner, "time", 0.0)
     marks = getattr(victim, "resonance", None)
     if marks is None:
@@ -922,31 +1985,59 @@ def _resonance(victim: Actor, owner) -> float:
 
 
 def _dart_hit(p: Projectile, victim: Actor, hx: float, hy: float, owner, stats, world,
-              actors, effects: list[Effect], spawned: list | None) -> None:
+              actors, effects: list[Effect], spawned: list | None, zones: list | None = None,
+              shots: list | None = None) -> None:
     """The wizard's dart cards, once a dart has hit: Implosion (P4: enemies
     round the hit are dragged toward it; bosses and things that never move
     stay put, see push) and Arcane Storm (a kill sends a new dart at the
-    next enemy, ARCANE_STORM[0] per cast)."""
+    next enemy, ARCANE_STORM[0] per cast). And the main hand's tricks
+    (M28.2g): Conducting darts, Crush, Event horizon, Singularity, Squall,
+    Tempest, Maelstrom."""
+    seconds, share = config.CONDUCTING
+    if stats.has("storm_caller+3") \
+            and owner.time - getattr(victim, "bolted", {}).get(id(owner), -math.inf) <= seconds:
+        _conduct(p, victim, owner, stats, world, actors, effects, share)
     if stats.has("implosion"):
         radius, pull = config.IMPLOSION
         effects.append(Effect("implode", hx, hy, size=radius))
+        dragged = []
         for a in actors:
             if not a.hittable or not _may_hurt(owner, a):
                 continue
             d = math.hypot(a.x - hx, a.y - hy)
             if 0.3 < d <= radius + a.hit_radius:
                 step = min(pull, d - 0.3)       # (never past the middle)
+                x0, y0 = a.x, a.y
                 push(a, world, (hx - a.x) / d * step, (hy - a.y) / d * step)
+                if (a.x, a.y) != (x0, y0):
+                    dragged.append(a)
+        if dragged and stats.has("implosion+3"):
+            _crush(dragged, victim, owner, effects, p.tags)
+        if shots is not None and stats.has("implosion+6"):
+            _event_horizon(shots, hx, hy, pull)
+        if p.group is not None and p.group.get("well") and zones is not None:
+            from .zones import Zone                 # Singularity (+9)
+            p.group["well"] = False
+            _, life, speed = config.SINGULARITY
+            zones.append(Zone("well", hx, hy, radius, life, 999.0, 0.0, owner, pull=speed))
     if stats.has("arcane_storm") and not victim.alive and spawned is not None \
             and p.group is not None:
         most, reach = config.ARCANE_STORM
-        if p.group.get("storm", 0) >= most:
+        if stats.has("arcane_storm+6"):
+            most = config.STORM_TEMPEST             # (Tempest)
+        maelstrom = stats.has("arcane_storm+9")
+        if not maelstrom and p.group.get("storm", 0) >= most:
             return
-        t = _nearest_foe(hx, hy, reach, actors, owner, skip=victim)
+        t = None
+        if stats.has("arcane_storm+3"):             # Squall: the one nearest you
+            t = _nearest_foe(owner.x, owner.y, reach, actors, owner, skip=victim)
+        if t is None:
+            t = _nearest_foe(hx, hy, reach, actors, owner, skip=victim)
         if t is None:
             return
         p.group["storm"] = p.group.get("storm", 0) + 1
-        c = _child(p, hx, hy, math.atan2(t.y - hy, t.x - hx), 1.0)
+        c = _child(p, hx, hy, math.atan2(t.y - hy, t.x - hx),
+                   config.MAELSTROM if maelstrom else 1.0)
         c.group = p.group
         c.seek = t
         c.max_range = p.spec.max_range
@@ -954,22 +2045,104 @@ def _dart_hit(p: Projectile, victim: Actor, hx: float, hy: float, owner, stats, 
         spawned.append(c)
 
 
-def _split_arrow(p: Projectile, victim: Actor, hx: float, hy: float, stats,
-                 spawned: list) -> None:
+def _conduct(p: Projectile, victim: Actor, owner, stats, world, actors,
+             effects: list[Effect], share: float) -> None:
+    """Stormcaller Rod +3 (Conducting darts): the dart's hit jumps on once,
+    as Chain Lightning's jumps do (their reach, clear line unless +6)."""
+    reach = config.SPELL_SHELLS["chain"].chain_range * (1 + stats.chain_range)
+    walls = not stats.has("storm_caller+6")
+    best, best_d = None, math.inf
+    for a in actors:
+        if a is victim or not a.hittable or not _may_hurt(owner, a):
+            continue
+        d = math.hypot(a.x - victim.x, a.y - victim.y)
+        if d <= reach and d < best_d and \
+                (not walls or first_hit(world.tile_at, victim.x, victim.y, a.x, a.y) is None):
+            best, best_d = a, d
+    if best is None:
+        return
+    effects.append(Effect("arc", victim.x, victim.y, x2=best.x, y2=best.y))
+    strike(best, p.damage * share, owner, math.atan2(best.y - victim.y, best.x - victim.x),
+           effects, config.SPELLS["chain_lightning"].tags, mult=p.mult)
+
+
+def _crush(dragged: list, victim: Actor, owner, effects: list[Effect], tags) -> None:
+    """Gravewell Staff +3 (Crush): enemies dragged into another body (each
+    other, or the one the dart hit) take CRUSH, each once."""
+    bodies = dragged + ([victim] if victim.alive and victim not in dragged else [])
+    crushed = []
+    for a in dragged:
+        for b in bodies:
+            if b is not a and math.hypot(a.x - b.x, a.y - b.y) < a.hit_radius + b.hit_radius:
+                crushed += [x for x in (a, b) if x not in crushed]
+    for a in crushed:
+        if a.alive:
+            strike(a, config.CRUSH, owner, None, effects, tags, on_hit=False)
+
+
+def _event_horizon(shots: list, x: float, y: float, pull: float) -> None:
+    """Gravewell Staff +6 (Event horizon): enemy shots near the hit are
+    dragged toward it too (not lobbed ones: they're up in the air)."""
+    for q in shots:
+        if not q.alive or q.spec.lob or q.owner is None \
+                or getattr(q.owner, "faction", None) == "player":
+            continue
+        d = math.hypot(q.x - x, q.y - y)
+        if 0 < d <= config.EVENT_HORIZON:
+            step = min(pull, d)
+            q.x += (x - q.x) / d * step
+            q.y += (y - q.y) / d * step
+
+
+def _split_arrow(p: Projectile, victim: Actor | None, hx: float, hy: float, stats,
+                 spawned: list, actors=(), zones: list | None = None,
+                 angle: float | None = None) -> None:
     """Split Arrow (the huntress's power): on its first hit (on every
     enemy it passes, from level IV) an arrow throws off a fan of `count`
     arrows at `damage` x its own, centred on its flight, that fly the rest
-    of its range. They don't split again."""
+    of its range. They don't split again. The Splitbranch Bow: +3 (Canopy)
+    they go for the nearest enemies instead; +6 (Bough) on walls too
+    (`victim` None, the fan centred on `angle`); +9 (Seed storm) seeds."""
     count, spread_deg, factor, every = stats.arrow_split
     if p.child or (p.hit and not every):
         return
+    centre = p.angle if angle is None else angle
     spread = math.radians(spread_deg)
-    for i in range(count):
-        a = p.angle + (spread * (i / (count - 1) - 0.5) if count > 1 else 0.0)
+    angles = [centre + (spread * (i / (count - 1) - 0.5) if count > 1 else 0.0)
+              for i in range(count)]
+    reach = max(1.0, p.max_range - p.travelled)
+    if stats.has("split_arrow+3"):                    # Canopy: the nearest enemies
+        near = sorted((a for a in actors if a is not victim and a.hittable
+                       and _may_hurt(p.owner, a)
+                       and math.hypot(a.x - hx, a.y - hy) <= reach),
+                      key=lambda a: math.hypot(a.x - hx, a.y - hy))
+        for i, a in enumerate(near[:count]):
+            angles[i] = math.atan2(a.y - hy, a.x - hx)
+    for a in angles:
         c = _child(p, hx, hy, a, factor)
-        c.hit.add(id(victim))
-        c.max_range = max(1.0, p.max_range - p.travelled)
+        if victim is not None:
+            c.hit.add(id(victim))
+        c.max_range = reach
         spawned.append(c)
+    if zones is not None and stats.has("split_arrow+9"):
+        from .zones import Zone                        # Seed storm
+        n, life, radius, dps, throw = config.SEED_STORM
+        tick = 0.5
+        for k in range(n):                          # (evenly round, so they don't overlap)
+            a = centre + k * math.tau / n
+            zones.append(Zone("thorns", hx + math.cos(a) * throw, hy + math.sin(a) * throw,
+                              radius, life, tick, dps * tick, p.owner, p.tags))
+
+
+def _split_on_wall(p: Projectile, x: float, y: float, hit: RayHit, spawned: list, actors,
+                   zones) -> None:
+    """Splitbranch Bow +6 (Bough): an arrow splits on the wall that stops
+    it too, the fan turned off the wall."""
+    stats = _stats_of(p)
+    if stats is None or p.summon or p.spec.returns or not stats.arrow_split \
+            or not stats.has("split_arrow+6"):
+        return
+    _split_arrow(p, None, x, y, stats, spawned, actors, zones, angle=_reflected(p, hit))
 
 
 def _turn_back(p: Projectile, spawned: list | None = None) -> None:
@@ -987,12 +2160,25 @@ def _split_axe(p: Projectile, spawned: list) -> None:
     """Splitting Axe: two halves (SPLITTING_AXE[0] of the damage each)
     start SPLITTING_AXE[1] tiles apart across the way home and both home on
     the dwarf, so they come back either side of the axe's path and meet in
-    his hand. The first half may still Cyclone; neither splits again."""
+    his hand. The first half may still Cyclone; neither splits again.
+    Doublebit Axe: +3 (Reunite) pieces that meet merge (_reunite); +6
+    (Crossing) they start CROSSING apart and aim at the far side first,
+    crossing over half way, then home; +9 (Quartering) four quarters."""
     share, gap = config.SPLITTING_AXE
+    stats = _stats_of(p)
+    n = 2
+    if stats.has("splitting_axe+9"):
+        n, share = config.QUARTERING
+    cross = stats.has("splitting_axe+6")
+    if cross:
+        gap = config.CROSSING
     owner = p.owner
     home = math.atan2(owner.y - p.y, owner.x - p.x) if owner is not None else p.angle + math.pi
+    far = math.hypot(owner.x - p.x, owner.y - p.y) if owner is not None else 0.0
     nx, ny = -math.sin(home), math.cos(home)
-    for k, side in enumerate((-0.5, 0.5)):
+    pieces: list | None = [] if stats.has("splitting_axe+3") else None
+    for k in range(n):
+        side = k / (n - 1) - 0.5
         c = _child(p, p.x + nx * side * gap, p.y + ny * side * gap, home, share)
         c.returning = True
         c.hit = set()
@@ -1000,7 +2186,12 @@ def _split_axe(p: Projectile, spawned: list) -> None:
         c.max_range = p.max_range
         c.bounces = p.bounces
         c.halved = True
-        c.child = k == 1
+        c.child = k != 0
+        c.pieces = pieces
+        if pieces is not None:
+            pieces.append(c)
+        if cross and owner is not None:
+            c.cross = (-nx * side * gap, -ny * side * gap, far / 4)
         spawned.append(c)
     p.alive = False
 
@@ -1028,31 +2219,48 @@ def _hover(p: Projectile, grid: ActorGrid, world, effects: list[Effect], dt: flo
     p.spin += p.spec.speed * dt          # (drawing: it keeps spinning)
     p.hang_tick -= dt
     events: list[str] = []
+    stats = _stats_of(p)
     if p.hang_tick <= 0:
         p.hang_tick += config.HANG_TIME[2]
         p.hit.clear()
         reach = p.size + 0.4
+        if stats is not None and stats.has("hang_time+9"):
+            reach = config.BUZZSAW                  # Hoverhead Axe +9 (Buzzsaw)
         for _, a in grid.near(p.x - reach, p.y - reach, p.x + reach, p.y + reach):
             if not a.hittable or id(a) in p.hit or not _may_hurt(p.owner, a):
                 continue
             if math.hypot(a.x - p.x, a.y - p.y) <= a.hit_radius + reach:
                 p.hit.add(id(a))
                 events += _hit_actor(p, a, p.x, p.y, world, actors, effects, spawned, zones)
+    if p.hang <= 0 and stats is not None and stats.has("hang_time+6") \
+            and getattr(p.owner, "trigger", False) and p.held < config.HOLD_IT:
+        p.held += dt                                # Hoverhead +6 (Hold it there)
+        p.hang = 1e-9
     if p.hang <= 0:
         p.hang = 0.0
         _turn_back(p, spawned)
     return events
 
 
-def _tether(p: Projectile, actors: list[Actor], effects: list[Effect], dt: float) -> None:
+def _tether(p: Projectile, actors: list[Actor], effects: list[Effect], dt: float,
+            world=None) -> None:
     """Tether (P4): every TETHER[0] s, everything within TETHER[1] tiles of
     the chain -- the line from the dwarf to this axe -- takes TETHER[2] x
-    the axe's damage (no on-hit cards: it's the chain, not the axe)."""
+    the axe's damage (no on-hit cards: it's the chain, not the axe).
+    Chainlink Axe +3 (Taut): more with the axe near full range; +6
+    (Shackle): the first enemy it cuts each throw is dragged with the axe."""
     owner = p.owner
     stats = _stats_of(p)
     if stats is None or p.summon or not stats.has("tether") or owner is None \
             or not owner.alive:
         return
+    if p.shackle is not None:
+        e, until, (lx, ly) = p.shackle
+        if e.alive and owner.time < until and world is not None:
+            push(e, world, p.x - lx, p.y - ly)
+            p.shackle = (e, until, (p.x, p.y))
+        else:
+            p.shackle = None
     p.tether_t -= dt
     if p.tether_t > 0:
         return
@@ -1064,6 +2272,9 @@ def _tether(p: Projectile, actors: list[Actor], effects: list[Effect], dt: float
     if length2 < 1e-6:
         return
     angle = math.atan2(dy, dx)
+    far, taut = config.TAUT
+    if stats.has("tether+3") and math.sqrt(length2) >= p.max_range * far:
+        share = taut                                # (Taut)
     for a in actors:
         if not a.hittable or not _may_hurt(owner, a):
             continue
@@ -1071,6 +2282,9 @@ def _tether(p: Projectile, actors: list[Actor], effects: list[Effect], dt: float
         if math.hypot(a.x - (x0 + dx * t), a.y - (y0 + dy * t)) <= width + a.hit_radius:
             strike(a, p.damage * share, owner, angle, effects, p.tags, mult=p.mult,
                    on_hit=False)
+            if not p.shackled and stats.has("tether+6"):   # (Shackle)
+                p.shackled = True
+                p.shackle = (a, owner.time + config.SHACKLE, (p.x, p.y))
 
 
 def _fly_back(p: Projectile, grid: ActorGrid, world, effects: list[Effect], dt: float,
@@ -1090,14 +2304,27 @@ def _fly_back(p: Projectile, grid: ActorGrid, world, effects: list[Effect], dt: 
         return [FIZZLE]
     stats = getattr(owner, "stats", None)
     quick = stats.return_speed if stats is not None else 0.0
-    to_x, to_y = owner.x - p.x, owner.y - p.y
+    tx, ty = owner.x, owner.y
+    if p.cross is not None:                     # (Doublebit Axe +6: Crossing)
+        ox, oy, until = p.cross
+        if math.hypot(owner.x - p.x, owner.y - p.y) > until:
+            tx, ty = owner.x + ox, owner.y + oy
+        else:
+            p.cross = None
+    bend = _bend_home(p, owner, actors) if stats is not None and not p.summon \
+        and stats.has("homeward_fury+3") else None
+    if bend is not None:                        # (Homesick Axe +3: Homing)
+        tx, ty = bend.x, bend.y
+    to_x, to_y = tx - p.x, ty - p.y
     dist = math.hypot(to_x, to_y)
     step = p.spec.speed * (1 + quick) * dt
     if dist > 0:
         p.dir_x, p.dir_y = to_x / dist, to_y / dist
         p.angle = math.atan2(to_y, to_x)
-    caught = dist - step <= config.RETURN_CATCH_RADIUS * (1 + 2 * quick)
-    step = min(step, dist)
+    home = (tx, ty) == (owner.x, owner.y)
+    caught = home and dist - step <= config.RETURN_CATCH_RADIUS * (1 + 2 * quick)
+    if home:
+        step = min(step, dist)
     dx, dy = p.dir_x * step, p.dir_y * step
     events: list[str] = []
     while True:     # every enemy along this step (each only once per leg)
@@ -1112,26 +2339,55 @@ def _fly_back(p: Projectile, grid: ActorGrid, world, effects: list[Effect], dt: 
     p.travelled += step
     if caught:
         p.alive = False
-        if stats is not None and stats.has("cyclone") and not p.child and spawned is not None:
-            _cyclone(p, owner, actors, spawned)
+        if stats is not None and not p.summon and stats.has("homeward_fury+6"):
+            _, seconds, most = config.WELCOME_HOME          # (Homesick Axe +6)
+            owner.welcome = (owner.welcome + [seconds])[-most:]
+        if stats is not None and stats.has("cyclone") and spawned is not None:
+            most = config.GALE_FORCE if stats.has("cyclone+6") else 1
+            if (not p.child or p.spins > 0) and p.spins < most:
+                _cyclone(p, owner, actors, spawned, stats)
     return events
 
 
-def _cyclone(p: Projectile, owner: Actor, actors: list[Actor], spawned: list) -> None:
-    """Cyclone (a card): the caught axe flies straight back out at the
-    nearest enemy in reach (once per throw)."""
-    best, best_d = None, p.spec.max_range
+def _bend_home(p: Projectile, owner, actors):
+    """Homesick Axe +3 (Homing): the enemy (not hit yet this leg) the axe
+    bends for on its way home: within HOMING_BACK tiles of its line to
+    the thrower, the first along it."""
+    x0, y0 = p.x, p.y
+    dx, dy = owner.x - x0, owner.y - y0
+    length2 = dx * dx + dy * dy
+    if length2 < 1e-6:
+        return None
+    best, best_t = None, math.inf
     for a in actors:
-        if a.hittable and _may_hurt(owner, a):
-            d = math.hypot(a.x - owner.x, a.y - owner.y)
-            if d < best_d:
-                best, best_d = a, d
-    if best is None:
-        return
-    c = _child(p, owner.x, owner.y, math.atan2(best.y - owner.y, best.x - owner.x), 1.0)
-    c.max_range = p.spec.max_range
-    c.hit = set()
-    spawned.append(c)
+        if not a.hittable or id(a) in p.hit or not _may_hurt(owner, a):
+            continue
+        t = ((a.x - x0) * dx + (a.y - y0) * dy) / length2
+        if 0.0 < t < 1.0 and t < best_t and math.hypot(a.x - (x0 + dx * t), a.y - (y0 + dy * t)) \
+                <= config.HOMING_BACK + a.hit_radius:
+            best, best_t = a, t
+    return best
+
+
+def _cyclone(p: Projectile, owner: Actor, actors: list[Actor], spawned: list, stats=None) -> None:
+    """Cyclone (a card): the caught axe flies straight back out at the
+    nearest enemy in reach (once per throw). Whirlwind Axe +3 (Spin
+    cycle): at the one with the most HP; +6 (Gale force): a rethrown axe
+    may go again; +9 (Eye of the cyclone): a second axe at the next one."""
+    has = stats.has if stats is not None else (lambda flag: False)
+    reach = p.spec.max_range
+    near = [a for a in actors if a.hittable and _may_hurt(owner, a)
+            and math.hypot(a.x - owner.x, a.y - owner.y) < reach]
+    if has("cyclone+3"):
+        near.sort(key=lambda a: -a.hp)
+    else:
+        near.sort(key=lambda a: math.hypot(a.x - owner.x, a.y - owner.y))
+    for i, best in enumerate(near[:2 if has("cyclone+9") else 1]):
+        c = _child(p, owner.x, owner.y, math.atan2(best.y - owner.y, best.x - owner.x), 1.0)
+        c.max_range = p.spec.max_range
+        c.hit = set()
+        c.spins = p.spins + 1 if i == 0 else 99    # (the second axe doesn't go again)
+        spawned.append(c)
 
 
 def _fly_lobbed(p: Projectile, world, effects: list[Effect], dt: float,
@@ -1179,17 +2435,21 @@ def burst(x: float, y: float, radius: float, damage: float, source: Actor | None
 def blast(
     x: float, y: float, radius: float, damage: float, source: Actor | None,
     actors: list[Actor], hurt_source: bool = False, effects: list[Effect] | None = None,
+    ground: bool = False,
 ) -> list[Actor]:
     """Damage every hittable actor whose body touches a circle of `radius`
     around (x, y) -- spore clouds, a burrower bursting up, a sword swing.
     Returns the actors hit. Friendly fire applies. Pass `effects` to get
-    damage numbers."""
+    damage numbers. `ground`: it comes out of the ground (a hero skimming
+    over it, Wingheel Sandals +9, is missed)."""
     hit = []
     for a in actors:
         if not a.hittable or (a is source and not hurt_source):
             continue
+        if ground and skims(a):
+            continue
         if math.hypot(a.x - x, a.y - y) <= radius + a.hit_radius:
-            dealt = a.take_damage(damage, source, None)
+            dealt = a.take_damage(damage * (ground_cut(a) if ground else 1.0), source, None)
             if effects is not None:
                 _number(effects, a, dealt)
             hit.append(a)

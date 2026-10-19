@@ -14,6 +14,7 @@ from ascii_adventurers import config
 from ascii_adventurers.entities.gems import Gem, drop, update_gems
 from ascii_adventurers.entities.projectile import Projectile
 from ascii_adventurers.players import cards
+from ascii_adventurers.tests.gear_helpers import offerable, use_cards
 from ascii_adventurers.systems import combat
 from ascii_adventurers.systems.spells import SpellState, update_spells
 from ascii_adventurers.systems.statuses import inflict, update_statuses
@@ -245,8 +246,7 @@ class HeroCardTest(unittest.TestCase):
         from ascii_adventurers.tests.test_players import make_manager, start_game
         s = start_game(make_manager(), seed=31, hero="huntress")
         s.mouse.left_held = lambda: False
-        s.me.progress.take("hunters_mark", "rare")
-        s._apply_loadout(s.me)
+        use_cards(s, ("hunters_mark", "rare"))
         small = make_enemy("goblin_archer", s.hero.x + 3, s.hero.y, random.Random(1))
         big = make_enemy("ogre", s.hero.x + 8, s.hero.y, random.Random(2))
         s.enemies += [small, big]
@@ -313,9 +313,7 @@ class SpellTest(unittest.TestCase):
         from ascii_adventurers.tests.test_players import make_manager, start_game
         s = start_game(make_manager(), seed=31, hero="bard")
         s.mouse.left_held = lambda: False
-        for key in ("daggers", "ember_aura", "frost_nova", "daggers"):
-            s.me.progress.take(key, "uncommon")
-        s._apply_loadout(s.me)
+        use_cards(s, *[(key, "uncommon") for key in ("daggers", "ember_aura", "frost_nova", "daggers")])
         self.assertEqual({k: v.level for k, v in s.me.spells.items()},
                          {"daggers": 2, "ember_aura": 1, "frost_nova": 1})
         for _ in range(120):

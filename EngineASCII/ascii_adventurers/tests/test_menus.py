@@ -272,6 +272,7 @@ class SceneFlowTest(unittest.TestCase):
         self.frame()
         game.handle_event(key(pygame.K_ESCAPE))                  # back to pause
         self.assertIsInstance(game.overlay, PauseMenu)
+        game.handle_event(key(pygame.K_DOWN))                    # Gear (M28.1)
         game.handle_event(key(pygame.K_DOWN))                    # Abandon run
         game.handle_event(key(pygame.K_RETURN))
         self.assertIsInstance(self.m.scene, TitleScene)

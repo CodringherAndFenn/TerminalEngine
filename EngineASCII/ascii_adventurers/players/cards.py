@@ -1,45 +1,28 @@
 """
-players/cards.py -- level-up cards: what's offered, and what taking one does.
+players/cards.py -- the powers: what each card's effect does to a hero.
 
-The catalog (design/CARDS.md) lives as data in config.CARDS; the numbers
-cards change are players/stats.HeroStats.
+M28.1 (design/GEAR.md): the cards became gear. Offers, slots and levels
+are players/gear.py now; this module keeps the effect layer under it. The
+catalog (design/CARDS.md) lives as data in config.CARDS -- a piece of
+gear's power is its card's mods, a plain-stat affix is a stat card's -- and
+the numbers they change are players/stats.HeroStats.
 
-Offers. When a player has a card pick banked (players/progress.py) and no
-offer on the table, CARD_OFFER_SIZE different cards are drawn. Each slot:
-  1. rolls a rarity: CARD_RARITY_WEIGHT, with luck shifting weight upward
-     (rarity_weights);
-  2. picks a card that can appear at that rarity -- a tiered card at any
-     rarity it has a value for, a fixed card only at its own -- weighted
-     x CARD_SYNERGY_WEIGHT if it shares a tag with the build. No card at
-     that rarity: the nearest rarity below that has one (then above).
-Archetype lean (M18): once the build holds config.ARCHETYPE_MIN cards of
-one archetype (config.ARCHETYPES, the catalog's section 7), its leading
-archetype's cards get ARCHETYPE_SLOTS slots of each offer of their own --
-drawn first, the same way but only among that archetype's eligible cards,
-then shuffled in among the others -- so a build that has started down a
-path keeps seeing cards for it.
-Only cards the hero may take are drawn (eligible): unlocked (meta/guild),
-their hero / weapon kind, not maxed out or banished, their gate met (a status payoff needs a
-status source, a spell level-up needs the spell, a new spell needs a free
-slot). The draw is seeded from the island seed, the player's slot and how
-many offers they've had, so a run replays the same way (and every machine
-in online co-op agrees). A reroll is simply the next draw.
-
-Effects. After every pick the hero's stats, body and weapon are rebuilt
+Effects. After every change the hero's stats, body and weapon are rebuilt
 from the base specs plus the Guild's upgrades (meta steps) plus every
-card taken (build_loadout). A tiered card counts with the rarity it was
-taken at.
+(stat, op, value) step the worn gear gives (loadout_from_steps). A tiered
+card counts with the rarity it was rolled at.
+
+Gates (gate_met): what a power or affix needs before it's offered -- a
+status source, a spell, an element, a stat above its base, another card.
 """
 
 from __future__ import annotations
 
-import random
 from collections import Counter
 from dataclasses import dataclass, replace
 
 from .. import config
 from ..specs import CardSpec, CharacterSpec, WeaponSpec
-from ..world.rng import hash_coords
 from .stats import HeroStats, apply_mods
 
 ROMAN = ("I", "II", "III", "IV", "V")
@@ -116,7 +99,7 @@ _ELEMENTS = {"fire", "frost", "poison", "lightning"}
 _BASE = HeroStats()
 
 
-def _gate_met(need: str, stats: HeroStats, tags: set[str], taken: Counter,
+def gate_met(need: str, stats: HeroStats, tags: set[str], taken: Counter,
               weapon: WeaponSpec | None = None) -> bool:
     if need == "status":
         return bool(stats.sources)
@@ -139,36 +122,6 @@ def _gate_met(need: str, stats: HeroStats, tags: set[str], taken: Counter,
     if need in config.STATUSES:
         return need in stats.sources
     return need in tags
-
-
-def eligible(hero_key: str, weapon: WeaponSpec, taken: Counter, stats: HeroStats | None = None,
-             banished=(), unlocked: set | None = None, level: int | None = None) -> list[str]:
-    """Card keys the hero may be offered. `unlocked`: the cards the player
-    has (meta/guild.Guild.unlocked_cards); None skips that check (tools,
-    tests). `level`: the hero's level (capstones wait for CAPSTONE_LEVEL);
-    None skips that check."""
-    stats = stats if stats is not None else HeroStats()
-    tags = build_tags(weapon, stats)
-    out = []
-    for key, c in config.CARDS.items():
-        if taken[key] >= c.max_stacks or key in banished:
-            continue
-        if c.heroes and hero_key not in c.heroes:
-            continue
-        if c.kinds and weapon.kind not in c.kinds:
-            continue
-        if unlocked is not None and key not in unlocked:
-            continue
-        if level is not None and level < c.min_level:
-            continue
-        if not all(_gate_met(n, stats, tags, taken, weapon) for n in c.needs):
-            continue
-        spell = spell_of(c)
-        if spell is not None and spell not in stats.spells \
-                and len(stats.spells) >= stats.spell_slots:
-            continue
-        out.append(key)
-    return out
 
 
 _BY_CODE = {c.code: k for k, c in config.CARDS.items()}
@@ -194,63 +147,6 @@ def rarity_weights(luck: float) -> list[float]:
     return [config.CARD_RARITY_WEIGHT[r] * lift ** i for i, r in enumerate(config.RARITIES)]
 
 
-def draw_offer(hero_key: str, weapon: WeaponSpec, taken: Counter, seed: int,
-               player_index: int, draw_no: int, stats: HeroStats | None = None,
-               banished=(), unlocked: set | None = None, level: int | None = None,
-               size: int | None = None, min_rarity: str | None = None) -> list[tuple[str, str]]:
-    """Up to `size` (default CARD_OFFER_SIZE + the build's extra cards)
-    different (card key, rarity) pairs. `min_rarity` forces every slot to
-    that rarity or better (Royal Decree)."""
-    stats = stats if stats is not None else HeroStats()
-    rng = random.Random(hash_coords(seed or 0, 0xCA7D, player_index, draw_no))
-    pool = eligible(hero_key, weapon, taken, stats, banished, unlocked, level)
-    tags = build_tags(weapon, stats)
-    weights = rarity_weights(stats.luck)
-    n_rar = len(config.RARITIES)
-    floor = config.RARITIES.index(min_rarity) if min_rarity is not None else 0
-    if floor:
-        weights = [w if i >= floor else 0.0 for i, w in enumerate(weights)]
-        pool = [k for k in pool
-                if any(config.RARITIES.index(r) >= floor for r in rarities_of(config.CARDS[k]))]
-    if size is None:
-        size = config.CARD_OFFER_SIZE + round(stats.offer_size)
-
-    def draw(among: list[str]) -> tuple[str, str] | None:
-        rolled = rng.choices(range(n_rar), weights)[0]
-        # The rolled rarity, then lower ones, then higher ones.
-        order = list(range(rolled, floor - 1, -1)) + list(range(rolled + 1, n_rar))
-        for i in order:
-            rarity = config.RARITIES[i]
-            cands = [k for k in among if rarity in rarities_of(config.CARDS[k])]
-            if cands:
-                break
-        else:
-            return None
-        w = [config.CARD_SYNERGY_WEIGHT if tags & set(config.CARDS[k].tags) else 1.0
-             for k in cands]
-        return rng.choices(cands, w)[0], rarity
-
-    offer: list[tuple[str, str]] = []
-    lean = leading_archetype(taken)
-    if lean is not None:
-        for _ in range(min(config.ARCHETYPE_SLOTS, size)):
-            got = draw([k for k in pool if k in ARCHETYPE_CARDS[lean]])
-            if got is None:
-                break
-            offer.append(got)
-            pool.remove(got[0])
-    leaned = len(offer)
-    while pool and len(offer) < size:
-        got = draw(pool)
-        if got is None:
-            break
-        offer.append(got)
-        pool.remove(got[0])
-    if leaned:
-        rng.shuffle(offer)         # the archetype's card isn't always first
-    return offer
-
-
 # --- What the cards do ------------------------------------------------------------------
 
 
@@ -272,9 +168,16 @@ def build_loadout(hero_key: str, taken, meta=(), level: int = 1) -> Loadout:
     if isinstance(taken, Counter):
         taken = [(k, rarities_of(config.CARDS[k])[0]) for k in sorted(taken)
                  for _ in range(taken[k])]
+    return loadout_from_steps(hero_key, [st for key, rarity in taken
+                                         for st in card_steps(key, rarity)], meta, level)
+
+
+def loadout_from_steps(hero_key: str, steps, meta=(), level: int = 1) -> Loadout:
+    """build_loadout from raw (stat, op, value) steps (players/gear.py's
+    Equipment.steps: the powers and affixes worn)."""
     if level_speed(level):
         meta = list(meta) + [("move", "add", level_speed(level))]
-    stats = hero_stats(taken, meta)
+    stats = apply_mods(HeroStats(), list(meta) + list(steps))
     body = config.HEROES[hero_key]
     weapon = config.WEAPONS[body.weapon]
     shell = weapon.shell
@@ -289,7 +192,9 @@ def build_loadout(hero_key: str, taken, meta=(), level: int = 1) -> Loadout:
             max_range=shell.max_range * (1 + stats.range),
             speed=shell.speed * (1 + stats.shot_speed),
             pierce=shell.pierce + (0 if shell.returns else round(stats.pierce)),
-            chain=shell.chain + round(stats.chain),
+            # (Storm Caller's jumps are Chain Lightning's: only a weapon
+            # that already chains gets them -- not the wizard's darts.)
+            chain=shell.chain + (round(stats.chain) if shell.chain else 0),
             chain_range=shell.chain_range * (1 + stats.chain_range),
             chain_falloff=min(0.95, shell.chain_falloff + stats.chain_falloff),
             # Homing darts turn faster with Tracking, twice as fast with Seeker.
@@ -301,6 +206,9 @@ def build_loadout(hero_key: str, taken, meta=(), level: int = 1) -> Loadout:
         # A pulse's reach grows with both range and area.
         grow = stats.range + (stats.area if weapon.kind == "pulse" else 0.0)
         weapon = replace(weapon, fire_interval=interval, reach=weapon.reach * (1 + grow))
-    body = replace(body, max_hp=max(1, round((body.max_hp + stats.max_hp) * stats.max_hp_mult)),
+    hp_mult = stats.max_hp_mult
+    if stats.has("veteran+9"):                  # Grizzled Signet +9 (Legend)
+        hp_mult *= 1 + config.LEGEND * stats.veteran_levels(level)
+    body = replace(body, max_hp=max(1, round((body.max_hp + stats.max_hp) * hp_mult)),
                    max_speed=body.max_speed * (1 + stats.move))
     return Loadout(body, weapon, stats)

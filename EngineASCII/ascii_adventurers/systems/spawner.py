@@ -55,6 +55,10 @@ class Spawner:
         # Pacts and cards (systems/run_rules.py): more enemies, tougher,
         # harder-hitting, faster.
         self.density = 1.0
+        # Beacon's share of the density: the enemies past what there would
+        # be without it are `beckoned` (Beckoning Ring +3 / +6, M28.2e).
+        self.beckon = 0.0
+        self.beckoned: set = set()
         self.level_bonus = 0
         self.damage_bonus = 0.0
         self.haste = 0.0
@@ -73,7 +77,10 @@ class Spawner:
         biome = self.world.biome_at(math.floor(mx), math.floor(my)).name
         expected = (config.BIOME_ENEMY_DENSITY.get(biome, 0.0) * config.ENEMY_DENSITY_MULTIPLIER
                     * self.density)
-        count = int(expected) + (rng.random() < expected - int(expected))
+        r = rng.random()
+        count = int(expected) + (r < expected - int(expected))
+        plain = expected / (1 + self.beckon)
+        plain = int(plain) + (r < plain - int(plain))   # how many without Beacon
         choices = [(k, s.weight) for k, s in config.ENEMIES.items() if biome in s.biomes]
         out = []
         for k in range(count):
@@ -84,6 +91,8 @@ class Spawner:
             if pos is None:
                 continue
             out.append(((cx, cy, k), key, *pos))
+            if k >= plain:
+                self.beckoned.add((cx, cy, k))
             # A pack (P7: rats, geese, hounds): the rest round the first, on
             # free ground, each with its own id (cx, cy, PACK_ID + 16 k + j).
             lo, hi = config.ENEMIES[key].group
@@ -93,6 +102,8 @@ class Spawner:
                 spot = self._near(key, *pos, rng)
                 if spot is not None:
                     out.append(((cx, cy, PACK_ID + 16 * k + j), key, *spot))
+                    if k >= plain:
+                        self.beckoned.add((cx, cy, PACK_ID + 16 * k + j))
         return out
 
     def _near(self, key, x: float, y: float, rng) -> tuple[float, float] | None:
@@ -242,6 +253,7 @@ class Spawner:
             e.toughen(self.hp_mult)
         e.damage_mult *= (1 + self.damage_bonus) * self.damage_mult
         e.haste = self.haste
+        e.beckoned = sid in self.beckoned
         if sid is not None:
             self.awake[sid] = e
         return e

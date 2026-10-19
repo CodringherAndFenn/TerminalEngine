@@ -43,6 +43,7 @@ _BUTTON_KEYS = {
     "CONTROLLER_BUTTON_B": pygame.K_ESCAPE,
     "CONTROLLER_BUTTON_START": pygame.K_ESCAPE,
     "CONTROLLER_BUTTON_BACK": pygame.K_m,
+    "CONTROLLER_BUTTON_Y": pygame.K_i,          # (M28.3a: the gear screen's STATS page)
 }
 BUTTON_KEYS = {getattr(pygame, name): key for name, key in _BUTTON_KEYS.items()
                if hasattr(pygame, name)}
@@ -53,6 +54,7 @@ BUTTON_BACK = getattr(pygame, "CONTROLLER_BUTTON_BACK", -1)
 BUTTON_LB = getattr(pygame, "CONTROLLER_BUTTON_LEFTSHOULDER", -1)
 BUTTON_RB = getattr(pygame, "CONTROLLER_BUTTON_RIGHTSHOULDER", -1)
 BUTTON_Y = getattr(pygame, "CONTROLLER_BUTTON_Y", -1)
+BUTTON_X = getattr(pygame, "CONTROLLER_BUTTON_X", -1)
 AXIS_LX = getattr(pygame, "CONTROLLER_AXIS_LEFTX", 0)
 AXIS_LY = getattr(pygame, "CONTROLLER_AXIS_LEFTY", 1)
 AXIS_RX = getattr(pygame, "CONTROLLER_AXIS_RIGHTX", 2)

@@ -181,13 +181,13 @@ class Colossus(PlainsCreature):
         for ring in self.rings:
             ring[0] += speed * dt
             for a in ctx.actors:
-                if a is self or not a.hittable or id(a) in ring[1]:
+                if a is self or not a.hittable or id(a) in ring[1] or combat.skims(a):
                     continue
                 d = math.hypot(a.x - self.x, a.y - self.y)
                 if abs(d - ring[0]) <= thick / 2 + a.hit_radius:
                     ring[1].add(id(a))
-                    _numbered_hit(a, self.espec.damage * self.damage_mult, self,
-                                  math.atan2(a.y - self.y, a.x - self.x), ctx)
+                    _numbered_hit(a, self.espec.damage * self.damage_mult * combat.ground_cut(a),
+                                  self, math.atan2(a.y - self.y, a.x - self.x), ctx)
         self.rings = [r for r in self.rings if r[0] < reach]
         if self.windup > 0:
             self.windup -= dt

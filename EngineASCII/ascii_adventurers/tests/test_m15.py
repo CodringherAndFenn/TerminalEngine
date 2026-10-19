@@ -140,7 +140,7 @@ class RunTest(unittest.TestCase):
         for _ in range(n):
             prog.picks, prog.offer = 1, []
             s._cards(s.me, None)
-            seen.update(k for k, _ in prog.offer)
+            seen.update(o.key for o in prog.offer)
         return seen
 
     def test_locked_cards_are_never_offered(self):

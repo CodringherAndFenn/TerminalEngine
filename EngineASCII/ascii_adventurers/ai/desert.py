@@ -108,8 +108,8 @@ class Scorpion(PlainsCreature):
         self.tail = 0.0
 
     def take_damage(self, amount, source, from_angle):
-        if from_angle is not None:
-            came_from = from_angle + math.pi
+        if from_angle is not None and not getattr(source, "spectral", False):
+            came_from = from_angle + math.pi            # (Ghostwood +6: darts go through)
             if abs((came_from - self.facing + math.pi) % math.tau - math.pi) < math.pi / 2:
                 amount *= config.SCORPION[0]
         return super().take_damage(amount, source, from_angle)
@@ -510,7 +510,8 @@ class Tumbleweed(PlainsCreature):
         self._moved = math.hypot(self.x - x0, self.y - y0)
         self.walked += self._moved
         for a in ctx.actors:
-            if a is self or not a.hittable or getattr(a, "kind_key", "") == "tumbleweed":
+            if a is self or not a.hittable or getattr(a, "kind_key", "") == "tumbleweed" \
+                    or combat.drafting(a):
                 continue
             if math.hypot(a.x - self.x, a.y - self.y) <= self.hit_radius + a.hit_radius \
                     and self.clock - self.bumped.get(id(a), -99.0) >= config.TUMBLE_EVERY:

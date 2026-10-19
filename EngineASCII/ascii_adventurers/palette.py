@@ -250,6 +250,7 @@ LEVEL_UP = (255, 220, 110)          # "LEVEL UP!" over the hero
 CARD_RARITY = {"common": (185, 185, 175), "uncommon": (110, 220, 120), "rare": (100, 170, 255),
                "epic": (215, 120, 255), "legendary": (255, 170, 60)}
 CARD_TITLE = (255, 220, 120)
+LEGEND_GLINT = ((255, 250, 220), (255, 215, 110), (225, 150, 50))   # M28.3a: a legendary's spark, head first
 CARD_TEXT = (205, 205, 195)
 CARD_KEY = (255, 255, 255)
 CARD_TAG = (130, 130, 120)          # "WIZARD" on a hero's own cards
@@ -288,6 +289,8 @@ STATUS_PIP = {"burn": (255, 130, 40), "poison": (140, 230, 70), "bleed": (230, 4
               "chill": (140, 200, 255), "shock": (255, 240, 90)}
 FROZEN = ((200, 235, 255), (120, 180, 240))
 MARK = (255, 70, 60)
+DUEL = (255, 200, 90)              # M28.2i: the Duelist's Wand's duelist, crossed blades
+SLEEP = (170, 190, 255)            # M28.2i: "z"s over an enemy Lullabied asleep
 EVADE = (190, 230, 255)
 SHOT_NOTE = ((255, 225, 120), ((235, 170, 90), (150, 110, 70)))   # Sheet Music's notes
 SHOT_DART = ((245, 210, 255), ((200, 120, 255), (120, 70, 190)))  # arcane missiles
@@ -376,6 +379,7 @@ CLOUD = ((170, 175, 195), (110, 115, 135))
 TOTEM = ((120, 230, 140), (200, 170, 110))
 TURRET = ((230, 225, 205), (150, 140, 120))
 CRACKLE = ((255, 250, 150), (150, 200, 255))
+PUDDLE = ((120, 170, 230), (80, 120, 180))     # M28.2f Downpour's rain puddle
 HUD_SHIELD = (120, 190, 255)
 
 # --- M17: landmarks, quests, bosses ------------------------------------------------------
@@ -645,6 +649,10 @@ MAP_TILE.update({"ice wall": (200, 235, 255), "ice throne": (230, 250, 255),
                  "ice block": (200, 240, 255), "frozen pond": (150, 200, 230)})
 MAP_TILE_BIOME.update({"frost stone": "ruins", "snowdrift": "ruins", "slush": "ruins"})
 PIN_FIRE = ((255, 160, 60), (70, 30, 10))
+PIN_BLOOD = ((220, 40, 50), (60, 0, 5))         # M28.2b: Bloodhound's bleeding enemies
+AMP = (255, 200, 120)                           # M28.2c: Stompers +9, an amp on the ground
+BRAMBLE = (120, 170, 80)                        # M28.2d: Brambleguard +6's ring
+SHOT_PATH = (110, 70, 70)                       # M28.2d: Shattercoat +3, where a shot is going
 PIN_FIRE_LIT = ((255, 230, 120), (90, 50, 10))
 PIN_CROWN = ((160, 225, 255), (20, 50, 80))     # his crown is iron and ice (M24.4)
 # The Snow King (render/snowking.py).

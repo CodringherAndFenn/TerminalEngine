@@ -141,6 +141,30 @@ class CardSpec:
 
 
 @dataclass(frozen=True)
+class GearSpec:
+    """A base piece of gear (players/gear.py; design/GEAR.md). Its key is
+    the key of the card whose effect is its power (config.CARDS), so the
+    card's mods, gates, tags, heroes, unlock and rarity all carry over: the
+    card's rarity is the lowest the piece drops at.
+
+    `slot` is its home: "main", "off", "head", "chest", "feet", "ring" or
+    "trinket". `grow` picks what each +1 grows (GEAR_LEVEL_GROWTH of it):
+    None = the card's first mod that helps (an "add" above 0, or any
+    "mul"); "damage" = GEAR_FLAT_GROWTH damage a level instead (powers
+    with no number, or whose number mustn't grow, like Phoenix's one
+    revival). Spells grow by their own levels first (GEAR.md 15.3).
+    `mods` are added to the card's (a piece that must bring its own status,
+    since its only source shares its slot); `needs` replaces the card's
+    gates when it isn't None."""
+
+    name: str
+    slot: str
+    grow: str | None = None
+    mods: tuple = ()
+    needs: tuple[str, ...] | None = None
+
+
+@dataclass(frozen=True)
 class SpellSpec:
     """A spell or item granted by a card (systems/spells.py). `kind` picks
     the behaviour (orbit / aura / nova); `base` holds its level-1 numbers

@@ -8,7 +8,6 @@ mouse), re-laid out whenever the grid size changes.
 
 from __future__ import annotations
 
-from collections import Counter
 from typing import Callable
 
 import pygame
@@ -73,14 +72,15 @@ class PauseMenu(_Box):
     width = 52
 
     def __init__(self, manager, stats: RunStats, *, resume, settings, abandon, quit_game,
-                 details=None, victory=None) -> None:
+                 details=None, victory=None, gear=None) -> None:
         buttons = [("Resume", resume), ("Settings", settings)]
+        if gear is not None:                       # (M28.1: the gear screen)
+            buttons.append(("Gear  (Tab)", gear))
         if victory is not None:                    # (M27: Adventurer's Glory)
             buttons.append(("End run (victory)", victory))
         buttons += [("Abandon run", abandon), ("Quit game", quit_game)]
         super().__init__(manager, buttons)
-        if victory is not None:
-            self.height = 16
+        self.height = 14 + 2 * ((victory is not None) + (gear is not None))
         self.stats = stats
         self.details = details        # () -> str: where you are (biome, distance, seed)
 
@@ -137,10 +137,9 @@ class GameOverPanel(_Box):
         text.put(left + 4, top + 9, _fit("Biomes: " + biomes, width - 8), colors.GREY)
         kills = ", ".join(f"{n} {name}" for name, n in s.kills.most_common())
         text.put(left + 4, top + 10, _fit("Defeated: " + (kills or "nobody"), width - 8), colors.GREY)
-        taken = Counter(s.cards)
-        cards = ", ".join(config.CARDS[k].name + (f" x{n}" if n > 1 else "")
-                          for k, n in taken.items() if k in config.CARDS)
-        text.put(left + 4, top + 11, _fit("Cards: " + (cards or "none"), width - 8), colors.GREY)
+        worn = ", ".join(s.gear) if s.gear else ", ".join(
+            config.GEAR[k].name for k in dict.fromkeys(s.cards) if k in config.GEAR)
+        text.put(left + 4, top + 11, _fit("Gear: " + (worn or "none"), width - 8), colors.GREY)
         best = (f"Best: {format_time(rec.longest_time)}   {rec.most_kills} kills   "
                 f"{rec.furthest:.0f} tiles   {rec.most_biomes} biomes   ({rec.runs} runs)")
         center(text, top + 12, _fit(best, width - 4), colors.AMBER_DIM, left, width)

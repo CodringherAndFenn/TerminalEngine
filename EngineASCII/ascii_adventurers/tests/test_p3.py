@@ -58,7 +58,7 @@ class LevelSpeedTest(unittest.TestCase):
         step(s)
         self.assertTrue(prog.offer)
         s._cards(p, 0)                              # (the rebuild for the card)
-        no_level = cards.build_loadout("wizard", prog.taken, p.meta)
+        no_level = cards.loadout_from_steps("wizard", prog.gear.steps(), p.meta)
         self.assertAlmostEqual(s.hero.stats.move, no_level.stats.move + 0.01)
         self.assertAlmostEqual(s.hero.spec.max_speed, base * (1 + s.hero.stats.move))
 

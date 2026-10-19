@@ -59,6 +59,7 @@ class HeroStats:
     # Spells
     spell_cooldown: float = 0.0      # fraction faster
     spells: dict = field(default_factory=dict)   # spell key -> level
+    spell_boost: dict = field(default_factory=dict)   # spell key -> fraction past level V (gear +5..+9)
     spell_slots: float = config.SPELL_SLOTS
     # Card picks (Guild upgrades): extra rerolls / banishes each run
     rerolls: float = 0.0
@@ -148,6 +149,13 @@ class HeroStats:
     def has(self, flag: str) -> bool:
         return flag in self.flags
 
+    def veteran_levels(self, level: int) -> int:
+        """The levels Veteran counts: Grizzled Signet +3 (Hard-won) counts
+        each from HARD_WON on twice."""
+        if self.has("veteran+3"):
+            return level + max(0, level - config.HARD_WON + 1)
+        return level
+
     def clamp(self) -> None:
         if self.has("overflow") and self.crit_chance > 1.0:
             self.crit_damage += 2 * (self.crit_chance - 1.0)    # Overflow
@@ -163,13 +171,18 @@ class HeroStats:
         self.status_chance = max(0.0, min(1.0, self.status_chance))
 
 
-def spell_params(key: str, level: int) -> dict:
-    """A spell's numbers at `level`: its base with each level's change."""
+def spell_params(key: str, level: int, boost: float = 0.0) -> dict:
+    """A spell's numbers at `level`: its base with each level's change.
+    `boost` (a piece of gear past +4, M28.1) grows its SPELL_GROW number
+    by that fraction."""
     spec = config.SPELLS[key]
     p = dict(spec.base)
     for _, changes in spec.levels[:level - 1]:
         for name, op, val in changes:
             p[name] = p[name] + val if op == "add" else p[name] * val
+    if boost:
+        grow = config.SPELL_GROW[key]
+        p[grow] = p[grow] * (1 + boost)
     return p
 
 
@@ -194,10 +207,12 @@ def apply_mods(stats: HeroStats, steps: list[tuple[str, str, float]]) -> HeroSta
             stats.sources.add(stat)
         elif op == "spell":
             stats.spells[stat] = min(config.SPELL_MAX_LEVEL, stats.spells.get(stat, 0) + 1)
+        elif op == "spell_boost":                       # gear past +4 (M28.1)
+            stats.spell_boost[stat] = stats.spell_boost.get(stat, 0.0) + val
         else:
             raise ValueError(f"unknown card op {op!r}")
     for key, level in stats.spells.items():
-        params = spell_params(key, level)
+        params = spell_params(key, level, stats.spell_boost.get(key, 0.0))
         inflicts = params.get("inflicts")
         if inflicts:
             stats.sources.add(inflicts)

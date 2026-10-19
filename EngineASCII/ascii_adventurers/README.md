@@ -573,10 +573,128 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   Beaten for good, he gives **Adventurer's Glory**: end the run as a victory
   from the pause menu whenever you like, and walk on water
   (`design/BOSSES.md` section 30).
+- **Gear, M28.1** (`design/GEAR.md`, section 15): the cards became gear.
+  You start a run wearing nothing; every level is a gear pick: three
+  pieces, each a new piece for an empty slot, +1 to one you wear, or a swap
+  (what comes off goes to your bag) -- or UPGRADE (U): +1 to any piece you
+  wear, on its own screen. Ten slots: main hand (your hero's own weapon
+  line), off-hand (shot patterns), head (statuses), chest (defence), feet
+  (the roll), two rings (triggers, economy) and three trinkets (spells; the
+  Arcane Wing adds a fourth). A piece is a power -- a card's effect -- plus
+  plain stat lines by rarity (the old stat cards), and grows to +9: each
+  +1 adds 10% to its power (a spell's first four are its levels II-V).
+  Tab (pad X, or the pause menu) opens your gear: wear a piece from the
+  bag (not inside a boss arena), salvage anything for loot; the bag is
+  salvaged when the run ends. Arcane Mastery and Weapons Master are gone:
+  damage is "+damage" or "+elemental damage" now.
+- **Tricks, M28.2a** (`design/GEAR.md` 17): a piece at +3, +6 and +9 learns a
+  trick (+9 is its MASTERY). The off-hand's 24 are in: the Compass Orb's
+  cross turns and cuts enemy shots, the Sunwheel's rings curve and come
+  twice, the Hindsight Orb watches your back, the Nautilus Shell's spiral
+  grows and doubles, the Twinned Quiver links enemies and drifts into three
+  lanes, the Canyon Horn's echo picks its own target and comes three times,
+  the War Drum shrugs off slows and dazes, the Pepperbox splits twice and
+  flashes. Fixed: a Frenzy lasted 0.015 s instead of 3 s since M25.2.
+- **Tricks, M28.2b** (`design/GEAR.md` 17.2, 17.12): the head's 33. Fire
+  blinds and builds into a pyre, burning enemies' shots slow; poison roots,
+  ticks faster and eats a share of HP, and toxic ground can't hurt you;
+  frozen enemies become walls that chill their neighbours and shatter into
+  flying shards; shock builds up, conducts through water and calls lightning
+  from the sky; bleeds stop healing, execute, scare and show on the minimap;
+  Thermal Shock bursts burn, widen and repeat; Toxic Current shocks, charges
+  a shocking attack and spreads to everyone near.
+- **Tricks, M28.2c** (`design/GEAR.md` 17.3, 17.13): the feet's 33, all on
+  the roll. Ripostes disarm and kill for your roll back; slipstreams slip
+  through bosses, leave a decoy and last while you run; rolling through
+  shots heals you, throws them back and makes you untouchable; fire trails
+  creep, flare and burn longer; walking charges your attacks and cracks the
+  ground; crits speed you up and, fast enough, you skim over every ground
+  attack; Blink leaves a nova behind, swaps places and storms three times;
+  the dwarf's charge bowls enemies, breaks walls and rampages on; the
+  huntress flips twice and shoots twice as fast mid-roll; the princess
+  spins an encore and makes enemies miss; the bard drops two beats, surfs
+  the crowd and leaves an amp behind.
+- **Tricks, M28.2d** (`design/GEAR.md` 17.4, 17.14): the chest's 33. Thorns
+  bleed, grow a bramble ring and spread to the crowd; the ward shocks when
+  it breaks, overcharges you and doubles up; heavy plate tempers, sheds its
+  weight and anchors; the glass coat shows where shots are going, blocks a
+  hit and goes diamond; grudges throw you clear, build up and seethe; the
+  spotless tunic gets you away, shrugs off the ground and stays half-clean;
+  the wolfpelt thickens, rages and makes a last stand; the bastion heals,
+  garrisons walls and counts your shield; Mountainhide glances shots and
+  shakes the ground; the aegis radiates, bursts and refills; the phoenix
+  leaves a ring of fire, rises untouchable, and rises twice.
+- **Tricks, M28.2e** (`design/GEAR.md` 17.5, 17.15): the rings' 42. Kills
+  go off with a bigger bang, in fuse lines and dominoes that leave gems;
+  the reaper heals more for elites and streaks; level-ups hit, upgrades
+  surge and every 5th level gives a pick; bloodlust feeds, fades slowly
+  and makes you bleed them; the slingstone topples giants and bosses; the
+  veteran's levels count twice, give free upgrades and max HP; the hoard
+  counts salvage, buys armor and has no cap; bounties pay double for
+  elites, bag gear and stop the haste; the beacon's extras give more XP
+  and come straight at you, with a wave every minute for a pick; the
+  fourleaf makes offers rare, rerolls and holds 5; crits brim, splash and
+  pile up; statuses spread farther, stronger and from the living; and the
+  pack hunts what you hit, its turrets come back, and the wolves defend you.
+- **Tricks, M28.2f** (`design/GEAR.md` 17.6, 17.16): the trinkets' 33. The
+  chain bolt grounds, overloads and arcs back; the daggers fling out on a
+  roll, breathe and split into two rings; the ember aura warms you, flares
+  and grows with the burning; the frost nova answers hits, armors you in ice
+  and freezes in an avalanche; wolves follow your scent, howl enemies weak
+  and grow dire; runes link up, seek and burst on a roll; flasks bubble,
+  brew fire, frost or shock, and merge in a cauldron; the storm rains a
+  puddle, strikes back at whoever hit you and brings a second cloud; the
+  totem cleanses, follows you and stays; the lantern lights foes up, goes
+  for the burning and leaves wisps; and turrets rise from your kills,
+  burst into bone and stand as a legion.
+- **Tricks, M28.2g** (`design/GEAR.md` 17.7, 17.17): the wizard's main hand,
+  30. Darts conduct off what your bolt hit, lightning jumps through walls,
+  never fades and strikes a long chain twice over; bolts shock round their
+  hits and cast twice in a storm; crackles stick to enemies, follow every
+  jump and roll as a thunderball; darts haunt through walls, slip past
+  shields and see through walls; they speed on, hunt the weakest and hunt
+  on; resonance lasts, rings and goes to +120%; the well crushes, drags
+  shots and opens a singularity; the storm's new darts come for whoever's
+  near you, five a cast or without end; and orbiting darts hit the
+  planets they pass, swing twice and come back faster. (Also fixed: Storm
+  Caller's extra jump no longer reaches the darts.)
+- **Tricks, M28.2h** (`design/GEAR.md` 17.8, 17.18): the dwarf's and the
+  huntress's main hands, 36. Axes bank harder off walls, pinball off big
+  enemies and carom home; hovering axes saw, stay up while you hold the
+  attack and buzz round; axes home in on the way back, quicken your
+  throws and crit coming home; the chain pulls taut, shackles and flails
+  round you; the whirlwind hunts the toughest, rethrows twice and throws
+  two; split axes reunite, cross in an X and quarter. Arrow rain falls on
+  the nearest enemy, thunders when it bunches and comes twice; broadheads
+  speed up, run back through and hit harder; marks linger, jump to the
+  next quarry and spread through the pack; standing still you hold your
+  breath, find zen and keep your aim; crits follow through, come every
+  6th arrow and strike like lightning; and split arrows seek, split on
+  walls and sow thorns.
+- **Tricks, M28.2i** (`design/GEAR.md` 17.9, 17.19): the princess's and
+  the bard's main hands, 36, the last of the 300. A full spectrum crits,
+  its bonus glows on and grows; the middle color hits harder, the fan
+  narrows while you stand still and becomes a beam; colors' statuses come
+  more often, twice, and hurt more together; up close hurts more, a duel
+  begins and point blank reaches farther; split pieces seek, grow and
+  split again; the colors' crossing hurts, comes twice and follows an
+  enemy. The crescendo holds through a miss, reaches farther at the top
+  and goes to +100%; five beats in a row put an enemy to sleep, healing
+  you can't use powers the next beat, and the lullaby heals more; the
+  loud beat comes sooner, every 3rd beat is both and the drop is bigger;
+  pushes into walls hurt, chilled enemies fly farther and chill twice;
+  finales open a fight, answer a drop below 30% HP and come every 6th
+  beat; and notes fly round walls, come in a chorus and splash.
+- **Rarity and the STATS page, M28.3a** (`design/GEAR.md` 7, 18): rarer
+  pieces have stronger powers (x1.15 uncommon up to x2 legendary, on top
+  of the level's growth; powers with no number get +7.5% to +50% damage).
+  Legendaries sparkle. On the gear screen, I (pad Y) shows the STATS page:
+  each weapon and spell's damage worked out step by step, then every
+  total stat.
 
-Next up (agreed order, `design/BOSSES.md` section 8): M28 the gear system
-(gear slots replace the cards: abilities and effects come from gear that
-levels up), M29-M32 the four ocean zones (each with its own enemies, quest
+Next up (agreed order, `design/BOSSES.md` section 8): the rest of M28, the
+gear system (the legendary tricks, drops from elites, chests and bosses,
+boss uniques, gear on the heroes), M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in
 `design/BOSSES.md` section 31), and last, M36 an art spec so custom pixel
@@ -603,7 +721,7 @@ meet; `run.py --dev --boss leech_swarm` (or `froggy`, `proboscia`, `khepri`, `ol
 the dev keys below at that boss's quest; F10 in game switches the view between players, and other players
 show as coloured dots on the minimap and big map.
 Developer mode: `run.py --dev` fills the guild purse (999,999 loot) and
-in a run L levels you up on the spot (one card pick per press). The dev
+in a run L levels you up on the spot (one gear pick per press). The dev
 keys act on the "dev quest", named on the DEV bar at the bottom: at first
 the `--boss` one, else the first quest not beaten; F5 picks the next quest
 (through all of them, then round again). F6 jumps next to its giver, F7
@@ -641,9 +759,10 @@ east out of the starting compound's gate to reach its shooting range.
 | E              | talk to a quest giver standing next to you (gamepad: A)  |
 | Q              | whistle for your mount / hop off (gamepad: Y)            |
 | M              | big map (pauses): wheel zoom, drag or WASD pan, C centre on you, M/ESC close; lists your quests |
-| ESC            | pause menu: resume, settings, abandon run, quit          |
+| ESC            | pause menu: resume, settings, gear, abandon run, quit    |
+| Tab            | your gear: the ten slots and the bag (gamepad: X)         |
 | R              | after you fall: go again (same hero, same seed if you chose one) |
-| Left / Right, Enter | choose and take a level-up card (or hover and click)  |
+| Left / Right, Enter | choose and take a level-up piece (or hover and click); U upgrade, R reroll, B banish, X skip |
 | F11            | cycle window mode (everywhere; saved)                    |
 
 **Gamepad** (any pad SDL knows, e.g. Xbox, PlayStation, Switch Pro, Steam
@@ -700,8 +819,10 @@ Every number is in **`config.py`**:
   `WEAPONS`, defined as data via `specs.py`: shots with pellets/spread,
   pierce and chain; melee reach and arc; pulses), walk animation speed;
 - terrain hit points, effect timings, sound volume, `VSYNC`;
-- cards (`CARDS`: name, text, rarity, stack limit, which heroes, and the
-  stat changes), rarity weights, XP per enemy and the level curve;
+- cards (`CARDS`: the powers and plain stats -- name, text, rarity, stack
+  limit, which heroes, and the stat changes), gear (`GEAR`: each piece's
+  name and slot; `GEAR_*` level growth, affixes by rarity, bag size,
+  salvage), rarity weights, XP per enemy and the level curve;
 - camera smoothing (`CAMERA_FOLLOW_RATE`); the simulation clock
   (`SIM_HZ`, `MAX_STEPS_PER_FRAME`); players (`PLAYER_COLORS`, gamepad aim
   distance `PAD_AIM_DISTANCE`, enemy target stickiness
@@ -749,7 +870,8 @@ engine_ext/     camera.py (smooth pixel scrolling), input.py, sfx.py
 players/        player.py (a player: hero, controls, camera, stats; the
                 area kept alive around them), controls.py (keyboard+mouse,
                 gamepad, auto-switching, debug ghost bot), progress.py
-                (level, XP, rerolls), cards.py (offers and card effects),
+                (level, XP, rerolls), gear.py (slots, pieces, the bag,
+                gear offers), cards.py (the powers' effects and gates),
                 stats.py (the stat layer and damage buckets)
 world/          layout.py (the island plan: which biome is where), hub.py
                 (the Guild Hall's tiles and people),
@@ -787,7 +909,8 @@ render/         terrain.py (cached pre-drawn terrain blocks), glyphs.py
                 effects, numbers, bars as glyphs), spell_fx.py (gems,
                 spells, status pips), bosses.py (bosses and their tells,
                 quest givers, the boss banner and pointer)
-ui/             hud.py, quest_log.py, card_picker.py, guild_panel.py (the hall's shops),
+ui/             hud.py, quest_log.py, gear_picker.py (level-up picks),
+                gear_screen.py (Tab: your gear), guild_panel.py (the hall's shops),
                 crosshair.py, maps.py (minimap + big map),
                 overlays.py (pause menu, game over), settings_panel.py,
                 widgets.py (hero picker, seed field), logo.py, frame.py
@@ -800,7 +923,7 @@ meta/           settings.py (save/settings.json), guild.py (loot purse,
 app.py          services shared by the scenes (settings, records, sounds, pads)
 save/           the player's settings and records (not in git)
 assets/maps/    test_map.txt
-design/         CARDS.md (the card catalog), GUILD.md (loot, upgrades,
+design/         CARDS.md (the card catalog: gear's powers), GEAR.md (gear), GUILD.md (loot, upgrades,
                 prices), BOSSES.md (quests, bosses, landmarks), the
                 upgrade design guide
 tests/          unittest suite

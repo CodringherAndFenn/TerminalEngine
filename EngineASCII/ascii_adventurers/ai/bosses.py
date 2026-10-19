@@ -345,7 +345,7 @@ class Boss(Brain, Actor):
         if self.airborne > 0 or self.submerged:
             return
         for h in self.ctx.players:
-            if not h.alive:
+            if not h.alive or combat.drafting(h):
                 continue
             dx, dy = h.x - self.x, h.y - self.y
             d = math.hypot(dx, dy)
@@ -354,7 +354,7 @@ class Boss(Brain, Actor):
                 continue
             if d < 1e-6:
                 dx, dy, d = math.cos(self.facing + math.pi), math.sin(self.facing + math.pi), 1.0
-            combat.push(h, self.ctx.world, dx / d * (room - d), dy / d * (room - d))
+            combat.push(h, self.ctx.world, dx / d * (room - d), dy / d * (room - d), full=True)
 
     def shots_alive(self) -> int:
         return sum(1 for p in self.ctx.projectiles if p.owner is self)
@@ -515,7 +515,7 @@ class Froggy(Boss):
         self.landing = None
         self.tell = None
         combat.blast(lx, ly, radius, damage * self.damage_mult, self, self.ctx.actors,
-                     effects=self.ctx.effects)
+                     effects=self.ctx.effects, ground=True)
         self.ctx.effects.append(Effect("explosion", lx, ly))
         self.ctx.effects.append(Effect("nova", lx, ly, size=radius))
         self.ctx.events.append("boulder")
@@ -1190,10 +1190,10 @@ class Proboscia(Boss):
             return
         self._cloud_tick += tick
         for h in self.ctx.players:
-            if not h.hittable:
+            if not h.hittable or combat.skims(h):
                 continue
             if any(math.hypot(h.x - c[0], h.y - c[1]) <= radius + h.hit_radius for c in self.clouds):
-                combat.strike(h, damage * self.damage_mult, self, None, self.ctx.effects)
+                combat.strike(h, damage * self.damage_mult * combat.ground_cut(h), self, None, self.ctx.effects)
 
     def _abort_move(self) -> None:
         if self._gen is not None:
@@ -1718,7 +1718,7 @@ class Khepri(Boss):
         self.ripple = None
         self.submerged = False
         combat.blast(rx, ry, radius, damage * self.damage_mult, self, self.ctx.actors,
-                     effects=self.ctx.effects)
+                     effects=self.ctx.effects, ground=True)
         self.ctx.effects.append(Effect("eruption", rx, ry))
         self.ctx.effects.append(Effect("explosion", rx, ry))
         self.ctx.events.append("boulder")
@@ -2082,9 +2082,10 @@ class OlSpitter(Boss):
             return
         self._trail_tick += tick
         for h in self.ctx.players:
-            if h.hittable and any(math.hypot(h.x - c[0], h.y - c[1]) <= radius + h.hit_radius
-                                  for c in self.trail):
-                combat.strike(h, damage * self.damage_mult, self, None, self.ctx.effects)
+            if h.hittable and not combat.skims(h) \
+                    and any(math.hypot(h.x - c[0], h.y - c[1]) <= radius + h.hit_radius
+                            for c in self.trail):
+                combat.strike(h, damage * self.damage_mult * combat.ground_cut(h), self, None, self.ctx.effects)
 
     def _run_ghosts(self, dt: float) -> None:
         """Stampede ghosts run straight through everything, each trampling
@@ -2686,7 +2687,7 @@ class Magus(Boss):
             return
         radius, damage, n = config.RUNE_FIRE
         combat.blast(x, y, radius, damage * self.damage_mult, self, self._heroes_hit(),
-                     effects=ctx.effects)
+                     effects=ctx.effects, ground=True)
         ctx.effects.append(Effect("explosion", x, y))
         ctx.effects.append(Effect("nova", x, y, size=radius))
         if self.room_for_shots():
@@ -3329,14 +3330,20 @@ class FalloutKing(Boss):
             self._fallout_tick += 0.5
             for h in self.ctx.players:
                 if h.hittable and self.in_arena(h) and self._in_fallout(h):
-                    combat.strike(h, config.FALLOUT_BURN * 0.5 * self.damage_mult, self, None,
+                    combat.strike(h, config.FALLOUT_BURN * 0.5 * self.damage_mult * combat.ground_cut(h), self, None,
                                   self.ctx.effects)
 
     def _in_fallout(self, h) -> bool:
+        if combat.skims(h):
+            return False                   # (Wingheel +9: skimming over it)
         return any(math.hypot(h.x - p["x"], h.y - p["y"]) <= self._patch_radius(p)
                    for p in self.patches)
 
     def _in_goo(self, h) -> bool:
+        if h.stats is not None and h.stats.has("virulence+6"):
+            return False                   # (Plaguebeak +6: toxic ground can't hurt you)
+        if combat.skims(h):
+            return False                   # (Wingheel +9: skimming over it)
         r = config.KING_BARRELS[4]
         return any(math.hypot(h.x - g[0], h.y - g[1]) <= r for g in self.goo)
 
@@ -3702,8 +3709,9 @@ class FalloutKing(Boss):
         self.x, self.y = dest
         self.submerged = False
         for h in self.ctx.players:
-            if h.hittable and math.hypot(h.x - self.x, h.y - self.y) <= radius + h.hit_radius:
-                self._hit(h, damage, math.atan2(h.y - self.y, h.x - self.x))
+            if h.hittable and math.hypot(h.x - self.x, h.y - self.y) <= radius + h.hit_radius \
+                    and not combat.skims(h):
+                self._hit(h, damage * combat.ground_cut(h), math.atan2(h.y - self.y, h.x - self.x))
         self.ctx.effects.append(Effect("explosion", self.x, self.y))
         self.shove_heroes(1.0)
         if self.room_for_shots():
@@ -3736,8 +3744,9 @@ class FalloutKing(Boss):
         self.tell = None
         for x, y in spots:
             for h in self.ctx.players:
-                if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius:
-                    self._hit(h, damage, None)
+                if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius \
+                        and not combat.skims(h):
+                    self._hit(h, damage * combat.ground_cut(h), None)
             rod = self.recruit("isotope_rod", x, y) if self.recruit is not None else None
             if rod is not None:
                 rod.summoner = self
@@ -5467,11 +5476,11 @@ class Nettle(Boss):
         for h in self.ctx.players:
             if not h.alive or not self.in_arena(h):
                 continue
-            if self.on_blight(h.x, h.y):
+            if self.on_blight(h.x, h.y) and not combat.skims(h):
                 t = self.blight_hit.get(id(h), 0.0) - dt
                 if t <= 0:
                     t = config.BLIGHT_TICK
-                    self._hit(h, config.BLIGHT_DAMAGE, None)
+                    self._hit(h, config.BLIGHT_DAMAGE * combat.ground_cut(h), None)
                 self.blight_hit[id(h)] = t
             else:
                 self.blight_hit.pop(id(h), None)
@@ -5488,7 +5497,7 @@ class Nettle(Boss):
             keep.append(s)
         self.seeds = keep
         self.healing = self.alive and self.on_blight(self.x, self.y)
-        if self.healing:
+        if self.healing and not (self.status is not None and self.status.wounded):
             self.hp = min(float(self.max_hp), self.hp + config.BLIGHT_HEAL * dt)
 
     def _tick_homers(self, dt: float) -> None:
@@ -5531,8 +5540,9 @@ class Nettle(Boss):
                 continue
             self.spikes.append([b[0], b[1], 0.0])
             for h in self.ctx.players:
-                if h.hittable and math.hypot(h.x - b[0], h.y - b[1]) <= radius + h.hit_radius:
-                    self._hit(h, damage, None)
+                if h.hittable and math.hypot(h.x - b[0], h.y - b[1]) <= radius + h.hit_radius \
+                        and not combat.skims(h):
+                    self._hit(h, damage * combat.ground_cut(h), None)
         self.bursts = keep
         for s in self.spikes:
             s[2] += dt
@@ -6069,7 +6079,7 @@ class LoveCuddles(Boss):
         self._tick_cones(dt)
         self._watch_tree()
         if self.phase >= 2:
-            self._madden(config.FRENZY_TIME * dt)
+            self._madden(config.FRENZY_FILL * dt)
         g = self.drift_target()
         if g is not None and self.dazed <= 0 and not self.dashing and not self.up \
                 and not self.panting:
@@ -6216,8 +6226,8 @@ class LoveCuddles(Boss):
             if w[4] >= 0.6:
                 for h in heroes:
                     last = self._last.get(id(h))
-                    if last is None or getattr(h, "rolling", False):
-                        continue
+                    if last is None or getattr(h, "rolling", False) or combat.skims(h):
+                        continue                  # (Wingheel +9: over the wire)
                     if _crosses(last[0], last[1], h.x, h.y, *w[:4]):
                         tripped = h
                         break
@@ -6997,9 +7007,10 @@ class TheFallen(Boss):
                 h.slowed(0.0, hold[1])
                 if hold[2] <= 0:
                     hold[2] = 0.5
-                    self._hit(h, config.ROOT_SQUEEZE, None)
+                    self._hit(h, config.ROOT_SQUEEZE * combat.ground_cut(h), None)
                 continue
-            if k in self.immune or getattr(h, "rolling", False) or not h.hittable:
+            if k in self.immune or getattr(h, "rolling", False) or not h.hittable \
+                    or combat.skims(h):
                 continue
             for r in live:
                 if point_segment_distance(h.x, h.y, *self.root_seg(r)) <= config.ROOT_WIDTH:
@@ -7028,7 +7039,8 @@ class TheFallen(Boss):
             p[2] += dt
         self.puddles = [p for p in self.puddles if p[2] < life]
         for h in self.ctx.players:
-            if h.alive and any(math.hypot(h.x - p[0], h.y - p[1]) <= radius for p in self.puddles):
+            if h.alive and not combat.skims(h) \
+                    and any(math.hypot(h.x - p[0], h.y - p[1]) <= radius for p in self.puddles):
                 h.slowed(slow, 0.2)
 
     # --- The bar, the map ---------------------------------------------------------------
@@ -7270,8 +7282,9 @@ class TheFallen(Boss):
         self.dashing = False
         self.ctx.effects.append(Effect("explosion", self.x, self.y + 1.5))
         for h in self.ctx.players:
-            if h.hittable and math.hypot(h.x - self.x, h.y - self.y) <= radius + h.hit_radius:
-                self._hit(h, land, None)
+            if h.hittable and math.hypot(h.x - self.x, h.y - self.y) <= radius + h.hit_radius \
+                    and not combat.skims(h):
+                self._hit(h, land * combat.ground_cut(h), None)
         if self.room_for_shots():
             patterns.radial(self, self.x, self.y, shards, self.shots["splinter"],
                             self.ctx.projectiles, self.rng.uniform(0, math.tau))
@@ -7491,10 +7504,13 @@ class Amanita(Boss):
     def _hit(self, h, damage: float, angle) -> float:
         return combat.strike(h, damage * self.damage_mult, self, angle, self.ctx.effects) or 0.0
 
-    def _blast(self, x: float, y: float, radius: float, damage: float) -> None:
+    def _blast(self, x: float, y: float, radius: float, damage: float,
+               ground: bool = False) -> None:
+        """A burst at (x, y); `ground`: out of the ground (Air step skims it)."""
         for h in self.ctx.players:
-            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius:
-                self._hit(h, damage, None)
+            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius \
+                    and not (ground and combat.skims(h)):
+                self._hit(h, damage * (combat.ground_cut(h) if ground else 1.0), None)
 
     def shove_heroes(self, extra: float = 0.3) -> None:
         if not self.spinning:
@@ -7703,14 +7719,15 @@ class Amanita(Boss):
                 return
         width, damage, every = config.NET_BURN
         for h in self.ctx.players:
-            if not h.alive or not self.in_arena(h) or getattr(h, "rolling", False):
+            if not h.alive or not self.in_arena(h) or getattr(h, "rolling", False) \
+                    or combat.skims(h):
                 continue
             k = id(h)
             if self.on_lit(h.x, h.y, width):
                 self.burn[k] = self.burn.get(k, 0.0) - dt
                 if self.burn[k] <= 0:
                     self.burn[k] = every
-                    self._hit(h, damage, None)
+                    self._hit(h, damage * combat.ground_cut(h), None)
             else:
                 self.burn.pop(k, None)
 
@@ -7784,7 +7801,7 @@ class Amanita(Boss):
             if s[2] < pop:
                 keep.append(s)
                 continue
-            self._blast(s[0], s[1], radius, damage)
+            self._blast(s[0], s[1], radius, damage, ground=True)
             self.ctx.effects.append(Effect("nova", s[0], s[1], size=radius))
         self.shrooms = keep
 
@@ -7879,7 +7896,7 @@ class Amanita(Boss):
         self.submerged = False
         radius, damage, spores = config.NET_ERUPT
         self.ctx.effects.append(Effect("explosion", self.x, self.y))
-        self._blast(self.x, self.y, radius, damage)
+        self._blast(self.x, self.y, radius, damage, ground=True)
         if self.room_for_shots():
             patterns.radial(self, self.x, self.y, spores, self.shots["spore"],
                             self.ctx.projectiles, self.rng.uniform(0, math.tau))
@@ -7949,7 +7966,7 @@ class Amanita(Boss):
         self.hop = 0.0
         self.slam_at = None
         self.ctx.effects.append(Effect("explosion", self.x, self.y + 1.0))
-        self._blast(self.x, self.y, radius, damage)
+        self._blast(self.x, self.y, radius, damage, ground=True)
         self.ctx.events.append("boulder")
         a = self.rng.uniform(0, math.tau)
         if self.room_for_shots():
@@ -8130,10 +8147,13 @@ class InkCap(Boss):
     def _hit(self, h, damage: float, angle) -> float:
         return combat.strike(h, damage * self.damage_mult, self, angle, self.ctx.effects) or 0.0
 
-    def _blast(self, x: float, y: float, radius: float, damage: float) -> None:
+    def _blast(self, x: float, y: float, radius: float, damage: float,
+               ground: bool = False) -> None:
+        """A burst at (x, y); `ground`: out of the ground (Air step skims it)."""
         for h in self.ctx.players:
-            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius:
-                self._hit(h, damage, None)
+            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius \
+                    and not (ground and combat.skims(h)):
+                self._hit(h, damage * (combat.ground_cut(h) if ground else 1.0), None)
 
     def _open_near(self, x: float, y: float) -> tuple[float, float]:
         """(x, y), or the nearest open spot round it it can stand on."""
@@ -8224,12 +8244,12 @@ class InkCap(Boss):
             if not h.alive or not self.in_arena(h):
                 continue
             k = id(h)
-            if self.on_ink(h.x, h.y) and not getattr(h, "rolling", False):
+            if self.on_ink(h.x, h.y) and not getattr(h, "rolling", False) and not combat.skims(h):
                 h.slowed(config.INK_SLOW, 0.2)
                 self.ink_hit[k] = self.ink_hit.get(k, 0.2) - dt
                 if self.ink_hit[k] <= 0:
                     self.ink_hit[k] = config.INK_TICK
-                    self._hit(h, config.INK_STING, None)
+                    self._hit(h, config.INK_STING * combat.ground_cut(h), None)
             else:
                 self.ink_hit.pop(k, None)
 
@@ -8426,7 +8446,7 @@ class InkCap(Boss):
             return
         every, radius, damage = config.SCRAWL_BURST
         for x, y, ch, _ in letters:
-            self._blast(x, y, radius, damage)
+            self._blast(x, y, radius, damage, ground=True)
             self.ctx.effects.append(Effect("explosion", x, y))
             yield every
         self.ctx.events.append("boulder")
@@ -8531,7 +8551,7 @@ class InkCap(Boss):
         self.x, self.y = x, y
         self.submerged = False
         self.ctx.effects.append(Effect("explosion", x, y))
-        self._blast(x, y, radius, damage)
+        self._blast(x, y, radius, damage, ground=True)
         if self.room_for_shots():
             patterns.radial(self, x, y, drops, self.shots["ink"], self.ctx.projectiles,
                             self.rng.uniform(0, math.tau))
@@ -8695,10 +8715,13 @@ class Puffball(Boss):
     def _hit(self, h, damage: float, angle) -> float:
         return combat.strike(h, damage * self.damage_mult, self, angle, self.ctx.effects) or 0.0
 
-    def _blast(self, x: float, y: float, radius: float, damage: float) -> None:
+    def _blast(self, x: float, y: float, radius: float, damage: float,
+               ground: bool = False) -> None:
+        """A burst at (x, y); `ground`: out of the ground (Air step skims it)."""
         for h in self.ctx.players:
-            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius:
-                self._hit(h, damage, None)
+            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius \
+                    and not (ground and combat.skims(h)):
+                self._hit(h, damage * (combat.ground_cut(h) if ground else 1.0), None)
 
     def shove_heroes(self, extra: float = 0.3) -> None:
         if not self.dashing and not self.halves:
@@ -8777,7 +8800,7 @@ class Puffball(Boss):
         """A mine pops: a burst, the mines near it pop in a chain, and one
         popping by it hurts and staggers it."""
         radius, damage = config.MINE_BURST
-        self._blast(x, y, radius, damage)
+        self._blast(x, y, radius, damage, ground=True)
         self.ctx.effects.append(Effect("nova", x, y, size=radius))
         self.ctx.events.append("fizzle")
         for m in self.mines:
@@ -8847,11 +8870,11 @@ class Puffball(Boss):
         self.clouds = keep
         for h in self.ctx.players:
             k = id(h)
-            if h.alive and self.in_arena(h) and self.in_cloud(h.x, h.y):
+            if h.alive and self.in_arena(h) and self.in_cloud(h.x, h.y) and not combat.skims(h):
                 self.choke[k] = self.choke.get(k, 0.15) - dt
                 if self.choke[k] <= 0:
                     self.choke[k] = config.CLOUD_TICK
-                    self._hit(h, config.CLOUD_CHOKE, None)
+                    self._hit(h, config.CLOUD_CHOKE * combat.ground_cut(h), None)
             else:
                 self.choke.pop(k, None)
 
@@ -8939,7 +8962,7 @@ class Puffball(Boss):
                                                    t.y + math.sin(a) * r * 0.8, 3.0))
         yield from self._leap(self, x, y, self.tell_s(config.BOUND_TELL))
         radius, damage, spores = config.BOUND_LAND
-        self._blast(self.x, self.y, radius, damage)
+        self._blast(self.x, self.y, radius, damage, ground=True)
         self.ctx.effects.append(Effect("explosion", self.x, self.y + 1.0))
         if self.room_for_shots():
             patterns.radial(self, self.x, self.y, spores, self.shots["spore"],
@@ -8992,7 +9015,7 @@ class Puffball(Boss):
                         next(g)
                     except StopIteration:
                         leaps[id(h)] = None
-                        self._blast(h.x, h.y, radius, damage)
+                        self._blast(h.x, h.y, radius, damage, ground=True)
                         self.ctx.effects.append(Effect("explosion", h.x, h.y + 0.6))
                         if self.room_for_shots():
                             patterns.radial(self, h.x, h.y, spores, self.shots["spore"],
@@ -9153,7 +9176,7 @@ class Puffball(Boss):
         yield self.tell_s(tell)
         self.tell = None
         self.squashed = False
-        self._blast(self.x, self.y, radius, damage)
+        self._blast(self.x, self.y, radius, damage, ground=True)
         self.ctx.effects.append(Effect("explosion", self.x, self.y + 1.0))
         self.ctx.effects.append(Effect("nova", self.x, self.y, size=radius))
         if self.room_for_shots():
@@ -9321,10 +9344,13 @@ class Necromancer(Boss):
         if self.lich and dealt and len(self.wisps) < 24:
             self.wisps.append([victim.x, victim.y])
 
-    def _blast(self, x: float, y: float, radius: float, damage: float) -> None:
+    def _blast(self, x: float, y: float, radius: float, damage: float,
+               ground: bool = False) -> None:
+        """A burst at (x, y); `ground`: out of the ground (Air step skims it)."""
         for h in self.ctx.players:
-            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius:
-                self._hit(h, damage, None)
+            if h.hittable and math.hypot(h.x - x, h.y - y) <= radius + h.hit_radius \
+                    and not (ground and combat.skims(h)):
+                self._hit(h, damage * (combat.ground_cut(h) if ground else 1.0), None)
 
     def shove_heroes(self, extra: float = 0.3) -> None:
         if not self.dashing and not self.reviving and self.host is None and not self.lich:
@@ -9727,7 +9753,8 @@ class Necromancer(Boss):
                 self.cage_tell = (x, y, left, h)
             else:
                 self.cage_tell = None
-                if h.alive and self.recruit is not None and math.hypot(h.x - x, h.y - y) <= 2.5:
+                if h.alive and self.recruit is not None and math.hypot(h.x - x, h.y - y) <= 2.5 \
+                        and not combat.skims(h):
                     self._close_cage(h)
         if self.caged is None:
             return
@@ -9744,7 +9771,7 @@ class Necromancer(Boss):
             rib.x, rib.y = self.cage_x + math.cos(a) * r, self.cage_y + math.sin(a) * r * 0.8
         h.slowed(0.0, 0.2)
         if self.cage_age >= config.CAGE_TIME:
-            self._hit(h, config.CAGE_CRUSH, None)
+            self._hit(h, config.CAGE_CRUSH * combat.ground_cut(h), None)
             self._open_cage("CRUSHED!")
 
     def _close_cage(self, h) -> None:
@@ -10045,8 +10072,9 @@ class Necromancer(Boss):
         self.tell = None
         for x, y in spots:
             for h in self.ctx.players:
-                if h.hittable and math.hypot(h.x - x, h.y - y) <= reach + h.hit_radius:
-                    self._hit(h, damage, None)
+                if h.hittable and math.hypot(h.x - x, h.y - y) <= reach + h.hit_radius \
+                        and not combat.skims(h):
+                    self._hit(h, damage * combat.ground_cut(h), None)
                     h.slowed(0.0, rooted)
             self.ctx.effects.append(Effect("eruption", x, y))
         self.hands = []

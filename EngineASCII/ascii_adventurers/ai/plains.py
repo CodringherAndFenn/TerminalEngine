@@ -544,6 +544,8 @@ class Priest(PlainsCreature):
                 best, worst = a, frac
         if best is None:
             return
+        if best.status is not None and best.status.wounded:
+            return                                   # (Thornhelm +6: bleeding)
         best.hp = min(float(best.max_hp), best.hp + best.max_hp * share)
         ctx.effects.append(Effect("heal_beam", self.x, self.y, x2=best.x, y2=best.y))
         ctx.events.append("chime")

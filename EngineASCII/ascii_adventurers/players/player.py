@@ -63,8 +63,32 @@ class Player:
     # Card / guild state of the run (systems/run_rules.py)
     frenzy: float = 0.0               # Frenzy: seconds of double attack speed left
     echo_timer: float = 0.0           # Echo: the repeated attack comes in this many s
+    # M28.2a, the off-hand's tricks (systems/run_rules.py): attacks toward
+    # the next echo, which echo is coming (1 its echo, 2 Canyon's third) and
+    # at what x damage; the Starburst meter (attacks and, with Pain turns
+    # the wheel, hits taken) and the hits already counted; crosses fired
+    # (Needle); Corona's second ring (s left, its angle, the attack's
+    # keywords); Watchful's cooldown.
+    echo_count: int = 0
+    echo_stage: int = 0
+    echo_mult: float = 1.0
+    burst_meter: float = 0.0
+    hits_seen: int = 0
+    crosses: int = 0
+    corona: tuple | None = None
+    watch_cd: float = 0.0
     retaliate_cd: float = 0.0         # Retaliation's cooldown
     bounty: int = 0                   # kills toward Bounty's next cache
+    # M28.2e, the rings' tricks (systems/run_rules.py): Short fuse's added
+    # chance; the last kill's time (Grim); loot from salvaging (Miser);
+    # Lighthouse's clock and its wave (deadline, the wave's enemies);
+    # Fuse line's explosions waiting to go off.
+    fuse: float = 0.0
+    last_kill: float = -1e9
+    salvaged: float = 0.0
+    lighthouse_t: float = 0.0
+    wave: tuple | None = None
+    fuses: list = field(default_factory=list)
     kill_times: list = field(default_factory=list)   # recent kills (achievement)
     phoenix_used: int = 0
     revives_used: int = 0             # Second Chance

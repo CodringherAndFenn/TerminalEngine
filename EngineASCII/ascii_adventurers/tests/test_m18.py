@@ -14,6 +14,7 @@ import pygame
 from ascii_adventurers import config
 from ascii_adventurers.entities.projectile import Projectile
 from ascii_adventurers.players import cards
+from ascii_adventurers.tests.gear_helpers import offerable, use_cards
 from ascii_adventurers.players.controls import PlayerInput
 from ascii_adventurers.players.stats import HeroStats
 from ascii_adventurers.systems import combat, roll
@@ -224,9 +225,9 @@ class RollCardTest(unittest.TestCase):
                         ("huntress", "backflip"), ("princess", "pirouette"),
                         ("bard", "drop_the_beat")):
             w = config.WEAPONS[config.HEROES[hero].weapon]
-            self.assertIn(k, cards.eligible(hero, w, Counter()))
+            self.assertIn(k, offerable(hero, w, Counter()))
             other = "bard" if hero != "bard" else "wizard"
-            self.assertNotIn(k, cards.eligible(other, config.WEAPONS[config.HEROES[other].weapon],
+            self.assertNotIn(k, offerable(other, config.WEAPONS[config.HEROES[other].weapon],
                                                Counter()))
 
 
@@ -267,13 +268,13 @@ class EvasionTest(unittest.TestCase):
 class LingeringGateTest(unittest.TestCase):
     def test_only_with_something_that_lasts(self):
         w = config.WEAPONS[config.HEROES["bard"].weapon]
-        self.assertNotIn("lingering", cards.eligible("bard", w, Counter()))
+        self.assertNotIn("lingering", offerable("bard", w, Counter()))
         for taken in ([("kindling", "uncommon")], [("poison_flask", "uncommon")],
                       [("bone_turret", "rare")]):
             st = cards.hero_stats(taken)
-            self.assertIn("lingering", cards.eligible("bard", w, Counter(), st), taken)
+            self.assertIn("lingering", offerable("bard", w, Counter(), st), taken)
         st = cards.hero_stats([("daggers", "uncommon")])
-        self.assertNotIn("lingering", cards.eligible("bard", w, Counter(), st))
+        self.assertNotIn("lingering", offerable("bard", w, Counter(), st))
 
 
 class SpellLevelTest(unittest.TestCase):
@@ -318,22 +319,23 @@ class ArchetypeLeanTest(unittest.TestCase):
             self.assertTrue(set(members) <= codes, name)
 
     def test_a_summoner_always_sees_a_summoner_card(self):
+        """(M28.1: gear) a worn Wolfcall Whistle +1 counts twice: the lean."""
+        from ascii_adventurers.players import gear
         w = config.WEAPONS[config.HEROES["bard"].weapon]
-        taken = [("spirit_wolf", "uncommon"), ("spirit_wolf", "uncommon")]
-        st = cards.hero_stats(taken)
-        counts = Counter(k for k, _ in taken)
+        eq = gear.Equipment()
+        eq.take(gear.Offer("spirit_wolf", "uncommon", (), "new"))
+        eq.upgrade("trinket1")
+        st = cards.loadout_from_steps("bard", eq.steps()).stats
         lean = cards.ARCHETYPE_CARDS["summoner"]
         hits = 0
-        for n in range(200):
-            offer = cards.draw_offer("bard", w, counts, 7, 0, n, st)
+        for n in range(1, 201):
+            offer = gear.draw_offer("bard", w, eq, 7, 0, n, st)
             self.assertEqual(len(offer), config.CARD_OFFER_SIZE)
-            self.assertEqual(len({k for k, _ in offer}), len(offer))
-            hits += any(k in lean for k, _ in offer)
+            self.assertEqual(len({o.key for o in offer}), len(offer))
+            hits += any(o.key in lean for o in offer)
         self.assertEqual(hits, 200)
-        # Without a lean, offers draw the same as before M18 (no extra dice).
-        plain = cards.draw_offer("bard", w, Counter(), 7, 0, 0)
+        plain = gear.draw_offer("bard", w, gear.Equipment(), 7, 0, 1)
         self.assertEqual(len(plain), config.CARD_OFFER_SIZE)
-
 
 if __name__ == "__main__":
     unittest.main()

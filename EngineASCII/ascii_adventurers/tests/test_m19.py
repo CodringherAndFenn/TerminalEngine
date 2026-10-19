@@ -13,6 +13,7 @@ import pygame
 
 from ascii_adventurers import config
 from ascii_adventurers.players import cards
+from ascii_adventurers.tests.gear_helpers import offerable, use_cards
 from ascii_adventurers.systems import combat
 from ascii_adventurers.tests.test_m14 import carded
 from ascii_adventurers.tests.test_m16 import SpellRev2Test, fly, game, take
@@ -136,13 +137,13 @@ class HeroCardTest(_GameCase):
 
     def test_bard_patterns_need_sheet_music(self):
         w = weapon("bard")
-        self.assertNotIn("cross_fire", cards.eligible("bard", w, Counter()))
+        self.assertNotIn("cross_fire", offerable("bard", w, Counter()))
         st = cards.hero_stats([("sheet_music", "uncommon")])
-        pool = cards.eligible("bard", w, Counter(), st)
+        pool = offerable("bard", w, Counter(), st)
         self.assertIn("cross_fire", pool)
         self.assertIn("multishot", pool)
         st = cards.hero_stats([("fire_wand", "uncommon")])
-        pool = cards.eligible("bard", w, Counter(), st)
+        pool = offerable("bard", w, Counter(), st)
         self.assertIn("multishot", pool)               # wand bolts
         self.assertNotIn("cross_fire", pool)           # but the beat doesn't shoot
 
@@ -150,7 +151,7 @@ class HeroCardTest(_GameCase):
         c = config.CARDS["split_arrow"]
         self.assertEqual(c.heroes, ("huntress",))
         self.assertEqual(cards.spell_of(c), "split_arrow")
-        self.assertNotIn("split_arrow", cards.eligible("wizard", weapon("wizard"), Counter()))
+        self.assertNotIn("split_arrow", offerable("wizard", weapon("wizard"), Counter()))
 
     def test_split_arrow_splits_on_the_first_hit(self):
         h = carded("huntress", ("split_arrow", "uncommon"))

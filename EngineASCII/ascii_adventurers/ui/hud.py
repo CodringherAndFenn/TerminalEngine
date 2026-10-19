@@ -7,8 +7,10 @@ the corners, each on a small dark panel so it reads over any terrain:
   top-left     HP bar, level + XP bar, kills, loot found and the run's
                clock, the dodge roll's recharge (and charges, with Extra
                Roll), a boss's meter on you while you have some (M24.1
-               RAD from the Fallout King, M24.2 CHL from the Snow King), and the hero's spells with their levels (once they
-               have any)
+               RAD from the Fallout King, M24.2 CHL from the Snow King), and the
+               gear row (M28.1): a letter per slot (M main hand, O off-hand,
+               H head, C chest, F feet, R rings, T trinkets) in its piece's
+               rarity colour with its +level, dim "-" when empty
   top-right    the minimap (ui/maps.py)
   top-centre   a boss's name and health, during a boss fight
   bottom-right FPS, when enabled in Settings
@@ -51,7 +53,7 @@ class HudInfo:
     time: float              # seconds into the run
     fps: float | None = None     # None: hidden (a setting)
     boss: tuple[str, float] | None = None   # (name, health fraction) during a boss fight
-    spells: tuple = ()           # (HUD label, level) of each spell the hero has
+    gear: tuple = ()             # (slot letter, level or None, rarity or None) per slot (M28.1)
     loot: int = 0                # found this run
     shield: float = 0.0          # Ward Charm / Aegis: shown in blue after the HP
     roll: tuple | None = None    # (charges ready, most charges, 0..1 toward the next)
@@ -104,10 +106,10 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
     meter_row = 3 + (info.roll is not None) if info.meter is not None else None
     meter_key = ((info.meter[0], round(info.meter[1] * (BAR - 1)), info.meter[2])
                  if info.meter is not None else None)
-    rows = 3 + (info.roll is not None) + (info.meter is not None) + bool(info.spells)
+    rows = 3 + (info.roll is not None) + (info.meter is not None) + bool(info.gear)
     area = pygame.Rect(0, 0, PANEL_W * d.cell_w, rows * d.cell_h)
     key = (id(text), d.cell_w, d.cell_h, hp_cells, hp_color, math.ceil(info.hp),
-           info.level, xp_cells, info.kills, clock, info.spells, info.loot, shield_cells,
+           info.level, xp_cells, info.kills, clock, info.gear, info.loot, shield_cells,
            roll_key, meter_key)
     if key == _cache["key"]:
         d.canvas.blit(_cache["image"], area)
@@ -141,9 +143,15 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
                  palette.HUD_ROLL_EMPTY, palette.HUD_PANEL)
         if alarm:
             text.put(PANEL_W - 4, meter_row, "!!!", col, palette.HUD_PANEL)
-    if info.spells:
-        line = "  ".join(f"{name} {level}" for name, level in info.spells)
-        text.put(1, rows - 1, line[:PANEL_W - 2], palette.HUD_SPELL, palette.HUD_PANEL)
+    if info.gear:
+        col = 1
+        for letter, level, rarity in info.gear:
+            cell = f"{letter}{level}" if level is not None else f"{letter}-"
+            if col + len(cell) > PANEL_W:
+                break
+            fg = palette.CARD_RARITY[rarity] if rarity is not None else palette.HUD_EMPTY
+            text.put(col, rows - 1, cell, fg, palette.HUD_PANEL)
+            col += len(cell) + 1
     _cache["key"], _cache["image"] = key, d.canvas.subsurface(area).copy()
 
 

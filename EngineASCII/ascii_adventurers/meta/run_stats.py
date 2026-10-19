@@ -22,7 +22,8 @@ class RunStats:
     walked: float = 0.0                  # tiles walked
     kills: Counter = field(default_factory=Counter)   # enemy name -> count
     biomes: list[str] = field(default_factory=list)   # in the order found
-    cards: list[str] = field(default_factory=list)    # card keys, in the order taken
+    cards: list[str] = field(default_factory=list)    # gear bases, in the order first worn
+    gear: list[str] = field(default_factory=list)     # (M28.1) what was worn at the end
     loot: float = 0.0                    # found this run (kept however it ends)
     difficulty: int = 0                  # P5: the run's difficulty level
     victory: bool = False                # M27: Adventurer's Glory won (the plains boss)
