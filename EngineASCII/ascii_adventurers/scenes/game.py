@@ -77,7 +77,7 @@ from ..entities.gems import Gem, drop, update_gems
 from ..entities.projectile import Projectile
 from ..meta.run_stats import RunStats
 from ..players.cards import loadout_from_steps
-from ..players.gear import draw_offer, salvage_value
+from ..players.gear import draw_offer, eligible, foresee, keep_in, salvage_value
 from ..players.controls import AutoControls, GhostControls, PlayerInput
 from ..players.player import Player, player_color
 from ..render.ascii_fx import draw_effects, draw_projectiles
@@ -91,8 +91,8 @@ from ..render.enemies_sprite import draw_enemy
 from ..render.fallen import draw_groves
 from ..render.haunt import draw_wisps
 from ..render.slash import draw_slashes
-from ..render.spell_fx import (draw_gems, draw_ghost_sight, draw_spells, draw_statuses,
-                               draw_summons)
+from ..render.spell_fx import (draw_gems, draw_ghost_sight, draw_overcast, draw_possessed,
+                               draw_spells, draw_statuses, draw_summons)
 from ..render.sprites import SpriteBank
 from ..render.terrain import TerrainRenderer
 from ..ai.plains import drum_haste, tick_drum
@@ -101,7 +101,7 @@ from ..systems.quests import Quests, free_spot
 from ..systems.spawner import Spawner
 from ..systems.run_rules import RunRules, difficulty_totals, pact_totals
 from ..systems.spells import sync_spells, update_spells
-from ..systems.statuses import update_statuses
+from ..systems.statuses import has as has_flag, update_statuses
 from ..systems.zones import update_zones
 from ..ui.crosshair import draw_crosshair
 from ..ui.frame import center, dim_canvas
@@ -240,6 +240,7 @@ class GameScene(Scene):
                 hasty = hasty or (p.hero.stats.has("bounty") and not p.hero.stats.has("bounty+9"))
         pacts = self.pacts
         sp.beckon = config.BEACON_SPAWNS if "beacon" in flags else 0.0
+        sp.bright = "beacon+L" in flags            # (M28.3h: Beckoning Ring (L), Bright beacon)
         sp.density = (1 + pacts["enemy_count"]) * (1 + sp.beckon) * (1 + self.diff["enemies"])
         sp.hp_mult = self.diff["hp"]
         sp.damage_mult = self.diff["damage"]
@@ -530,7 +531,12 @@ class GameScene(Scene):
         # Cameras ease toward where their heroes are drawn this frame.
         frame_dt = min(dt, config.MAX_DT)
         for p in self.players:
-            p.camera.follow(*self._drawn_pos(p.hero), frame_dt)
+            x, y = self._drawn_pos(p.hero)
+            cam = p.camera
+            w, h = cam.view_w / cam.tile_w, cam.view_h / cam.tile_h
+            lx, ly = combat.farsight_lean(p.hero, w, h)     # (M28.3c: Farsight Bow (L))
+            cam.follow(x + lx, y + ly, frame_dt)
+            p.hero.view_box = (cam.x, cam.y, w / 2, h / 2)  # (crit arrows fly to its edge)
 
         # Cards on offer: up they come (pausing the game in single player).
         if self.overlay is None and self.me.alive and self.me.progress.offer:
@@ -645,14 +651,23 @@ class GameScene(Scene):
                 scale *= getattr(e, "time_mult", 1.0)     # (the Magus's time zones, M23.3)
                 if getattr(e, "boss", False):
                     # A boss fights wherever it is in its arena, and is
-                    # never frozen solid.
+                    # never frozen solid -- but for Rime Hood (L)'s Deep
+                    # freeze, for a moment (M28.3e).
+                    if e.status is not None and e.status.frozen > 0 \
+                            and has_flag(e.status.frozen_by, "frostbite+L"):
+                        continue
                     e.think(ctx, dt * max(scale, config.BOSS_MIN_TIME_SCALE))
                     continue
                 if scale <= 0:
                     continue
                 for x0, x1, y0, y1 in boxes:
                     if x0 <= x <= x1 and y0 <= y <= y1:
-                        e.think(ctx, dt * scale)
+                        if getattr(e, "possessed", None) is not None:
+                            g = self._ghost_ctx(ctx)
+                            if g.players:                 # (nobody to fight: it waits)
+                                e.think(g, dt * scale)
+                        else:
+                            e.think(ctx, dt * scale)
                         if e.status is not None and e.status.rooted > 0:
                             e.x, e.y = x, y              # (Viper Mask +9: rooted)
                         break
@@ -714,6 +729,7 @@ class GameScene(Scene):
         """The hero's weapon goes off (with this attack's card changes)."""
         kw = self.rules.attack_mods(p, echo)
         actors = self._actors()
+        self.rules.hair_trigger(p)                           # (M28.3d: Pepperbox (L))
         before = len(self.projectiles)
         standing = [a for a in actors if a.alive] if echo else ()
         hero = p.hero
@@ -723,6 +739,7 @@ class GameScene(Scene):
         riposte, hero.riposte_now = hero.riposte_now, False
         hero.riposting = riposte                             # (Fencer's Boots: its hits)
         shot = combat.attack(hero, self.world, self.projectiles, self.effects, actors, **kw)
+        p.attack_shots = self.projectiles[before:]           # (M28.3d: Sunspot rides them)
         shot += self.rules.patterns(p, kw)
         shot += self.rules.beats(p, kw)                     # (M28.2i: Offbeat Lute +6)
         for amp in hero.amps:                                # (Stompers +9: Amplifier)
@@ -731,6 +748,8 @@ class GameScene(Scene):
                                      mult=kw["mult"] * config.AMPLIFIER[1],
                                      reach_mult=kw["reach_mult"], origin=(amp[0], amp[1]))
         hero.riposting = False
+        self.rules.overlap(p, self.projectiles[before:])     # (M28.3l: Prismatic Wand (L))
+        self.rules.lunge(p)                                  # (M28.3l: Duelist's Wand (L))
         self.rules.bow_shots(p, self.projectiles[before:])   # (M28.2h: the Stillwater, Farsight)
         if riposte:
             for q in self.projectiles[before:]:
@@ -752,6 +771,7 @@ class GameScene(Scene):
 
     def _gain_xp(self, p: Player, xp: float) -> None:
         gained = p.progress.add(xp)
+        self.rules.on_xp(p)                         # (M28.3h: Ascendant Band (L), Ascent)
         if gained:
             self.effects.append(Effect("levelup", p.hero.x, p.hero.y))
             if p.local:
@@ -808,6 +828,7 @@ class GameScene(Scene):
         prog.resolved += 1
         prog.offer = []
         prog.decree = None
+        prog.keep = None                     # (Fourleaf Ring (L): the kept piece's pick is over)
 
     def _salvaged(self, p: Player, pieces) -> None:
         """Pieces salvaged (by hand, or out of a full bag): their loot."""
@@ -844,6 +865,10 @@ class GameScene(Scene):
             self._apply_loadout(p)
         if isinstance(pick, tuple) and pick and pick[0] in ("wear", "salvage"):
             self._gear_action(p, pick)
+            pick = None
+        if isinstance(pick, tuple) and pick and pick[0] == "keep":   # (M28.3h: Foresight)
+            if len(pick) == 2 and isinstance(pick[1], int) and 0 <= pick[1] < len(prog.next_offer):
+                prog.kept = None if prog.kept == pick[1] else pick[1]
             pick = None
         if pick is not None and prog.offer:
             if pick == "reroll":
@@ -884,23 +909,48 @@ class GameScene(Scene):
                     self.rules.check_build(p)
             if p.local:
                 self._sounds.append("ui")
+        st = p.hero.stats
+        fore = st.has("fortune+L") and prog.decree is None   # Fourleaf Ring (L): Foresight
+        if not fore:
+            prog.next_offer, prog.kept, prog.keep = [], None, None
         if prog.picks > 0 and not prog.offer:
-            st = p.hero.stats
-            size = config.CARD_OFFER_SIZE + round(st.offer_size)
-            if st.has("fortune+9"):                                # Fourleaf +9 (Four leaves)
-                size += 1
-            if st.encore_tour:                                     # Encore Tour
-                every = max(2, 6 - round(st.encore_tour))
-                if (prog.resolved + 1) % every == 0:
-                    size += 1
-            prog.offer = draw_offer(p.stats.hero, config.WEAPONS[config.HEROES[p.stats.hero].weapon],
-                                    prog.gear, getattr(self.world, "seed", 0) or 0, p.index,
-                                    prog.offers, st, prog.banished, p.unlocked,
-                                    level=prog.level, size=size, min_rarity_=prog.decree,
-                                    one_rare=st.has("fortune+3"))  # (Fourleaf +3: Clover)
-            prog.offers += 1
+            drawn = self._new_offer(p)
+            if fore and (prog.next_offer or prog.keep is not None):
+                weapon = config.WEAPONS[config.HEROES[p.stats.hero].weapon]
+                pool = set(eligible(p.stats.hero, weapon, prog.gear, st, prog.banished, p.unlocked,
+                                    prog.level))
+                if prog.next_offer:            # the offer seen early, now it's here
+                    seen, kept = prog.next_offer, prog.kept
+                    drawn = foresee(seen, drawn, prog.gear, pool)
+                    prog.keep = (drawn[kept], kept) if kept is not None and kept < len(drawn) \
+                        and drawn[kept].key == seen[kept].key else None
+                else:                          # a reroll (or a redraw): the kept piece stays
+                    drawn = keep_in(prog.keep[0], prog.keep[1], drawn, prog.gear, pool)
+            prog.next_offer, prog.kept = [], None
+            prog.offer = drawn
             if not prog.offer:
                 prog.picks = 0             # everything maxed out: nothing left to offer
+        elif fore and prog.picks == 0 and not prog.offer and not prog.next_offer \
+                and not prog.maxed:
+            prog.next_offer = self._new_offer(p)    # (Foresight: the next level's, early)
+
+    def _new_offer(self, p: Player) -> list:
+        """A new offer for the player (the next draw of the run)."""
+        prog, st = p.progress, p.hero.stats
+        size = config.CARD_OFFER_SIZE + round(st.offer_size)
+        if st.has("fortune+9"):                                # Fourleaf +9 (Four leaves)
+            size += 1
+        if st.encore_tour:                                     # Encore Tour
+            every = max(2, 6 - round(st.encore_tour))
+            if (prog.resolved + 1) % every == 0:
+                size += 1
+        drawn = draw_offer(p.stats.hero, config.WEAPONS[config.HEROES[p.stats.hero].weapon],
+                           prog.gear, getattr(self.world, "seed", 0) or 0, p.index,
+                           prog.offers, st, prog.banished, p.unlocked,
+                           level=prog.level, size=size, min_rarity_=prog.decree,
+                           one_rare=st.has("fortune+3"))       # (Fourleaf +3: Clover)
+        prog.offers += 1
+        return drawn
 
     @staticmethod
     def _gear_row(p: Player) -> tuple:
@@ -918,7 +968,8 @@ class GameScene(Scene):
     def _apply_loadout(cls, p: Player) -> None:
         """Rebuild the hero from the base specs plus everything worn (and
         the speed of its level, P3)."""
-        lo = loadout_from_steps(p.stats.hero, p.progress.gear.steps(), p.meta, p.progress.level)
+        meta = list(p.meta) + ([("max_hp", "add", p.harvest)] if p.harvest else [])   # (Harvest)
+        lo = loadout_from_steps(p.stats.hero, p.progress.gear.steps(), meta, p.progress.level)
         p.progress.gear.trinkets = max(1, round(lo.stats.spell_slots))
         cls._use_loadout(p, lo)
 
@@ -944,16 +995,32 @@ class GameScene(Scene):
         dies) the toughest enemy in the player's view is marked. The
         Bloodhound Bow: +3 (Old scent) the last mark stays OLD_SCENT s
         more; +6 (Next quarry) a mark that dies passes to the enemy nearest
-        where it fell; +9 (Pack hunt) and marks everyone round it a while."""
+        where it fell; +9 (Pack hunt) and marks everyone round it a while;
+        (L) Called shot: a roll marks the one nearest the aim."""
         hero, st = p.hero, p.hero.stats
         hero.marks = [(e, t) for e, t in hero.marks if e.alive and t > hero.time]
         p.mark_timer -= dt
         old = hero.marked
+        if hero.rolls != p.called and st.has("hunters_mark+L"):
+            # The Bloodhound Bow (L), Called shot: a roll marks the enemy
+            # nearest the aim at once; it counts as the next mark.
+            f = p.focus()
+            seen = [e for e in self.enemies if e.alive and e.hittable and f.near(e.x, e.y, 0.0)
+                    and getattr(e, "faction", "enemy") == "enemy"]
+            aim = hero.aim_point or (hero.x, hero.y)
+            if seen:
+                hero.marked = min(seen, key=lambda e: math.hypot(e.x - aim[0], e.y - aim[1]))
+                p.mark_timer = config.MARK_INTERVAL
+                if old is not None and old.alive and old is not hero.marked \
+                        and st.has("hunters_mark+3"):      # Old scent
+                    hero.marks.append((old, hero.time + config.OLD_SCENT))
+        p.called = hero.rolls
         if p.mark_timer > 0 and old is not None and old.alive:
             return
         p.mark_timer = config.MARK_INTERVAL
         f = p.focus()
-        seen = [e for e in self.enemies if e.alive and e.hittable and f.near(e.x, e.y, 0.0)]
+        seen = [e for e in self.enemies if e.alive and e.hittable and f.near(e.x, e.y, 0.0)
+                and getattr(e, "faction", "enemy") == "enemy"]      # (not a ghost, M28.3j)
         fell = old is not None and not old.alive
         if fell and st.has("hunters_mark+9"):              # Pack hunt
             radius, seconds = config.PACK_HUNT
@@ -969,6 +1036,14 @@ class GameScene(Scene):
         if old is not None and old.alive and old is not hero.marked \
                 and st.has("hunters_mark+3"):              # Old scent
             hero.marks.append((old, hero.time + config.OLD_SCENT))
+
+    def _ghost_ctx(self, ctx: AIContext) -> AIContext:
+        """What a ghost (M28.3j: Ghostwood Staff (L), Possession) thinks
+        with: the enemies stand in for the heroes, so it fights them as it
+        fought you. What it would send out (rats, crows) stays away."""
+        foes = [a for a in ctx.actors if a.alive and getattr(a, "faction", "") == "enemy"]
+        return AIContext(ctx.world, foes, ctx.actors, ctx.projectiles, ctx.effects,
+                         events=ctx.events, zones=ctx.zones, gems=ctx.gems)
 
     def _actors(self) -> list:
         return [p.hero for p in self.players if p.hero.alive] + self._images() \
@@ -994,6 +1069,10 @@ class GameScene(Scene):
                 break
             self.enemies = [e for e in self.enemies if e.alive]
             for e in dying:
+                if getattr(e, "possessed", None) is not None:
+                    # A ghost (M28.3j: Ghostwood Staff (L)) is gone: no kill.
+                    self.effects.append(Effect("fizzle", e.x, e.y))
+                    continue
                 if getattr(e, "part_of", None) is not None:
                     # One leech of a swarm boss: the swarm itself is the
                     # kill (XP, loot, the quest) once its last leech dies.
@@ -1007,7 +1086,10 @@ class GameScene(Scene):
                     events.append(combat.BREAK)
                 if self.spawner is not None:
                     self.spawner.killed(e)
-                killer = self._player_of(e.last_hit_by)
+                self.rules.on_death(e)                     # (M28.3c: Storm's mark)
+                by = e.last_hit_by
+                ghost = getattr(by, "possessed", None)
+                killer = self._player_of(ghost[0] if ghost is not None else by)
                 self.quests.on_death(e, killer)
                 if killer is not None:
                     killer.stats.killed(e.espec.name)
@@ -1017,6 +1099,7 @@ class GameScene(Scene):
                     drop(self.gems, e.x, e.y, xp)
                     self._loot(killer, e)
                     self.rules.on_kill(killer, e)
+                self.rules.possess(e)                      # (M28.3j: Ghostwood Staff (L))
             self._wake_spawned(ctx)
             ctx.actors = self._actors()
         events += ctx.events
@@ -1154,14 +1237,18 @@ class GameScene(Scene):
     @staticmethod
     def _meter(hero) -> tuple | None:
         """The HUD's extra meter row while a boss has one on you (M24.1 rads,
-        M24.2 chill), or the mount's wait (P6): (label, 0..1 full, alarm)."""
+        M24.2 chill), or the mount's wait (P6), or a used Phoenix rise
+        coming back (M28.3c): (label, 0..1 full, alarm)."""
         if hero.rads > 0 or hero.irradiated > 0:
             return ("RAD", hero.rads / config.RADS_FULL, hero.irradiated > 0)
         if hero.chill > 0 or hero.encased > 0:
             return ("CHL", hero.chill / config.CHILL_FULL, hero.encased > 0)
         if hero.shrunk > 0:                   # (M25.1: tiny, until a growcap or this runs out)
             return ("TNY", hero.shrunk / config.SHRINK[0], True)
-        return mount.meter(hero)              # (P6: the whistle, or the wait after a fall)
+        wait = mount.meter(hero)              # (P6: the whistle, or the wait after a fall)
+        if wait is None and getattr(hero, "flame", 0.0) > 0:
+            return ("PHX", hero.flame, False)  # (M28.3c: Ever-burning, a rise coming back)
+        return wait
 
     def _draw(self, text: TextRenderer) -> None:
         d = self.manager.display
@@ -1202,9 +1289,12 @@ class GameScene(Scene):
                                                  + [m for m, t in p.hero.marks if t > p.hero.time]
                                                  if e is not None],
                        [p.hero.duelist for p in self.players
-                        if p.alive and p.hero.duelist is not None])
+                        if p.alive and p.hero.duelist is not None],
+                       [p.wanted for p in self.players if p.alive and p.wanted is not None])
         draw_ghost_sight(text, cam, self.world, [p for p in self.players if p.alive], self.enemies,
                          self.steps)                                   # (M28.2g)
+        draw_possessed(text, cam, self.enemies, self.steps)              # (M28.3j)
+        draw_overcast(text, cam, [p for p in self.players if p.alive], self.steps)   # (M28.3k)
         draw_spells(text, cam, [p for p in self.players if p.alive], self.steps)
         draw_summons(text, cam, [p for p in self.players if p.alive], self.zones, self.steps)
         draw_slashes(self.sprites, cam, self.effects)

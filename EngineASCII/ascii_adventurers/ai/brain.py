@@ -190,6 +190,8 @@ class Brain:
         if source.faction == "player":
             self.alert = True
             self.target = source          # whoever hurts us gets our attention
+            if getattr(source, "possessed", None) is not None and not getattr(self, "boss", False):
+                self.grudge = source      # (a ghost: it turns on it, M28.3j)
             self.last_known = (source.x, source.y)
             self.forget_timer = config.FORGET_TIME
         else:

@@ -14,7 +14,10 @@ One screen, four uses (`mode`):
              one coming off).
 In browse mode I (pad Y) flips to the STATS page (M28.3a, ui/gear_stats.py:
 each weapon and spell's damage worked out, then the totals), given the
-`hero`; UP / DOWN scroll it when it doesn't fit.
+`hero`; UP / DOWN scroll it when it doesn't fit. With the Fourleaf Ring's
+Foresight (M28.3h) there's a NEXT OFFER page too (N, or I again): the next
+level's offer, drawn early; ENTER keeps the focused piece (act(("keep",
+i))), so it stays through that offer's rerolls.
 The screen only shows and chooses: it calls `done(choice)` (a slot id, a
 bag index...) or `act(action)` in browse mode, and `cancel()` on
 ESC / Tab / BACK; the game applies the change and calls refresh().
@@ -34,8 +37,8 @@ import pygame
 from engine import TextRenderer, colors
 
 from .. import config, palette
-from ..players.gear import (Equipment, Piece, next_level_text, next_trick, power_name,
-                            power_text, salvage_value, slot_kind, affix_text, tricks)
+from ..players.gear import (Equipment, Piece, legendary_trick, next_level_text, next_trick,
+                            power_name, power_text, salvage_value, slot_kind, affix_text, tricks)
 from .frame import center, draw_box, glint
 from .gear_stats import damage_lines, total_lines
 
@@ -49,6 +52,7 @@ _DOWN = (pygame.K_DOWN, pygame.K_s)
 _TAKE = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE)
 _CLOSE = (pygame.K_ESCAPE, pygame.K_TAB)
 _STATS = (pygame.K_i,)
+_NEXT = (pygame.K_n,)
 
 _TITLES = {"browse": "GEAR", "upgrade": "UPGRADE: choose a piece for +1",
            "slot": "SWAP: which one does it replace?",
@@ -67,10 +71,11 @@ def wrap(s: str, width: int) -> list[str]:
 
 def piece_lines(key: str, rarity: str, level: int, affixes, width: int, kind: str | None = None,
                 capped=frozenset(), slot: str | None = None,
-                full: bool = False) -> list[tuple[str, tuple]]:
+                full: bool = False, legend: bool = True) -> list[tuple[str, tuple]]:
     """A piece's card as (line, colour): rarity and slot, name, power, its
     tricks (M28.2: the unlocked ones' names -- in `full`, their text and the
-    next one to come), affixes (greyed "(max)" past their cap), and for a
+    next one to come; a legendary's own trick, in full unless not
+    `legend` -- then its name only, M28.3c), affixes (greyed "(max)" past their cap), and for a
     +1 what it adds."""
     c = config.CARDS[key]
     out = [(f"{rarity.upper()}  {config.GEAR_SLOT_NAMES[config.GEAR[key].slot]}",
@@ -89,6 +94,10 @@ def piece_lines(key: str, rarity: str, level: int, affixes, width: int, kind: st
     elif got:
         out += [(ln, palette.CARD_SELECTED)
                 for ln in wrap(", ".join(f"+{t} {name}" for t, name, _ in got), width)]
+    trick = legendary_trick(key) if rarity == "legendary" else None
+    if trick is not None:                       # (M28.3c: on from +0)
+        said = f"LEGENDARY {trick[0].upper()}" + (f": {trick[1]}" if legend else "")
+        out += [(ln, palette.CARD_RARITY["legendary"]) for ln in wrap(said, width)]
     coming = next_trick(key, level)
     if full and coming is not None:
         out += [(ln, palette.CARD_TAG) for ln in wrap(f"at +{coming[0]}: {coming[1]}", width)]
@@ -127,7 +136,8 @@ class GearScreen:
         self.pauses = pauses
         self.locked = locked             # inside a boss arena: no wearing from the bag
         self.hero = hero                 # browse: whose STATS page (None: no page)
-        self.page = "gear"               # "gear" or "stats"
+        self.page = "gear"               # "gear", "stats" or "next" (Foresight)
+        self.next_focus = 0              # the NEXT OFFER page's focused piece
         self.scroll = 0                  # the STATS page's first line
         self.focus = 0
         self.confirm = None              # the cell a salvage waits on a second press for
@@ -138,6 +148,12 @@ class GearScreen:
 
     def refresh(self, progress) -> None:
         self.eq: Equipment = progress.gear
+        self.next_offer = list(getattr(progress, "next_offer", None) or [])
+        self.kept = getattr(progress, "kept", None)
+        self.next_level = getattr(progress, "level", 0) + 1
+        self.next_focus = min(self.next_focus, max(0, len(self.next_offer) - 1))
+        if self.page == "next" and not self.next_offer:
+            self.page = "gear"
         self.capped = self.eq.capped()
         if self.sub is not None:
             self.sub.refresh(progress)
@@ -301,10 +317,28 @@ class GearScreen:
             self.sub.handle_event(event)
             return
         cells = self.cells()
-        if event.type == pygame.KEYDOWN and event.key in _STATS and self.mode == "browse" \
-                and self.hero is not None:
-            self.page = "stats" if self.page == "gear" else "gear"
-            self.scroll, self.confirm, self.message = 0, None, ""
+        if event.type == pygame.KEYDOWN and self.mode == "browse" and (
+                event.key in _STATS or event.key in _NEXT):
+            pages = ["gear"] + (["stats"] if self.hero is not None else []) \
+                + (["next"] if self.next_offer else [])
+            if event.key in _NEXT:
+                page = "gear" if self.page == "next" else "next"
+            else:
+                page = pages[(pages.index(self.page) + 1) % len(pages)]
+            if page in pages:
+                self.page = page
+                self.scroll, self.confirm, self.message = 0, None, ""
+            return
+        if self.page == "next":
+            if event.type == pygame.KEYDOWN:
+                if event.key in _CLOSE:
+                    self.cancel()
+                elif event.key in _LEFT + _UP:
+                    self.next_focus = (self.next_focus - 1) % len(self.next_offer)
+                elif event.key in _RIGHT + _DOWN:
+                    self.next_focus = (self.next_focus + 1) % len(self.next_offer)
+                elif event.key in _TAKE:
+                    self.act(("keep", self.next_focus))
             return
         if self.page == "stats":
             if event.type == pygame.KEYDOWN:
@@ -354,6 +388,9 @@ class GearScreen:
         if self.page == "stats":
             self._draw_stats(text, left, top, w, h)
             return
+        if self.page == "next":
+            self._draw_next(text, left, top, w, h)
+            return
         draw_box(text, left, top, w, h, palette.CARD_TAG, _TITLES[self.mode], palette.CARD_TITLE)
         bag_row = len(self.rows()) - 1
         cells = self.cells()
@@ -384,7 +421,8 @@ class GearScreen:
         elif not isinstance(focus, tuple) and focus != "out":
             text.put(dl, dt, slot_label(focus) + ": empty", colors.GREY)
         hint = {"browse": "ENTER wear / salvage   X salvage   "
-                          + ("I stats   " if self.hero is not None else "") + "TAB close",
+                          + ("I stats   " if self.hero is not None else "")
+                          + ("N next offer   " if self.next_offer else "") + "TAB close",
                 "upgrade": "ENTER give it +1   ESC back",
                 "slot": "ENTER replace this one   ESC back",
                 "drop": "ENTER salvage this one   ESC back"}[self.mode]
@@ -418,6 +456,29 @@ class GearScreen:
         if p is not None and p.rarity == "legendary":
             glint(text, col, row, bw, BOX_H, bg)             # (M28.3a: the legendary look)
 
+    def _draw_next(self, text: TextRenderer, left: int, top: int, w: int, h: int) -> None:
+        """Fourleaf Ring (L), Foresight: the next level's offer, and the
+        focused piece's card."""
+        draw_box(text, left, top, w, h, palette.CARD_TAG,
+                 f"NEXT OFFER (level {self.next_level})", palette.CARD_TITLE)
+        rows = next_lines(self.next_offer, self.kept, self.next_focus)
+        for i, (line, fg) in enumerate(rows):
+            text.put(left + 2, top + 2 + i, line[:w - 4], fg)
+        o = self.next_offer[self.next_focus]
+        level = 0
+        if o.kind == "plus":
+            worn = self.eq.wearing(o.key)
+            level = self.eq.worn[worn].level if worn is not None else 0
+        dt = top + 3 + len(rows)
+        room = h - (dt - top) - 3
+        for i, (line, fg) in enumerate(piece_lines(o.key, o.rarity, level, o.affixes, w - 6,
+                                                   kind=o.kind, full=True)[:room]):
+            text.put(left + 2, dt + i, line[:w - 4], fg)
+        hint = "ENTER keep / unkeep   N gear   TAB close"
+        center(text, top + h - 3, "The kept piece stays through rerolls."[:w - 4], colors.GREY,
+               left, w, None)
+        center(text, top + h - 2, hint[:w - 4], colors.GREY, left, w, None)
+
     def stat_columns(self) -> tuple[list, list]:
         """The STATS page's two columns: damage, then the totals."""
         return damage_lines(self.hero), total_lines(self.hero)
@@ -438,8 +499,21 @@ class GearScreen:
         for col, width, lines in cols:
             for i, (line, fg) in enumerate(lines[self.scroll:self.scroll + room]):
                 text.put(col, top + 2 + i, line[:width], fg)
-        hint = "I gear   TAB close" + ("   UP / DOWN scroll" if longest > room else "")
+        hint = ("I next offer" if self.next_offer else "I gear") + "   TAB close" \
+            + ("   UP / DOWN scroll" if longest > room else "")
         center(text, top + h - 2, hint[:w - 4], colors.GREY, left, w, None)
+
+
+def next_lines(offer, kept, focus: int) -> list[tuple[str, tuple]]:
+    """The NEXT OFFER page's list: a line a piece, "[*]" on the kept one,
+    ">" on the focused one."""
+    out = []
+    for i, o in enumerate(offer):
+        mark = "[*]" if i == kept else "[ ]"
+        name = config.GEAR[o.key].name + (" +1" if o.kind == "plus" else "")
+        out.append((f"{'>' if i == focus else ' '} {mark} {name}  {o.rarity}",
+                    palette.CARD_SELECTED if i == focus else palette.CARD_RARITY[o.rarity]))
+    return out
 
 
 class _Prog:

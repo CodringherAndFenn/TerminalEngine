@@ -57,6 +57,7 @@ class Player:
     regen: float = 0.0                # hp per second (cards)
     spells: dict = field(default_factory=dict)  # spell key -> systems/spells.SpellState
     mark_timer: float = 0.0           # Hunter's Mark: seconds to the next mark
+    called: int = 0                   # M28.3k, Called shot: the hero's rolls already seen
     meta: list = field(default_factory=list)    # Guild upgrades, as card steps (meta/guild.py)
     loadout_level: int = 1            # the level the hero's loadout was built for (P3 speed)
     unlocked: set | None = None       # cards this player may be offered (None: all)
@@ -76,6 +77,8 @@ class Player:
     hits_seen: int = 0
     crosses: int = 0
     corona: tuple | None = None
+    rose_t: float = 0.0               # M28.3d: Compass Orb (L), Wind rose's clock
+    attack_shots: list = field(default_factory=list)   # the last attack's own shots (Sunspot)
     watch_cd: float = 0.0
     retaliate_cd: float = 0.0         # Retaliation's cooldown
     bounty: int = 0                   # kills toward Bounty's next cache
@@ -91,6 +94,17 @@ class Player:
     fuses: list = field(default_factory=list)
     kill_times: list = field(default_factory=list)   # recent kills (achievement)
     phoenix_used: int = 0
+    phoenix_kills: int = 0            # M28.3c: Phoenix Mantle (L), toward a used rise's return
+    # M28.3h, the rings' legendary tricks: kills toward the next +1 max HP
+    # and the max HP grown (Reaper's Band); the level and the XP bar's
+    # quarters reached in it (Ascendant Band); the wanted enemy, until when,
+    # and s to the next (Bountymark Ring).
+    harvest_kills: int = 0
+    harvest: int = 0
+    ascent: tuple = (1, 0)
+    wanted: object = None
+    wanted_until: float = 0.0
+    wanted_t: float = 0.0
     revives_used: int = 0             # Second Chance
     glory: bool = False               # M27: Adventurer's Glory (may end the run as a victory)
 

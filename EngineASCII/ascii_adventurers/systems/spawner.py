@@ -59,6 +59,7 @@ class Spawner:
         # be without it are `beckoned` (Beckoning Ring +3 / +6, M28.2e).
         self.beckon = 0.0
         self.beckoned: set = set()
+        self.bright = False           # Beckoning Ring (L): some extras come as elites
         self.level_bonus = 0
         self.damage_bonus = 0.0
         self.haste = 0.0
@@ -82,11 +83,15 @@ class Spawner:
         plain = expected / (1 + self.beckon)
         plain = int(plain) + (r < plain - int(plain))   # how many without Beacon
         choices = [(k, s.weight) for k, s in config.ENEMIES.items() if biome in s.biomes]
+        elites = [c for c in choices if config.ENEMIES[c[0]].elite]
         out = []
         for k in range(count):
             if not choices:
                 break
             key = rng.choices([c[0] for c in choices], [c[1] for c in choices])[0]
+            if k >= plain and self.bright and elites and random.Random(
+                    hash_coords(self.seed, 0xB7, cx, cy, k)).random() < config.BRIGHT_BEACON:
+                key = rng.choices([c[0] for c in elites], [c[1] for c in elites])[0]
             pos = self._place(key, cx, cy, rng)
             if pos is None:
                 continue

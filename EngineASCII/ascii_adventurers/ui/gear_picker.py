@@ -96,14 +96,48 @@ class GearPicker:
         return min(MAX_CARD_W, (d.cols - 4 - GAP * (n - 1)) // n)
 
     def _lines(self, i: int) -> list:
+        """Card i's lines, made to fit the screen (_fit)."""
+        legend, tight = self._fit()
+        lines = self._raw(i, legend)
+        if tight:
+            # No blank lines but the one under the rarity, and no hero's
+            # name at the bottom (an offer is always the hero's own).
+            heroes = config.CARDS[self.offer[i].key].heroes
+            if heroes and len(heroes) == 1:
+                lines = lines[:-1]
+            lines = lines[:2] + [ln for ln in lines[2:] if ln[0]]
+        return lines
+
+    def _raw(self, i: int, legend: bool) -> list:
         o = self.offer[i]
         level = self.eq.worn[self.eq.wearing(o.key)].level if o.kind == "plus" else 0
-        return piece_lines(o.key, o.rarity, level, o.affixes, self._card_w() - 4, o.kind)
+        lines = piece_lines(o.key, o.rarity, level, o.affixes, self._card_w() - 4, o.kind,
+                            legend=legend)
+        keep = getattr(self.progress, "keep", None)
+        if keep is not None and keep[1] == i:     # (Fourleaf Ring (L): kept through rerolls)
+            lines[0] = (lines[0][0] + "  KEPT", lines[0][1])
+        return lines
+
+    def _fit(self) -> tuple[bool, bool]:
+        """(legend, tight): a legendary trick is written out in full when
+        every card still fits the screen that way, else just named (the
+        gear screen has it in full); if even that's too tall, the cards
+        drop their blank lines (M28.3c)."""
+        rows = self.manager.display.rows
+
+        def fits(legend: bool) -> bool:
+            most = max((len(self._raw(i, legend)) for i in range(len(self.offer))), default=0)
+            return max(CARD_H, most + 3) + STRIP_H + 6 <= rows
+        if fits(True):
+            return True, False
+        return False, not fits(False)
 
     def card_h(self) -> int:
-        """Card height: CARD_H, taller if a card's text needs it."""
+        """Card height: CARD_H, taller if a card's text needs it -- but never
+        taller than the screen has room for (the text is cut, then)."""
         most = max((len(self._lines(i)) for i in range(len(self.offer))), default=0)
-        return max(CARD_H, most + 3)
+        room = self.manager.display.rows - STRIP_H - 6
+        return max(CARD_H, min(most + 3, room))
 
     def _layout(self) -> tuple[int, int, int]:
         """(left column, top row, card width) for the current grid."""

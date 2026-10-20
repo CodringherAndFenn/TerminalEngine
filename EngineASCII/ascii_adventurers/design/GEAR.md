@@ -251,7 +251,7 @@ Today there are three kinds of damage upgrade (plain, arcane, physical), and nob
 |------|---------|
 | M28.1 | **(Drafted in section 15.)** The data model and the ten slots. Every card turned into gear with **its current numbers**. The picker shows pieces (empty slot / +1 / swap with compare) plus UPGRADE. The bag and salvage. The HUD row. Arcane Mastery and Weapons Master cut. **Moved in from M28.3 (user):** affixes and the shared +1 rule. The game plays like today, just worn |
 | M28.2 | Levels +0 to +9: the number rules and the +3/+6/+9 tricks for every piece, drafted with the user slot by slot |
-| M28.3 | Affixes and rarity (section 7), legendary tricks; the gear screen and the damage breakdown. **Split (user, 2026-10-19):** M28.3a the systems (rarity power, the legendary look, the STATS page; **built**, section 18), then the 100 legendary tricks drafted with the user slot by slot (M28.3b onward), like M28.2 |
+| M28.3 | Affixes and rarity (section 7), legendary tricks; the gear screen and the damage breakdown. **Split (user, 2026-10-19):** M28.3a the systems (rarity power, the legendary look, the STATS page; **built**, section 18), then the 100 legendary tricks: drafted and approved in M28.3b (section 19), built slot by slot in M28.3c-l (19.11) |
 | M28.4 | Drops: elites, chests in the world (open, guarded, mimics), the boss rare+ pick; the Guild (Saddlebags) and the save migration (section 10) |
 | M28.5 | The boss uniques (4.4, 2-3 per boss) and the new pieces (section 6) |
 | M28.6 | Gear on the painted heroes (head, chest, main hand) |
@@ -1130,3 +1130,845 @@ The princess's and the bard's main hands' 36 tricks: with them every one of the 
 - **Pad:** Y is now I in menus. Nothing else used Y there.
 
 **Tests:** `tests/test_m28_3a.py`, 17 tests. Among them, the page's hit matches a real hit through `combat.strike` for all five heroes, and the page fits every screen size.
+
+## 19. M28.3b: the legendary tricks (2026-10-19; all 10 batches APPROVED; all 100 built by 2026-10-20, M28.3c-l)
+
+**Rules (user, 2026-10-19):**
+1. **A rule-breaker.** Each legendary trick breaks one rule of its own power: a limit, a cost or a trigger. It's bigger than a +9 mastery but still the same power. Each row names the rule it breaks.
+2. **On from +0**, since a legendary drops at +0, and on top of the +3/+6/+9 tricks. Like those, it's new behaviour: its numbers don't grow with level or rarity.
+3. **Never a repeat** of another power, affix, boss unique, +3/+6/+9 trick or legendary trick.
+4. **Order:** the 11 pieces that only come as legendaries first (their trick is always on), then off-hand, head, feet, chest, rings, trinkets, and the main hands hero by hero.
+5. **Draft all, then build:** the user approves every batch, so all 100 can be checked against each other, then they're built slot by slot with tests and a stop after each (like M28.2).
+
+### 19.1 Batch 1: the always-legendary pieces (11) -- APPROVED as written (user, 2026-10-19)
+
+The user: "leave the design docs so that I can change them later after testing and we adapt, balance will come." These are a starting point, to change after playtests.
+
+| Piece (power) | LEGENDARY trick | The rule it breaks |
+|---------------|-----------------|--------------------|
+| **Brimful Ring** (Overflow: crit chance over 100% becomes crit damage, x2) | **Spillover:** when a crit kills, the damage it had left over hits the nearest enemy within 3 tiles; that hit can crit again and spill on | a hit's damage stops at the enemy it kills |
+| **Contagion Ring** (Pandemic: a dying enemy's statuses spread to 2 nearby) | **Miasma:** a dying enemy with statuses also leaves a cloud 1.5 tiles wide for 4 s; enemies in it catch those statuses, 1 stack a second | the spread happens once, the moment it dies |
+| **Packmaster Ring** (Pack Leader: summons use your crits and statuses; +1 wolf, +1 turret) | **In my image** (user pick over Pack tactics / Bloodline)**:** turrets fire a copy of your own attack (50%, with its tricks) instead of bone, and wolves bite for your attack's hit when that's more than their own | summons fight with weapons of their own |
+| **Mountainhide** (Juggernaut: +2% damage per armor; you can't evade) | **Stoneskin** (user pick over a quarter / Unbending)**:** a hit no bigger than half your armor does nothing at all | armor only ever cuts a share of a hit |
+| **Sunward Aegis** (Aegis: healing past full HP becomes shield, up to half your max HP) | **Daybreak:** healing you get while hurt also fills the shield, by half as much | only healing past full HP makes shield |
+| **Phoenix Mantle** (Phoenix: once a run, rise at 50% HP in a burst of fire) | **Ever-burning:** a used rise comes back after 150 kills (a flame on the HUD fills up) | once a run (twice with Undying flame) |
+| **Stormheart Staff** (Arcane Storm: a dart that kills fires a new one, 3 a cast) | **Storm's mark:** an enemy your dart hit in the last 2 s fires a new dart when it dies, whatever killed it (a wolf, a burn, an explosion) | the dart itself has to kill |
+| **Whirlwind Axe** (Cyclone: a caught axe is thrown again at the nearest enemy, once a throw) | **Dust devil:** at the far end of every throw the axe first leaps to the nearest enemy within 5 tiles of it, then comes home (where Cyclone rethrows it as before) | the rethrow waits for the catch |
+| **Farsight Bow** (Deadeye: crits pierce every enemy and fly twice as far) | **Farsight** (user pick over Marksman / Pinned)**:** the view leans toward your aim, up to a third of the screen, and crit arrows fly on until they leave the screen | you only see, and shoot, round yourself |
+| **Kaleido Scepter** (Refraction: each colour splits into 3 when it hits an enemy) | **Prism ward:** your colours hit enemy shots too, and an enemy shot they hit splits into 3 of your colours | only enemies refract the colours |
+| **Showstopper Lute** (Grand Finale: every 8th beat x4 damage, x2 reach) | **Big finish:** each beat between finales banks 20% of the damage it dealt; the finale adds the bank, shared out over what it hits | a finale only counts its own beat |
+
+**New things these bring** (one trick each):
+- damage that carries past a kill (Brimful);
+- statuses that linger on the ground (Contagion);
+- summons with your weapon (Packmaster);
+- hits too small to hurt (Mountainhide);
+- a camera that leans (Farsight);
+- turning enemy shots into yours (Kaleido);
+- banking damage (Showstopper).
+
+**Watch for:**
+- North star (Compass Orb +6) destroys enemy shots. Prism ward turns them into yours, and only for the princess.
+- Storm's mark and Spillover both carry on after a kill. Spillover moves damage; Storm's mark fires a dart.
+
+### 19.2 Batch 2: off-hand (8) -- APPROVED as written (user, 2026-10-19)
+
+| Piece (power) | LEGENDARY trick | The rule it breaks |
+|---------------|-----------------|--------------------|
+| **Compass Orb** (Cross Fire: every 4th attack also fires at 90, 180, 270) | **Wind rose:** the cross also fires on its own every 1 s, whether you attack or not | the cross needs your attacks |
+| **Sunwheel** (Starburst: every 10th attack, 8 shots all round) | **Sunspot:** the burst rides the 10th attack: it goes off from the first enemy that attack hits (or where it ends), not from you | the burst comes from you |
+| **Hindsight Orb** (Rear Guard: every attack also fires one shot behind you, 60%) | **Flanking:** the rear shot appears 3 tiles beyond the enemy nearest your aim and flies at its back, so it gets round shields and armoured fronts | "behind" means behind you |
+| **Nautilus Shell** (Spiral: an extra shot each attack, 37 degrees further round each time) | **Spiral arm:** the spiral shot doesn't fly straight: it sweeps out round you in a widening spiral (1.5 turns) and is only gone after 3 hits | the spiral shot flies straight and is gone |
+| **Twinned Quiver** (Twin Lanes: every shot flies as two, half a tile apart, 65% each) | **Perfect pair:** the twins are whole: 100% each | each twin is a weaker shot |
+| **Canyon Horn** (Echo: every 6th attack happens twice) | **Last word:** an enemy killed by an echo dies twice: everything a kill sets off (explosions, spreads, heals, Bloodlust, Frenzy...) happens twice | only your attack echoes |
+| **War Drum** (Frenzy: attack twice as fast for 3 s after a kill; -20% range) | **Warpath:** a frenzy speeds up everything of yours, not just the attack: spell cooldowns, summons' attacks and roll charges run twice as fast too | the frenzy is for the attack only |
+| **Pepperbox** (Spray and Pray: shots split in two at half range, 60% each; -25% range) | **Hair trigger:** each new attack also splits every shot of yours still in flight, wherever it is | shots split at half range |
+
+**New things these bring** (one trick each):
+- an attack on a timer of its own (Compass);
+- a burst that travels (Sunwheel);
+- shots that start past the enemy (Hindsight);
+- a shot that sweeps a spiral (Nautilus);
+- kills that count twice (Canyon Horn);
+- speeding up spells and summons (War Drum);
+- splitting shots when you choose (Pepperbox).
+
+**Watch for:**
+- **Pepperbox:** the preview in the first question was Grapeshot, "a shot also splits on the first enemy it hits". That's what the Kaleido Scepter's Refraction and the huntress's Split Arrow already do, so it's Hair trigger instead (user pick over Grapeshot / Point of no return).
+- **Perfect pair** is the one legendary trick that's only a number (user pick over Twin souls / Orbit).
+- **Warpath** speeds up spells, as the Chainbolt Charm's Overload and the Thunderhead Rod's Downdraft do, but those are a whole cast more, and only for Chain Lightning.
+
+### 19.3 Batch 3: head (11) -- APPROVED as written (user, 2026-10-19)
+
+User picks over the alternatives: Deep freeze (over Frost bite / Ice age), Pestilence (over Chronic), Bloodletting (over Hemophilia / Arterial).
+
+| Piece (power) | LEGENDARY trick | The rule it breaks |
+|---------------|-----------------|--------------------|
+| **Cinderveil Hood** (Kindling: 10% of hits burn) | **Brushfire:** a burning enemy sets the ground it walks over alight (a patch a tile, 2 s), burning enemies but not you | a burn stays on the enemy |
+| **Blazecrown** (Wildfire: +30% damage to burning enemies) | **Radiant heat:** enemies within 2 tiles of a burning enemy count as burning for the bonus | only the burning enemy itself |
+| **Viper Mask** (Venom: 10% of hits poison) | **Venom sacs:** poison ticks can crit, with your crit chance and crit damage | ticks never crit |
+| **Plaguebeak** (Virulence: poison stacks to 10, lasts 50% longer) | **Pestilence:** poison has no stack cap; past 10, each stack ticks at half | poison stops at 10 stacks |
+| **Rime Hood** (Frostbite: 10% of hits chill) | **Deep freeze:** bosses can freeze too: at 10 chill stacks for 0.5 s, once every 15 s each | bosses are never frozen |
+| **Glassfrost Helm** (Shatter: frozen enemies take x1.5 and burst into ice shards on death) | **Flash freeze:** an enemy that dies chilled freezes as it dies and shatters, shards and all | it has to be frozen |
+| **Stormvane Helm** (Static: 10% of hits shock) | **Short circuit:** shocked enemies attack half as often (wind-ups, shots and bites) | a shock only makes them take more |
+| **Thornhelm** (Serrated: 10% of hits bleed) | **Bloodletting:** each bleed tick heals you 1 HP, up to 5 HP a second | a bleed does nothing for you |
+| **Bloodtrail Cowl** (Hemorrhage: its own 10% bleed; bleed ticks x2 while the enemy moves) | **Blood rush:** bleed also ticks x2 while YOU move, on top (both moving: x4, x6 with Bloodhound) | only the enemy's moving counts |
+| **Steamcrown** (Thermal Shock: burning + chilled enemies burst) | **Volatile mix:** any two different statuses on one enemy set off the burst (burn + poison, shock + bleed...), using up one of them | it takes burn and chill |
+| **Galvanic Mask** (Toxic Current: shocking a poisoned enemy spreads its poison to 2 nearby) | **Full current:** shocking spreads every status it has (burn, chill, bleed too), not just poison | only poison spreads |
+
+**New things these bring** (one trick each):
+- statuses that leave ground behind (Cinderveil);
+- a bonus that reaches past its enemy (Blazecrown);
+- crits on ticks (Viper);
+- frozen bosses (Rime Hood);
+- slowing enemies' attacks (Stormvane);
+- healing from statuses (Thornhelm);
+- your moving counting for statuses (Bloodtrail).
+
+**Watch for:**
+- **Brushfire** and Miasma (Contagion) both leave statuses on the ground. Miasma is a cloud where an enemy died; Brushfire is a trail of fire behind a live one.
+- **Deep freeze** (Rime Hood) makes Shatterpoint (Glassfrost +9) work on bosses too.
+- **Short circuit** slows an enemy's attacks. Heat haze (Blazecrown +6) slows only its shots.
+- **Full current** spreads statuses on a shock; Pandemic spreads them on a death.
+
+### 19.4 Batch 4: feet (11) -- APPROVED as written (user, 2026-10-19)
+
+User picks over the alternatives: Iron hooves (over Stampede / Trample), Ballet (over Waltz / Swan).
+
+| Piece (power) | LEGENDARY trick | The rule it breaks |
+|---------------|-----------------|--------------------|
+| **Fencer's Boots** (Riposte: the first attack within 1.5 s of a roll's start always crits) | **Counterattack:** being hit readies a riposte too: your first attack after a hit crits (once every 2 s) | only a roll readies it |
+| **Windrunners** (Slipstream: +30% move speed for 2 s after a roll) | **Tailwind:** while slipstreaming, the move speed bonus counts as attack speed too | the slipstream only moves you |
+| **Hairsbreadth** (Close Call: each enemy shot you roll through takes 0.1 s off the roll's cooldown) | **Near miss:** a shot that passes within 1 tile of you counts too, rolling or not | only shots you roll through |
+| **Ashwalkers** (Scorched Trail: rolls leave burning patches) | **Fire wall:** enemy shots that cross your fire burn up | fire only lies on the ground |
+| **Gallopers** (Momentum: + damage equal to half your move speed bonus) | **Iron hooves:** the bonus also cuts the damage you take, by as much (up to 30%) | momentum only hits harder |
+| **Wingheel Sandals** (Fleet Strike: +1% crit chance per 4% move speed bonus) | **Blur:** while you move, a hit that doesn't crit rolls for a crit once more | one crit roll a hit |
+| **Phasewalkers** (wizard: Blink, a 5-tile teleport ending in a shock nova) | **Mind's eye:** the blink goes where you aim (up to 8 tiles), not where you're moving | the blink follows your feet |
+| **Ramhorn Boots** (dwarf: Shoulder Charge, 25 and a 2.5-tile shove) | **Mountain mover:** bosses are shoved too (1 tile) and take double | bosses don't budge |
+| **Tumbler Boots** (huntress: Backflip, a roll's start looses 5 arrows at 60%) | **Vault:** the backflip carries you over walls, trees, water and enemies | a roll stops at walls |
+| **Dancing Slippers** (princess: Pirouette, a roll's start spins a ring of 10 shots) | **Ballet:** standing still 2 s spins a ring too, as if you'd rolled (every 2 s while you stay) | only a roll spins the ring |
+| **Stompers** (bard: Drop the Beat, a free x1.5 beat as each roll ends) | **Ground wave:** the free beat also runs on along the roll's line as a wave, 5 tiles, hitting what it crosses | a beat stays round you |
+
+**New things these bring** (one trick each):
+- a riposte from being hit (Fencer's);
+- burning up enemy shots (Ashwalkers);
+- damage cut from speed (Gallopers);
+- a second crit roll (Wingheel);
+- aimed blinks (Phasewalkers);
+- shoving bosses (Ramhorn);
+- going over walls (Tumbler);
+- a beat that travels (Stompers).
+
+**Watch for:**
+- **Tailwind** turns move speed into attack speed. Bloodrage (Wolfpelt +6) gives attack speed from low HP, and Welcome home (Homesick +6) from catches.
+- **Fire wall** removes enemy shots, as North star (Compass +6) does, but with your fire on the ground instead of your shots.
+- **Mountain mover** breaks the boss rule like Deep freeze (Rime Hood). They're the only two that do.
+- **Ballet:** standing still also matters for Steady Aim, Anvil stance and Overgrowth. Here it brings a ring.
+
+### 19.5 Batch 5: chest (8; Mountainhide, the Sunward Aegis and the Phoenix Mantle are in batch 1) -- APPROVED as written (user, 2026-10-19)
+
+User picks over the alternatives: Lightweight (over Crack / Fragile peace), Clean slate (over Unflappable / Pristine shine).
+
+| Piece (power) | LEGENDARY trick | The rule it breaks |
+|---------------|-----------------|--------------------|
+| **Brambleguard** (Thorn Mail: attackers take 5 + 30% of the hit back) | **Bramble wall:** enemies pressing against you (within 1 tile) take your thorns once a second, hit or not (5 + 30% of their own hit) | only a hit sets off thorns |
+| **Wardweave Robe** (Ward Charm: a 25 shield, back after 4 s without a hit) | **Last thread:** the shield always takes a whole hit: a hit bigger than what's left is stopped entirely, and only then does it break | a hit spills past the shield |
+| **Anvil Plate** (Heavy Plate: no hit takes more than 10% of your max HP; -15% move) | **Anvil:** the cap counts per second too: you never lose more than 20% of your max HP in any one second | many small hits add up |
+| **Shattercoat** (Glass Cannon: x1.4 damage, -30% max HP) | **Lightweight:** the lost HP is lost weight: +1% move speed and +1% attack speed for each 1% of max HP the coat takes (+30% each) | the cost is only a cost |
+| **Grudge Mail** (Retaliation: when hit, a shockwave deals 30 and pushes, every 3 s at most) | **Long memory:** the shockwave goes off round the attacker, wherever it is (archers and casters too), as well as round you | the shockwave is round you |
+| **Spotless Tunic** (Untouched: +30% damage while above 90% HP) | **Clean slate:** a kill while you're below 90% HP heals you back to 90% (once every 10 s) | once you drop under the line, only healing brings it back |
+| **Wolfpelt** (Berserker: +1% damage per 1% HP missing) | **Scars:** healing doesn't take the bonus away at once: it falls 1% a second | the bonus follows your HP |
+| **Bastion Plate** (Bulwark: +1% damage per 10 max HP) | **Ramparts:** every 25 max HP also gives 1 armor | max HP only counts for damage |
+
+**New things these bring** (one trick each):
+- thorns without a hit (Brambleguard);
+- a shield that stops a whole hit (Wardweave);
+- a cap on damage a second (Anvil);
+- a shockwave at the attacker (Grudge Mail);
+- healing to a line (Spotless);
+- a bonus that lags behind (Wolfpelt).
+
+**Watch for:**
+- **Several are conversions** (one stat counting as another): Lightweight (max HP into speed), Ramparts (max HP into armor), Tailwind (Windrunners: move into attack speed) and Iron hooves (Gallopers: speed into a damage cut). Each converts something different.
+- **Last thread** stops a whole hit, as Prism skin (Shattercoat +6) does, but on any hit while the shield holds, not once every 6 s.
+- **Bramble wall** hurts what's close, like Tremor (Mountainhide +6) and the Ember Aura. It's thorns, so the damage is the enemy's own hit.
+
+### 19.6 Batch 6: rings (11; the Brimful, Contagion and Packmaster rings are in batch 1) -- APPROVED as written (user, 2026-10-19)
+
+User picks over the alternatives: Old gold (over Lifetime hoard / Pay day); Wanted and Foresight kept.
+
+| Piece (power) | LEGENDARY trick | The rule it breaks |
+|---------------|-----------------|--------------------|
+| **Powderkeg Ring** (Volatile: kills have a 15% chance to explode, 40% of the killing hit, 1.5 tiles) | **Primed:** every 10th hit you land on one enemy makes it explode while it's still alive (it takes the blast too) | only a kill explodes |
+| **Domino Ring** (Chain Reaction: enemies killed by an explosion explode too) | **Firecracker:** an explosion that kills nothing jumps once to the nearest enemy within 3 tiles and goes off there | the chain needs kills |
+| **Reaper's Band** (Soul Harvest: kills heal 1 HP) | **Harvest:** every 10 kills give +1 max HP for the rest of the run, with no cap | kills only heal |
+| **Ascendant Band** (Surge: level-ups heal 20% and blast enemies away) | **Ascent:** a half surge (10% heal, the blast at half) goes off at every quarter of the XP bar too | only a level-up surges |
+| **Fang Ring** (Bloodlust: each kill +1% damage for 10 s, up to +30%) | **Thirst:** hitting elites and bosses builds stacks too: one for every 2% of its max HP you deal | stacks need kills (so it's dead in a boss fight) |
+| **Slingstone Ring** (Giant Slayer: +40% damage to enemies with more max HP than you) | **Outnumbered:** with 8 or more enemies within 6 tiles, the bonus counts against all of them | only big enemies count |
+| **Grizzled Signet** (Veteran: +1% damage per level) | **Battle-scarred:** each time you drop below 25% HP and live 5 s, +2% damage for the rest of the run (once every 30 s) | only levels count as experience |
+| **Hoarder's Ring** (Golden Hoard: +1% damage per 50 loot this run, up to +50%) | **Old gold:** the Guild's purse counts too: +1% per 1000 loot in it (inside the cap) | only this run's loot counts |
+| **Bountymark Ring** (Bounty: every 25th kill drops a cache worth 25 kills; enemies are 15% faster) | **Wanted:** every 60 s the toughest enemy near you is wanted (a marker over it); killing it in 20 s drops a cache worth 25 kills | caches only come from the kill count |
+| **Beckoning Ring** (Beacon: 30% more enemies come for you) | **Bright beacon:** 1 in 5 of the extra enemies comes as an elite | the extras are common enemies |
+| **Fourleaf Ring** (Fortune: +1 card in every offer) | **Foresight:** you see your next level's offer early (on the gear screen) and can keep one of its pieces for it | an offer is a surprise |
+
+**New things these bring** (one trick each):
+- exploding enemies that are still alive (Powderkeg);
+- explosions that jump (Domino);
+- max HP that grows from kills (Reaper's);
+- surges between levels (Ascendant);
+- boss damage that counts as kills (Fang);
+- crowds that count as giants (Slingstone);
+- near-death as a trigger (Grizzled);
+- the Guild's purse in a run (Hoarder's);
+- wanted enemies (Bountymark);
+- extra elites (Beckoning);
+- seeing the next offer (Fourleaf).
+
+**Watch for:**
+- **Primed** makes a live enemy explode. Domino effect (Domino +9) does that only to an enemy hit by 2 explosions of one chain.
+- **Harvest** and Legend (Grizzled +9) both grow max HP: from kills here, from levels there.
+- **Old gold** makes keeping loot in the purse worth something. It's a reason not to spend, so it may need watching (M35).
+- **Wanted** picks the toughest enemy, as Hunter's Mark does, but the reward is a cache, not damage.
+- **Bright beacon:** elites drop gear about 15% of the time once drops come in (M28.4).
+
+### 19.7 Batch 7: trinkets (11) -- APPROVED as written (user, 2026-10-19)
+
+| Piece (spell) | LEGENDARY trick | The rule it breaks |
+|---------------|-----------------|--------------------|
+| **Chainbolt Charm** (Chain Lightning: every 1.5 s a bolt jumping to 2 more) | **Conduit:** your crits also cast a bolt, from the enemy they hit (at most 3 a second) | the bolt is on a timer |
+| **Bladewheel Charm** (Orbiting Daggers: 2 daggers circle you) | **Satellite:** the daggers circle the enemy you hit last (back to you when it dies or after 3 s without a hit) | the daggers circle you |
+| **Ember Amulet** (Ember Aura: burns enemies within 2.5 tiles) | **Afterburn:** when you roll, the aura stays behind where you started for 3 s, burning on, and a new one comes with you | the aura is only round you |
+| **Winterheart** (Frost Nova: every 4 s chills everything within 4 tiles) | **Black ice:** the nova leaves its ring icy for 3 s: enemies on it take 1 chill stack a second | the nova is over in an instant |
+| **Wolfcall Whistle** (Spirit Wolf: a wolf hunts the nearest enemy, 15 a bite) | **Spirit pack:** wolves run through walls, trees and water | wolves walk like any animal |
+| **Runestone Pouch** (Rune Trap: a rune every 3 s bursts for 40 when stepped on) | **Rekindled:** a rune that bursts comes back 2 s later where it was, once | a rune bursts once |
+| **Witch's Flask** (Poison Flask: a pool of poison for 3 s) | **Lingering:** a pool stays as long as an enemy stands in it (up to 10 s) | a pool lasts 3 s |
+| **Stormjar** (Storm Cloud: a cloud follows you, striking an enemy every 1.5 s) | **Storm front:** the cloud drifts ahead toward your aim, up to 5 tiles out, and strikes from there | the cloud stays over you |
+| **Mender's Totem** (Healing Totem: every 12 s a totem heals 3 HP a second round it for 6 s) | **Lifeline:** away from the totem you still get half its healing | you have to stand in its ring |
+| **Firefly Lantern** (Fire Wand: a burning bolt at the nearest enemy every 1.2 s) | **Firefly:** a bolt that hits stays, buzzing round its enemy for 1.5 s and burning it every 0.5 s | a bolt hits once |
+| **Skull Sentry** (Bone Turret: a turret every 10 s shoots for 8 s) | **Walking dead:** turrets walk after the nearest enemy (slowly, 1 tile a second) | turrets stand still |
+
+**New things these bring** (one trick each):
+- spells cast by crits (Chainbolt);
+- an orbit round an enemy (Bladewheel);
+- an aura left behind (Ember);
+- icy ground (Winterheart);
+- summons through walls (Wolfcall);
+- traps that come back (Runestone);
+- healing at a distance (Mender's);
+- a bolt that stays on its enemy (Firefly);
+- turrets that walk (Skull Sentry).
+
+**Watch for:**
+- **Storm front** and **Satellite** both move a spell away from you, the cloud toward your aim and the daggers onto an enemy.
+- **Lingering** keeps a pool going, as Cauldron (Witch's +9) does when pools merge. Lingering needs an enemy standing in it.
+- **Firefly** stays on one enemy. Endless hunt (Wyrmseeker +9) goes on to new ones.
+
+### 19.8 Batch 8: the wizard's main hand (9; the Stormheart Staff is in batch 1) -- APPROVED as written (user, 2026-10-19)
+
+User pick over the alternatives: Possession (over Ghost step / Haunting).
+
+| Piece (power) | LEGENDARY trick | The rule it breaks |
+|---------------|-----------------|--------------------|
+| **Stormcaller Rod** (Storm Caller: lightning jumps to +1 enemy) | **Forked lightning:** the first jump forks to the 2 nearest enemies, and each goes on with the rest of the jumps | a jump goes to one enemy |
+| **Copperwire Staff** (Conductor: jumps reach 30% farther and fade less) | **Long line:** a jump with nobody in reach goes to the nearest enemy on screen, however far | a jump needs an enemy in reach |
+| **Thunderhead Rod** (Supercell: bolts shock; jumps go for shocked enemies, +25%) | **Ionized:** shocks from your bolts never wear off | a shock lasts 2 s |
+| **Crackle Staff** (Ball Lightning: bolts crackle where they hit for 2 s) | **Static darts:** your darts crackle where they hit too (smaller, 1 s) | only bolts crackle |
+| **Ghostwood Staff** (Phase Darts: darts fly through walls and trees) | **Possession:** a dart that kills raises the enemy's ghost, which fights for you for 5 s (not elites or bosses) | the dead stay dead |
+| **Wyrmseeker Staff** (Seeker: darts turn twice as fast and find a new target when theirs dies) | **Relentless:** a dart with a target has no range: it flies on until it hits | a dart runs out of range |
+| **Humming Staff** (Resonance: each earlier dart on the same enemy within 1 s: +15%, up to +60%) | **Harmonics:** the count is shared: darts on enemies within 3 tiles of each other count together | the count is per enemy |
+| **Gravewell Staff** (Implosion: a dart's hit drags enemies within 2.5 tiles 0.8 tiles toward it) | **Gather:** the drag pulls toward where you aim, not toward the hit, so you herd enemies to a point | the drag is toward the hit |
+| **Orrery Staff** (Orbiting Darts: a dart that misses swings round you and tries again, once) | **Clockwork:** missed darts stay in orbit round you (up to 6) until an enemy comes within 4 tiles, then fly at it | the swing is one pass |
+
+**New things these bring** (one trick each):
+- forking jumps (Stormcaller);
+- jumps with no reach (Copperwire);
+- shocks that last (Thunderhead);
+- ghosts of the dead (Ghostwood);
+- a shared count (Humming);
+- herding enemies to a point (Gravewell);
+- darts kept in orbit (Orrery).
+
+**Watch for:**
+- **Possession** makes summons out of kills, as Ossuary (Skull Sentry +3) raises turrets from a body. The ghost is the enemy itself and fights as it did.
+- **Clockwork** keeps shots for later. Big finish (Showstopper) keeps damage, not shots.
+- **Static darts** crackle on dart hits. Sticky (Crackle +3) and Crackling chain (+6) stay with the bolt.
+
+### 19.9 Batch 9: the dwarf's and the huntress's main hands (10; the Whirlwind Axe and the Farsight Bow are in batch 1) -- APPROVED as written (user, 2026-10-19)
+
+| Piece (power) | LEGENDARY trick | The rule it breaks |
+|---------------|-----------------|--------------------|
+| **Rebound Axe** (Ricochet: axes bounce off walls and fly on, 2 bounces) | **Trick shot:** a bounce goes toward the nearest enemy, not off at the mirror angle | a bounce goes where the wall sends it |
+| **Hoverhead Axe** (Hang Time: where a throw ends, the axe hovers 0.4 s, hitting all it touches) | **Drifting saw:** the hovering axe drifts after the nearest enemy, 2 tiles a second | the axe hovers where the throw ended |
+| **Homesick Axe** (Homeward Fury: axes deal +50% on the way back) | **Steered:** on the way back the axe flies through your aim point first, then on to you, so you steer the way back | the way back is a straight line to you |
+| **Chainlink Axe** (Tether: a chain to each axe in flight cuts all it crosses) | **Chain gang:** every two axes in flight have a chain between them too | the chain runs from you to an axe |
+| **Doublebit Axe** (Splitting Axe: as an axe turns home it splits into two halves, 60% each) | **Wide arc:** the halves swing out wide on the way home, 3 tiles to each side, sweeping all between | the halves fly straight home |
+| **Cloudburst Bow** (Arrow Rain: every 5th shot rains 6 arrows near your aim) | **Overcast:** where the rain fell it keeps raining for 3 s, 2 arrows a second | the rain falls once |
+| **Broadleaf Bow** (Broadhead: +15% damage for each enemy the arrow has passed) | **Widening:** each enemy passed also makes the arrow 0.3 tiles wider | an arrow is as wide as it starts |
+| **Bloodhound Bow** (Hunter's Mark: every 4 s the toughest enemy in view is marked) | **Called shot:** a roll marks the enemy nearest your aim at once (it counts as the next mark) | the mark picks its own enemy, on a timer |
+| **Stillwater Bow** (Steady Aim: +25% crit chance while standing still) | **Current:** moving in a straight line for 1 s counts as standing still | you have to stop |
+| **Splitbranch Bow** (Split Arrow: an arrow's first hit splits it into a fan at 50%) | **Recurve:** split arrows curve round after 3 tiles and come back toward you, sweeping the way back | the split flies outward |
+
+**New things these bring** (one trick each):
+- aimed bounces (Rebound);
+- a hovering axe that moves (Hoverhead);
+- steering the way back (Homesick);
+- chains between axes (Chainlink);
+- arrows that widen (Broadleaf);
+- a mark you call (Bloodhound);
+- moving that counts as still (Stillwater);
+- split arrows that come back (Splitbranch).
+
+**Watch for:**
+- **Overcast** keeps raining. Squall line (Cloudburst +9) rains a second time 0.4 s later.
+- **Widening** grows the arrow from enemies passed. Growing shell (Nautilus +3) grows a shot as it flies.
+- **Wide arc** sweeps wider, as Drift (Twinned +6) does, but on the way home.
+
+### 19.10 Batch 10: the princess's and the bard's main hands (10; the Kaleido Scepter and the Showstopper Lute are in batch 1) -- APPROVED as written (user, 2026-10-19)
+
+The princess's fan has 5 colours. Four carry a status with Spectrum (red burns, yellow shocks, green poisons, blue chills); the second (orange) carries none.
+
+| Piece (power) | LEGENDARY trick | The rule it breaks |
+|---------------|-----------------|--------------------|
+| **Prismatic Wand** (Prism: colours that hit the same enemy in one shot: +20% for each other colour) | **Overlap:** every hit of one shot counts, not just every colour: split pieces, crossings and second passes add to the bonus | each colour counts once |
+| **Spyglass Wand** (Focus: the fan narrows by 30%) | **Autofocus:** the fan narrows to a line when one enemy is in front of you and opens up to its full width for a crowd | the narrowing is fixed |
+| **Chroma Wand** (Spectrum: four colours give a status, 20% each) | **Ultraviolet:** a sixth colour joins every shot: violet, which bleeds (20%) | the fan has 5 colours |
+| **Duelist's Wand** (Point Blank: +40% damage to enemies within 4 tiles) | **Lunge:** each attack carries you 0.5 tiles toward the enemy nearest your aim (never into it) | you have to walk in yourself |
+| **Crossbeam Wand** (Converge: your colours curve in and cross where you aim, then spread) | **Burn-in:** the crossing point glows for 1.5 s; enemies there take 20% of the shot every 0.25 s | the crossing is over in a moment |
+| **Fortissimo Lute** (Crescendo: each beat in a row that hits: +10%, up to +50%) | **Tutti:** the crescendo counts for your spells and summons too | the crescendo is for beats only |
+| **Cradlesong Lute** (Lullaby: each beat heals 1 HP per enemy it hits, up to 5) | **Serenade:** enemies within twice the beat's reach count for the healing too, hit or not | only enemies the beat hits heal you |
+| **Offbeat Lute** (Syncopation: beats alternate, short and loud x1.6, wide and soft x0.7) | **Rubato:** you choose: holding the attack plays loud beats, tapping plays soft ones | the beats alternate on their own |
+| **Sourstring Lute** (Dissonance: beats push enemies back and chill them) | **Undertow:** every 3rd beat pulls enemies in instead of pushing them out (it still chills) | beats only push |
+| **Songbird Lute** (Sheet Music: each beat flings 3 notes, 9 each, at the nearest enemies) | **Earworm:** each note that hits makes the enemy take +5% from your beats for 3 s (up to +25%) | notes are only damage |
+
+**New things these bring** (one trick each):
+- a fan that sets its own width (Spyglass);
+- a sixth colour (Chroma);
+- moving you with your attacks (Duelist's);
+- a crossing that lingers (Crossbeam);
+- a crescendo for spells and summons (Fortissimo);
+- choosing your beat (Offbeat);
+- pulling with beats (Sourstring);
+- notes that soften enemies (Songbird).
+
+**Watch for:**
+- **Undertow** pulls, as the Gravewell Staff's Implosion does. Here it's the bard's beat, every 3rd one.
+- **Rubato** uses holding the attack, as Hold it there (Hoverhead +6) does.
+- **Earworm** makes an enemy take more, like a shock, but only from your beats.
+
+With this batch, all 100 pieces have a legendary trick.
+
+### 19.11 Build plan (M28.3c onward; slot by slot, like M28.2; OK'd by the user 2026-10-19)
+
+| Step | Content |
+|------|---------|
+| M28.3c (**built** 2026-10-19, 19.12) | Batch 1: the 11 always-legendary pieces (19.1). Also the shared framework: the legendary trick is on from +0 for a legendary piece, flag "<key>+L", its name and text on the card and in the gear screen, every number in `config` |
+| M28.3d (**built** 2026-10-19, 19.13) | Off-hand: 8 (19.2) |
+| M28.3e (**built** 2026-10-20, 19.14) | Head: 11 (19.3) |
+| M28.3f (**built** 2026-10-20, 19.15) | Feet: 11 (19.4) |
+| M28.3g (**built** 2026-10-20, 19.16) | Chest: 8 (19.5) |
+| M28.3h (**built** 2026-10-20, 19.17) | Rings: 11 (19.6) |
+| M28.3i (**built** 2026-10-20, 19.18) | Trinkets: 11 (19.7) |
+| M28.3j (**built** 2026-10-20, 19.19) | The wizard's main hand: 9 (19.8) |
+| M28.3k (**built** 2026-10-20, 19.20) | The dwarf's and the huntress's: 10 (19.9) |
+| M28.3l (**built** 2026-10-20, 19.21) | The princess's and the bard's: 10 (19.10) |
+
+Each step comes with tests for every trick, a headless check, a report, and a stop for the user to playtest.
+
+### 19.12 Built: M28.3c (2026-10-19)
+
+**The framework:**
+- `config.GEAR_LEGENDARY`: each built legendary trick's name and text. `gear.trick_flags(key, level, rarity)` adds the flag `"<key>+L"` for a legendary piece from +0, and `gear.legendary_trick(key)` gives the name and text.
+- **On the cards:** "LEGENDARY SPILLOVER: ..." in gold, under the +3/+6/+9 tricks, on the level-up card and in the gear screen.
+- **Fitting the classic 80x24 grid:** when the picker's cards would push their buttons off the screen, the legendary trick is only named (the gear screen still spells it out). If they're still too tall, the cards drop their blank lines and the hero's name at the bottom. On that grid, with two legendaries on offer, the key hint line under the buttons doesn't fit.
+- Every number is a `config` line: `SPILLOVER`, `MIASMA`, `IN_MY_IMAGE`, `STONESKIN`, `DAYBREAK`, `EVER_BURNING`, `STORMS_MARK`, `DUST_DEVIL`, `FARSIGHT`, `PRISM_WARD`, `BIG_FINISH`.
+
+**How each one is built:**
+- **Spillover (Brimful Ring):**
+  - `combat.strike` queues a "spill" with what a killing crit had left over (the hit minus the HP the enemy had).
+  - `run_rules._spill` hits the nearest enemy within 3 tiles with it. The spill rolls its own crit (x crit damage), and only a spill that crits and kills spills on.
+  - It's damage straight onto the enemy (the buckets were already in the hit), so it doesn't roll statuses.
+- **Miasma (Contagion Ring):** `run_rules._miasma` leaves one cloud a status, kind "miasma" (0.75 tiles round, 4 s), giving a stack a second. It's drawn as puffs in the status's colours.
+- **In my image (Packmaster Ring):**
+  - **Turrets:** they fire a copy of the hero's attack (`spells._in_my_image`, x0.5): the hero's own shots, so the gear's tricks ride on them. Darts home on the turret's target; the bard's turret beats round itself.
+  - `combat.volley` no longer checks for a wall between the hero and an `origin` it's given.
+  - A turret's axes fly home to the dwarf like his own, so a catch still counts (Cyclone, Welcome home).
+  - **Wolves:** they bite for the weapon's one shot (or one beat) when that's more (`spells.image_bite`).
+- **Stoneskin (Mountainhide):** in `Character.take_damage`, a hit up to half the armor (Tempered and Golden armor included), before armor cuts it, is blocked. It shows "block" and doesn't count as a hit.
+- **Daybreak (Sunward Aegis):** `Character.heal` adds half of what it healed to the shield, with the Aegis cap (half max HP).
+- **Ever-burning (Phoenix Mantle):**
+  - **The count:** a used rise counts kills (`Player.phoenix_kills`); 150 bring it back, with a "THE FLAME RETURNS" toast.
+  - **The HUD:** while it fills, the HUD's meter row shows PHX (`hero.flame`), unless a boss meter or the mount needs the row.
+- **Storm's mark (Stormheart Staff):**
+  - A dart that hits and doesn't kill marks the enemy (`storm_mark`).
+  - `GameScene`'s death loop calls `RunRules.on_death` for every death, whoever killed it. A death within 2 s of the mark fires the new dart through `combat.storm_dart` (Arcane Storm's code, now shared), counting toward the cast's 3.
+  - A dart's own kill is still Arcane Storm's, so it isn't counted twice.
+- **Dust devil (Whirlwind Axe):**
+  - On its first step home, an axe picks the nearest enemy within 5 tiles of where it turned. It prefers one it didn't hit on the way out (`Projectile.out_hit`), then flies to it, then home.
+  - The halves of the Doublebit Axe don't leap.
+- **Farsight (Farsight Bow):**
+  - **The lean:** `combat.farsight_lean` leans the camera 0.35 of the way to the aim point, at most a third of the view each way. With the mouse that settles at about half the mouse's offset from the screen's middle, because the aim moves with the view.
+  - **The crit arrows:** the game keeps `hero.view_box` (the view, in tiles), and a crit arrow's range reaches its edge (`combat._to_edge`) when that's farther than Deadeye's double range.
+- **Prism ward (Kaleido Scepter):**
+  - `combat._prism_ward`, beside North star's cut: a princess's colour (not a split piece) that touches an enemy shot destroys it and splits into 3 colours (the next three in the rainbow), at Refraction's damage.
+  - The colour is spent, unless it's the Spyglass beam. The pieces don't ward again.
+- **Big finish (Showstopper Lute):**
+  - `combat._big_finish`: a beat from the bard (not an amp's, a turret's or Polyrhythm's extra) banks 20% of what it dealt (`hero.bank`).
+  - A finale releases the bank, shared over the enemies it hit that still stand. That's a counted finale (`attack_mods`) or Curtain call (`hero.finale_now`).
+  - A finale that hits nothing keeps the bank.
+
+**Checked:**
+- `tests/test_m28_3c.py`: 41 tests (the framework, the fit, each trick on and off).
+- Two older tests now switch the legendary flag off, since the always-legendary pieces carry it: Glance (`test_m28_2d`; Stoneskin blocked its small shot) and Gale force (`test_m28_2h`; Dust devil leapt before the catch).
+- A headless brawl (scratchpad `legend_brawl.py hero seed set`: 30 s, real enemies, all five heroes, three sets) ran with no errors and no lost flags. Each trick went off, except that 30 s wasn't long enough for a Phoenix rise to come back (150 kills); the tests cover that. In 30 s:
+  - Storm's mark: 4-11 darts;
+  - Dust devil: 42-61 leaps;
+  - Miasma: 15-39 clouds;
+  - turret copies: 35-42;
+  - Prism ward: 3;
+  - Big finish: 3 finales (bank up to ~500);
+  - Stoneskin: 1-2 blocks;
+  - Spillover: 1-7.
+
+### 19.13 Built: M28.3d (2026-10-19)
+
+**Changed when built (to check in play):**
+- **Hair trigger (Pepperbox) splits the pieces too, down to eighths** (`HAIR_TRIGGER = 3`).
+  - **Why:** every hero weapon reaches half range in about one attack interval or less (0.23-0.46 s against 0.4-0.55 s between attacks), and splits there anyway. So when the next attack comes, no whole shot is left in flight, and the trick did nothing in a brawl.
+  - **The fix:** a split's pieces fly their range over again, so they're "shots of yours still in flight" too, and each attack splits them once more, three splits deep at most.
+  - **In a brawl:** the most shots in flight went from 7 to 21-38.
+
+**How each one is built** (`run_rules` unless named):
+- **Wind rose (Compass Orb):** `_offhand_tick` fires the cross every 1 s (`Player.rose_t`), whether you attack or not. The cross's code is now `_cross`, shared with the attack's own, so Needle and North star come with it.
+- **Sunspot (Sunwheel):**
+  - On the 10th attack, `_sunspot_arm` gives that attack's own shots (`Player.attack_shots`, set in `GameScene._attack`) a shared token, and no ring goes off from you.
+  - The first of them to hit an enemy, or to end, queues a "sunspot" combo (`combat._sunspot`, in `_hit_actor` and `_shot_ends`). The ring then goes off there, passing over the enemy it came from, with a flash. Corona's second ring comes from the same spot.
+  - A beat has no shots, so for the bard the ring goes off from the nearest enemy the beat reaches, or from him. (The bard only gets Starburst's shots with Sheet Music's notes.)
+- **Flanking (Hindsight Orb):**
+  - `_flank`: the rear shot starts 3 tiles past the enemy nearest the aim point (as seen from you, short of any wall) and flies back at it, at 60% (Eyes in the back: the whole attack at 100%).
+  - With nobody to flank it's the plain rear shot. Watchful still shoots what comes up behind you.
+  - `_shooter(at=)` lets pattern shots start somewhere other than the hero.
+- **Spiral arm (Nautilus Shell):** `_spiral_arm` gives the spiral shot a way to walk, as Birdsong's notes do: 1.5 turns round the spot it was fired from, widening from 1 to 6 tiles (Double helix's turns the other way), and it goes through 3 enemies.
+- **Perfect pair (Twinned Quiver):** `combat.volley`: the twins are x1.0, not x0.65.
+- **Last word (Canyon Horn):** `on_kill` is split into the bookkeeping (bestiary, achievements) and `_kill_effects`; an echo's kill runs `_kill_effects` twice. XP, loot and the kill count stay once.
+- **Warpath (War Drum):** `hero.warpath` while a frenzy runs. `spells.haste` doubles the spells' timers (`_due`), wolves' bites and turrets' shots, and `roll.recharge` doubles the roll charges. The orbiting daggers' re-hit timer isn't counted (they're contact damage, not a summon's attack).
+- **Hair trigger (Pepperbox):** `RunRules.hair_trigger`, at the start of each attack, calls `combat.split_now` on each of the hero's shots in flight (not axes on their way home).
+
+**Checked:**
+- `tests/test_m28_3d.py`: 23 tests.
+- `test_m28_3c`'s framework tests now allow the later batches.
+- A headless brawl (scratchpad `off_brawl.py hero piece`, 30 s, real enemies, each piece with a fitting hero) ran with no errors and no lost flags. In 30 s:
+  - Wind rose: 36-48 crosses;
+  - Sunspot: 2-5 bursts;
+  - Flanking: 51 flanking shots;
+  - Spiral arm: 55-65 spiral shots;
+  - Last word: 4 of 25 kills counted twice;
+  - Warpath: on in every frenzy;
+  - Hair trigger: as above.
+
+### 19.14 Built: M28.3e (2026-10-20)
+
+**Built differently from the text (to check in play):**
+- **Short circuit (Stormvane Helm): every other hit a shocked enemy lands on you fizzles, as Disarm's does.** The text says "attack half as often (wind-ups, shots and bites)". But enemies attack in many different ways (weapon cooldowns, wind-ups, charges, bites, boss moves), and there's no one clock to slow without touching every AI. Fizzling every other hit halves what they hurt you for. Their shots still fly, and only every other one does damage.
+- **Short circuit leaves bosses out**, as daze, root and sleep do. The row doesn't say. (Deep freeze is the one that freezes bosses.)
+- **Brushfire** lights each tile a burning enemy steps onto, the one it's on when it catches fire included.
+
+**How each one is built:**
+- **Brushfire (Cinderveil Hood):** `Statuses.update` queues a "brushfire" combo when a burning enemy steps onto a new tile (`brush_tile`). `RunRules._brushfire` lays a roll-trail fire patch there for 2 s, which hurts enemies, not heroes, and lights a patch already there afresh.
+- **Radiant heat (Blazecrown):** `update_statuses` keeps `statuses.burning` (where enemies burn, and how much) each step. `combat._radiant_heat` counts an unburnt enemy within 2 tiles of one as burning, with the most stacks round it, for Bonfire.
+- **Venom sacs (Viper Mask):** at a poison tick, a crit roll with the hero's crit chance (`combat.crit_chance`); a crit is x crit damage and shows as a crit number.
+- **Pestilence (Plaguebeak):** `inflict` drops Virulence's cap of 10. In `Statuses.update`, each stack past 10 counts half.
+- **Deep freeze (Rime Hood):** `statuses._deep_freeze` counts the chill stacks landing on a boss (`Statuses.deep`, from 0 each time it's free of chill). 10 freeze it for 0.5 s, once every 15 s. The game's enemy loop doesn't let a boss frozen by Deep freeze think, where before a boss never ran slower than half speed. Any other freeze on a boss still can't stop it (`test_m17`'s guard).
+- **Flash freeze (Glassfrost Helm):** `on_kill`'s Shatter burst also goes off for an enemy that dies chilled (shards with Splinters, +6).
+- **Short circuit (Stormvane Helm):** `character._short_circuit`, in the hero's `take_damage` after the i-frames: a shocked enemy (not a boss) whose shock came from the trick counts its hits (`circuit`), and every 2nd one does nothing.
+- **Bloodletting (Thornhelm):** a bleed tick that hurts heals its hero 1 HP, at most 5 a second over all enemies (`hero.letting`).
+- **Blood rush (Bloodtrail Cowl):** `Statuses._rate`: x2 on the hero's bleeds while the hero moves (`speed` >= STILL_SPEED), times the cowl's own x2/x3 for a moving enemy.
+- **Volatile mix (Steamcrown):**
+  - `inflict` queues the burst whenever the enemy has two statuses or more.
+  - The burst goes by the most stacks among them (as it went by the burn), and uses up the status with the fewest; burn + chill still go by the burn and use the chill.
+  - Pressure and Scald work as before, and Geyser still keeps the statuses.
+- **Full current (Galvanic Mask):** Toxic Current spreads every status the shocked enemy has except the shock (that's Live wire's, +3), and it doesn't need poison any more.
+
+**Checked:**
+- `tests/test_m28_3e.py`: 22 tests.
+- A headless brawl (scratchpad `head_brawl.py hero piece`, 30 s, real enemies, each piece with the trinkets that feed it) ran with no errors and no lost flags. In 30 s:
+  - Brushfire: 363 patches;
+  - Radiant heat: 5 hits;
+  - Venom sacs: 1 crit tick;
+  - Bloodletting: 10 heals;
+  - Volatile mix: 14 bursts;
+  - Full current: 7 spreads.
+- Not seen in the brawl, but covered by tests: Pestilence (the brawl's enemies died before passing 10 stacks), Deep freeze (no bosses), Short circuit (shocked enemies rarely got a hit in).
+
+### 19.15 Built: M28.3f (2026-10-20)
+
+**Built differently from the text, or settled (to check in play):**
+- **Ground wave (Stompers): the wave runs 5 tiles past the beat's reach**, not 5 tiles from the bard. The lute's beat reaches 8 tiles, so a wave from the bard would only cross enemies the beat had just hit. So the wave starts at the bard and runs 8 + 5 = 13 tiles along the roll's line, hitting only what lies past the beat's edge. A wall stops it. In a brawl the waves ran their 13 tiles but hit nothing, since the enemies stayed within 8 tiles. If that's too rare, the other way is a wave that hits again what the beat hit.
+- **Counterattack (Fencer's Boots)** readies a riposte as a roll does: the 1.5 s window, two sure crits with Second thrust (+6), and Disarm and En garde on its hits. Shields and Last stand don't stop it; blocks, evasion and i-frames do (those aren't hits).
+- **Fire wall (Ashwalkers)** counts every fire patch of yours: the roll's, Creeping fire's, and Brushfire's (Cinderveil Hood (L)) if you wear both. Lobbed shots fly over it.
+- **Vault (Tumbler Boots):** with nowhere clear to land within 2 tiles past the roll (`VAULT`), it's an ordinary roll. It never goes over the world's edge (void), nor into or out of a boss lair, so a sealed fight stays sealed.
+
+**How each one is built:**
+- **Counterattack (Fencer's Boots):** `Character.take_damage`, where a hit counts (after blocks, evasion and armor): once every 2 s (`counter_t`), it opens Riposte's window.
+- **Tailwind (Windrunners):** `RunRules.weapon_dt`: while slipstreaming, the weapon's clock runs x(1 + `combat.move_bonus`): the move speed stat plus Slipstream's 30% and Quickstep's.
+- **Near miss (Hairsbreadth):** `roll.close_calls`:
+  - rolling, the reach is 1 tile wider;
+  - not rolling, an enemy shot counts once it has gone by within 1 tile of your body (`roll._passed`: its nearest point is behind it), each shot once (`near_missed`).
+  - Graze and Deflect (+3, +6) come with it; only shots rolled through count for Untouchable (+9).
+- **Fire wall (Ashwalkers):** `RunRules._fire_wall`, each step: an enemy shot over a fire patch of a hero with the trick fizzles.
+- **Iron hooves (Gallopers):** `combat.momentum` (Momentum's bonus, Full gallop's too, now shared) comes off the damage you take after armor, at most 30%.
+- **Blur (Wingheel Sandals):** `combat.strike`: a hit that didn't crit rolls again while the hero moves (faster than `STILL_SPEED`).
+- **Mind's eye (Phasewalkers):** `roll._blink` goes toward the aim point, as far as it is (8 tiles at most), still stopped by walls. Blink storm's blinks aim too.
+- **Mountain mover (Ramhorn Boots):** `roll._during`: a boss the charge hits takes x2 and is shoved 1 tile (`combat.push(boss=True)`), stopped by walls. Bosses that never move (speed 0) still don't.
+- **Vault (Tumbler Boots):** `roll._vault`, as the roll starts, finds the landing (the roll's end, or on in 0.25-tile steps). The roll then flies straight there through anything (`Character._roll_move`, `vault`) and lands exactly on it.
+- **Ballet (Dancing Slippers):** `roll._ballet`: every 2 s standing still (not rolling, mounted or turned to stone), the roll's ring (Prima's count with +9, Dizzy's shots with +6). Encore spin (+3) is the roll's end, so it doesn't come.
+- **Ground wave (Stompers):** `roll._waves`: at 30 tiles/s, 0.8 tiles either side of the line, at the free beat's power (Crowd surf included). It's hits only: no Dissonance, Lullaby or Crescendo count.
+
+**Checked:**
+- `tests/test_m28_3f.py`: 28 tests.
+- A headless brawl (scratchpad `feet_brawl.py hero piece [seed] [shoot]`, 30 s, real enemies, rolling every 4 s, walking and standing 3 s each) ran with no errors and no lost flags. In 30 s:
+  - Counterattack: 6 ripostes from hits;
+  - Tailwind: on for 480 steps (8 s);
+  - Near miss: 1;
+  - Fire wall: 2 shots burnt;
+  - Mind's eye: 4 blinks, 6.5 tiles on average;
+  - Vault: 3;
+  - Ballet and rolls: 8 rings;
+  - Ground wave: ran 13 tiles each time, hit nothing (see above).
+  - Enemy shots were rare even against shooters (about 10 in 30 s), hence the low counts for Near miss and Fire wall.
+- Not seen in the brawl, but covered by tests:
+  - Iron hooves: the brawl's heroes had almost no move speed bonus, and Momentum is half of it;
+  - Blur;
+  - Mountain mover: no bosses.
+
+### 19.16 Built: M28.3g (2026-10-20)
+
+**Settled when built (to check in play):**
+- **Bramble wall (Brambleguard):**
+  - **An enemy's "own hit"** is its attack's damage: a creature's bite, or a shooter's shot, times its damage multiplier (`run_rules._own_hit`).
+  - **The 1 tile** counts from the edge of your body.
+  - **The thorns go off at once, then every 1 s**, on one clock for all the enemies near.
+  - Barbs (+3) and Wild hedge (+9) come with it.
+- **Last thread (Wardweave Robe)** holds for the whole shield, the Sunward Aegis's overflow included, since it's one pool.
+- **Anvil (Anvil Plate)** counts the HP you actually lose, after armor, the hit cap and shields, from every hit that goes through your damage.
+- **Long memory (Grudge Mail):**
+  - The second shockwave goes off at the last attacker, if it's still alive.
+  - An enemy both waves reach is hit once.
+  - Recoil (+3) still throws you away from it.
+- **Clean slate (Spotless Tunic)** works under the Pact of Famine, as lifesteal and Bloodletting do. The pact only stops regeneration and the skip heal.
+
+**How each one is built:**
+- **Bramble wall (Brambleguard):** `RunRules._bramble_wall` in `_chest_tick` (`bramble_wall_t`). The thorns are 5 + 30% (the spell's levels) of the enemy's own hit, as plain damage.
+- **Last thread (Wardweave Robe):** `Character.take_damage`: while there's any shield, it takes the whole hit, then breaks (Static weave, +3, as usual).
+- **Anvil (Anvil Plate):** `Character._anvil`, last before the hit lands: HP lost in the last 1 s (`lost`) never passes 20% of max HP.
+- **Lightweight (Shattercoat):** `stats.apply_mods`: what the coat takes off max HP (30%) is added to move speed and attack speed, so it shows in the stats. The move speed cap still holds.
+- **Long memory (Grudge Mail):** `Character.retaliate_src` keeps who hit you; `RunRules._retaliate` goes off round you and round it.
+- **Clean slate (Spotless Tunic):** `_kill_effects`: below 90% HP, a heal to 90%, once every 10 s (`slate_t`). Daybreak and the Aegis count it as any heal.
+- **Scars (Wolfpelt):** `_chest_tick` keeps `scar`: the HP missing, falling 1% a second after a heal. Berserker's bonus uses whichever is more. Thick fur, Bloodrage and Last stand still go by your HP.
+- **Ramparts (Bastion Plate):** `combat.bonus_armor` adds 1 armor for every 25 max HP. The hits you take use it, and so does Juggernaut's bonus if you also wear Mountainhide. `Character.take_damage` now takes all its bonus armor from `bonus_armor`.
+
+**Checked:**
+- `tests/test_m28_3g.py`: 17 tests.
+- A headless brawl (scratchpad `chest_brawl.py hero piece [seed] [shoot]`, 30 s, real enemies; HP set to 60% and back to full every 5 s) ran with no errors and no lost flags. In 30 s:
+  - Bramble wall: 3 thorn hits;
+  - Last thread: 2 whole hits stopped;
+  - Lightweight: +30% move and attack speed;
+  - Long memory: 3 shockwaves, each also at a shooter out of reach;
+  - Clean slate: 1 heal;
+  - Scars: the bonus up to 53% above what the HP gives, after the jump back to full;
+  - Ramparts: +4 armor (the princess, early in the run).
+- Not seen in the brawl, but covered by tests: Anvil (the hero never lost 20% of max HP within a second).
+
+### 19.17 Built: M28.3h (2026-10-20)
+
+**Settled with the user (2026-10-20):** **Foresight (Fourleaf Ring)** keeps a piece through rerolls. Once you've picked, the next level's offer is drawn and shown on the gear screen's NEXT OFFER page. There you can keep one piece. When that level comes, the offer is the one you saw, and the kept piece stays put when you reroll. A piece that no longer fits your gear is redrawn.
+
+**Settled when built (to check in play):**
+- **Primed (Powderkeg Ring)** counts your attacks' and spells' hits (the ones that roll statuses), not blasts, thorns or ticks, so explosions don't count toward more explosions. The blast is Volatile's (40% of the 10th hit, Powder keg's share with +9), and what it kills chains as usual.
+- **Firecracker (Domino Ring)** jumps once per explosion (a jumped blast doesn't jump again), with the same damage and size; what it kills chains on.
+- **Harvest (Reaper's Band):** the max HP stays for the run even if you take the ring off.
+- **Ascent (Ascendant Band):** every quarter passed counts, even when one gain passes several, or a whole level. The quarters are counted with or without the ring, so putting it on doesn't set off the ones already passed. A half surge heals 10%, and its shove and Rising's damage are half.
+- **Thirst (Fang Ring)** counts every hit of yours on an elite or a boss (your summons' too), up to Bloodlust's cap.
+- **Outnumbered (Slingstone Ring):** Long odds (+3) still only adds for enemies bigger than you.
+- **Battle-scarred (Grizzled Signet):** the 30 s count from when the HP dropped; a fall (a revive) ends the 5 s.
+- **Old gold (Hoarder's Ring):** in developer mode (`--dev`) the purse holds 9,999,999 loot, so the bonus always reaches the 50% cap. With Dragon's hoard (+9, no cap) that's about +10,000% damage, so test it without `--dev`.
+- **Wanted (Bountymark Ring):**
+  - The enemy is the toughest one in your view, picked as Hunter's Mark picks, bosses included. It's marked with three gold "$"s and a WANTED toast.
+  - It has to be your kill. With no enemy in view, the trick tries again each step.
+  - The cache is Bounty's: Big game (+3) and Hunter's pay (+6) count.
+- **Bright beacon (Beckoning Ring):** an extra that comes as an elite is one of its biome's elites. Biomes without elites (the plains) get none. The other enemies of a chunk stay as they were.
+
+**How each one is built:**
+- **Primed:** `combat._ring_on_hit` counts the hits on each enemy (`primed`); every 10th queues a "primed" combo. `RunRules._explode(primed=True)` bursts the living enemy, which is hit too.
+- **Firecracker:** `_explode` is now `_blast` (one burst, which says whether it killed) plus the chain's bookkeeping. A burst that killed nothing goes off once more at the nearest enemy within 3 tiles, with an arc between.
+- **Harvest:** `Player.harvest_kills` / `harvest`; `GameScene._apply_loadout` adds the max HP, and every 10th kill rebuilds the hero (the new HP comes filled).
+- **Ascent:** `GameScene._gain_xp` calls `RunRules.on_xp`, which counts the bar's quarters (`Player.ascent`) and calls `surge(p, 0.5)` for each one passed.
+- **Thirst:** `combat._ring_on_hit` keeps each elite's damage (`thirst`) and adds a stack per 2% of its max HP (`combat.add_bloodlust`, which the kills use too).
+- **Outnumbered:** `_ring_tick` sets `hero.outnumbered` (8 or more enemies within 6 tiles); `situational_bonus` then counts Giant Slayer on any enemy.
+- **Battle-scarred:** `RunRules._battle_scarred` (`brink_t`, `scarred_t`, `battle_scars`), with a toast. Veteran's bonus gets +2% for each.
+- **Old gold:** `_ring_tick` copies the Guild's loot (`hero.purse`); the hoard gets +1% per 1000, inside the 50% cap.
+- **Wanted:** `RunRules._wanted` (`Player.wanted`, `wanted_until`, `wanted_t`); `_kill_effects` pays the cache (`RunRules._cache`, shared with Bounty). The "$"s are drawn by `render/spell_fx.draw_statuses` (`palette.WANTED`).
+- **Bright beacon:** `Spawner.bright` (set like `beckon`); in `roster`, each extra rolls its own dice (seeded by its place) for the 1 in 5.
+- **Foresight:**
+  - `Progress.next_offer` / `kept` / `keep`. `GameScene._cards` draws the preview when the picks are spent (`_new_offer`, the old draw).
+  - When the level comes, `gear.foresee` keeps the pieces that still fit (`gear.refit`) and fills the others from a fresh draw.
+  - A reroll, or a redraw after a free upgrade, puts the kept piece back in its place (`gear.keep_in`), until the pick is spent.
+  - Royal Decree's offers aren't foreseen.
+  - **On the screen:** the gear screen has a NEXT OFFER page (N, or I/pad Y cycles the pages): ENTER keeps or unkeeps (`("keep", i)`). The picker's kept card says KEPT on its top line, so it takes no extra room on 80x24.
+
+**Checked:**
+- `tests/test_m28_3h.py`: 28 tests.
+- A headless brawl (scratchpad `ring_brawl.py hero piece [seed]`, 30 s, real enemies with elites; HP dropped to 20% and back every 5 s; XP every 3.3 s; level-ups taken, with one reroll each while a piece is kept) ran with no errors and no lost flags. In 30 s:
+  - Primed: 2 live blasts;
+  - Firecracker: 2 jumps;
+  - Ascent: 9 half surges (2 level-ups);
+  - Thirst: 135 stacks gained;
+  - Outnumbered: on for 8 steps;
+  - Battle-scarred: 1;
+  - Old gold: the purse read (25,000);
+  - Wanted: 1 (not killed in time);
+  - Foresight: 4 previews with a kept piece; it stayed through 3 rerolls.
+- Not seen in the brawl, but covered by tests:
+  - Harvest: only 5 kills;
+  - Bright beacon: the brawl's enemies aren't from the spawner.
+
+### 19.18 Built: M28.3i (2026-10-20)
+
+**Changed when built (to check in play):**
+- **Satellite (Bladewheel Charm): round an enemy, the daggers circle tight**, just outside its body (0.25 tiles). At their usual width (about 1.6 tiles) they'd never touch the enemy they circle. Now they cut it, and whatever presses close to it. Breathing ring (+6) and Blade storm's outer ring (+9) still widen the circle.
+- **Storm front (Stormjar):** the cloud drifts at 8 tiles/s, and never trails more than 5 tiles from you. In a brawl it had lagged to 7 tiles while the hero ran.
+
+**Settled when built:**
+- **Conduit (Chainbolt Charm):**
+  - The bolt goes from the crit enemy to the nearest other one in sight, within the spell's reach, and jumps on like a cast. Grounding and Eternal arc ride on it.
+  - Bolts from crits can crit too; the 3 a second keeps that in check.
+  - The crits that count are any of your hits (attacks, spells, summons with Pack Leader).
+- **Satellite:** "you hit last" is your hits other than the daggers' own, so the daggers can't keep themselves on an enemy.
+- **Afterburn (Ember Amulet):**
+  - One aura is left per roll, where the roll started. It pulses with yours, at the same size and stacks.
+  - Flare-up, Warmth and Sunfire stay round you.
+- **Black ice (Winterheart):**
+  - The whole disc the nova covered is iced (an "ice" zone), for 3 s times your duration bonus.
+  - The first stack comes 1 s after the nova, since the nova just chilled what was there.
+- **Spirit pack (Wolfcall Whistle):** a wolf heeling with nothing to hunt may stand in a wall for a moment; it's a spirit.
+- **Rekindled (Runestone Pouch):** a rune burst by Runeburst (+9) comes back too, once.
+- **Lingering (Witch's Flask):**
+  - A pool runs out 0.5 s after the last enemy leaves it, and never lasts more than 10 s in all.
+  - Bubbling (+3) grows it over its longer life.
+- **Storm front:** the cloud strikes enemies within reach of the ground it's over, and Downpour's puddle (+3) goes with it. Eye of the storm's second cloud (+9) still circles you.
+- **Lifeline (Mender's Totem)** is only for you, the wearer. In co-op, the others still have to stand in the ring.
+- **Firefly (Firefly Lantern):** each burn is the bolt's own (1 stack, 2 from level IV). A firefly ends with its enemy.
+- **Walking dead (Skull Sentry):** a turret goes for the nearest enemy within its reach, stopping 1 tile short. Walls stop it.
+
+**How each one is built** (`systems/spells.py` unless named):
+- **Conduit:** `combat.strike` queues a "conduit" combo on a crit; `RunRules._conduit` (`hero.conduits`, the last second's) calls `spells.conduit`. Its shell is `_chain_shell`, shared with the cast.
+- **Satellite:** `combat.strike` keeps `hero.satellite` (enemy, time); `satellite` / `satellite_centre` give the orbit's centre and enemy. `_orbit` sets `hero.orbiting` while the daggers hit.
+- **Afterburn:** `roll.start` keeps `hero.roll_from`; `_aura` keeps `SpellState.left`. They're drawn as a dimmer ring.
+- **Black ice:** `_nova` lays a Zone "ice" (chill, 1 stack every 1 s), drawn as frost.
+- **Spirit pack:** `_wolf` moves the wolves straight, with no walls.
+- **Rekindled:** `_rune` keeps `SpellState.later`; a rune that came back is marked `again`.
+- **Lingering:** `_flask` marks its pools `linger`, and `_linger` stretches their life.
+- **Storm front:** `_drift` keeps `hero.cloud_front`; `cloud_ground`, `cloud_position` and `puddle_spot` follow it, and `_strikes(around=)` looks round it.
+- **Lifeline:** `_totem`.
+- **Firefly:** the bolt (`Projectile.firefly`) puts `[enemy, s left, s to the next burn, status]` in `hero.fireflies` when it hits (`combat._hit_actor`); `_fireflies` burns, and a "*" buzzes round the enemy.
+- **Walking dead:** `_walk`.
+
+**Checked:**
+- `tests/test_m28_3i.py`: 22 tests. The older trinket tests (`test_m28_2f`) and the wizard's (`test_m28_2g`) pass unchanged.
+- A headless brawl (scratchpad `trinket_brawl.py hero piece [seed]`, 30 s, real enemies, rolling every 4 s) ran with no errors and no lost flags. In 30 s:
+  - Conduit: 6 bolts;
+  - Satellite: on for 1076 of 1800 steps;
+  - Afterburn: an aura left behind each roll;
+  - Black ice: 4 icy rings;
+  - Rekindled: 2 runes back at once;
+  - Lingering: 6 pools, the longest 7.3 s;
+  - Storm front: 5 tiles ahead at most;
+  - Firefly: 15;
+  - Walking dead: the turrets walked 16.5 tiles.
+- Not measured in the brawl, but covered by tests:
+  - Spirit pack: the brawl's ground had no walls in the wolves' way;
+  - Lifeline.
+
+### 19.19 Built: M28.3j (2026-10-20)
+
+**Settled when built (to check in play):**
+- **Forked lightning (Stormcaller Rod):**
+  - The two branches share one list of enemies hit, so they never strike the same one.
+  - Each branch fades on its own. Thunderlord (+9) counts every jump of both.
+- **Long line (Copperwire Staff):**
+  - "On screen" is your view.
+  - Walls still stop the jump, unless you have Through walls (+6).
+  - A long jump doesn't get Overcurrent's +40% (+6), since it's past the reach, not near its end.
+- **Ionized (Thunderhead Rod):**
+  - The shocks that last are a bolt's, its jumps' and Superstorm's (+9).
+  - A shock from anything else (Battery, Live wire...) still wears off.
+- **Static darts (Crackle Staff):** a dart's crackle is half as wide (0.75 tiles), lasts 1 s, hurts as a bolt's does (30% of the dart's damage every 0.25 s) and never clings (Sticky stays with the bolt).
+- **Possession (Ghostwood Staff):**
+  - The ghost is a new enemy of the same kind, at full HP and at the level the dead one was. It thinks with the enemies standing in for the heroes, so it fights them as it fought you. Enemies it hurts turn on it (not bosses).
+  - Its kills are yours: XP, loot, kill tricks.
+  - When it falls or its 5 s end, it's gone. No kill, no XP, no death effects (a sludge doesn't split again).
+  - It can't hurt heroes, your shots pass through it, and what it would send out (a molehill's rats) stays away.
+  - Not elites, bosses or a swarm's parts.
+- **Relentless (Wyrmseeker Staff):**
+  - While a dart has a live target, its flight doesn't use up its range.
+  - Once it loses the target (and finds no new one), the range it had left counts again.
+- **Harmonics (Humming Staff):** a dart's count goes on from the highest fresh count on any enemy within 3 tiles of the one it hit.
+- **Gather (Gravewell Staff):**
+  - The enemies within 2.5 tiles of the hit, the one hit among them, are dragged 0.8 tiles toward your aim point.
+  - Crush (+3) and Singularity's well (+9) stay where they were.
+- **Clockwork (Orrery Staff):**
+  - A dart is kept when it ends its flight without a hit, once its swings round you are used up (or there was no one to swing at). A dart that hits a wall isn't kept.
+  - Kept darts circle 1.5 tiles from you at 3 rad/s and are harmless.
+  - When an enemy comes within 4 tiles of you, they all fly at the nearest one, with a fresh flight.
+  - They go when you fall.
+
+**How each one is built** (`systems/combat.py` unless named):
+- **Forked lightning, Long line:** `chain_from` runs heads (bolts going on); `pick` finds a jump's enemy, with `far` for a long jump (`hero.view_box`).
+- **Ionized:** `bolt_shock` marks the shock `lasting` (`statuses.Status`), and `Statuses.update` doesn't run it down.
+- **Static darts:** `_dart_hit` calls `_crackle(dart=True)`.
+- **Possession:**
+  - `_dart_hit` marks the kill (`possessor`), and `RunRules.possess` raises the ghost (`possessed` = hero and end time, faction "player").
+  - `RunRules._ghosts` ends it. `GameScene._handle_deaths` drops it and credits its kills, and `_ghost_ctx` is what it thinks with.
+  - Enemies it hurts turn on it in `ai/brain.py`, `Character.take_damage` stops its hits on heroes, and the bots don't aim at it (`players/controls.py`).
+  - `render/spell_fx.draw_possessed` draws it: a flickering outline and "~"s.
+- **Relentless:** `_relentless`, in `update_projectiles`.
+- **Harmonics:** `_resonance(actors)`.
+- **Gather:** `_dart_hit`, using `hero.aim_point`.
+- **Clockwork:** `_park` keeps a dart (`Projectile.parked`, its angle), `_orbit_spot` places it, and `_clockwork` circles it and sets it off.
+
+**Checked:**
+- `tests/test_m28_3j.py`: 28 tests. The older wizard tests (`test_m28_2g`) and batch 1 (`test_m28_3c`, Storm's mark) pass unchanged.
+- A headless brawl (scratchpad `staff_brawl.py piece [seed]`, the wizard with the staff and a rare Chainbolt Charm, 30 s against real enemies, rolling every 4 s) ran with no errors and no lost flags. In 30 s:
+  - Forked lightning: up to 6 jumps in one bolt;
+  - Long line: 2 long jumps;
+  - Ionized: 3 enemies shocked for good at once;
+  - Static darts: 17 dart crackles;
+  - Possession: 3, 10 and 5 ghosts over 3 seeds (up to 5 at once), dealing 12 to 82 damage, with 0 to 2 kills, and never hurting the hero;
+  - Relentless: darts flew up to 57 tiles (the range is 22), the oldest lasting 1.6 s, so none circled for ever;
+  - Harmonics: the count reached the cap (4);
+  - Gather: up to 4 enemies within 2 tiles of the aim point;
+  - Clockwork: up to 3 darts kept.
+
+### 19.20 Built: M28.3k (2026-10-20)
+
+**Settled when built (to check in play):**
+- **Trick shot (Rebound Axe):** the bounce goes for the nearest enemy within the axe's reach with a clear line from the wall. If there's none, it glances off at the mirror angle as before.
+- **Drifting saw (Hoverhead Axe):** it drifts after the nearest enemy within the axe's reach and stops at its body. Walls stop it.
+- **Steered (Homesick Axe):**
+  - The aim point is live, so you steer while it flies.
+  - It's through once it passes within 0.6 tiles of the aim; then it goes home.
+  - It steers for at most its throw's range, so it's never lost (the axe drops after 3 x its range).
+  - Dust devil (Whirlwind Axe) isn't worn with it (one main hand), so the two never meet.
+- **Chain gang (Chainlink Axe):**
+  - The chains between axes cut like the Tether's (every 0.25 s, 50% of the smaller axe's damage, no on-hit effects). Your own chains to each axe stay.
+  - "Axes in flight" are the dwarf's axes, and their halves and quarters when split.
+- **Wide arc (Doublebit Axe):**
+  - Each half first flies out to a point 3 tiles to its side, half way home, then on home. Quarters (+9) go out 3 and 1 tiles.
+  - With Crossing (+6) they swing wide to the far side instead.
+  - "Sweeping all between": they hit everything along their wide paths.
+- **Overcast (Cloudburst Bow):**
+  - It keeps raining where the rain was aimed (the enemy, with Monsoon +3), over the same circle, for 3 s at 2 arrows a second: 6 more arrows a rain.
+  - Squall line's second rain (+9) doesn't start a second one.
+  - A grey "~" cloud hangs over the spot.
+- **Widening (Broadleaf Bow):** the width is the arrow's hit size (+0.3 tiles each enemy passed), drawn as its edges. A split arrow keeps it.
+- **Called shot (Bloodhound Bow):**
+  - The new mark is the enemy in view nearest the aim point, and the 4 s count starts over.
+  - Old scent (+3) keeps the old mark a while, as with any new mark.
+- **Current (Stillwater Bow):**
+  - A "straight line" is a heading within 10 degrees of where the line began. Stopping or turning more starts it over.
+  - It counts only for Steady Aim's crit chance, not Held breath or Still waters.
+- **Recurve (Splitbranch Bow):**
+  - At 3 tiles out, a split arrow turns round (30 rad/s) and flies back to you, and ends when it reaches you.
+  - On the way back it can hit again what it hit going out.
+
+Also fixed: Hunter's Mark no longer marks a ghost (Possession, M28.3j).
+
+**How each one is built** (`systems/combat.py` unless named):
+- **Trick shot:** `_ricochet(actors, world)` with `_nearest_in_sight`.
+- **Drifting saw:** `_drift_saw`, from `_hover`.
+- **Steered:** `_turn_back` sets `Projectile.steer` (tiles left), and `_fly_back` aims at `hero.aim_point`.
+- **Chain gang:** `_chain_gang` after each step (clock `hero.gang_t`), cutting with `_cut_along`; `chain_links` is what `render/ascii_fx` draws (`_links`).
+- **Wide arc:** `_split_axe` sets `Projectile.arc_to`, and `_fly_back` goes there first.
+- **Overcast:** `RunRules._arrow_rain` adds to `hero.overcast`, and `_overcast` rains (`_rain_arrow`, shared). `render/spell_fx.draw_overcast` draws the cloud.
+- **Widening:** `_passing` (`Projectile.widened`).
+- **Called shot:** `GameScene._hunters_mark` (`Player.called`: the rolls already seen).
+- **Current:** `RunRules._current` (`hero.straight_t`, `hero.heading`), and `steady`.
+- **Recurve:** `_split_arrow` marks the fan, and `_recurve` turns it.
+
+**Checked:**
+- `tests/test_m28_3k.py`: 26 tests. The older dwarf and huntress tests (`test_m28_2h`) and batch 1 (`test_m28_3c`) pass unchanged.
+- A headless brawl (scratchpad `hand_legend_brawl.py piece [seed]`, 30 s against real enemies, rolling every 4 s, walking straight lines) ran with no errors and no lost flags. In 30 s:
+  - Trick shot: 3 bounces (open ground: few walls);
+  - Drifting saw: the axes drifted 44.5 tiles in all;
+  - Steered: 44 axes steered home;
+  - Chain gang: 115 cuts;
+  - Wide arc: 104 halves swung wide;
+  - Overcast: up to 2 spots raining at once;
+  - Widening: arrows widened by up to 2 enemies;
+  - Called shot: 3 of 7 rolls moved the mark (on the others the enemy nearest the aim already had it);
+  - Current: 571 of 980 moving steps counted as standing still;
+  - Recurve: 206 split arrows came back.
+
+### 19.21 Built: M28.3l (2026-10-20) -- all 100 legendary tricks are built
+
+**Picked by the user when built (2026-10-20):**
+- **Rubato (Offbeat Lute):** the lute plays its beats on its own, so there's no tapping. At each beat, the attack held means a loud beat and not held a soft one, on the lute's own timing. The card says "letting go plays soft ones".
+- **Burn-in (Crossbeam Wand):** "20% of the shot" is the whole shot, all its colours (5 x 8 = 40, so 8 a tick).
+
+**Changed when built (to check in play):**
+- **Tutti (Fortissimo Lute):** the crescendo also strengthens the statuses your spells put on (the Ember Amulet's burns, say), x (1 + 10% per beat in the streak). The aura does all its damage as burn, so it would get nothing otherwise.
+
+**Settled when built:**
+- **Overlap (Prismatic Wand):**
+  - Every colour one attack sends out counts together (its patterns' and extra beats' too), and so does every piece split off a colour (Pepperbox), which now gets the Prism bonus too.
+  - Twin lanes already counted each.
+  - Crossings and Refraction come from other main hands, so they never meet it.
+- **Autofocus (Spyglass Wand):**
+  - "In front" is within the colours' reach, 30 degrees either side of the aim (or inside the fan, if wider).
+  - 1 enemy: a line. 3 or more: the full fan, without Focus's narrowing. None or 2: Focus's width.
+  - Pinpoint (+6) and Beam (+9) stay on top.
+- **Ultraviolet (Chroma Wand):** violet is the sixth colour, at the fan's edge after blue. It bleeds at the other colours' chance (20%, 30% with Saturated, 2 stacks with Chromatic), and split pieces stay violet.
+- **Lunge (Duelist's Wand):**
+  - 0.5 tiles toward the enemy (within the colours' reach) nearest the aim, stopping 0.2 tiles off its body.
+  - Not mid-roll. Walls stop it.
+- **Burn-in:**
+  - The glow is laid where the colours first cross, once a shot, over Focal point's circle (0.8 tiles).
+  - It ticks as it's laid, then every 0.25 s to its end (7 ticks).
+- **Tutti:** "spells and summons" are any hit during your spells' turn, your spells' shots and ground (marked as they're made), and summons' hits.
+- **Serenade (Cradlesong Lute):** the heal counts the enemies the beat hit plus any others within twice its reach, walls or not. The cap (5) stays.
+- **Undertow (Sourstring Lute):**
+  - Every 3rd beat (by your attack count) pulls each enemy it hits 1 push toward you, never past your body.
+  - Tritone (+6) and Shriek (+9) still work. Clash (+3) counts a pull that's blocked.
+- **Earworm (Songbird Lute):**
+  - Each note's hit adds +5%, x the damage from your beats (the amps' too), up to 5 notes.
+  - The 3 s start over with each note.
+
+Also fixed: `test_m28_3c` checked that `point_blank` had no legendary trick yet; now every piece has one (`test_m28_3l` checks all 100).
+
+**How each one is built** (`systems/combat.py` unless named):
+- **Overlap:** `RunRules.overlap` (from `GameScene._attack`) gives an attack's colours one group, and `_child` passes it on.
+- **Autofocus:** `_autofocus`, in `fire`.
+- **Ultraviolet:** `fire` adds a colour, `volley(violet=)` marks it (`Projectile.violet`), and `_card_effects` bleeds. It's drawn as `palette.SHOT_VIOLET`.
+- **Lunge:** `RunRules.lunge`, from `GameScene._attack`.
+- **Burn-in:** `_burn_in` at the crossing lays a Zone "burn_in" (`group["n"]`: the shot's colours). `render/spell_fx` draws it as a turning ring of the colours.
+- **Tutti:**
+  - `spells.update_spells` sets `hero.spelling` and marks the shots and zones it makes (`Projectile.spell`, `Zone.spell`). `_hit_actor` and `update_zones` set `spelling` for those.
+  - `strike` adds the crescendo for `spelling` or `pet`, and `statuses.inflict` strengthens a status laid while `spelling`.
+- **Serenade:** `pulse` counts `heard` for `_beat_done`.
+- **Rubato:** `RunRules._beat_kind` (`hero.trigger`).
+- **Undertow:** `pulse` and `_dissonance(pull=)`.
+- **Earworm:** `_earworm` on a note's hit; `earworm()` scales each beat's hit.
+
+**Checked:**
+- `tests/test_m28_3l.py`: 26 tests, one of them that all 100 pieces have their legendary trick. The older princess and bard tests (`test_m28_2i`) pass unchanged.
+- A headless brawl (scratchpad `song_legend_brawl.py piece [seed]`, 30 s against real enemies with a rare Ember Amulet and Frost Nova, rolling every 4 s; for Rubato the attack is let go every other 3 s) ran with no errors and no lost flags. In 30 s:
+  - Overlap: up to 5 Prism hits on one enemy;
+  - Autofocus: 23 lines, 27 full fans, 16 at Focus's width;
+  - Ultraviolet: 1151 enemy-steps bleeding;
+  - Lunge: 44 lunges, 21.7 tiles in all;
+  - Burn-in: 7 glows;
+  - Tutti: 5 and 8 spell hits with the crescendo (2 seeds);
+  - Serenade: 25 beats healed for enemies they didn't hit;
+  - Rubato: 16 loud and 10 soft beats;
+  - Undertow: 6 pulls;
+  - Earworm: up to 5 notes on an enemy.
+

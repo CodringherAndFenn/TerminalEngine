@@ -691,9 +691,79 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   Legendaries sparkle. On the gear screen, I (pad Y) shows the STATS page:
   each weapon and spell's damage worked out step by step, then every
   total stat.
+- **Legendary tricks, drafted (M28.3b)** (`design/GEAR.md` 19): each of
+  the 100 pieces has a legendary trick that breaks one rule of its power,
+  on from +0 when the piece is legendary. All approved; they're built
+  slot by slot from M28.3c.
+- **Legendary tricks, batch 1 (M28.3c)** (`design/GEAR.md` 19.12): the 11
+  pieces that only come as legendaries have theirs. Crit kills spill
+  their leftover damage on, dying enemies leave status clouds, turrets
+  fire your own attack, small hits bounce off armor, healing fills the
+  Aegis shield, a used Phoenix rise comes back after 150 kills, enemies
+  your dart marked fire darts however they die, axes leap to an enemy
+  before coming home, the Farsight Bow leans the view toward your aim,
+  the princess's colours split enemy shots into her own, and the bard's
+  finale cashes in what the beats banked.
+- **Legendary tricks, the off-hand (M28.3d)** (`design/GEAR.md` 19.13): the
+  cross fires on its own, the starburst goes off where the 10th attack
+  lands, the rear shot comes from behind the enemy, the spiral shot sweeps
+  round you, twin shots are whole, an echo's kills count twice, a frenzy
+  speeds up spells, summons and rolls too, and each attack splits the
+  shots still flying.
+- **Legendary tricks, the head (M28.3e)** (`design/GEAR.md` 19.14):
+  burning enemies leave fire where they walk, enemies near a burning one
+  count as burning, poison ticks crit, poison stacks without a cap,
+  bosses can freeze, chilled deaths shatter, shocked enemies' hits fizzle
+  half the time, bleeds heal you, your moving speeds your bleeds, any two
+  statuses burst, and a shock spreads every status.
+- **Legendary tricks, the feet (M28.3f)** (`design/GEAR.md` 19.15):
+  being hit readies a riposte, the slipstream's speed is attack speed too,
+  shots passing near you count as close calls, your fire burns up enemy
+  shots, speed cuts the damage you take, moving gives a second crit roll,
+  blinks go where you aim, the dwarf's charge shoves bosses, the
+  huntress's roll vaults walls and water, standing still spins the
+  princess's ring, and the bard's free beat runs on as a wave.
+- **Legendary tricks, the chest (M28.3g)** (`design/GEAR.md` 19.16):
+  thorns hurt whatever presses close, the ward stops a whole hit, the
+  anvil caps what you lose in a second, the glass coat's lost HP becomes
+  speed, the grudge shockwave also goes off at the attacker, a kill heals
+  you back to 90%, the berserker's bonus fades slowly, and max HP gives
+  armor.
+- **Legendary tricks, the rings (M28.3h)** (`design/GEAR.md` 19.17):
+  enemies explode while alive after 10 hits, explosions that kill nothing
+  jump, kills grow max HP, surges come at each quarter of the XP bar,
+  elite and boss damage builds Bloodlust, crowds count as giants, close
+  calls leave you stronger, the Guild's purse feeds the hoard, a wanted
+  enemy pays a bounty, Beacon's extras come as elites, and the next
+  level's offer can be seen (and a piece of it kept) early.
+- **Legendary tricks, the trinkets (M28.3i)** (`design/GEAR.md` 19.18):
+  crits cast chain bolts, the daggers circle your target, the ember aura
+  stays behind when you roll, frost novas leave ice, wolves run through
+  walls, runes come back, pools last while enemies stand in them, the
+  storm cloud drifts ahead, the totem heals you from afar, fire bolts
+  stay burning on their enemy, and turrets walk.
+- **Legendary tricks, the wizard's staffs (M28.3j)** (`design/GEAR.md`
+  19.19): lightning forks on its first jump and jumps any distance on
+  screen, bolt shocks last for good, darts crackle where they hit, a
+  dart's kill rises as a ghost that fights for you for 5 s, homing darts
+  have no range, Resonance counts across a crowd, Implosion drags toward
+  your aim, and missed darts wait in orbit for the next enemy.
+- **Legendary tricks, the dwarf's axes and the huntress's bows (M28.3k)**
+  (`design/GEAR.md` 19.20): bounces aim at enemies, the hovering axe
+  drifts after them, you steer the axe home through your aim, axes in
+  flight are chained to each other, split halves swing out wide, the rain
+  keeps falling, arrows widen as they pierce, a roll calls the mark,
+  moving straight counts as standing still, and split arrows curve back.
+- **Legendary tricks, the princess's wands and the bard's lutes (M28.3l)**
+  (`design/GEAR.md` 19.21; with these, all 100 pieces have one): Prism
+  counts every hit of an attack, the fan sets its own width, a violet
+  color bleeds, attacks carry the princess forward, the colors' crossing
+  glows, the crescendo powers spells and summons, the lullaby heals for
+  enemies near the beat, holding the attack plays loud beats, every 3rd
+  dissonant beat pulls, and notes soften enemies for the beats.
 
 Next up (agreed order, `design/BOSSES.md` section 8): the rest of M28, the
-gear system (the legendary tricks, drops from elites, chests and bosses,
+gear system (building the legendary tricks, drops from elites, chests and bosses,
 boss uniques, gear on the heroes), M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

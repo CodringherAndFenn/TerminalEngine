@@ -225,5 +225,10 @@ def apply_mods(stats: HeroStats, steps: list[tuple[str, str, float]]) -> HeroSta
         elif key == "split_arrow":
             stats.arrow_split = (int(params["count"]), params["spread"], params["damage"],
                                  bool(params["every"]))
+    if stats.has("glass_cannon+L"):              # Shattercoat (L), Lightweight: what the coat
+        cut = 1 - next(v for k, op, v in config.CARDS["glass_cannon"].mods   # takes, as speed
+                       if k == "max_hp_mult")
+        stats.move += cut
+        stats.attack_speed += cut
     stats.clamp()
     return stats

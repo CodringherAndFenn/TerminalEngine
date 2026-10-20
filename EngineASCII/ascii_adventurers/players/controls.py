@@ -242,7 +242,8 @@ class GhostControls(Controls):
         best = config.GHOST_SIGHT
         for e in enemies:
             d = math.hypot(e.x - hero.x, e.y - hero.y)
-            if e.hittable and d < best and first_hit(world.tile_at, hero.x, hero.y, e.x, e.y) is None:
+            if e.hittable and d < best and getattr(e, "faction", "enemy") == "enemy" \
+                    and first_hit(world.tile_at, hero.x, hero.y, e.x, e.y) is None:
                 target, best = e, d
         aim = (target.x, target.y) if target is not None else None
         return PlayerInput(math.cos(self.heading), math.sin(self.heading), aim, target is not None)

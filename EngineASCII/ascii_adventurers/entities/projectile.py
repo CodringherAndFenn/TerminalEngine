@@ -103,6 +103,22 @@ class Projectile:
         self.charm = False
         self.glow = False
         self.wisp = False
+        self.firefly = False          # M28.3i: Firefly Lantern (L), it stays on what it hits
+        # M28.3j: Orrery Staff (L), Clockwork -- the angle (round its owner)
+        # of a missed dart kept in orbit, None while it flies.
+        self.parked: float | None = None
+        # M28.3k, the dwarf's and the huntress's legendaries: tiles left to
+        # steer for on the way home (Homesick Axe), the point a half swings
+        # out to (Doublebit Axe), enemies that widened it (Broadleaf Bow), a
+        # split arrow that comes back (Splitbranch Bow: True, then "back").
+        self.steer: float | None = None
+        self.arc_to: tuple[float, float] | None = None
+        self.widened = 0
+        self.recurve: bool | str = False
+        # M28.3l: the Chroma Wand's violet color (Ultraviolet); a spell's
+        # shot (Fortissimo Lute (L), Tutti: the crescendo counts for it).
+        self.violet = False
+        self.spell = False
         # M28.2g, the wizard's main hand: the path a Thunderball rolls
         # along (Crackle Staff +9); it went through a wall (Haunt); hits
         # made hunting on (Endless hunt); enemies passed on a swing
@@ -132,6 +148,13 @@ class Projectile:
         self.pieces: list | None = None
         self.reunited = False
         self.cross: tuple | None = None
+        # M28.3c: Whirlwind Axe (L), Dust devil: the enemy it leaps to before
+        # coming home, and whether it has looked for one this throw.
+        self.devil = None
+        self.leapt = False
+        self.out_hit: set = set()
+        # M28.3d: Sunwheel (L), Sunspot: the 10th attack's burst it carries.
+        self.sunspot: dict | None = None
         self.pierced = 0
         self.came_back = False
         self.deadeye = False

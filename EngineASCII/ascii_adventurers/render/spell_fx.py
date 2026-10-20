@@ -66,6 +66,22 @@ def draw_spells(text, camera: Camera, players, steps: int) -> None:
                     batch.put_c(hx + math.cos(a) * r * config.TILE_PX_W,
                                 hy + math.sin(a) * r * config.TILE_PX_H,
                                 "'" if (k + steps // 10) % 2 else ".", col)
+                for x, y, left in s.left:               # (M28.3i Afterburn: left behind)
+                    lx, ly = camera.world_to_px(x, y)
+                    for k in range(0, n, 2):
+                        a = -turn + k * math.tau / n
+                        batch.put_c(lx + math.cos(a) * r * config.TILE_PX_W,
+                                    ly + math.sin(a) * r * config.TILE_PX_H,
+                                    "." if left < 1.0 and k % 4 else "'",
+                                    palette.EMBER[1 + (k + steps // 6) % 2])
+        for foe, left, _, _ in hero.fireflies:          # (M28.3i Firefly: buzzing round it)
+            if not foe.alive:
+                continue
+            fx, fy = camera.world_to_px(foe.x, foe.y)
+            a = steps * 0.35 + left * 3.0
+            r = (foe.hit_radius + 0.3) * config.TILE_PX_W
+            batch.put_c(fx + math.cos(a) * r, fy + math.sin(a) * r * 0.7, "*",
+                        palette.EMBER[(steps // 3) % 2])
     batch.flush()
 
 
@@ -88,6 +104,27 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 rr = z.radius * (0.35 + 0.65 * ((k * 7) % 5) / 4)
                 batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
                             "o" if k % 3 == 0 else ".", cols[k % 2])
+        elif z.kind == "miasma":
+            # M28.3c Miasma: a dying enemy's statuses, a drifting cloud of
+            # their colours, thinning as it ends.
+            cols = palette.TRAIL.get(z.inflicts, palette.POOL)
+            fade = 1.0 - z.age / z.life
+            for k in range(7):
+                a = k * math.tau / 7 + z.age * 0.8 + len(z.inflicts or "")
+                rr = z.radius * (0.3 + 0.7 * ((k * 3) % 4) / 3)
+                batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th - z.age * 2,
+                            "o" if k % 3 == 0 and fade > 0.4 else ".", cols[k % 2])
+        elif z.kind == "ice":
+            # M28.3i Black ice: the nova's ring, frosted over, thinning as it melts.
+            n = max(10, int(z.radius * 8))
+            fade = 1.0 - z.age / z.life
+            for k in range(n):
+                if fade < 0.4 and k % 2:
+                    continue
+                a = k * math.tau / n
+                rr = z.radius * (0.55 + 0.45 * ((k * 5) % 7) / 6)
+                batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
+                            "*" if k % 3 == 0 else ".", palette.FROZEN[k % 2])
         elif z.kind == "puddle":
             # M28.2f Downpour: rain rings on the ground under the storm cloud.
             n = max(6, int(z.radius * 4))
@@ -173,6 +210,16 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                     batch.put_c(x + math.cos(a) * z.radius * rr * tw,
                                 y + math.sin(a) * z.radius * rr * th, "+" if rr < 0.5 else ".", col)
             batch.put_c(x, y, "#", col)
+        elif z.kind == "burn_in":
+            # M28.3l Burn-in: the colors' crossing glowing in turn, fading.
+            fade = z.age >= z.life * 0.6
+            for k in range(5):
+                a = k * math.tau / 5 + z.age * 4.0
+                head, trail = palette.RAINBOW_SHOTS[(k + steps // 4) % 5]
+                batch.put_c(x + math.cos(a) * z.radius * tw * 0.7,
+                            y + math.sin(a) * z.radius * th * 0.7, "*" if k % 2 else "+",
+                            trail[0] if fade else head)
+            batch.put_c(x, y, "o", palette.RAINBOW_SHOTS[(steps // 3) % 5][0])
         elif z.kind == "trail":
             # A roll's trail patch (M18): flickering, fading as it runs out.
             cols = palette.TRAIL.get(z.inflicts, palette.TRAIL["burn"])
@@ -240,10 +287,11 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
     batch.flush()
 
 
-def draw_statuses(text, camera: Camera, enemies, marked, duels=()) -> None:
+def draw_statuses(text, camera: Camera, enemies, marked, duels=(), wanted=()) -> None:
     """Pips over every enemy with a status (one per status, in a row), ice
     round a frozen one, "z"s over a sleeping one (Cradlesong +3), brackets
-    round each hero's marked target and "x"s by each duelist (M28.2i)."""
+    round each hero's marked target, "x"s by each duelist (M28.2i) and "$"s
+    over each wanted enemy (Bountymark Ring (L), M28.3h)."""
     batch = _Batch(text)
     x0, y0 = camera.canvas_to_world(0, 0)
     x1, y1 = camera.canvas_to_world(camera.view_w, camera.view_h)
@@ -281,6 +329,45 @@ def draw_statuses(text, camera: Camera, enemies, marked, duels=()) -> None:
         r = e.hit_radius * config.TILE_PX_W + 14
         batch.put_c(x - r, y - 12, "x", palette.DUEL)
         batch.put_c(x + r, y - 12, "x", palette.DUEL)
+    for e in wanted:
+        if not e.alive:
+            continue
+        x, y = camera.world_to_px(e.x, e.y)
+        top = y - e.hit_radius * config.TILE_PX_H - 34
+        for k in (-1, 0, 1):
+            batch.put_c(x + k * 10, top, "$", palette.WANTED)
+    batch.flush()
+
+
+def draw_overcast(text, camera: Camera, players, steps: int) -> None:
+    """Cloudburst Bow (L), Overcast (M28.3k): a grey cloud of "~"s over
+    each spot still raining."""
+    batch = _Batch(text)
+    r = config.ARROW_RAIN[2]
+    for p in players:
+        for x, y, *_ in p.hero.overcast:
+            cx, cy = camera.world_to_px(x, y)
+            for k in range(-2, 3):
+                drift = ((steps // 10 + k) % 2) * 3
+                batch.put_c(cx + k * r * config.TILE_PX_W / 2.5 + drift,
+                            cy - r * config.TILE_PX_H - 6, "~", palette.OVERCAST[k % 2])
+    batch.flush()
+
+
+def draw_possessed(text, camera: Camera, enemies, steps: int) -> None:
+    """Ghostwood Staff (L), Possession (M28.3j): a ghost fighting for you
+    gets a flickering ghostly outline and "~"s over its head."""
+    batch = _Batch(text)
+    col = palette.HAUNT_WISP[(steps // 6) % 2]
+    for e in enemies:
+        if not e.alive or getattr(e, "possessed", None) is None:
+            continue
+        x, y = camera.world_to_px(e.x, e.y)
+        rx = e.hit_radius * config.TILE_PX_W + 8
+        ry = e.hit_radius * config.TILE_PX_H + 6
+        for gx, gy, g in ((-rx, 0, "("), (rx, 0, ")"), (-10, -ry - 12, "~"), (0, -ry - 16, "~"),
+                          (10, -ry - 12, "~")):
+            batch.put_c(x + gx, y + gy, g, col)
     batch.flush()
 
 

@@ -278,6 +278,7 @@ class WhirlwindTest(_Main):
     def test_gale_force(self):
         for level, again in ((6, 1), (3, 0)):
             s, h = self.setup("cyclone", level)
+            h.stats.flags.discard("cyclone+L")    # (M28.3c: not Dust devil's leap first)
             self.place(foe(24.0, 20.5, BASE))
             p = self.shot(x=h.x + 0.5)
             p.returning, p.child, p.spins = True, True, 1     # (a rethrown axe)

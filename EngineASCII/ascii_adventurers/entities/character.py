@@ -62,6 +62,21 @@ def _approach(v: float, target: float, rate: float) -> float:
     return v + math.copysign(rate, target - v)
 
 
+def _short_circuit(source) -> bool:
+    """Stormvane Helm (L), Short circuit: a shocked enemy (not a boss) whose
+    shock came from a hero with the trick -- every SHORT_CIRCUIT-th of its
+    hits on a hero fizzles (counted on the enemy)."""
+    st = getattr(source, "status", None)
+    if st is None or getattr(source, "boss", False) or getattr(source, "faction", None) != "enemy":
+        return False
+    shock = st.active.get("shock")
+    giver = getattr(shock, "source", None)
+    if shock is None or getattr(giver, "stats", None) is None or not giver.stats.has("static+L"):
+        return False
+    source.circuit = getattr(source, "circuit", 0) + 1
+    return source.circuit % config.SHORT_CIRCUIT == 0
+
+
 class Character(Actor):
     faction = "player"
 
@@ -249,6 +264,54 @@ class Character(Actor):
         self.shrunk = 0.0
         self.water_walk = False           # M27: Adventurer's Glory -- water is ground
         self.spiral = 0                   # Spiral: how far round its extra shot has turned
+        # M28.3f, the feet's legendary tricks: when a hit last readied a
+        # riposte (Fencer's Boots); shots already counted as near misses
+        # (Hairsbreadth); s standing still toward the next ring (Dancing
+        # Slippers); the ground waves running (Stompers: systems/roll._waves);
+        # where a vault lands (Tumbler).
+        self.counter_t = -math.inf
+        self.near_missed: set[int] = set()
+        self.ballet = 0.0
+        self.waves: list[dict] = []
+        self.vault: tuple[float, float] | None = None
+        # M28.3g, the chest's: the clock of the thorns on what presses close
+        # (Brambleguard); HP lost lately, each (time, amount) (Anvil Plate);
+        # who hit you last for the shockwave (Grudge Mail); the last heal
+        # to the line (Spotless Tunic); the HP missing the bonus still
+        # counts (Wolfpelt, 0..1).
+        self.bramble_wall_t = 0.0
+        self.lost: list[tuple[float, float]] = []
+        self.retaliate_src = None
+        self.slate_t = -math.inf
+        self.scar = 0.0
+        # M28.3h, the rings': 8+ enemies near (Slingstone Ring); when the HP
+        # dropped low and when it last counted, and the damage scars won
+        # (Grizzled Signet); the Guild's purse (Hoarder's Ring).
+        self.outnumbered = False
+        self.brink_t: float | None = None
+        self.scarred_t = -math.inf
+        self.battle_scars = 0
+        self.purse = 0
+        # M28.3i, the trinkets': the enemy the daggers circle and when it
+        # was last hit, and whether a dagger is hitting (Bladewheel Charm);
+        # where the last roll started (Ember Amulet); the fireflies on
+        # enemies (Firefly Lantern); the storm cloud's ground spot ahead
+        # (Stormjar); crits' bolts in the last second (Chainbolt Charm).
+        self.satellite: tuple | None = None
+        self.orbiting = False
+        self.roll_from: tuple[float, float] | None = None
+        self.fireflies: list[list] = []
+        self.cloud_front: tuple[float, float] | None = None
+        self.conduits: list[float] = []
+        # M28.3k: Chain gang's clock (s to the next cut), Overcast's rains
+        # ([x, y, s left, s to the next arrow, mult]), Current (s moving in
+        # a straight line, and its heading).
+        self.gang_t = 0.0
+        self.overcast: list[list] = []
+        self.straight_t = 0.0
+        self.heading: float | None = None
+        # M28.3l: a spell's hit is going on (Fortissimo Lute (L), Tutti).
+        self.spelling = False
 
     @property
     def rolling(self) -> bool:
@@ -299,6 +362,10 @@ class Character(Actor):
         if st is not None and source is not None and getattr(source, "disarmed", 0) > 0:
             source.disarmed = 0.0                       # (Fencer's Boots +3: it fizzles)
             return 0.0
+        if st is not None and _short_circuit(source):   # (Stormvane Helm (L))
+            return 0.0
+        if st is not None and getattr(source, "possessed", None) is not None:
+            return 0.0                                  # (a ghost on our side, M28.3j)
         if st is None or not self.alive or self.invulnerable:
             return super().take_damage(amount, source, from_angle)
         howled = getattr(source, "howled", None)
@@ -313,9 +380,16 @@ class Character(Actor):
         if st.evasion > 0 and self.rng.random() < st.evasion:
             self.evaded += 1
             return 0.0
-        armor = st.armor + len(self.temper) + self.hoard_armor   # (Tempered, Golden armor)
+        from ..systems.combat import bonus_armor        # (Tempered, Golden armor, Ramparts)
+        armor = st.armor + bonus_armor(self)
+        if armor > 0 and amount <= armor * config.STONESKIN and st.has("juggernaut+L"):
+            self.blocked += 1                           # (Mountainhide (L): Stoneskin)
+            return 0.0
         if armor:
             amount *= 1 - armor / (abs(armor) + config.ARMOR_K)
+        if st.has("momentum+L"):                        # (Gallopers (L): Iron hooves)
+            from ..systems.combat import momentum
+            amount *= 1 - min(config.IRON_HOOVES, momentum(st, self))
         if st.has("berserker+3") and self.hp < self.max_hp * config.THICK_FUR[0]:
             amount *= config.THICK_FUR[1]               # (Wolfpelt +3: Thick fur)
         if st.has("hit_cap"):                           # Heavy Plate
@@ -328,6 +402,11 @@ class Character(Actor):
                     self.temper = (self.temper + [seconds])[-most:]
         self.since_hit = 0.0
         self.hits_taken += 1
+        if st.has("riposte+L") and self.time - self.counter_t >= config.COUNTERATTACK - 1e-9:
+            self.counter_t = self.time                  # (Fencer's Boots (L): Counterattack)
+            self.riposte = max(self.riposte, config.RIPOSTE_WINDOW)
+            self.riposte_left = max(self.riposte_left,
+                                    config.SECOND_THRUST if st.has("riposte+6") else 1)
         if source is not None and source is not self \
                 and getattr(source, "faction", None) == "enemy" and source.alive:
             self.struck_by = source                     # (Stormjar +6: Thunderhead)
@@ -341,6 +420,8 @@ class Character(Actor):
         if self.shield > 0:                             # Ward Charm, Aegis
             before = self.shield
             absorbed = min(self.shield, amount)
+            if st.has("ward_charm+L"):                  # (Wardweave Robe (L): Last thread)
+                absorbed = amount
             self.shield -= absorbed
             amount -= absorbed
             if self.shield <= 1e-9:
@@ -352,6 +433,7 @@ class Character(Actor):
             self.retaliate_big = max(self.retaliate_big, amount)
             if source is not None and source is not self:
                 self.retaliate_from = (source.x, source.y)
+                self.retaliate_src = source                 # (Grudge Mail (L): Long memory)
         flat, share = st.thorns                         # Thorn Mail
         if (flat or share) and source is not None and source is not self \
                 and source.faction != "player" and source.alive:
@@ -367,7 +449,20 @@ class Character(Actor):
         if self.last_stand > 0 or (st.has("berserker+9")
                                    and self.hp - amount < self.max_hp * config.LAST_STAND[0]):
             amount = self._last_stand(amount)               # Wolfpelt +9 (Last stand)
+        if st.has("heavy_plate+L"):
+            amount = self._anvil(amount)                    # Anvil Plate (L): Anvil
         return super().take_damage(amount, source, from_angle)
+
+    def _anvil(self, amount: float) -> float:
+        """Anvil Plate (L): no more than ANVIL[0] of max HP lost in any
+        ANVIL[1] s (self.lost keeps what was)."""
+        share, seconds = config.ANVIL
+        self.lost = [(t, a) for t, a in self.lost if self.time - t < seconds - 1e-9]
+        room = max(0.0, self.max_hp * share - sum(a for _, a in self.lost))
+        amount = min(amount, room)
+        if amount > 0:
+            self.lost.append((self.time, amount))
+        return amount
 
     def _last_stand(self, amount: float) -> float:
         """Wolfpelt +9: dropping below LAST_STAND[0] of max HP starts it (if
@@ -383,12 +478,16 @@ class Character(Actor):
 
     def heal(self, amount: float) -> float:
         """Aegis (a card): healing past full HP becomes shield, up to
-        AEGIS_MAX of max HP."""
+        AEGIS_MAX of max HP. Sunward Aegis (L), Daybreak: healing while
+        hurt fills it too, DAYBREAK x what it healed."""
         if not self.alive or amount <= 0:
             return 0.0
         room = self.max_hp - self.hp
         healed = super().heal(amount)
         st = self.stats
+        if st is not None and healed > 0 and st.has("aegis+L"):   # (Sunward Aegis (L): Daybreak)
+            cap = max(self.shield, self.max_hp * config.AEGIS_MAX)
+            self.shield = min(cap, self.shield + healed * config.DAYBREAK)
         if st is not None and st.has("aegis") and amount > room:
             cap = max(self.shield, self.max_hp * config.AEGIS_MAX)
             self.shield = min(cap, self.shield + amount - room)
@@ -454,7 +553,17 @@ class Character(Actor):
         step = min(dt, self.roll_t)
         self.roll_t -= dt
         dx, dy = self.roll_dir
-        if self.roll_speed > 0:
+        if self.vault is not None:                   # (Tumbler Boots (L): over it all)
+            x0, y0 = self.x, self.y
+            if self.roll_t <= 1e-9:
+                self.x, self.y = self.vault
+                self.vault = None
+            else:
+                self.x += dx * self.roll_speed * step
+                self.y += dy * self.roll_speed * step
+            self.walked += math.hypot(self.x - x0, self.y - y0)
+            self.last_blocked = False
+        elif self.roll_speed > 0:
             if self.water_walk:
                 world = WaterWalk(world)
             x0, y0 = self.x, self.y

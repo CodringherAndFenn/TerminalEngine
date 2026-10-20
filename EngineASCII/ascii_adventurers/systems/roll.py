@@ -36,7 +36,10 @@ Afterimage), Hairsbreadth (Graze, Deflect, Untouchable), Ashwalkers
 speed), Phasewalkers (Displacement, Swap, Blink storm), Ramhorn (Bowling,
 Battering ram, Rampage), Tumbler (Double flip, Quick draw, Aerial's
 timer), Dancing Slippers (Encore spin, Dizzy, Prima) and Stompers (Double
-drop, Crowd surf, Amplifier).
+drop, Crowd surf, Amplifier). So do most of their legendary tricks (M28.3f,
+GEAR.md 19.4): Near miss (Hairsbreadth), Mind's eye (Phasewalkers),
+Mountain mover (Ramhorn), Vault (Tumbler), Ballet (Dancing Slippers) and
+Ground wave (Stompers).
 
 Everything here runs inside the simulation step and stays deterministic
 (randomness from the hero's seeded dice).
@@ -98,7 +101,8 @@ def recharge(hero, dt: float) -> None:
     if getattr(hero, "storm_t", 0.0) > 0:       # (Phasewalkers +9: not while a storm's on)
         return
     # Irradiated (M24.1, the Fallout King): it recharges slower.
-    hero.roll_recharge += dt * (config.IRRADIATED[3] if getattr(hero, "irradiated", 0) > 0 else 1.0)
+    hero.roll_recharge += dt * (config.IRRADIATED[3] if getattr(hero, "irradiated", 0) > 0 else 1.0) \
+        * (config.WARPATH if getattr(hero, "warpath", False) else 1.0)   # (War Drum (L): Warpath)
     while hero.roll_recharge >= every and hero.roll_charges < most:
         hero.roll_recharge -= every
         hero.roll_charges += 1
@@ -146,10 +150,14 @@ def step(scene, p, inp, dt: float) -> None:
     for amp in hero.amps:
         amp[2] -= dt
     hero.amps = [a for a in hero.amps if a[2] > 0]
+    if hero.waves:
+        _waves(scene, p, dt)                     # (Stompers (L): Ground wave)
     if getattr(hero, "encased", 0) > 0:       # (M24.2: frozen solid -- a roll breaks the ice)
         if inp.roll:
             hero.encase_breaks += 1
         return
+    if st is not None and st.has("pirouette+L") and not hero.mount and hero.petrified <= 0:
+        _ballet(scene, p, dt)                    # (Dancing Slippers (L))
     if inp.roll and not hero.rolling and (hero.roll_charges > 0 or hero.storm_blinks > 0):
         start(scene, p, inp.move_x, inp.move_y)
     elif hero.rolling and st is not None:
@@ -202,8 +210,14 @@ def _ended(scene, p) -> None:
         if st.has("drop_the_beat+6"):                                 # Crowd surf
             _, per, most = config.CROWD_SURF
             surf = min(most, per * len(hero.surfed))
+        mult = config.DROP_THE_BEAT * (1 + surf)
         sounds += attack(hero, scene.world, scene.projectiles, scene.effects, scene._actors(),
-                         mult=config.DROP_THE_BEAT * (1 + surf))
+                         mult=mult)
+        if st.has("drop_the_beat+L"):                                 # (L): Ground wave
+            reach = hero.weapon.spec.reach
+            hero.waves.append(dict(x=hero.x, y=hero.y, ox=hero.x, oy=hero.y, dir=hero.roll_dir,
+                                   left=reach + config.GROUND_WAVE[0], reach=reach, mult=mult,
+                                   hit=set()))
         if st.has("drop_the_beat+9"):                                 # Amplifier
             hero.amps.append([hero.x, hero.y, config.AMPLIFIER[0]])
     if p.local:
@@ -219,10 +233,14 @@ def start(scene, p, move_x: float, move_y: float) -> None:
     else:
         hero.roll_charges -= 1
     hero.roll_dir = roll_direction(hero, move_x, move_y)
+    hero.roll_from = (hero.x, hero.y)             # (M28.3i: Ember Amulet (L), Afterburn)
     hero.roll_t = config.ROLL_TIME
     hero.roll_speed = config.ROLL_DISTANCE / config.ROLL_TIME
+    hero.vault = None
     if st is not None and st.has("scorched_trail+9"):
         hero.roll_speed *= config.FIREWALK[0]                         # Firewalk
+    if st is not None and st.has("backflip+L"):
+        _vault(scene, hero)                                           # (L): Vault
     hero.roll_passed = set()
     hero.roll_trail = 0.0
     hero.roll_steps = 0
@@ -245,17 +263,104 @@ def start(scene, p, move_x: float, move_y: float) -> None:
             if st.has("blink+9") and not storm:                       # Blink storm
                 hero.storm_blinks, hero.storm_t = config.BLINK_STORM[0] - 1, config.BLINK_STORM[1]
         if st.has("pirouette"):
-            n = config.PIROUETTE[0]
-            if st.has("pirouette+9"):                                 # Prima
-                reach, most = config.PRIMA
-                n = min(most, n + sum(1 for a in scene.enemies if a.alive and a.hittable
-                                      and math.hypot(a.x - hero.x, a.y - hero.y) <= reach))
-            sounds += _pirouette(scene, p, n)
+            sounds += _pirouette(scene, p, _ring_size(scene, hero))
         if st.has("drop_the_beat+3") and hero.weapon.spec.kind == "pulse":   # Double drop
             sounds += attack(hero, scene.world, scene.projectiles, scene.effects, scene._actors(),
                              mult=config.DROP_THE_BEAT)
     if p.local:
         scene._sounds.extend(sounds)
+
+
+def _ring_size(scene, hero) -> int:
+    """Pirouette's shots: PIROUETTE[0], and (+9, Prima) one more for each
+    enemy near."""
+    n = config.PIROUETTE[0]
+    if hero.stats.has("pirouette+9"):                                 # Prima
+        reach, most = config.PRIMA
+        n = min(most, n + sum(1 for a in scene.enemies if a.alive and a.hittable
+                              and math.hypot(a.x - hero.x, a.y - hero.y) <= reach))
+    return n
+
+
+def _ballet(scene, p, dt: float) -> None:
+    """Dancing Slippers (L), Ballet: every BALLET s standing still (not
+    rolling), the ring spins as if she'd rolled."""
+    hero = p.hero
+    if hero.rolling or hero.speed >= config.STILL_SPEED:
+        hero.ballet = 0.0
+        return
+    hero.ballet += dt
+    if hero.ballet >= config.BALLET - 1e-9:
+        hero.ballet -= config.BALLET
+        sounds = _pirouette(scene, p, _ring_size(scene, hero))
+        if p.local:
+            scene._sounds.extend(sounds)
+
+
+def _waves(scene, p, dt: float) -> None:
+    """Stompers (L), Ground wave: a wave runs from where the free beat went
+    off along the roll's line, past the beat's reach and GROUND_WAVE[0]
+    tiles on, until a wall stops it. What it crosses out there (the beat
+    didn't reach it) is hit once, at the free beat's power."""
+    hero = p.hero
+    _, width, speed = config.GROUND_WAVE
+    spec = hero.weapon.spec
+    actors = scene._actors()
+    for w in hero.waves:
+        x, y = w["x"], w["y"]
+        dx, dy = w["dir"]
+        step = min(w["left"], speed * dt)
+        nx, ny = x + dx * step, y + dy * step
+        if scene.world.tile_at(math.floor(nx), math.floor(ny)).blocks_shots:
+            w["left"] = 0.0
+            continue
+        for a in actors:
+            if id(a) in w["hit"] or not a.hittable or not _may_hurt(hero, a):
+                continue
+            if math.hypot(a.x - w["ox"], a.y - w["oy"]) <= w["reach"] + a.hit_radius:
+                continue                         # (the beat's own)
+            if segment_circle_t(x, y, nx - x, ny - y, a.x, a.y, width + a.hit_radius) is None:
+                continue
+            w["hit"].add(id(a))
+            strike(a, spec.damage, hero, math.atan2(dy, dx), scene.effects, spec.tags,
+                   mult=w["mult"])
+        if math.floor(w["left"] / width) != math.floor((w["left"] - step) / width):
+            scene.effects.append(Effect("pulse", nx, ny, size=width))
+        w["x"], w["y"], w["left"] = nx, ny, w["left"] - step
+    hero.waves = [w for w in hero.waves if w["left"] > 1e-9]
+
+
+def _lair_at(scene, x: float, y: float):
+    """The boss lair (x, y) is in, if any."""
+    quests = getattr(scene, "quests", None)
+    for s in (quests.states.values() if quests is not None else ()):
+        if s.lair is not None and s.lair.inside(x, y):
+            return s.lair
+    return None
+
+
+def _vault(scene, hero) -> None:
+    """Tumbler Boots (L), Vault: the roll goes over walls, trees, water and
+    enemies -- to the roll's end, or up to VAULT tiles past it to land
+    clear. Never over the world's edge (void), and never into or out of a
+    boss lair; with nowhere to land, it's an ordinary roll."""
+    world = scene.world
+    dx, dy = hero.roll_dir
+    dist = hero.roll_speed * hero.roll_t
+    lair = _lair_at(scene, hero.x, hero.y)
+    d = 0.0
+    step = 0.25
+    while d < dist + config.VAULT + 1e-9:
+        d = min(d + step, dist + config.VAULT)
+        x, y = hero.x + dx * d, hero.y + dy * d
+        if world.tile_at(math.floor(x), math.floor(y)).name == "void" or _lair_at(scene, x, y) is not lair:
+            return
+        if d >= dist - 1e-9 and not hull_hits_solid(world, x, y, 0.0, hero.half, hero.half):
+            hero.vault = (x, y)
+            hero.roll_t = d / hero.roll_speed
+            return
+        if d >= dist + config.VAULT - 1e-9:
+            return
 
 
 def _backflip(scene, p) -> list[str]:
@@ -298,6 +403,15 @@ def _blink(scene, p) -> list[str]:
     nova where the hero lands."""
     hero = p.hero
     dist, radius, damage = config.BLINK
+    st = hero.stats
+    if st.has("blink+L"):                        # (L): Mind's eye -- where you aim
+        ax, ay = hero.aim_point if hero.aim_point is not None else (
+            hero.x + math.cos(hero.aim_angle) * config.MINDS_EYE,
+            hero.y + math.sin(hero.aim_angle) * config.MINDS_EYE)
+        far = math.hypot(ax - hero.x, ay - hero.y)
+        if far > 1e-6:
+            hero.roll_dir = ((ax - hero.x) / far, (ay - hero.y) / far)
+            dist = min(config.MINDS_EYE, far)
     dx, dy = hero.roll_dir
     scene.effects.append(Effect("blink", hero.x, hero.y, size=1.0))
     x, y = hero.x, hero.y
@@ -310,7 +424,6 @@ def _blink(scene, p) -> list[str]:
     x0, y0 = hero.x, hero.y
     hero.walked += math.hypot(x - hero.x, y - hero.y)
     hero.roll_speed = 0.0                        # already there
-    st = hero.stats
     if st.has("blink+6"):                        # Swap: onto an enemy, change places
         near = [a for a in scene.enemies if a.alive and a.hittable and not getattr(a, "boss", False)
                 and math.hypot(a.x - x, a.y - y) <= config.SWAP + a.hit_radius]
@@ -351,15 +464,21 @@ def _during(scene, p) -> None:
     if st.has("shoulder_charge+6") and hero.roll_speed > 0:
         _ram(scene, p)                                                # Battering ram
     actors = scene._actors()
+    mover = st.has("shoulder_charge+L")
     for a in actors:
         if id(a) in hero.roll_passed or not a.hittable or not _may_hurt(hero, a):
             continue
         if math.hypot(a.x - hero.x, a.y - hero.y) > hero.hit_radius + reach + a.hit_radius:
             continue
         hero.roll_passed.add(id(a))
-        strike(a, damage, hero, math.atan2(dy, dx), scene.effects, ("physical",))
+        boss = mover and getattr(a, "boss", False)                    # (L): Mountain mover
+        strike(a, damage, hero, math.atan2(dy, dx), scene.effects, ("physical",),
+               mult=config.MOUNTAIN_MOVER[1] if boss else 1.0)
         scene.effects.append(Effect("impact", a.x, a.y, math.atan2(dy, dx)))
-        if a.alive:
+        if boss and a.alive:
+            far = config.MOUNTAIN_MOVER[0]
+            push(a, scene.world, dx * far, dy * far, boss=True)
+        elif a.alive:
             push(a, scene.world, dx * shove, dy * shove)
             if st.has("shoulder_charge+3"):
                 _bowl(scene, hero, a, actors, dx * shove, dy * shove)  # Bowling
@@ -451,32 +570,59 @@ def _bellows(scene, p) -> None:
 def close_calls(players, projectiles, dt: float) -> None:
     """Close Call: every enemy shot that passed through a rolling hero this
     step (its path since the last step crossed the hero) winds the
-    recharge on, each shot once per roll."""
+    recharge on, each shot once per roll. Hairsbreadth (L), Near miss: a
+    shot passing within NEAR_MISS tiles counts too, rolling or not (not
+    rolling: once it has passed, its nearest point behind it)."""
     for p in players:
         hero = p.hero
-        if not (p.alive and hero.rolling and hero.stats is not None
-                and hero.stats.has("close_call")):
+        st = hero.stats
+        if not (p.alive and st is not None and st.has("close_call")):
             continue
+        near = st.has("close_call+L")
+        if not (hero.rolling or near):
+            continue
+        if near:
+            hero.near_missed &= {id(s) for s in projectiles if s.alive}
         for s in projectiles:
-            if not s.alive or s.spec.lob or s.hold > 0 or id(s) in hero.roll_passed:
+            if not s.alive or s.spec.lob or s.hold > 0 or id(s) in hero.roll_passed \
+                    or id(s) in hero.near_missed:
                 continue
             owner = s.owner
             if owner is None or getattr(owner, "faction", "") == "player":
                 continue
             back = s.spec.speed * dt
             x0, y0 = s.x - s.dir_x * back, s.y - s.dir_y * back
-            if segment_circle_t(x0, y0, s.x - x0, s.y - y0, hero.x, hero.y,
-                                hero.hit_radius + s.size) is None:
-                continue
-            hero.roll_passed.add(id(s))
+            reach = hero.hit_radius + s.size + (config.NEAR_MISS if near else 0.0)
+            if hero.rolling:
+                if segment_circle_t(x0, y0, s.x - x0, s.y - y0, hero.x, hero.y, reach) is None:
+                    continue
+                hero.roll_passed.add(id(s))
+                hero.roll_grazes += 1                  # (Hairsbreadth +9 counts them)
+            else:
+                if not _passed(x0, y0, s.x, s.y, hero.x, hero.y, reach):
+                    continue
+            if near:
+                hero.near_missed.add(id(s))
             hero.roll_recharge += config.CLOSE_CALL
             recharge(hero, 0.0)
-            hero.roll_grazes += 1                      # (Hairsbreadth +9 counts them)
-            st = hero.stats
             if st.has("close_call+3"):
                 hero.heal(config.GRAZE)                # Graze
             if st.has("close_call+6"):
                 _deflect(s, hero)                      # Deflect
+
+
+def _passed(x0: float, y0: float, x1: float, y1: float, cx: float, cy: float,
+            reach: float) -> bool:
+    """A shot's step (x0, y0) -> (x1, y1) went by (cx, cy): its nearest
+    point is within this step (now it's going away) and within `reach`."""
+    dx, dy = x1 - x0, y1 - y0
+    n = dx * dx + dy * dy
+    if n < 1e-12:
+        return False
+    t = ((cx - x0) * dx + (cy - y0) * dy) / n
+    if not 0.0 <= t < 1.0:
+        return False
+    return math.hypot(x0 + dx * t - cx, y0 + dy * t - cy) <= reach
 
 
 def _deflect(s, hero) -> None:

@@ -54,7 +54,12 @@ The trinkets' +3 / +6 / +9 tricks (M28.2f, design/GEAR.md 17.6) live
 with their spells here: Grounding, Overload and Eternal arc ride on the
 bolt (`Projectile.charm`, combat.chain_from); Glow and Will-o'-wisps on
 the wand's bolts (combat); Howl in Character.take_damage; Downpour's
-puddle is a zone (zones.py, statuses._wet).
+puddle is a zone (zones.py, statuses._wet). Their legendary tricks
+(M28.3i, GEAR.md 19.7) too: Conduit (run_rules' combo calls `conduit`),
+Satellite (the daggers' centre), Afterburn (auras left behind), Black ice
+(an "ice" zone), Spirit pack, Rekindled, Lingering, Storm front (the
+cloud's ground spot, `hero.cloud_front`), Lifeline, Firefly
+(`hero.fireflies`, set by combat when a bolt hits) and Walking dead.
 
 Everything here is simulation state and replays exactly (randomness comes
 from the hero's seeded dice); drawing only reads it (render/spell_fx.py).
@@ -117,6 +122,10 @@ class SpellState:
         self._line_hit: dict[tuple, float] = {}
         self.puddle = None
         self.eye: list[float] = []
+        # M28.3i: auras left behind, each [x, y, s left] (Afterburn); runes
+        # coming back, each {x, y, t} (Rekindled).
+        self.left: list[list[float]] = []
+        self.later: list[dict] = []
         self.set_level(level, boost)
         self.timer = self.params.get("interval", 0.0) * 0.5   # first pulse comes soon
 
@@ -133,17 +142,22 @@ class SpellState:
         out along a roll and back."""
         p = self.params
         n = int(p["count"])
-        r = p["radius"] * _area(hero) * self.breath(hero)
+        r = p["radius"] * _area(hero)
+        foe = satellite(hero)
+        if foe is not None:                     # (Satellite: just outside its body, to cut it)
+            r = min(r, foe.hit_radius + config.SATELLITE[1])
+        r *= self.breath(hero)
         rings = [(n, self.angle, r, 1)]
         if _has(hero, "daggers+9"):
             more, wide = config.BLADE_STORM
             outer = (n + more) // 2
             rings = [(n + more - outer, self.angle, r, 1), (outer, self.angle2, r * wide, -1)]
-        ox = oy = 0.0
+        cx, cy = satellite_centre(hero)
+        ox, oy = cx - hero.x, cy - hero.y
         if self.fling > 0:
             out, seconds = config.FLING
             reach = out * math.sin(math.pi * (1 - self.fling / seconds))
-            ox, oy = self.fling_dir[0] * reach, self.fling_dir[1] * reach
+            ox, oy = ox + self.fling_dir[0] * reach, oy + self.fling_dir[1] * reach
         dots = []
         for k, start, rr, way in rings:
             for i in range(k):
@@ -159,6 +173,25 @@ class SpellState:
         every, swell, most = config.BREATHING
         t = self.clock % every
         return 1 + (most - 1) * math.sin(math.pi * t / swell) if t < swell else 1.0
+
+
+def satellite(hero):
+    """Bladewheel Charm (L), Satellite: the enemy the daggers circle -- the
+    one the hero hit last, until it dies or SATELLITE[0] s pass without a
+    hit on it (combat.strike keeps `hero.satellite`); None: the hero."""
+    sat = getattr(hero, "satellite", None)
+    if sat is not None and _has(hero, "daggers+L"):
+        foe, t = sat
+        if foe.alive and foe.hittable and hero.time - t <= config.SATELLITE[0] + 1e-9:
+            return foe
+        hero.satellite = None
+    return None
+
+
+def satellite_centre(hero) -> tuple[float, float]:
+    """Where the daggers circle: the hero, or Satellite's enemy."""
+    foe = satellite(hero)
+    return (foe.x, foe.y) if foe is not None else (hero.x, hero.y)
 
 
 def _area(hero) -> float:
@@ -191,11 +224,22 @@ def update_spells(hero, spells: dict[str, SpellState], world, actors, effects: l
     events: list[str] = []
     projectiles = projectiles if projectiles is not None else []
     zones = zones if zones is not None else []
-    for s in spells.values():
-        s.clock += dt
-        run = _KINDS.get(s.spec.kind)
-        if run is not None:
-            events += run(hero, s, world, actors, effects, dt, projectiles, zones) or []
+    shots, grounds = len(projectiles), len(zones)
+    hero.spelling = True                 # (M28.3l: Fortissimo Lute (L), Tutti: spells' hits)
+    try:
+        for s in spells.values():
+            s.clock += dt
+            run = _KINDS.get(s.spec.kind)
+            if run is not None:
+                events += run(hero, s, world, actors, effects, dt, projectiles, zones) or []
+    finally:
+        hero.spelling = False
+    for q in projectiles[shots:]:
+        if q.owner is hero:
+            q.spell = True
+    for z in zones[grounds:]:
+        if z.source is hero:
+            z.spell = True
     return events
 
 
@@ -232,9 +276,15 @@ def _rushed(hero):
     return foe
 
 
+def haste(hero) -> float:
+    """War Drum (L), Warpath: x how fast the hero's spells' clocks (and
+    their summons' attacks) run while a frenzy is on."""
+    return config.WARPATH if getattr(hero, "warpath", False) else 1.0
+
+
 def _due(hero, s: SpellState, dt: float) -> bool:
     """Count the spell's timer down; True (and rewound) when it's time."""
-    s.timer -= dt
+    s.timer -= dt * haste(hero)
     if s.timer > 1e-9:
         return False
     s.timer += s.params["interval"] * _cooldown(hero)
@@ -274,9 +324,11 @@ def _orbit(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) 
         n = math.hypot(dx, dy) or 1.0
         s.fling, s.fling_dir = config.FLING[1], (dx / n, dy / n)
     daggers = s.dagger_positions(hero)
-    reach = max((math.hypot(x - hero.x, y - hero.y) for x, y, _ in daggers), default=0.0) \
+    cx, cy = satellite_centre(hero)
+    reach = max((math.hypot(x - cx, y - cy) for x, y, _ in daggers), default=0.0) \
         + DAGGER_HIT_RADIUS
-    for a in _near(hero, actors, reach):
+    hero.orbiting = True                      # (their hits don't move Satellite's enemy)
+    for a in list(_near_point(hero, actors, cx, cy, reach)):
         for i, (x, y, facing) in enumerate(daggers):
             if math.hypot(a.x - x, a.y - y) > DAGGER_HIT_RADIUS + a.hit_radius:
                 continue
@@ -288,6 +340,7 @@ def _orbit(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) 
             effects.append(Effect("impact", a.x, a.y, facing))
             if not a.alive:
                 break
+    hero.orbiting = False
     if len(s._next_hit) > 256:          # forget enemies long gone
         s._next_hit = {k: t for k, t in s._next_hit.items() if t > s.clock}
 
@@ -299,6 +352,12 @@ def aura_radius(hero, s: SpellState) -> float:
 
 def _aura(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -> None:
     p = s.params
+    for left in s.left:
+        left[2] -= dt
+    s.left = [a for a in s.left if a[2] > 1e-9]
+    if _rolled(hero, s) and _has(hero, "ember_aura+L"):        # (L): Afterburn
+        x, y = getattr(hero, "roll_from", (hero.x, hero.y))
+        s.left.append([x, y, config.AFTERBURN])
     if not _due(hero, s, dt):
         return
     s.count += 1
@@ -308,6 +367,10 @@ def _aura(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -
     if _has(hero, "ember_aura+6") and s.count % every == 0:     # Flare-up
         stacks = max(stacks, flare)
         effects.append(Effect("pulse", hero.x, hero.y, size=r))
+    for x, y, _ in s.left:                                     # (the auras left behind)
+        for a in list(_near_point(hero, actors, x, y, r)):
+            if math.hypot(a.x - x, a.y - y) <= r + a.hit_radius:
+                inflict(a, p["inflicts"], hero, stacks)
     burned = 0
     for a in list(_near(hero, actors, r)):
         if math.hypot(a.x - hero.x, a.y - hero.y) <= r + a.hit_radius:
@@ -361,6 +424,12 @@ def _nova(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -
         per, most = config.ICE_ARMOR
         top = hero.stats.shield + most
         hero.shield = max(hero.shield, min(top, hero.shield + per * chilled))
+    if _has(hero, "frost_nova+L"):                             # (L): Black ice
+        seconds, every = config.BLACK_ICE
+        ice = Zone("ice", hero.x, hero.y, r, seconds * hero.stats.duration_scale, every, 0.0,
+                   hero, s.spec.tags, p["inflicts"], 1)
+        ice.timer = every                        # (the nova itself just chilled them)
+        zones.append(ice)
     return ["nova"]
 
 
@@ -390,7 +459,8 @@ def _wolf(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -
     full = _pack(hero)
     rushed = _rushed(hero) or _scent(hero, p["sight"])
     size = dire(hero)
-    damage = p["damage"] * (config.DIRE_WOLVES[1] if size > 1 else 1.0)
+    spirits = _has(hero, "spirit_wolf+L")
+    damage = image_bite(hero, p["damage"]) * (config.DIRE_WOLVES[1] if size > 1 else 1.0)
     if _has(hero, "spirit_wolf+6"):                            # Howl
         s.howl += dt
         every, reach, _, seconds = config.HOWL
@@ -402,7 +472,7 @@ def _wolf(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -
                     if math.hypot(a.x - w["x"], a.y - w["y"]) <= reach + a.hit_radius:
                         a.howled = (hero, hero.time + seconds)
     for w in wolves:
-        w["bite"] = max(0.0, w["bite"] - dt)
+        w["bite"] = max(0.0, w["bite"] - dt * haste(hero))   # (Warpath: bites faster)
         target = None
         best = p["sight"]
         if rushed is not None:
@@ -431,9 +501,12 @@ def _wolf(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -
         dist = math.hypot(gx - w["x"], gy - w["y"])
         step = min(dist, p["speed"] * dt)
         w["facing"] = math.atan2(gy - w["y"], gx - w["x"])
+        dx, dy = (gx - w["x"]) / dist * step, (gy - w["y"]) / dist * step
+        if spirits:                              # (L): Spirit pack -- through it all
+            w["x"], w["y"] = w["x"] + dx, w["y"] + dy
+            continue
         half = round(WOLF_HALF_PX * size)
-        w["x"], w["y"], _, _ = move_hull(world, w["x"], w["y"], 0.0, half, half,
-                                         (gx - w["x"]) / dist * step, (gy - w["y"]) / dist * step)
+        w["x"], w["y"], _, _ = move_hull(world, w["x"], w["y"], 0.0, half, half, dx, dy)
 
 
 def rune_links(hero, s: SpellState) -> list[tuple[dict, dict]]:
@@ -455,6 +528,12 @@ def _rune(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -
         s.serial += 1
         runes.append({"x": hero.x, "y": hero.y, "age": 0.0, "n": s.serial})
         del runes[:-int(p["max"])]
+    for back in s.later:                                       # (L): Rekindled
+        back["t"] -= dt
+        if back["t"] <= 1e-9:
+            s.serial += 1
+            runes.append({"x": back["x"], "y": back["y"], "age": 0.0, "n": s.serial, "again": True})
+    s.later = [b for b in s.later if b["t"] > 1e-9]
     if _has(hero, "rune_trap+6"):                              # Seeking runes
         notice, speed = config.SEEKING_RUNES
         for r in runes:
@@ -478,6 +557,8 @@ def _rune(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -
         if not trip:
             continue
         r["age"] = p["life"]                     # used up
+        if _has(hero, "rune_trap+L") and not r.get("again"):
+            s.later.append({"x": r["x"], "y": r["y"], "t": config.REKINDLED})
         effects.append(Effect("rune_burst", r["x"], r["y"], size=radius))
         for a in list(_near_point(hero, actors, r["x"], r["y"], radius)):
             if math.hypot(a.x - r["x"], a.y - r["y"]) <= radius + a.hit_radius:
@@ -560,8 +641,23 @@ def _flask(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) 
                 pool.grow = config.BUBBLING
             if _has(hero, "poison_flask+9"):                     # Cauldron
                 pool = _cauldron(pool, zones, p["radius"] * _area(hero) * config.CAULDRON_MAX)
+            pool.linger = _has(hero, "poison_flask+L")          # (L): Lingering
             zones.append(pool)
     s.things = [f for f in s.things if f["t"] < f["flight"]]
+    _linger(hero, actors, zones)
+
+
+def _linger(hero, actors, zones) -> None:
+    """Witch's Flask (L), Lingering: while an enemy stands in one of the
+    hero's pools, it doesn't run out (LINGERING[1] s more once it's left),
+    up to LINGERING[0] s in all."""
+    most, after = config.LINGERING
+    for z in zones:
+        if not getattr(z, "linger", False) or z.source is not hero or z.age >= z.life:
+            continue
+        if any(math.hypot(a.x - z.x, a.y - z.y) <= z.radius + a.hit_radius
+               for a in _near_point(hero, actors, z.x, z.y, z.radius)):
+            z.life = min(most, max(z.life, z.age + after))
 
 
 def _cauldron(pool: Zone, zones: list, most: float) -> Zone:
@@ -588,8 +684,39 @@ def _cauldron(pool: Zone, zones: list, most: float) -> Zone:
     return pool
 
 
+def cloud_ground(hero) -> tuple[float, float]:
+    """The ground the storm cloud is over: the hero -- or, Stormjar (L)
+    (Storm front), the spot it drifts to toward the aim."""
+    front = getattr(hero, "cloud_front", None)
+    return front if front is not None else (hero.x, hero.y)
+
+
 def cloud_position(hero) -> tuple[float, float]:
-    return hero.x + CLOUD_OFFSET[0], hero.y + CLOUD_OFFSET[1]
+    gx, gy = cloud_ground(hero)
+    return gx + CLOUD_OFFSET[0], gy + CLOUD_OFFSET[1]
+
+
+def _drift(hero, dt: float) -> None:
+    """Storm front: the cloud drifts at STORM_FRONT[1] tiles/s toward the
+    spot STORM_FRONT[0] tiles (at most) from the hero toward the aim."""
+    if not _has(hero, "storm_cloud+L"):
+        hero.cloud_front = None
+        return
+    most, speed = config.STORM_FRONT
+    ax, ay = hero.aim_point if hero.aim_point is not None else (
+        hero.x + math.cos(hero.aim_angle) * most, hero.y + math.sin(hero.aim_angle) * most)
+    far = math.hypot(ax - hero.x, ay - hero.y)
+    if far > most:
+        ax, ay = hero.x + (ax - hero.x) / far * most, hero.y + (ay - hero.y) / far * most
+    fx, fy = hero.cloud_front if hero.cloud_front is not None else (hero.x, hero.y)
+    d = math.hypot(ax - fx, ay - fy)
+    step = min(d, speed * dt)
+    if d > 1e-9:
+        fx, fy = fx + (ax - fx) / d * step, fy + (ay - fy) / d * step
+    off = math.hypot(fx - hero.x, fy - hero.y)
+    if off > most:                               # (it never trails more than that behind you)
+        fx, fy = hero.x + (fx - hero.x) / off * most, hero.y + (fy - hero.y) / off * most
+    hero.cloud_front = (fx, fy)
 
 
 def eye_position(hero, s: SpellState) -> tuple[float, float]:
@@ -601,11 +728,13 @@ def eye_position(hero, s: SpellState) -> tuple[float, float]:
 
 def puddle_spot(hero) -> tuple[float, float]:
     """Downpour (Stormjar +3): the ground under the cloud."""
-    return hero.x + CLOUD_OFFSET[0], hero.y
+    gx, gy = cloud_ground(hero)
+    return gx + CLOUD_OFFSET[0], gy
 
 
 def _cloud(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -> list[str]:
     p = s.params
+    _drift(hero, dt)
     if _has(hero, "storm_cloud+3"):                            # Downpour
         x, y = puddle_spot(hero)
         z = s.puddle
@@ -622,23 +751,26 @@ def _cloud(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) 
     if eye:
         while s.eye and s.eye[0] <= 1e-9:
             s.eye.pop(0)
-            events += _strikes(hero, s, *eye_position(hero, s), actors, effects)
+            events += _strikes(hero, s, *eye_position(hero, s), actors, effects, (hero.x, hero.y))
     else:
         s.eye.clear()
     if not _due(hero, s, dt):
         return events
-    events += _strikes(hero, s, *cloud_position(hero), actors, effects)
+    events += _strikes(hero, s, *cloud_position(hero), actors, effects, cloud_ground(hero))
     if eye:
         s.eye.append(config.EYE_OF_THE_STORM[0])
     return events
 
 
-def _strikes(hero, s: SpellState, cx: float, cy: float, actors, effects) -> list[str]:
+def _strikes(hero, s: SpellState, cx: float, cy: float, actors, effects,
+             around: tuple[float, float]) -> list[str]:
     """A storm cloud's strikes: `strikes` random enemies within reach of the
-    hero; Thunderhead (Stormjar +6) strikes whoever hit the hero last first."""
+    ground it's over (`around`: the hero, or Storm front's spot);
+    Thunderhead (Stormjar +6) strikes whoever hit the hero last first."""
     p = s.params
-    near = [a for a in _near(hero, actors, p["reach"])
-            if math.hypot(a.x - hero.x, a.y - hero.y) <= p["reach"]]
+    gx, gy = around
+    near = [a for a in _near_point(hero, actors, gx, gy, p["reach"])
+            if math.hypot(a.x - gx, a.y - gy) <= p["reach"]]
     last = getattr(hero, "struck_by", None)
     first = last if (last is not None and last in near and _has(hero, "storm_cloud+6")) else None
     events = []
@@ -689,6 +821,8 @@ def _totem(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) 
         for a in actors:
             d = math.hypot(a.x - t["x"], a.y - t["y"])
             if a.faction == "player":
+                if a is hero and a.alive and d > radius and _has(hero, "healing_totem+L"):
+                    a.heal(p["heal"] * config.LIFELINE * dt)       # (L): Lifeline
                 if a.alive and d <= radius:
                     a.heal(p["heal"] * dt)
                     if cleanse and not any(h is a for h in inside):   # Cleansing light
@@ -741,8 +875,24 @@ def _burning(a) -> bool:
     return a.status is not None and a.status.has("burn")
 
 
+def _fireflies(hero, dt: float) -> None:
+    """Firefly Lantern (L), Firefly: a bolt that hit buzzes round its enemy
+    (hero.fireflies: [enemy, s left, s to the next burn, (status, stacks)],
+    combat._hit_actor), burning it every FIREFLY[1] s for FIREFLY[0] s."""
+    for f in hero.fireflies:
+        foe = f[0]
+        f[1] -= dt
+        f[2] -= dt
+        if f[2] <= 1e-9 and f[1] > -1e-9 and foe.alive:
+            f[2] += config.FIREFLY[1]
+            inflict(foe, f[3][0], hero, f[3][1])
+    hero.fireflies = [f for f in hero.fireflies if f[1] > 1e-9 and f[0].alive]
+
+
 def _wand(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -> list[str]:
     p = s.params
+    if hero.fireflies:
+        _fireflies(hero, dt)
     if not _due(hero, s, dt):
         return []
     moth = _burning if _has(hero, "fire_wand+6") else None    # Moth
@@ -754,6 +904,7 @@ def _wand(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) -
            effects, projectiles, inflicts=(p["inflicts"], int(p["stacks"])))
     for shot in projectiles[before:]:
         shot.glow = _has(hero, "fire_wand+3")                 # Glow
+        shot.firefly = _has(hero, "fire_wand+L")              # (L): Firefly
         s.count += 1
         if _has(hero, "fire_wand+9") and s.count % config.WISPS[0] == 0:
             shot.wisp = True                                  # Will-o'-wisps
@@ -767,13 +918,7 @@ def _chain(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) 
     target = _nearest(hero, actors, p["reach"], world)
     if target is None:
         return []
-    st = hero.stats
-    shell = config.SPELL_SHELLS["chain"]
-    if st is not None:
-        shell = replace(shell, chain=shell.chain + int(p["jumps"]) + round(st.chain)
-                        + (config.THUNDERLORD[0] if st.has("storm_caller+9") else 0),
-                        chain_range=shell.chain_range * (1 + st.chain_range),
-                        chain_falloff=min(0.95, shell.chain_falloff + st.chain_falloff))
+    shell = _chain_shell(hero, s)
     s.count += 1
     if _has(hero, "chain_lightning+6") and s.count % config.OVERLOAD == 0:   # Overload
         shell = replace(shell, chain=shell.chain * 2)
@@ -793,6 +938,42 @@ def _chain(hero, s: SpellState, world, actors, effects, dt, projectiles, zones) 
     return ["spark"]
 
 
+def _chain_shell(hero, s: SpellState):
+    """Chain Lightning's bolt: the shock bolt with the spell's jumps and the
+    build's (Storm Caller, Conductor's reach and fade)."""
+    p = s.params
+    st = hero.stats
+    shell = config.SPELL_SHELLS["chain"]
+    if st is not None:
+        shell = replace(shell, chain=shell.chain + int(p["jumps"]) + round(st.chain)
+                        + (config.THUNDERLORD[0] if st.has("storm_caller+9") else 0),
+                        chain_range=shell.chain_range * (1 + st.chain_range),
+                        chain_falloff=min(0.95, shell.chain_falloff + st.chain_falloff))
+    return shell
+
+
+def conduit(hero, s: SpellState, at, world, actors, effects, projectiles) -> list[str]:
+    """Chainbolt Charm (L), Conduit: a crit casts the spell's bolt from the
+    enemy it hit (`at`) at the nearest other one in sight within reach of
+    it, jumping on as usual (run_rules keeps it to CONDUIT a second)."""
+    reach = s.params["reach"]
+    best, best_d = None, reach
+    for a in _near_point(hero, actors, at.x, at.y, reach):
+        d = math.hypot(a.x - at.x, a.y - at.y)
+        if a is at or d > best_d or first_hit(world.tile_at, at.x, at.y, a.x, a.y) is not None:
+            continue
+        best, best_d = a, d
+    if best is None:
+        return []
+    before = len(projectiles)
+    _shoot(hero, at.x, at.y, best, _chain_shell(hero, s), s.params["damage"], s.spec.tags,
+           effects, projectiles)
+    for shot in projectiles[before:]:
+        shot.charm = True                     # (Grounding, Eternal arc ride on it too)
+        shot.hit.add(id(at))
+    return ["spark"]
+
+
 def _shocked(a) -> bool:
     return a.status is not None and a.status.has("shock")
 
@@ -801,7 +982,7 @@ def _turret(hero, s: SpellState, world, actors, effects, dt, projectiles, zones)
     p = s.params
     for t in s.things:
         t["age"] += dt
-        t["fire"] -= dt
+        t["fire"] -= dt * haste(hero)                        # (Warpath: it shoots faster)
     legion = _has(hero, "bone_turret+9")                     # Bone legion
     most = int(p["count"]) + _extra(hero) + (config.BONE_LEGION if legion else 0)
     calcify = _has(hero, "bone_turret+6")
@@ -835,6 +1016,8 @@ def _turret(hero, s: SpellState, world, actors, effects, dt, projectiles, zones)
             del s.things[:-most]
     s.waiting = [w for w in s.waiting if w["t"] > 1e-9]
     events = []
+    if _has(hero, "bone_turret+L"):
+        _walk(hero, s, world, actors, dt)                     # (L): Walking dead
     for t in s.things:
         if t["fire"] > 0:
             continue
@@ -846,10 +1029,66 @@ def _turret(hero, s: SpellState, world, actors, effects, dt, projectiles, zones)
         if best is None:
             continue
         t["fire"] = p["fire"]
+        if _pack(hero) and _has(hero, "pack_leader+L"):
+            events += _in_my_image(hero, t, best, world, actors, effects, projectiles)
+            continue
         _shoot(hero, t["x"], t["y"], best, config.SPELL_SHELLS["turret"], p["damage"],
                s.spec.tags, effects, projectiles, summon=True, pierce=int(p["pierce"]))
         events.append("bolt")
     return events
+
+
+def _walk(hero, s: SpellState, world, actors, dt: float) -> None:
+    """Skull Sentry (L), Walking dead: each turret walks at WALKING_DEAD[0]
+    tiles/s toward the nearest enemy within its reach, stopping
+    WALKING_DEAD[1] tiles short of it."""
+    speed, short = config.WALKING_DEAD
+    reach = s.params["reach"]
+    for t in s.things:
+        best, best_d = None, reach
+        for a in _near_point(hero, actors, t["x"], t["y"], reach):
+            d = math.hypot(a.x - t["x"], a.y - t["y"])
+            if d <= best_d:
+                best, best_d = a, d
+        if best is None:
+            continue
+        gap = best_d - short - best.hit_radius
+        if gap <= 1e-6:
+            continue
+        step = min(gap, speed * dt)
+        t["x"], t["y"], _, _ = move_hull(world, t["x"], t["y"], 0.0, 4, 4,
+                                         (best.x - t["x"]) / best_d * step,
+                                         (best.y - t["y"]) / best_d * step)
+
+
+def _in_my_image(hero, t: dict, target, world, actors, effects, projectiles) -> list[str]:
+    """Packmaster Ring (L), In my image: a turret fires a copy of the
+    hero's own attack at `target` (IN_MY_IMAGE x; the shots are the hero's,
+    so the gear's tricks ride on them) -- or beats, for the bard's lute."""
+    from .combat import pulse, volley
+    spec = hero.weapon.spec
+    if spec.kind == "pulse":
+        return pulse(hero, world, actors, effects, mult=config.IN_MY_IMAGE, origin=(t["x"], t["y"]))
+    shell = spec.shell
+    angle = math.atan2(target.y - t["y"], target.x - t["x"])
+    before = len(projectiles)
+    sounds = volley(hero, world, projectiles, effects, angle, max(1, spec.pellets),
+                    spec.spread_deg, shell, spec.tags, shell.damage, mult=config.IN_MY_IMAGE,
+                    origin=(t["x"], t["y"]), actors=actors)
+    if shell.seek_turn > 0:
+        for q in projectiles[before:]:              # (darts home on the turret's target)
+            q.seek, q.seek_point = target, (target.x, target.y)
+    return sounds
+
+
+def image_bite(hero, damage: float) -> float:
+    """Packmaster Ring (L), In my image: a wolf bites for the hero's
+    attack's hit (one shot, or a beat) when that's more than its own."""
+    if not (_pack(hero) and _has(hero, "pack_leader+L")):
+        return damage
+    spec = hero.weapon.spec
+    own = spec.damage if spec.kind == "pulse" or spec.shell is None else spec.shell.damage
+    return max(damage, own)
 
 
 def _calcify(hero, t: dict, s: SpellState, effects, projectiles) -> None:

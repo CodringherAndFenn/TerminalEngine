@@ -281,6 +281,7 @@ class MountainhideTest(_Chest):
 
     def test_glance(self):
         s, h = self.setup("juggernaut", 3)
+        h.stats.flags.discard("juggernaut+L")     # (M28.3c: not Stoneskin, which blocks it too)
         h.stats.armor = 40
         h.rng.random = lambda: config.GLANCE[1] - 0.01
         self.assertEqual(self.shot(), [])

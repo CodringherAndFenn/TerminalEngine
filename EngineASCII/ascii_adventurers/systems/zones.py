@@ -57,6 +57,9 @@ class Zone:
     follow: object = None
     path: list | None = None
     pull: float = 0.0
+    # M28.3l: a spell's ground (Fortissimo Lute (L), Tutti: the crescendo
+    # counts for its hits).
+    spell: bool = False
     timer: float = 0.0
     age: float = field(default=0.0)
 
@@ -102,7 +105,11 @@ def update_zones(zones: list[Zone], actors, effects: list[Effect], dt: float,
                 a.wet = z                             # (Downpour: statuses._wet)
             if z.damage > 0:
                 cut = ground_cut(a) if getattr(z.source, "faction", None) != "player" else 1.0
+                if z.spell:
+                    z.source.spelling = True
                 strike(a, z.damage * cut, z.source, math.atan2(a.y - z.y, a.x - z.x), effects, z.tags)
+                if z.spell:
+                    z.source.spelling = False
             if z.inflicts and a.alive:
                 inflict(a, z.inflicts, z.source, z.stacks)
             if z.slow and hasattr(a, "slowed"):

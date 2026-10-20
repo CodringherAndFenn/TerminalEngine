@@ -31,6 +31,7 @@ from ..engine_ext.camera import Camera
 from ..entities.effects import Effect
 from ..entities.projectile import Projectile
 from ..systems.collision import screen_angle
+from ..systems.combat import chain_links
 from ..systems.raycast import first_hit
 from .glyphs import NOTE, images_for, loot_glyph, note_glyph
 
@@ -214,7 +215,8 @@ def draw_projectiles(text: TextRenderer, camera: Camera, projectiles: list[Proje
             continue
         head, trail, cols = SHOT_LOOKS[p.spec.look]
         if cols is None:                     # the rainbow: one color per pellet
-            cols = palette.RAINBOW_SHOTS[p.variant % len(palette.RAINBOW_SHOTS)]
+            cols = palette.SHOT_VIOLET if p.violet else \
+                palette.RAINBOW_SHOTS[p.variant % len(palette.RAINBOW_SHOTS)]
         elif cols == "psy":                  # psychedelic: each shot its own hue
             cols = palette.PSY_SHOTS[p.tint % len(palette.PSY_SHOTS)]
         elif p.tint and p.owner is not None and getattr(p.owner, "psychedelic", False):
@@ -232,7 +234,14 @@ def draw_projectiles(text: TextRenderer, camera: Camera, projectiles: list[Proje
             stats = getattr(p.owner, "stats", None)
             if stats is not None and stats.has("tether"):
                 _chain(batch, camera, p, trail_cols[1])
+        if p.widened:                        # (Broadleaf Bow (L): Widening -- its edges)
+            for side in (-1, 1):
+                ex, ey = camera.world_to_px(p.x - p.dir_y * p.size * side,
+                                            p.y + p.dir_x * p.size * side)
+                batch.put_c(ex, ey, _LINE[octant], trail_cols[0])
         batch.put_c(x, y, head or _HEAD[octant], head_col)
+    for a, b in chain_links(projectiles):   # (Chainlink Axe (L): Chain gang)
+        _links(batch, camera, a.x, a.y, b.x, b.y, SHOT_LOOKS[a.spec.look][2][1][1])
     batch.flush()
 
 
@@ -241,12 +250,17 @@ TETHER_LINK_TILES = 0.7   # Tether (P4): tiles between the chain's links
 
 def _chain(batch, camera: Camera, p: Projectile, color: tuple) -> None:
     """Tether: a line of links from the dwarf to his axe."""
-    ox, oy = p.owner.x, p.owner.y
-    length = math.hypot(p.x - ox, p.y - oy)
+    _links(batch, camera, p.owner.x, p.owner.y, p.x, p.y, color)
+
+
+def _links(batch, camera: Camera, x0: float, y0: float, x1: float, y1: float,
+           color: tuple) -> None:
+    """A chain's links from (x0, y0) to (x1, y1)."""
+    length = math.hypot(x1 - x0, y1 - y0)
     n = int(length / TETHER_LINK_TILES)
-    glyph = _LINE[_octant(math.atan2(p.y - oy, p.x - ox))]
+    glyph = _LINE[_octant(math.atan2(y1 - y0, x1 - x0))]
     for k in range(1, n):
-        x, y = camera.world_to_px(ox + (p.x - ox) * k / n, oy + (p.y - oy) * k / n)
+        x, y = camera.world_to_px(x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n)
         batch.put_c(x, y, glyph if k % 2 else "o", color)
 
 

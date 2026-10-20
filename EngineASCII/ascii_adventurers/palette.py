@@ -225,6 +225,9 @@ _RAINBOW = ((255, 85, 85), (255, 165, 60), (255, 235, 90), (115, 230, 115), (105
 RAINBOW_SHOTS = tuple(
     (c, (tuple(round(v * 0.72) for v in c), tuple(round(v * 0.45) for v in c))) for c in _RAINBOW
 )
+_VIOLET = (190, 110, 255)            # M28.3l: the Chroma Wand's sixth color (Ultraviolet)
+SHOT_VIOLET = (_VIOLET, (tuple(round(v * 0.72) for v in _VIOLET),
+                         tuple(round(v * 0.45) for v in _VIOLET)))
 ARC = ((240, 252, 255), (140, 225, 255))       # lightning: bright core, cyan
 SWING = ((240, 244, 255), (160, 170, 200))     # sword sweep: leading edge, trail
 PULSE = ((255, 225, 130), (225, 160, 255), (140, 115, 200))   # bard ring, fading
@@ -290,6 +293,8 @@ STATUS_PIP = {"burn": (255, 130, 40), "poison": (140, 230, 70), "bleed": (230, 4
 FROZEN = ((200, 235, 255), (120, 180, 240))
 MARK = (255, 70, 60)
 DUEL = (255, 200, 90)              # M28.2i: the Duelist's Wand's duelist, crossed blades
+WANTED = (255, 215, 60)            # M28.3h: the Bountymark Ring's wanted enemy, "$"s
+OVERCAST = ((150, 160, 175), (115, 125, 140))   # M28.3k: the Cloudburst Bow's lasting rain cloud
 SLEEP = (170, 190, 255)            # M28.2i: "z"s over an enemy Lullabied asleep
 EVADE = (190, 230, 255)
 SHOT_NOTE = ((255, 225, 120), ((235, 170, 90), (150, 110, 70)))   # Sheet Music's notes
@@ -664,6 +669,7 @@ PENGUIN = {"body": (30, 34, 44), "belly": (240, 244, 250), "beak": (255, 170, 40
 SNOWBALL = ((245, 250, 255), (190, 210, 230))
 CHILL_BAR = ((150, 220, 255), (255, 255, 255), (120, 160, 255))   # low, high, encased
 MOUNT_BAR = ((190, 150, 95), (240, 205, 130), (240, 205, 130))    # P6: the mount's wait
+PHOENIX_BAR = ((230, 110, 40), (255, 190, 70), (255, 190, 70))  # M28.3c: Ever-burning
 # P7: the plains' new enemies (render/plains.py).
 PLAINS_TELL = ((255, 80, 60), (230, 120, 80))     # the "!" over a wind-up; a charge line
 DRUM_RING = ((255, 200, 120), (170, 120, 70))     # the war drummer's ring: on the beat, between

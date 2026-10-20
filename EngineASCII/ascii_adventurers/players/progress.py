@@ -40,6 +40,13 @@ class Progress:
     resolved: int = 0        # picks spent (taken or skipped): Encore Tour counts them
     decree: str | None = None    # Royal Decree: the next offer is this rarity or better
     free_upgrades: int = 0   # Grizzled Signet +6 (Drilled): UPGRADEs that don't cost the pick
+    # Fourleaf Ring (L), Foresight (M28.3h): the next level's offer, drawn
+    # early; the index of the piece kept in it (the gear screen's NEXT
+    # OFFER page); on the table, the kept piece and its place (it stays
+    # through rerolls until the pick is spent).
+    next_offer: list = field(default_factory=list)
+    kept: int | None = None
+    keep: tuple | None = None
 
     @property
     def needed(self) -> int:

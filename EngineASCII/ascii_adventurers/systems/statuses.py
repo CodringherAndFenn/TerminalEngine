@@ -68,6 +68,7 @@ class Status:
     double_moving: bool = False   # Hemorrhage: ticks x2 while the owner moves
     pyre: float = 0.0          # Cinderveil Hood +9: s left burning twice as fast
     extra: float = 0.0         # Stormvane Helm +3: shock vulnerability built up
+    lasting: bool = False      # Thunderhead Rod (L), Ionized: a bolt's shock never wears off
 
 
 class Statuses:
@@ -91,6 +92,10 @@ class Statuses:
         self.shocks: list[float] = []
         self.perma = 0.0
         self.pace = 0.0
+        # The legendary tricks (M28.3e): the tile Brushfire last lit, and the
+        # chill a boss has taken since it was last free of it (Deep freeze).
+        self.brush_tile: tuple | None = None
+        self.deep = 0
 
     def stacks(self, name: str) -> int:
         s = self.active.get(name)
@@ -175,13 +180,22 @@ class Statuses:
         if self._last_pos is not None and dt > 0:
             self.pace = math.hypot(pos[0] - self._last_pos[0], pos[1] - self._last_pos[1]) / dt
         self._last_pos = pos
+        burn = self.active.get("burn")
+        if burn is not None and has(burn.source, "kindling+L"):          # Brushfire
+            tile = (math.floor(owner.x), math.floor(owner.y))
+            if tile != self.brush_tile:
+                combos.append(("brushfire", owner, burn.source, tile))
+                self.brush_tile = tile
         for name in list(self.active):
             s = self.active[name]
             if name in DOT:
                 spec = config.STATUSES[name]
                 rate = self._rate(owner, name, s, moving)
+                n = s.stacks
+                if name == "poison" and n > config.VIRULENCE[0]:        # (Pestilence)
+                    n = config.VIRULENCE[0] + (n - config.VIRULENCE[0]) * config.PESTILENCE
                 self._owed[name] = (self._owed.get(name, 0.0)
-                                    + spec.dps * s.stacks * s.power * rate * dt)
+                                    + spec.dps * n * s.power * rate * dt)
                 if name == "poison" and has(s.source, "virulence+9") \
                         and s.stacks >= config.BLACK_DEATH[0]:          # Black death
                     share = config.BLACK_DEATH[2 if getattr(owner, "boss", False) else 1]
@@ -191,7 +205,8 @@ class Statuses:
                 self._owed["shock"] = (self._owed.get("shock", 0.0)
                                        + config.GROUND_FAULT * s.power * dt)
             s.pyre = max(0.0, s.pyre - dt)
-            s.left -= dt
+            if not s.lasting:
+                s.left -= dt
             if s.left <= 0:
                 del self.active[name]
         self._tick -= dt
@@ -202,10 +217,17 @@ class Statuses:
             if amount <= 0 or not owner.alive:
                 continue
             source = self.active[name].source if name in self.active else None
+            tone = name
+            if name == "poison" and has(source, "venom+L") and source.rng.random() \
+                    < _crit_chance(source):                              # Venom sacs
+                amount *= source.stats.crit_damage
+                tone = "crit"
             dealt = owner.take_damage(amount, source, None)
             if dealt > 0:
                 effects.append(Effect("number", owner.x, owner.y - owner.hit_radius, 0.0,
-                                      value=max(1, round(dealt)), tone=name))
+                                      value=max(1, round(dealt)), tone=tone))
+                if name == "bleed" and has(source, "serrated+L"):
+                    _bloodletting(source)
         self._owed.clear()
 
     def _rate(self, owner, name: str, s: Status, moving: bool) -> float:
@@ -219,6 +241,9 @@ class Statuses:
         elif name == "bleed":
             if s.double_moving and moving:                                 # Hemorrhage
                 rate = config.BLOODHOUND if has(s.source, "hemorrhage+9") else 2.0
+            if has(s.source, "hemorrhage+L") \
+                    and getattr(s.source, "speed", 0.0) >= config.STILL_SPEED:
+                rate *= config.BLOOD_RUSH                                  # Blood rush
             walk = getattr(getattr(owner, "espec", None), "speed", 0.0)
             if walk > 0 and self.pace > walk * config.SPURT[1] \
                     and has(s.source, "hemorrhage+6"):                     # Spurt
@@ -259,24 +284,66 @@ def inflict(victim, name: str, source, stacks: int = 1, chain: bool = True) -> N
     itself round a crowd for ever)."""
     stats = getattr(source, "stats", None)
     power = stats.status_scale(config.STATUSES[name].tag) if stats is not None else 1.0
+    if stats is not None and getattr(source, "spelling", False) and stats.has("crescendo+L"):
+        power *= 1 + config.CRESCENDO_STEP * getattr(source, "streak", 0)   # (M28.3l: Tutti)
     duration = stats.duration_scale if stats is not None else 1.0
     cap = None
     if stats is not None and name == "poison" and stats.has("virulence"):
         cap, duration = config.VIRULENCE[0], duration * config.VIRULENCE[1]
+        if stats.has("virulence+L"):
+            cap = 10 ** 6                        # (Plaguebeak (L): Pestilence, no cap)
     hemorrhage = stats is not None and name == "bleed" and stats.has("hemorrhage")
     st = statuses_of(victim)
     before = st.stacks(name)
+    if name == "chill" and before == 0:
+        st.deep = 0                              # (Deep freeze: free of chill, it starts over)
     st.apply(victim, name, source, stacks, power, duration, cap, hemorrhage)
     if stats is None or not victim.alive:
         return
     _tricks(victim, st, name, before, source, stats)
+    if name == "chill" and getattr(victim, "boss", False) and stats.has("frostbite+L"):
+        _deep_freeze(victim, st, stacks, source)
     if not chain:
         return
-    if stats.has("thermal_shock") and name in ("burn", "chill") \
-            and st.has("burn") and st.has("chill") and "geyser" not in st.cooldowns:
+    mix = stats.has("thermal_shock+L") and len(st.active) >= 2           # (Volatile mix)
+    if stats.has("thermal_shock") and "geyser" not in st.cooldowns \
+            and (mix or (name in ("burn", "chill") and st.has("burn") and st.has("chill"))):
         combos.append(("thermal_shock", victim, source))
-    if stats.has("toxic_current") and name == "shock" and st.has("poison"):
+    if stats.has("toxic_current") and name == "shock" and (
+            st.has("poison") or (stats.has("toxic_current+L") and len(st.active) >= 2)):
         combos.append(("toxic_current", victim, source))
+
+
+def _deep_freeze(victim, st: Statuses, stacks: int, source) -> None:
+    """Rime Hood (L), Deep freeze: a boss that has taken DEEP_FREEZE[0]
+    chill stacks (since it was last free of chill) freezes for [1] s, at
+    most once every [2] s."""
+    most, seconds, gap = config.DEEP_FREEZE
+    st.deep += stacks
+    if st.deep < most or "deep_freeze" in st.cooldowns:
+        return
+    st.deep = 0
+    st.frozen = max(st.frozen, seconds)
+    st.frozen_by = source
+    st.cooldowns["deep_freeze"] = gap
+
+
+def _crit_chance(hero) -> float:
+    from .combat import crit_chance
+    return crit_chance(hero.stats, hero)
+
+
+def _bloodletting(hero) -> None:
+    """Thornhelm (L): a bleed tick heals its hero BLOODLETTING[0] HP, at
+    most [1] ticks' worth a second."""
+    heal, most = config.BLOODLETTING
+    now = getattr(hero, "time", 0.0)
+    recent = [t for t in getattr(hero, "letting", []) if t > now - 1.0]
+    if len(recent) >= most:
+        hero.letting = recent
+        return
+    hero.letting = recent + [now]
+    hero.heal(heal)
 
 
 def _tricks(victim, st: Statuses, name: str, before: int, source, stats) -> None:
@@ -356,7 +423,14 @@ def wounded(actor) -> bool:
     return actor.status is not None and actor.status.wounded
 
 
+# Where enemies burn right now, as (x, y, burn stacks): Blazecrown (L),
+# Radiant heat (combat.situational_bonus). Refreshed each update_statuses.
+burning: list[tuple[float, float, int]] = []
+
+
 def update_statuses(actors, dt: float, effects: list[Effect], world=None) -> None:
+    burning[:] = [(a.x, a.y, a.status.stacks("burn")) for a in actors
+                  if a.alive and a.status is not None and a.status.has("burn")]
     for a in actors:
         s = a.status
         if s is not None and a.alive:

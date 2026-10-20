@@ -17,6 +17,9 @@ damage a level. Rarity (M28.3a) multiplies on top: GEAR_RARITY_POWER of the
 main number, or GEAR_RARITY_FLAT of its extra as damage (power_scale,
 flat_damage, spell_boost).
 
+Tricks (M28.2): flags "<key>+3/+6/+9" as the levels come; a legendary's
+own trick (M28.3c, config.GEAR_LEGENDARY) is "<key>+L", on from +0.
+
 Offers (draw_offer). Each piece is a base the hero may get (gates, hero,
 unlock met), weighted by its minimum rarity -- its old card rarity -- in the
 card weights (luck lifts the rare ones), so strong powers stay rare to
@@ -107,12 +110,20 @@ def _main_mod(key: str) -> int | None:
     return None
 
 
-def trick_flags(key: str, level: int) -> list[tuple[str, str, float]]:
+def trick_flags(key: str, level: int, rarity: str = "common") -> list[tuple[str, str, float]]:
     """The flags of the tricks a piece has unlocked: "<key>+3" and so on
-    (only for pieces whose tricks are built, config.GEAR_TRICKS)."""
-    if key not in config.GEAR_TRICKS:
-        return []
-    return [(f"{key}+{t}", "flag", 1) for t in config.GEAR_TRICK_LEVELS if level >= t]
+    (only for pieces whose tricks are built, config.GEAR_TRICKS), and a
+    legendary's own trick, "<key>+L", from +0 (M28.3c)."""
+    out = [(f"{key}+{t}", "flag", 1) for t in config.GEAR_TRICK_LEVELS
+           if level >= t and key in config.GEAR_TRICKS]
+    if rarity == "legendary" and key in config.GEAR_LEGENDARY:
+        out.append((f"{key}+L", "flag", 1))
+    return out
+
+
+def legendary_trick(key: str) -> tuple[str, str] | None:
+    """(name, text) of a base's legendary trick, if it's built."""
+    return config.GEAR_LEGENDARY.get(key)
 
 
 def tricks(key: str) -> list[tuple[int, str, str]]:
@@ -127,8 +138,8 @@ def next_trick(key: str, level: int) -> tuple[int, str, str] | None:
 
 def power_steps(key: str, level: int, rarity: str = "common") -> list[tuple[str, str, float]]:
     """The (stat, op, value) steps of a base's power at `level` and
-    `rarity`, with its unlocked tricks' flags (M28.2)."""
-    return _power(key, level, rarity) + trick_flags(key, level)
+    `rarity`, with its unlocked tricks' flags (M28.2, M28.3c)."""
+    return _power(key, level, rarity) + trick_flags(key, level, rarity)
 
 
 def power_scale(level: int, rarity: str = "common") -> float:
@@ -557,3 +568,42 @@ def draw_offer(hero_key: str, weapon: WeaponSpec, eq: Equipment, seed: int, play
     if placed:
         rng.shuffle(offer)          # the main-hand / archetype piece isn't always first
     return offer
+
+
+# --- Fourleaf Ring (L), Foresight (M28.3h) ---------------------------------------------
+
+def refit(o: Offer, eq: Equipment, pool) -> Offer | None:
+    """An offer seen earlier, as it stands with what's worn now: None if it
+    no longer fits (its base not on offer any more, a +1 for a piece taken
+    off, a new piece of a base now worn); a +1 shows the worn piece."""
+    worn = eq.wearing(o.key)
+    if o.key not in pool or (o.kind == "plus") != (worn is not None):
+        return None
+    if worn is not None:
+        p = eq.worn[worn]
+        return Offer(o.key, p.rarity, p.affixes, "plus")
+    return Offer(o.key, o.rarity, o.affixes, kind_of(eq, o.key))
+
+
+def foresee(seen: list[Offer], fresh: list[Offer], eq: Equipment, pool) -> list[Offer]:
+    """The offer seen early (Foresight), now that it's here: each piece that
+    still fits as it was, the others redrawn from `fresh` (a draw made
+    now), in their places."""
+    out = [refit(o, eq, pool) for o in seen]
+    have = {o.key for o in out if o is not None}
+    spare = [o for o in fresh if o.key not in have]
+    for i, o in enumerate(out):
+        if o is None and spare:
+            out[i] = spare.pop(0)
+    return [o for o in out if o is not None]
+
+
+def keep_in(keep: Offer, at: int, fresh: list[Offer], eq: Equipment, pool) -> list[Offer]:
+    """A redrawn offer (a reroll) with the piece kept by Foresight still in
+    its place, if it still fits."""
+    kept = refit(keep, eq, pool)
+    if kept is None:
+        return fresh
+    out = [o for o in fresh if o.key != kept.key][:max(0, len(fresh) - 1)]
+    out.insert(min(at, len(out)), kept)
+    return out
