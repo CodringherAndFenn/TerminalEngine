@@ -150,11 +150,12 @@ def _mount_picture(art: tuple[str, ...], hurt: bool) -> pygame.Surface:
 
 
 def rider_picture(hero_sprite: str, mount: str, frame: int, hurt: bool,
-                  part: str = "all") -> pygame.Surface:
+                  part: str = "all", look=None) -> pygame.Surface:
     """The hero on its mount, in art pixels (facing right). The rider bobs
     a pixel up on the gathered frame; a floating mount has its shadow
     FLOAT_GAP pixels under it. `part`: "all", or "rider" / "shadow" alone
-    (same size and place, so a carpet can bob over a shadow that stays)."""
+    (same size and place, so a carpet can bob over a shadow that stays).
+    `look`: the rider's worn gear (M28.6, render/gear_looks)."""
     m = MOUNTS[mount]
     art = m.frames[frame % len(m.frames)]
     rows = config.MOUNT_RIDER_ROWS
@@ -167,7 +168,7 @@ def rider_picture(hero_sprite: str, mount: str, frame: int, hurt: bool,
         pygame.draw.ellipse(surf, SHADOW, pygame.Rect(2, y, MOUNT_W - 4, 2))
     if part == "shadow":
         return surf
-    rider = _picture(hero_sprite, hurt).subsurface(pygame.Rect(0, 0, ART_W, rows))
+    rider = _picture(hero_sprite, hurt, look).subsurface(pygame.Rect(0, 0, ART_W, rows))
     bob = 1 if (frame % 2 == 1 and len(m.frames) > 1) else 0
     surf.blit(rider, (sx - ART_W // 2, top + sy - rows - bob))
     surf.blit(_mount_picture(art, hurt), (0, top))
@@ -175,9 +176,9 @@ def rider_picture(hero_sprite: str, mount: str, frame: int, hurt: bool,
 
 
 def _painter(hero_sprite: str, mount: str, scale: int, flip: bool, frame: int, hurt: bool,
-             part: str = "all"):
+             part: str = "all", look=None):
     def paint(surf, to_px):
-        img = rider_picture(hero_sprite, mount, frame, hurt, part)
+        img = rider_picture(hero_sprite, mount, frame, hurt, part, look)
         if flip:
             img = pygame.transform.flip(img, True, False)
         w, h = img.get_width() * scale, img.get_height() * scale
@@ -198,15 +199,18 @@ def gallop_frame(hero) -> int:
 
 
 def draw_rider(bank: SpriteBank, x: float, y: float, hero_sprite: str, mount: str,
-               scale: int, facing_left: bool, frame: int, hurt: bool, bob: float = 0.0) -> None:
+               scale: int, facing_left: bool, frame: int, hurt: bool, bob: float = 0.0,
+               look=None) -> None:
     """A hero on its mount, centred where the hero would stand at canvas
     pixel (x, y). A floating mount's shadow stays put while it bobs."""
     reach = (MOUNT_W + len(MOUNTS[mount].frames[0]) + len(ART[hero_sprite])) * scale / 2 + 8
     parts = ("shadow", "rider") if MOUNTS[mount].floats else ("all",)
     for part in parts:
-        key = f"mount:{part}:{hero_sprite}:{mount}:{scale}:{int(facing_left)}:{frame}:{int(hurt)}"
+        dressed = f":{look.key}" if look is not None and part != "shadow" else ""
+        key = (f"mount:{part}:{hero_sprite}{dressed}:{mount}:{scale}:{int(facing_left)}:{frame}"
+               f":{int(hurt)}")
         sprite = bank.static(key, _painter(hero_sprite, mount, scale, facing_left, frame, hurt,
-                                           part), reach)
+                                           part, look), reach)
         bank.draw(sprite, x, y - (bob if part == "rider" else 0.0))
 
 
@@ -219,4 +223,4 @@ def draw_mounted(bank: SpriteBank, camera, hero, clock: float) -> None:
            * hero.spec.sprite_scale) if m.floats else 0.0
     draw_rider(bank, x, y, hero.spec.sprite, hero.mount, hero.spec.sprite_scale,
                hero.mount_left, gallop_frame(hero) if not m.floats else 0,
-               hero.hurt_flash > 0, bob)
+               hero.hurt_flash > 0, bob, getattr(hero, "look", None))

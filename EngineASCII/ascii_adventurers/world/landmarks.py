@@ -253,7 +253,13 @@ def build_landmarks(layout) -> list[Landmark]:
                 trail = _nut_trail(q.biome, x, y, random.Random(hash_coords(layout.seed, 0x7A11, k)))
                 trail.quest = key
                 out.insert(0, trail)
+    out += _chests(layout, out, spots)          # (M28.4b: after every quest's spots)
     return out
+
+
+def chest_marks(layout) -> list[Landmark]:
+    """The chests (M28.4b), in their fixed order (props["n"])."""
+    return [m for m in layout.landmarks if m.kind == "chest"]
 
 
 def quest_marks(layout, quest: str) -> tuple[Landmark | None, Landmark | None]:
@@ -270,8 +276,15 @@ def spot_count(quest) -> int:
 
 def _scatter(layout, quest, camp, marks, others, rng: random.Random) -> list[tuple[float, float]]:
     """Where a quest's targets live: quest.count * QUEST_SPOT_FACTOR spots
-    spread over the whole of its biome, so finding enough means travelling
-    it (any `count` of them finish the hunt).
+    spread over the whole of its biome (scatter_in), so finding enough means
+    travelling it (any `count` of them finish the hunt)."""
+    return scatter_in(layout, quest.biome, spot_count(quest), marks, others, rng, camp=camp)
+
+
+def scatter_in(layout, biome_name: str, want: int, marks, others, rng: random.Random,
+               camp=None) -> list[tuple[float, float]]:
+    """`want` spots spread over a ring biome (a quest's targets; the chests,
+    M28.4b).
 
     QUEST_SPOT_CANDIDATES random points in the biome's slice of the ring
     (uniform by area: r = sqrt of a uniform between the squared radii) are
@@ -282,8 +295,8 @@ def _scatter(layout, quest, camp, marks, others, rng: random.Random) -> list[tup
     Then, in random order, a point is taken if it's at least `sep` tiles
     from every one already taken; `sep` starts at QUEST_SPOT_SEPARATION and
     shrinks until there are enough (a small or oddly-shaped biome)."""
-    biome_id = biomes.BY_NAME[quest.biome].id
-    mid = _slice_angle(layout, quest.biome)
+    biome_id = biomes.BY_NAME[biome_name].id
+    mid = _slice_angle(layout, biome_name)
     span = math.tau / len(layout.ring)
     r0, r1 = _ring_radii(layout)
     cands = []
@@ -295,7 +308,8 @@ def _scatter(layout, quest, camp, marks, others, rng: random.Random) -> list[tup
     # (numpy from here on: P2's 4x targets made the plain loops ~1 s.)
     c = np.asarray(cands, dtype=np.float64)
     keep = _fits_many(layout, biome_id, cands, e, e)
-    keep &= np.hypot(c[:, 0] - camp.cx, c[:, 1] - camp.cy) >= config.QUEST_SPOT_CAMP_GAP
+    if camp is not None:
+        keep &= np.hypot(c[:, 0] - camp.cx, c[:, 1] - camp.cy) >= config.QUEST_SPOT_CAMP_GAP
     for m in marks:
         if m.kind != "spot":
             keep &= ~((m.x0 - e <= c[:, 0]) & (c[:, 0] < m.x0 + m.w + e)
@@ -305,7 +319,6 @@ def _scatter(layout, quest, camp, marks, others, rng: random.Random) -> list[tup
         near = np.hypot(c[:, None, 0] - o[None, :, 0], c[:, None, 1] - o[None, :, 1])
         keep &= (near >= config.QUEST_SPOT_OTHERS).all(axis=1)
     c = c[keep]
-    want = spot_count(quest)
     sep = config.QUEST_SPOT_SEPARATION
     while True:
         taken: list[int] = []
@@ -363,6 +376,34 @@ def _clearing(biome: str, x: float, y: float, centre: TileType | None = None) ->
                 if abs(d - (r - 0.5)) < 0.55 and (i + j) % 2 == 0:
                     rows[j][i] = ring
     return Landmark("quest_spot", "spot", biome, "", tx - r, ty - r, rows, cx=x, cy=y)
+
+
+def _chests(layout, marks, others) -> list[Landmark]:
+    """The chests (M28.4b, GEAR.md 4.2): CHESTS_PER_BIOME per ring biome at
+    small clearings scattered like quest spots (clear of every camp, lair
+    and quest spot). The first CHEST_GUARDED of a biome's are guarded (by
+    CHEST_GUARDS of one of its CHEST_GUARD_KINDS); CHEST_MIMIC of all are
+    mimics (at least one an island). props: guarded, mimic, guard, n."""
+    out: list[Landmark] = []
+    taken = list(others)
+    n = 0
+    for i, biome in enumerate(layout.ring):
+        rng = random.Random(hash_coords(layout.seed, 0xC4E5, i))
+        want = rng.randint(*config.CHESTS_PER_BIOME)
+        pts = scatter_in(layout, biome.name, want, marks, taken, rng)
+        kinds = config.CHEST_GUARD_KINDS.get(biome.name, ())
+        for k, (x, y) in enumerate(pts):
+            mark = _clearing(biome.name, x, y, centre=tiles.CHEST)
+            mark.key, mark.kind, mark.name = "chest", "chest", "chest"
+            mark.props = {"guarded": k < round(len(pts) * config.CHEST_GUARDED),
+                          "mimic": rng.random() < config.CHEST_MIMIC,
+                          "guard": rng.choice(kinds) if kinds else None, "n": n}
+            n += 1
+            out.append(mark)
+            taken.append((x, y))
+    if out and not any(m.props["mimic"] for m in out):
+        out[-1].props["mimic"] = True
+    return out
 
 
 def _nut_trail(biome: str, x: float, y: float, rng: random.Random) -> Landmark:

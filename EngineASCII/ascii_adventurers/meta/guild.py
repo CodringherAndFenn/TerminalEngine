@@ -62,6 +62,7 @@ class Guild:
     pages: set = field(default_factory=set)         # bestiary pages bought
     kills: dict = field(default_factory=dict)       # enemy key -> kills over all runs
     journal: dict = field(default_factory=dict)     # quest key -> {"wins", "best", "heroes"}
+    uniques: set = field(default_factory=set)       # M28.5: boss uniques found (gear keys)
 
     # --- Save file ----------------------------------------------------------------------
 
@@ -92,6 +93,8 @@ class Guild:
                    if k in config.BESTIARY and isinstance(v, int) and not isinstance(v, bool)
                    and v > 0}
         g.journal = _journal(data.get("journal"))
+        g.uniques = {k for k in _keys(data.get("uniques"), config.GEAR)
+                     if config.GEAR[k].unique is not None}
         top = data.get("difficulty_open")
         if isinstance(top, int) and not isinstance(top, bool):
             g.difficulty_open = max(0, min(len(config.DIFFICULTIES) - 1, top))
@@ -147,7 +150,7 @@ class Guild:
             "achievements": sorted(self.achievements), "pacts": sorted(self.pacts),
             "active_pacts": sorted(self.active_pacts), "pages": sorted(self.pages),
             "kills": self.kills, "journal": self.journal,
-            "difficulty_open": self.difficulty_open})
+            "difficulty_open": self.difficulty_open, "uniques": sorted(self.uniques)})
 
     # --- Levels and prices --------------------------------------------------------------
 
@@ -181,6 +184,8 @@ class Guild:
             return True
         if unlock.startswith("A:"):
             return unlock[2:] in self.achievements
+        if unlock.startswith("U:"):            # (M28.5: a boss unique: never offered)
+            return False
         return key in self.cards
 
     def open_difficulty(self, beaten: int) -> bool:

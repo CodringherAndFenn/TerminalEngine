@@ -85,8 +85,9 @@ class FrameworkTest(unittest.TestCase):
                 self.assertTrue(name and text and text.isascii(), key)
 
     def test_all_100_pieces_have_their_300_tricks(self):
-        self.assertEqual(set(config.GEAR_TRICKS), set(config.GEAR))
-        self.assertEqual(sum(len(gear.tricks(k)) for k in config.GEAR), 300)
+        bases = {k for k, g in config.GEAR.items() if g.unique is None}   # (M28.5: relics have none)
+        self.assertEqual(set(config.GEAR_TRICKS), bases)
+        self.assertEqual(sum(len(gear.tricks(k)) for k in bases), 300)
 
 
 class DrawTest(_Main):

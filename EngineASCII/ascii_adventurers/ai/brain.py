@@ -147,7 +147,9 @@ class Brain:
         """Which hero to go after. Stay on the current one while it's alive
         and not much farther than another (no flip-flopping between two
         players at similar range); otherwise the nearest living hero."""
-        images = [d for d in ctx.decoys if d.alive and self.dist_to(d) <= self.espec.sight]
+        boss = getattr(self, "boss", False)
+        images = [d for d in ctx.decoys if d.alive and self.dist_to(d) <= self.espec.sight
+                  and not (boss and getattr(d, "bear", False))]   # (M28.5b: bosses pass the bear)
         if images:
             return min(images, key=self.dist_to)
         alive = [p for p in ctx.players if p.alive]
@@ -165,6 +167,9 @@ class Brain:
     def smoked(self, other: Actor) -> bool:
         """Cinderveil Hood +6 (Smoke): burning, it can't see that hero past
         SMOKE tiles (so it stops shooting and goes where it last saw them)."""
+        ink = getattr(self, "ink_blot", None)            # (the Inkwell Charm, M28.5c)
+        if ink is not None and ink[0] is other and ink[1] > getattr(other, "time", 0.0):
+            return True
         st, stats = self.status, getattr(other, "stats", None)
         return (st is not None and st.has("burn") and stats is not None
                 and stats.has("kindling+6") and self.dist_to(other) > config.SMOKE)

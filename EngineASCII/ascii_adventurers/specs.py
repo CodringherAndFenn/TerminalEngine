@@ -155,13 +155,17 @@ class GearSpec:
     revival). Spells grow by their own levels first (GEAR.md 15.3).
     `mods` are added to the card's (a piece that must bring its own status,
     since its only source shares its slot); `needs` replaces the card's
-    gates when it isn't None."""
+    gates when it isn't None. A boss unique (M28.5, GEAR.md 21) names its
+    boss in `unique` and carries its three fixed `affixes`: it's legendary
+    only, never offered, and only drops from that boss."""
 
     name: str
     slot: str
     grow: str | None = None
     mods: tuple = ()
     needs: tuple[str, ...] | None = None
+    unique: str | None = None
+    affixes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

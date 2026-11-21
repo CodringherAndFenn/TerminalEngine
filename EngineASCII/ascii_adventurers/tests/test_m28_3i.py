@@ -37,7 +37,7 @@ class _Trinket(_Legend):
 
 class FrameworkTest(unittest.TestCase):
     def test_every_trinket_has_its_legendary_trick(self):
-        trinkets = [k for k, g in config.GEAR.items() if g.slot == "trinket"]
+        trinkets = [k for k, g in config.GEAR.items() if g.slot == "trinket" and g.unique is None]
         self.assertEqual(sorted(trinkets), sorted(TRINKETS))
         for key in TRINKETS:
             name, text = gear.legendary_trick(key)

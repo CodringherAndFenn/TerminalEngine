@@ -82,6 +82,8 @@ class Player:
     watch_cd: float = 0.0
     retaliate_cd: float = 0.0         # Retaliation's cooldown
     bounty: int = 0                   # kills toward Bounty's next cache
+    uniques_dropped: set = field(default_factory=set)   # M28.5: bosses whose relic dropped this run
+    phylactery_used: bool = False      # M28.5c: the Phylactery's one rise this run
     # M28.2e, the rings' tricks (systems/run_rules.py): Short fuse's added
     # chance; the last kill's time (Grim); loot from salvaging (Miser);
     # Lighthouse's clock and its wave (deadline, the wave's enemies);

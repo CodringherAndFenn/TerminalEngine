@@ -105,9 +105,24 @@ def _main_mod(key: str) -> int | None:
     for i, (stat, op, val) in enumerate(config.CARDS[key].mods):
         if op == "add" and isinstance(val, (int, float)) and val > 0:
             return i
-        if op == "mul":
+        if op in ("mul", "power"):
             return i
     return None
+
+
+def is_unique(key: str) -> bool:
+    """A boss unique (M28.5, GEAR.md 21): legendary only, from its boss."""
+    return config.GEAR[key].unique is not None
+
+
+def unique_piece(key: str) -> Piece:
+    """The unique as it drops: legendary, +0, its own three affixes."""
+    return Piece(key, "legendary", 0, tuple(config.GEAR[key].affixes))
+
+
+def boss_of(key: str) -> str:
+    """The name of the boss a unique comes from."""
+    return config.BOSSES[config.GEAR[key].unique].name
 
 
 def trick_flags(key: str, level: int, rarity: str = "common") -> list[tuple[str, str, float]]:
@@ -187,7 +202,9 @@ def _power(key: str, level: int, rarity: str = "common") -> list[tuple[str, str,
         return steps + extra + [("damage", "add", flat_damage(level, rarity))]
     stat, op, val = steps[main]
     scale = power_scale(level, rarity)
-    if op == "add":
+    if is_unique(key):                        # (M28.5: +10% a level, no rarity x: as written)
+        scale = 1 + config.GEAR_LEVEL_GROWTH * level
+    if op in ("add", "power"):
         val *= scale
     else:
         val = max(config.GEAR_MUL_FLOOR, 1 + (val - 1) * scale)
@@ -228,6 +245,10 @@ def power_text(key: str, level: int = 0, rarity: str = "common") -> str:
     for stat, op, _ in config.GEAR[key].mods:          # a status it brings (the cowl's bleed)
         if op == "status":
             text = _STATUS_TEXT.get(stat, stat) + "; " + text
+    if is_unique(key):
+        if level > 0:
+            text += f" (power +{round(config.GEAR_LEVEL_GROWTH * level * 100)}%)"
+        return text
     if level > 0 or rarity != "common":
         if _main_mod(key) is None:
             text += f"; +{round(flat_damage(level, rarity) * 100)}% damage"
@@ -260,6 +281,8 @@ def _next_growth(key: str, level: int, rarity: str = "common") -> str:
         return f"+{round(more * 100)}% {config.SPELL_GROW[spell]}"
     if _main_mod(key) is None:
         return f"+{round(config.GEAR_FLAT_GROWTH * 100)}% damage"
+    if is_unique(key):
+        return f"power +{round(config.GEAR_LEVEL_GROWTH * 100)}%"
     more = power_scale(level + 1, rarity) - power_scale(level, rarity)
     return f"power +{round(more * 100)}%"
 
@@ -275,7 +298,8 @@ def salvage_value(piece: Piece) -> int:
 class Equipment:
     trinkets: int = config.SPELL_SLOTS          # trinket slots (spell slots: the Arcane Wing)
     worn: dict = field(default_factory=dict)     # slot id -> Piece
-    bag: list = field(default_factory=list)      # spare Pieces (GEAR_BAG)
+    bag: list = field(default_factory=list)      # spare Pieces (bag_size of them)
+    bag_size: int = config.GEAR_BAG              # (the Guild's Saddlebags add to it, M28.4)
 
     def slot_ids(self) -> list[str]:
         out = []
@@ -342,19 +366,20 @@ class Equipment:
                                                         self.worn[s].level))
 
     def _to_bag(self, piece: Piece, drop: int | None) -> list[Piece]:
-        """Put a piece in the bag; when it's over GEAR_BAG, `drop` (an index
+        """Put a piece in the bag; when it's over bag_size, `drop` (an index
         into the bag, the new piece last) is salvaged -- the new one if
         None."""
         self.bag.append(piece)
-        if len(self.bag) <= config.GEAR_BAG:
+        if len(self.bag) <= self.bag_size:
             return []
         i = drop if drop is not None and 0 <= drop < len(self.bag) else len(self.bag) - 1
         return [self.bag.pop(i)]
 
-    def stash(self, piece: Piece) -> list[Piece]:
-        """A piece straight into the bag (Bountymark Ring +6); a full bag
-        salvages it."""
-        return self._to_bag(piece, None)
+    def stash(self, piece: Piece, drop: int | None = None) -> list[Piece]:
+        """A piece straight into the bag (Bountymark Ring +6, a found piece
+        bagged: M28.4a); a full bag salvages `drop` (an index, the new piece
+        last) -- the new one if None."""
+        return self._to_bag(piece, drop)
 
     def take(self, offer: Offer, slot: str | None = None, drop: int | None = None) -> list[Piece]:
         kind = base_slot(offer.key)
@@ -422,7 +447,7 @@ def eligible(hero_key: str, weapon: WeaponSpec, eq: Equipment, stats: HeroStats 
     out = []
     for key, g in config.GEAR.items():
         c = config.CARDS[key]
-        if key in banished:
+        if key in banished or g.unique is not None:     # (uniques only come from their boss)
             continue
         if c.heroes and hero_key not in c.heroes:
             continue
@@ -490,23 +515,27 @@ def kind_of(eq: Equipment, key: str) -> str:
 def draw_offer(hero_key: str, weapon: WeaponSpec, eq: Equipment, seed: int, player_index: int,
                draw_no: int, stats: HeroStats | None = None, banished=(),
                unlocked: set | None = None, level: int | None = None, size: int | None = None,
-               min_rarity_: str | None = None, one_rare: bool = False) -> list[Offer]:
+               min_rarity_: str | None = None, one_rare: bool = False,
+               fresh: bool = False, luck: float = 0.0) -> list[Offer]:
     """Up to `size` (default CARD_OFFER_SIZE + the build's extra cards)
     offers of different bases. `min_rarity_` (Royal Decree, a boss's
     reward) forces new pieces of that rarity or better and leaves out +1s.
     `one_rare` (Fourleaf Ring +3, Clover): if none is rare or better, the
     last free place is redrawn as a new piece of rare or better.
-    The run's first draw (`draw_no` 0) holds a main-hand piece."""
+    The run's first draw (`draw_no` 0) holds a main-hand piece.
+    `fresh` (a dropped piece, M28.4a): no +1s, only bases not worn; `luck`
+    is added to the hero's for the rarity roll (a chest's +10)."""
     stats = stats if stats is not None else HeroStats()
     rng = random.Random(hash_coords(seed or 0, 0x6EA2, player_index, draw_no))
     pool = eligible(hero_key, weapon, eq, stats, banished, unlocked, level)
     tags = build_tags(weapon, stats)
     taken = eq.counts()
-    weights = rarity_weights(stats.luck)
+    weights = rarity_weights(stats.luck + luck)
     n_rar = len(config.RARITIES)
     floor = _RANK[min_rarity_] if min_rarity_ is not None else 0
     if floor:
         weights = [w if i >= floor else 0.0 for i, w in enumerate(weights)]
+    if floor or fresh:
         pool = [k for k in pool if eq.wearing(k) is None]
     if size is None:
         size = config.CARD_OFFER_SIZE + round(stats.offer_size)
@@ -568,6 +597,29 @@ def draw_offer(hero_key: str, weapon: WeaponSpec, eq: Equipment, seed: int, play
     if placed:
         rng.shuffle(offer)          # the main-hand / archetype piece isn't always first
     return offer
+
+
+# --- Dropped pieces (M28.4a; GEAR.md 4.2) -----------------------------------------------
+
+
+def draw_drop(hero_key: str, weapon: WeaponSpec, eq: Equipment, seed: int, player_index: int,
+              draw_no: int, stats: HeroStats | None = None, banished=(),
+              unlocked: set | None = None, level: int | None = None,
+              luck: float = 0.0, min_rarity_: str | None = None) -> Piece | None:
+    """One piece for the ground (an elite's drop, a chest's): rolled like an
+    offer's new piece for this hero (the gating, the weighting, the seed),
+    never a base they wear. `draw_no` keeps the hero's drops apart (never
+    0: that draw holds a main-hand piece). None if nothing's left to roll."""
+    offer = draw_offer(hero_key, weapon, eq, seed, player_index, draw_no, stats, banished,
+                       unlocked, level, size=1, min_rarity_=min_rarity_, fresh=True, luck=luck)
+    return offer[0].piece() if offer else None
+
+
+def offer_for(piece: Piece, eq: Equipment) -> Offer:
+    """A lying piece as an offer for the hero standing over it: a new
+    piece, a swap, or +1 to the worn piece of its base (kind_of), as it
+    stands now (they may have put that base on since it fell)."""
+    return Offer(piece.key, piece.rarity, piece.affixes, kind_of(eq, piece.key))
 
 
 # --- Fourleaf Ring (L), Foresight (M28.3h) ---------------------------------------------

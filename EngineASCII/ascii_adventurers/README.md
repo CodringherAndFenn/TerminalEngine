@@ -762,9 +762,51 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   enemies near the beat, holding the attack plays loud beats, every 3rd
   dissonant beat pulls, and notes soften enemies for the beats.
 
-Next up (agreed order, `design/BOSSES.md` section 8): the rest of M28, the
-gear system (building the legendary tricks, drops from elites, chests and bosses,
-boss uniques, gear on the heroes), M29-M32 the four ocean zones (each with its own enemies, quest
+- **Drops, M28.4** (`design/GEAR.md` 20): gear from the world. Elites drop
+  a piece 15% of the time; it lies where it fell with its rarity's glow and
+  name, pinned on the maps once seen. Walk over it: WEAR (a swap or +1),
+  BAG, SALVAGE or LEAVE (it stays). 6-8 chests a ring biome: half guarded
+  by a pack (the count shows over the chest), 1 in 10 a mimic -- a chest
+  with teeth that hops, lunges, lashes a tongue that drags you in and spits
+  coins, and coughs up an epic when beaten. The guildmaster's Saddlebags
+  ladder adds up to 2 bag spaces.
+
+- **Boss relics, M28.5a** (`design/GEAR.md` 21): every boss drops one of
+  its 2-3 unique legendary pieces when it falls (once a run per player),
+  by the body: a fixed boss-flavoured power that levels, three fixed
+  affixes, no other tricks; never in offers or chests. The archive's new
+  RELICS shelf lists the ones you've found. Built so far: the swamp's
+  eight (Froggy's Tongue Lasher, Bubble Belt, Frogskin Boots; the Leech
+  Swarm's Leechskin, Latch Hood, Bloated Charm; Lady Proboscia's
+  Proboscis Ring, Engorged Mantle).
+- **Boss relics, M28.5b**: the desert's six (Khepri's Dung Ball and
+  Scarab Carapace; Ol' Spitter's Spittoon and Hump Pack; the Nameless
+  Magus's Hourglass Ring and Sand Slippers) and the ruins' eight (the
+  Fallout King's Lead Apron, Geiger Ring and Rod of Fission; the Snow
+  King's Crown of Black Ice and Hermit's Furs; Fragile's Lace Parasol,
+  Mr. Buttons and Bat Form Boots). Mr. Buttons walks at your heels and
+  draws ordinary enemies off you; bosses ignore him.
+- **Boss relics, M28.5c**: the last sixteen, so every boss now has its
+  relics: Nettle's Shrinking Dust and Blightthorn Ring; Love & Cuddles'
+  Cleaver of Cuddles, Acorn Bandolier and Tripwire Boots; The Fallen's
+  Rootbound Boots and Heartwood Ring; Mycelium's Mycelial Ring, Fly Agaric
+  Cap, Inkwell Charm, Lawyer's Wig, Puffball Sandals and Spore Wind Band;
+  the necromancer's Phylactery (a fall makes you a shade that must kill
+  its way back), Lich's Gaze and Corpse Candle.
+- **Gear on the heroes, M28.6** (`design/GEAR.md` 22,
+  `render/gear_looks.py`): what a hero wears shows on their sprite, in the
+  world, on a mount and on the gear screen. The head piece puts on its
+  shape (hood, helm, crown or mask, from its name; the relics have their
+  own: the Black Ice Crown, the Fly Agaric Cap, the Lawyer's Wig, the
+  Lich's Gaze) in its element's colour; the chest piece colours the robe,
+  tunic, gown or doublet; the main hand colours the weapon (the staff's
+  orb, the axe head, thrown axes too, the bow, the wand's star, the lute).
+  A worn legendary blinks a glint. The dwarf now carries an axe on his
+  shoulder and the princess a wand. The gear screen (Tab) draws the hero
+  big in the middle: head, chest and feet down the left, the hands on the
+  right.
+
+Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in
 `design/BOSSES.md` section 31), and last, M36 an art spec so custom pixel

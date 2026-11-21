@@ -113,6 +113,8 @@ SPRITE_COLORS = {
     # P12 (the mushroom biome's new enemies; no red-and-white caps: that's Mycelium's)
     "j": (110, 150, 230), "J": (66, 92, 160),        # blue cap
     "q": (110, 190, 160), "Q": (60, 120, 100),       # mold teal
+    # M28.6 (worn gear on the heroes: render/gear_looks.py)
+    "x": (128, 136, 122), "X": (86, 92, 82),         # lead (the Lead Apron)
 }
 # Creature sprites (warrior, worm) flash this for a moment when hit.
 HIT_FLASH = (255, 235, 220)
@@ -409,6 +411,8 @@ MAP_TILE.update({
 MAP_TILE_BIOME.update({"lily pads": "swamp", "deck": "swamp", "hunter's post": "swamp",
                        "clots": "swamp"})
 MAP_TILE["blood pool"] = (110, 24, 30)
+MAP_TILE.update({"chest": (255, 200, 70), "open chest": (120, 100, 70)})      # M28.4b
+MAP_TILE["sand heap"] = (232, 206, 140)                                       # M28.5b
 MAP_TILE.update({"stagnant water": (70, 82, 44), "cold brazier": (150, 150, 160),   # M22.2
                  "smoking brazier": (255, 160, 70)})
 MAP_TILE_BIOME["scum"] = "swamp"
@@ -447,6 +451,42 @@ PIN_QUEST = ((255, 220, 90), (60, 40, 0))
 PIN_LAIR = ((255, 90, 70), (60, 10, 0))
 PIN_TARGET = ((225, 120, 255), (45, 10, 60))
 PIN_DONE = ((150, 150, 150), (40, 40, 40))
+# M28.4a: a dropped piece of gear, in its rarity's colour (CARD_RARITY).
+PIN_GEAR = {"common": ((185, 185, 175), (50, 50, 46)), "uncommon": ((110, 220, 120), (20, 60, 25)),
+            "rare": ((100, 170, 255), (20, 40, 80)), "epic": ((215, 120, 255), (55, 20, 70)),
+            "legendary": ((255, 170, 60), (70, 40, 0))}
+GEAR_DROP_GLOW = ((255, 250, 220), (120, 110, 90))     # a lying piece's twinkle: bright, dim
+# M28.4b: chests on the map (gold; grey once opened) and their tiles.
+PIN_CHEST = ((255, 200, 70), (70, 45, 0))
+CHEST_FG = (255, 215, 110)
+CHEST_BG = (96, 58, 26)
+CHEST_OPEN_FG = (150, 130, 100)
+CHEST_OPEN_BG = (70, 46, 24)
+CHEST_SPARK = ((255, 250, 200), (255, 200, 80))
+CHEST_GUARD_TEXT = (255, 110, 90)
+# M28.4c: the mimic's coins and tongue.
+SHOT_COIN = ((255, 235, 140), ((240, 200, 80), (170, 130, 40)))
+MIMIC_TONGUE = ((250, 110, 150), (190, 60, 110))
+# M28.5b: the desert's and the ruins' relics.
+SAND_HEAP_FG = (232, 206, 140)
+DUNG_BALL = ((150, 110, 60), (96, 70, 36))
+FISSION_ROD = ((200, 255, 120), (90, 140, 60))
+HOURGLASS = (255, 230, 160)
+FROST_GATHER = (200, 240, 255)
+BAT_SWARM = ((150, 120, 180), (90, 70, 110))    # a Bat Form roll: the near bats, the far
+PARASOL = ((90, 60, 110), (220, 190, 230))      # the Lace Parasol: canopy, lace rim
+BLACK_ICE = ((140, 180, 220), (60, 80, 120))    # the Crown of Black Ice's patches
+BEAR_DOWN = (150, 130, 110)                     # Mr. Buttons sat down ("zz")
+# M28.5c: the forest's, Mycelium's and the necromancer's relics.
+CLEAVER = ((225, 225, 235), (200, 60, 80))      # the blade, its red
+TRIPWIRE = (200, 190, 150)
+ROOTS = ((150, 110, 60), (90, 150, 70))         # roots, leaves (Rootbound, Heartwood)
+CANDLE = ((255, 230, 140), (255, 140, 40), (120, 90, 50))   # flame, glow, the light's edge
+INK = (70, 70, 110)                             # the Inkwell's blot, the Wig's binding
+TRIPPED = (255, 100, 200)                       # a Fly Agaric trip's "?"
+BLIGHT = (150, 200, 60)
+LICH = ((190, 120, 255), (110, 70, 160))        # the gaze's mark, building
+SHADE = ((170, 200, 230), (90, 110, 140))
 # Quest givers (P2, user-picked): a ROUND pin in its biome's colour, always
 # on the maps. Not the terrain colours (forest and mushroom are both purple
 # there, the ruins grey like PIN_DONE). Plains: the old gold PIN_QUEST.

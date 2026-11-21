@@ -88,6 +88,7 @@ class HeroStats:
     # Guild Hall (meta/guild.py)
     start_level: float = 0.0         # Recruit's Kit
     revives: float = 0.0             # Second Chance
+    bag: float = 0.0                 # Saddlebags (M28.4d): extra bag spaces
     # Hero-card and trainer numbers, and rule changes
     steady_crit: float = 0.0         # Steady Aim: crit chance while standing still
     point_blank: float = 0.0         # Point Blank: bucket A within POINT_BLANK_RANGE
@@ -107,6 +108,7 @@ class HeroStats:
     opening_act: float = 0.0         # Opening Act: seconds of double beats
     encore_tour: float = 0.0         # Encore Tour: levels
     flags: set = field(default_factory=set)
+    uniques: dict = field(default_factory=dict)   # M28.5: a boss unique's main number, by key
 
     # --- Derived numbers -------------------------------------------------------------
 
@@ -200,6 +202,8 @@ def apply_mods(stats: HeroStats, steps: list[tuple[str, str, float]]) -> HeroSta
             setattr(stats, stat, getattr(stats, stat) * val)
         elif op == "flag":
             stats.flags.add(stat)
+        elif op == "power":                             # (M28.5: a unique's main number)
+            stats.uniques[stat] = stats.uniques.get(stat, 0.0) + val
         elif op == "status":
             stats.statuses.add(stat)
             stats.sources.add(stat)

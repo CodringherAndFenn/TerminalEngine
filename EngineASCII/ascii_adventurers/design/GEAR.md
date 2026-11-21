@@ -1,6 +1,6 @@
 # AsciiAdventurers — Gear
 
-Status: **rev 2; M28.1 BUILT (2026-10-18, section 16).** It is M28 in `BOSSES.md` section 8. The cards (`CARDS.md`) are now the powers and plain stats of gear; M28.2-M28.6 are still to come.
+Status: **rev 2; M28.1-M28.6 ALL BUILT (2026-10-18 to 2026-11-21, sections 16-22).** It is M28 in `BOSSES.md` section 8. The cards (`CARDS.md`) are now the powers and plain stats of gear.
 - Rev 0 drafted the system.
 - Rev 1 applies the user's answers to its ten questions (Q1-Q10, section 13).
 - Rev 2 applies the answers to the follow-ups (N1-N8, section 13).
@@ -254,7 +254,7 @@ Today there are three kinds of damage upgrade (plain, arcane, physical), and nob
 | M28.3 | Affixes and rarity (section 7), legendary tricks; the gear screen and the damage breakdown. **Split (user, 2026-10-19):** M28.3a the systems (rarity power, the legendary look, the STATS page; **built**, section 18), then the 100 legendary tricks: drafted and approved in M28.3b (section 19), built slot by slot in M28.3c-l (19.11) |
 | M28.4 | Drops: elites, chests in the world (open, guarded, mimics), the boss rare+ pick; the Guild (Saddlebags) and the save migration (section 10) |
 | M28.5 | The boss uniques (4.4, 2-3 per boss) and the new pieces (section 6) |
-| M28.6 | Gear on the painted heroes (head, chest, main hand) |
+| M28.6 | Gear on the heroes (head, chest, main hand). **Built 2026-11-21, section 22** (the heroes are letter sprites, not painted figures) |
 
 Each step is drafted with the user before it's built, like the bosses.
 
@@ -1972,3 +1972,206 @@ Also fixed: `test_m28_3c` checked that `point_blank` had no legendary trick yet;
   - Undertow: 6 pulls;
   - Earworm: up to 5 notes on an enemy.
 
+
+
+## 20. M28.4: drops (2026-11-16; built from sections 4.2, 4.3 and 10 as written -- user: "build as written")
+
+Work mode from here on (user, 2026-11-16): build from the approved docs, ask only where they decide nothing.
+
+### 20.1 Build plan
+
+| Step | Content |
+|------|---------|
+| M28.4a | **Ground pieces and elite drops.** `entities/drops.py` `GearDrop` (a rolled piece lying where it fell, its rarity's glow and its name as a label); walking up to one opens the **pickup panel** (`ui/drop_panel.py`, the picker's card with WEAR / BAG / SALVAGE / LEAVE); a LEAVE'd piece stays and reopens when you come back. Elites drop one `ELITE_DROP` = 15% of the time (seeded by the kill). Drops are pinned on both maps once seen |
+| M28.4b | **Chests.** `CHESTS_PER_BIOME` = 6-8 per ring biome at scattered clearings (`world/landmarks.py`, like quest spots); half **guarded** by a pack of the biome's enemies (opens when they're dead; a counter shows over it); `CHEST_LUCK` = +10 luck on the roll. `systems/chests.py` runs them; pins "chest" / grey once opened |
+| M28.4c | **Mimics.** `CHEST_MIMIC` = 1 in 10 chests bites when touched: an elite with teeth (`ai/mimic.py`: hops after you, lunges, a tongue that drags you in, coins spat as shots), one letter-art body per biome. Beaten, it drops an **epic or better** piece. A bestiary page |
+| M28.4d | **Saddlebags** (guildmaster: +1 bag space a level, 2 levels, `HeroStats.bag` -> `Equipment.bag_size`), docs, README. The boss rare+ pick already exists (`BOSS_CARD_RARITY`); base keys = card keys, so the guild save needs no migration (15.x) |
+
+Each step: tests in `tests/test_m28_4.py`, a headless check, the "Built" note below.
+
+### 20.2 Built: M28.4 (2026-11-16)
+
+Everything in 20.1, with these calls made while building (to check in play):
+
+- **A dropped piece is always a new piece** (never a +1 roll): it rolls like an offer's new piece for the hero (the gating, the archetype lean, luck), leaving out bases they wear. If they put that base on before picking it up, WEAR gives the worn piece +1 instead (the picker's "+1" rule), so nothing is ever wasted.
+- **Drops never fade** and are pinned on both maps (in their rarity's colour) once a hero came within 26 tiles. LEAVE closes the panel; the piece stays and opens again once that hero walked away (twice the pickup radius) and came back. Bots (ghosts) ignore drops.
+- **Elite drops are seeded by the kill** (the enemy's spawn id, or where and when it fell for summoned ones), so a run replays. Bosses and mimics are left out of the 15% roll: a boss has its own reward, a mimic its guaranteed epic.
+- **Chests:** 6-8 a ring biome (none in the plains), scattered like quest spots (220 tiles apart, clear of every camp, lair and quest spot), ~35 an island. Exactly half of each biome's (rounded) are guarded, by 4 of one of three biome kinds (`CHEST_GUARD_KINDS`: forest skeleton / boar / centipede, desert jackal / sand imp / husk, ruins gnoll / stone imp / lost soldier, swamp bog zombie / newt / lizardman, mushroom sporeling / shroomling / mold zombie); they're fixed spawns that wake when you come near and stay dead. A guarded chest shows "N GUARDS" over it and says "IT'S GUARDED!" when you walk up. The piece lies in front of the chest, rolled with +10 luck.
+- **Mimics:** 1 in 10 chests, and at least one an island. A mimic looks exactly like a shut chest (same tile, same pin); touched, the tile goes and the mimic bites. It's an elite (420 HP at level 1, 30 XP): hops after you in short bounds, crouches and lunges 6 tiles along a line that shows (x1.5 damage, once a lunge, walls stop it), lashes a 7-tile tongue along a line that shows (x0.6 damage, drags you 3 tiles in), and spits a fan of 3 coins from 4-12 tiles. One letter-art body per biome (the box's wood recoloured: mossy, sun-bleached, stone, mud, violet). Killed, it drops an epic or better piece and gets a bestiary page.
+- **Saddlebags** (guildmaster): +1 bag space a level, 2 levels, 800 then 1,440 loot. `HeroStats.bag` -> `Equipment.bag_size` (the picker, the gear screen and the pickup panel read it). No save migration was needed: base keys are the card keys, and the old "start" cards had nothing to refund (section 16).
+- **Code:**
+  - `entities/drops.py` (`GearDrop`, `update_drops`), `render/drops.py`;
+  - `players/gear.py`: `draw_drop`, `offer_for`, `draw_offer(fresh=, luck=)`, `Equipment.bag_size`, `stash(piece, drop)`;
+  - `ui/drop_panel.py` (`DropPanel`, a `GearPicker` with its own buttons / hotkeys / title: the picker got `self.buttons`, `self.hotkeys`, `self.title`);
+  - `scenes/game.py`: `drops`, `_elite_drop`, `_drop_piece`, `_found_action` (("found", id, take / bag / salvage / leave)), `_drop_pins`, `chests`;
+  - `world/landmarks.py`: `scatter_in` (the quest spots' scatter, for any biome and count), `_chests`, `chest_marks`; tiles `CHEST` / `CHEST_OPEN`;
+  - `systems/chests.py` (`Chests`, `ChestState`, `CHEST_SID`), `render/chests.py` (`MIMIC_ART`, `draw_chests`, `draw_mimic_tells`);
+  - `ai/mimic.py` (`Mimic`, kind "mimic"), `ENEMIES["mimic"]`, `WEAPONS["mimic_coins"]` (look "coin"), `BESTIARY["mimic"]`;
+  - map pins `gear_<rarity>`, `chest`, `chest_done`; palette `PIN_GEAR`, `PIN_CHEST`, `CHEST_*`, `SHOT_COIN`, `MIMIC_TONGUE`.
+- **Tests:** `tests/test_m28_4.py` (32). `test_m17`'s landmark count leaves chests out.
+- **Not built (later):** a dev key to the nearest chest (F9 finds quest targets only); per-player drops in co-op (a drop is rolled for the hero who earned it; co-op is "later").
+
+
+## 21. M28.5: the boss uniques (drafted 2026-11-16; APPROVED as drafted by the user, 2026-11-16: rules 21.1, all 38 pieces, section 6 boots left out)
+
+### 21.1 Rules (proposal)
+
+- A unique is **legendary only**, with a **fixed power of its own** (new code, a rule-breaker flavoured by its boss, like the legendary tricks of section 19) and **three fixed affixes** chosen for it (named when built; at the top of the legendary tier). No other piece has its power or its affix set.
+- **Levels +1..+9 grow the power's main number** (+10% a level, like any piece). Uniques have **no +3 / +6 / +9 tricks and no extra legendary trick**: the power *is* the trick. (Forty pieces x three tricks would be another 120 tricks; the power carries the piece.) UPGRADE and a found +1 work on them like on any piece.
+- **Every boss has 2-3 uniques in different slots (4.4). Beating it drops one of them, once a run per player:** the piece lies by the body like an elite's drop (M28.4: pinned, the pickup panel), picked by the seed, the boss and the player (`hash_coords`), so a run replays and two players can get different ones. The rare+ level-up pick stays too (4.4). Main-hand pieces excepted, so they fit every hero.
+- **Uniques never come up in level-up offers, drops or chests**; they only come from their boss. One found (picked up, bagged or salvaged) is recorded in `guild.json` and shows on the archivist's armory shelf as FOUND (not for sale), with its boss's name.
+- **No main-hand uniques** (hero-only slot). The slot homes hold (section 2): an off-hand unique is a pattern, a head one a status...
+- **Section 6's new boots (Frostwalkers, Emberstriders, Gale Boots)** are proposed to be left out: the feet already have 11 bases and each new base needs three tricks and a legendary trick; M35 can add them if the feet feel thin.
+
+### 21.2 The pieces (38; the first of each boss is section 4.4's proposal)
+
+| Boss | Unique | Slot | Power (at +0) |
+|------|--------|------|---------------|
+| Froggy McFrogface | **Tongue Lasher** | off-hand | every 6th attack also lashes a tongue 7 tiles along the aim that pulls the first enemy hit to you (bosses are pulled 1 tile) |
+| | **Bubble Belt** | chest | when hit, a bubble wraps you for 1 s: enemy shots bounce off it (once every 8 s) |
+| | **Frogskin Boots** | feet | your roll is a leap: 50% farther, over enemies, landing with a splash that pushes enemies within 2 tiles away |
+| the Leech Swarm | **Leechskin** | chest | lifesteal works on status ticks too (your burns, poisons and bleeds heal you) |
+| | **Latch Hood** | head | your hits latch: the 5th hit in a row on one enemy makes it bleed 3% of its max HP a second (1% for bosses) until it's out of your sight |
+| | **Bloated Charm** | trinket | a leechling pet clings to the enemy you hit last, draining 2% of its max HP a second (0.5% bosses) and healing you for half of that |
+| Lady Proboscia | **Proboscis Ring** | ring | hits on bleeding enemies heal 1 HP (once per enemy a second) |
+| | **Engorged Mantle** | chest | healing past your max HP is kept as a shield, up to 30% of your max HP |
+| Khepri | **Dung Ball** | trinket | a ball rolls ahead of you, growing with each enemy it flattens (10 damage, +5 and +0.2 tiles per kill, up to 3 tiles; it bursts on a wall and rolls anew after 4 s) |
+| | **Scarab Carapace** | chest | hits from behind you do half damage (you can't be flanked) |
+| Ol' Spitter | **Spittoon** | trinket | every 4 s, spits a ricocheting glob (20, bounces off walls 3 times) at the nearest enemy |
+| | **Hump Pack** | off-hand | every 5th attack fires two extra shots behind you that bounce off walls once |
+| the Nameless Magus | **Hourglass Ring** | ring | every 20 s, enemy shots within 6 tiles of you slow to a crawl for 2 s |
+| | **Sand Slippers** | feet | your roll raises a dune where it started: 3 tiles wide, blocks enemy shots for 2 s |
+| the Fallout King | **Lead Apron** | chest | stand still 1 s and you take 40% less damage |
+| | **Geiger Ring** | ring | enemies within 4 tiles of you take 1% of their max HP a second as rads (0.2% bosses) |
+| | **Rod of Fission** | trinket | a rod planted where you stand pulses every 2 s: 10 damage within 3 tiles, and irradiated enemies take +10% damage for 3 s; replanted when you're 8 tiles away |
+| the Snow King | **Crown of Black Ice** | head | hits chill; chilled enemies leave black ice where they walk, and enemies on it slide (can't turn) |
+| | **Hermit's Furs** | chest | stand still 2 s and frost gathers: the next enemy to hit you is frozen for 3 s |
+| Fragile | **Black Lace Parasol** | off-hand | blocks enemy shots coming from in front of you while you aim (the attack held) |
+| | **Mr. Buttons** | trinket | the bear follows you; enemies would rather attack him (200 HP; he mends 10 HP a second while nobody hits him, and stands up again 10 s after falling) |
+| | **Bat Form Boots** | feet | your roll turns you into bats: you fly over everything, untouchable, 50% farther |
+| Nettle | **Shrinking Dust** | feet | rolls shrink you for 2 s (+35% speed, a smaller hitbox) |
+| | **Blight Thorn Ring** | ring | an enemy that hurts you is blighted: it takes +25% damage from everyone for 4 s |
+| Love & Cuddles | **Cleaver of Cuddles** | trinket | a cleaver orbits you (15 damage), spinning faster with each kill (+5% a kill, up to x2; it slows back over 10 s) |
+| | **Acorn Bandolier** | off-hand | every 4th attack also lobs 3 acorns that burst where they land (8 damage within 1.5 tiles) |
+| | **Tripwire Boots** | feet | your roll lays a tripwire across its path for 5 s: the first enemy to cross it is knocked down for 1.5 s |
+| The Fallen | **Rootbound Boots** | feet | stand still to root in and grow a shield (5 a second, up to 25% max HP); walk to uproot (the shield stays, then fades over 3 s) |
+| | **Heartwood Ring** | ring | within 2 tiles of a tree you regain 2 HP a second |
+| Mycelium, the fly agaric | **Mycelial Ring** | ring | kills leave a spore patch (2 tiles, 5 s) that poisons |
+| | **Fly Agaric Cap** | head | hits have a 10% chance to trip the enemy: it wanders aimlessly for 2 s (bosses 0.5 s) |
+| Mycelium, the ink cap | **Inkwell Charm** | trinket | every 5 s an ink blot falls on the nearest enemy: 15 damage and it can't see you for 2 s |
+| | **Lawyer's Wig** | head | hits scrawl on the enemy; the 5th scrawl binds it in ink: rooted 2 s (bosses 0.5 s) |
+| Mycelium, the puffball | **Puffball Sandals** | feet | your roll bursts a spore cloud where it started: 20 damage and poison within 2 tiles |
+| | **Spore Wind Band** | ring | every 12 s a gust from you pushes enemies within 4 tiles away 4 tiles and makes their statuses last 2 s longer |
+| More than Life / Death | **Phylactery** | ring | once a run, on death, you rise as a shade for 10 s (untouchable, half damage); kill 10 enemies to come back at 30% HP, or fall |
+| | **Lich's Gaze** | head | keep an enemy under your aim within 6 tiles for 1.5 s and it's marked: your next hit on it does x2 |
+| | **Corpse Candle** | trinket | every kill lights a candle at the body for 6 s: enemies in its light (2 tiles) burn 8 a second, and you heal 3 a second standing in it |
+
+### 21.3 Build plan
+
+| Step | Content |
+|------|---------|
+| M28.5a | The framework: `config.UNIQUES` (`UniqueSpec`: boss, slot, power key, affixes), the boss drop (one per kill per player, `GearDrop`), uniques out of every offer / drop pool, the guild record and the armory shelf's FOUND rows, the gear screen / picker lines ("UNIQUE: the Snow King"); plus the swamp bosses' 8 pieces |
+| M28.5b | The desert's 6 and the ruins' 8 |
+| M28.5c | The forest's 7, Mycelium's 6 and the necromancer's 3 |
+
+Each with tests, a headless check and a "Built" note; the user commits.
+
+### 21.4 Built: M28.5a (2026-11-16) -- the framework and the swamp's 8 relics
+
+**Changed when built (two of the drafted powers were already true in the game, so they'd have been repeats):**
+- **Leechskin** (the Leech Swarm, chest): lifesteal already heals on status ticks (every tick credits its applier, and `Actor.take_damage` applies the source's lifesteal). New power: **a fifth of every hit you take is drunk back: it returns as HP over 5 s, unless you're hit again** (the leeches let go: a new hit starts over with its own fifth). The fifth grows with the level.
+- **Engorged Mantle** (Lady Proboscia, chest): "healing past full becomes a shield" is the Sunward Aegis. New power: **healing engorges you: +1% damage (bucket A) for every 5 HP healed, up to +30%; a hit that gets through bleeds it all out.** The cap grows with the level.
+
+**Settled when built:**
+- A relic's `CardSpec` holds `(key, "flag", 1)` and `(key, "power", N)`: the flag turns the rule on, the "power" op puts the main number in `HeroStats.uniques[key]`, grown +10% a level (no rarity multiplier: the numbers in 21.2 are what you get at +0). `unlock` is `"U:<boss>"`, which the Guild never counts as unlocked, and `eligible()` leaves `GearSpec.unique` pieces out, so no offer, elite, chest or Foresight draw ever rolls one.
+- **The drop:** `_win` (and the necromancer's `_win_glory`) lays one relic by the body for every human player (`GameScene._drop_unique`): the pick is `hash_coords(seed, boss index, player index) % n`, once a run per boss per player (`Player.uniques_dropped`). A "RELIC: NAME" toast; then the pickup panel like any drop. Its card says "UNIQUE: <boss>" under the name and shows no +3/+6/+9 or legendary trick.
+- **The archive got a sixth shelf, RELICS:** every unique, by boss, "???" until found; FOUND rows show the power and the three affixes. Picking a relic up (wear, bag or salvage) records it (`guild.json` "uniques"); nothing is for sale there.
+- **The affixes** (at the legendary tier): Tongue Lasher range / attack speed / crit damage; Bubble Belt armor / evasion / regen; Frogskin Boots move speed / roll recharge / +1 roll; Leechskin lifesteal / armor / regen; Latch Hood status chance / duration / crit chance; Bloated Charm lifesteal / status damage / spell speed; Proboscis Ring lifesteal / status chance / luck; Engorged Mantle damage / max HP / regen.
+- **Tongue Lasher:** the tongue is a 7-tile line (0.9 tiles wide) along the aim; the first enemy on it with no wall between is pulled to just outside your body; a boss comes 1 tile. The line shows as an arc.
+- **Bubble Belt:** the hit that raises the bubble still lands; for 1 s after, enemy shots (not lobbed ones) turn round and fly back as yours. Drawn as a ring of dots round you.
+- **Frogskin Boots:** +50% roll speed over the same roll time (so +50% distance); the splash pushes enemies within 2 tiles 1.5 tiles out. Heroes already pass through enemy bodies, so "over enemies" needed nothing.
+- **Latch Hood:** hits in a row = your hits (that may apply statuses) landing on the same enemy without one on another; the 5th latches it: 3% max HP a second (1% bosses), dealt every 0.5 s as a bleed number, until it's 16+ tiles off or behind a wall.
+- **Bloated Charm:** the leechling (an "e" at the enemy's side) moves to the enemy your own hits (not a summon's) land on last; 2% max HP a second (0.5% bosses), bitten every 0.5 s; you heal half of each bite.
+- **Proboscis Ring:** once per enemy a second; the heal is the power (1 HP, grows).
+- **Code:** `GearSpec.unique` / `affixes`; `config.BOSS_UNIQUES` (built from `GEAR`), `BOSS_KEYS`, `U_*` numbers; `gear.is_unique` / `unique_piece` / `boss_of`; `HeroStats.uniques` + the "power" op; `Guild.uniques`; `ui/guild_panel._relics_rows`; `GameScene._lay_piece` / `_drop_unique`; `combat._relic_on_hit`; `run_rules._tongue` / `_relic_tick`, the latch loop in `status_tricks`; `statuses.on_hero_hit` (the latch count); `roll.start` / `_ended`; `Character.take_damage` / `heal`; `render/characters.draw_chest_marks` (the bubble, the leechling).
+- **Tests:** `tests/test_m28_5.py` (15). The older per-slot gear tests leave uniques out (`g.unique is None`).
+
+### 21.5 Built: M28.5b (2026-11-18) -- the desert's 6 and the ruins' 8
+
+**Changed when built (tell the user):**
+- **Crown of Black Ice:** enemies on the ice are **chilled** (once a second), not made to slide. Steering every enemy into a slide that can't turn means changing every enemy's movement code; the chill slows them and feeds the crown's own trail. The card text already said this when M28.5b began.
+- **Hourglass Ring:** the 20 s clock, once ready, waits for an enemy shot to come within 6 tiles, so the crawl is never wasted on an empty screen.
+- **Hermit's Furs:** a boss is frozen 0.5 s, not 3 s (bosses never freeze from chill; other relics also give bosses a short version).
+- **Mr. Buttons:** bosses ignore him (a 200 HP decoy that stands back up would stall every boss fight); every other enemy goes for him first.
+
+**Settled when built:**
+- **Dung Ball:** rolls along the aim at 6 tiles/s from a tile in front of you; hits each enemy at most every 0.4 s; bursts on a wall or after 12 tiles; a new one 4 s later. A kill adds +5 damage and +0.2 tiles of radius (up to 3). Its hits are a pet's.
+- **Scarab Carapace:** "from behind" = coming from more than 90 degrees off your aim; the cut is the power (50%, up to 90%).
+- **Spittoon:** spits only when an enemy is within 10 tiles (the clock waits); the glob is a 26-tile, poison-tagged shot that bounces off walls 3 times (`WEAPONS["spittoon_glob"]`).
+- **Hump Pack:** two shots of your own weapon at x the power damage, 0.12 rad either side of straight back; each gets one extra wall bounce (`Projectile.free_bounces`, added to the shell's own bounces).
+- **Hourglass Ring:** enemy shots inside 6 tiles fly at x0.15 for the power's 2 s (shots that come in during it slow too), then back to normal. A ring of sand shows while it runs.
+- **Sand Slippers:** the dune is 3 tiles across the roll's line where it started: sand heap tiles (`tiles.SAND_HEAP`) you walk over but every shot stops at, yours too. Only on open ground; it sinks back after the power's 2 s (also at once if you fall).
+- **Lead Apron:** "still" = the same 1 s of standing still Heavy Plate's Anvil stance uses (`still_t`).
+- **Geiger Ring:** dealt every 0.5 s as a poison-coloured number; not a status (no ticks, no lifesteal on it).
+- **Rod of Fission:** planted at your feet; pulses every 2 s (a pet's hit within 3 tiles); "irradiated" = +10% from heroes' hits (`combat.strike`) for 3 s; replanted when you're 8 tiles away.
+- **Crown of Black Ice:** hits chill (the piece brings its own chill, like the Bloodtrail Cowl's bleed); a chilled enemy lays a patch (0.8 tiles, the power's 3 s) every 0.5 tiles it walks; at most 40 patches a hero, the oldest melt first.
+- **Hermit's Furs:** 2 s standing still gathers the frost (shown circling you); the next enemy that hits you is frozen, whether the hit gets through or not.
+- **Lace Parasol:** while the attack is held, enemy shots coming from within the power's 55 degrees either side of the aim stop on it (up to 90 at +9); lobbed shots fall past it. Drawn as a lace arc in front.
+- **Mr. Buttons:** walks 1.5 tiles behind you (catches up if left 12 tiles back); 200 HP (grows), mends 10 HP a second once nobody's hit him for 1 s; down 10 s, then up at full. He's one of `GameScene._images()` (enemies pick decoys first, their shots hit him). An HP bar shows once hurt, "zz" while down.
+- **Bat Form Boots:** +50% roll speed over the same roll time, and the Tumbler Boots (L) vault: over walls, water and enemies, never out of a lair or over the edge. Drawn as a cloud of bats instead of the hero.
+- **The affixes:** Dung Ball area / damage / move speed; Scarab Carapace max HP / armor / evasion; Spittoon spell speed / status damage / range; Hump Pack multishot / attack speed / pierce; Hourglass Ring evasion / roll recharge / crit chance; Sand Slippers move speed / +1 roll / armor; Lead Apron max HP / armor / XP; Geiger Ring status chance / status damage / loot; Rod of Fission area / elemental / spell speed; Crown of Black Ice status chance / duration / elemental; Hermit's Furs armor / regen / max HP; Lace Parasol evasion / crit chance / crit damage; Mr. Buttons armor / regen / luck; Bat Form Boots move speed / roll recharge / evasion.
+- **Code:** `systems/relics.py` (the clocks and things in the world, called from `RunRules._relic_tick`; `frost_bite`, `raise_dune`, `flatten_dunes`, `bat_roll`), `render/relics.py` (`draw_relics`), `Character.take_damage` (Scarab, Lead Apron, the frost), `RunRules._hump`, `combat` (the parasol next to the Bubble Belt; the fission in `strike`), `roll.start` / `_ended`, the "black_ice" zone (`render/spell_fx`), `ai/brain._pick_player` (bosses pass the bear), `config.U_*`.
+- **Tests:** `tests/test_m28_5.py` (31 now: 16 new).
+
+### 21.6 Built: M28.5c (2026-11-18) -- the forest's 7, Mycelium's 6 and the necromancer's 3
+
+All 38 relics are built: every boss (the necromancer's two forms count as one) drops one of its 2-3.
+
+**Changed when built, or decided where the draft said nothing (tell the user):**
+- **Bosses and the new controls:** a boss can't be dazed or made to wander, so the relics hold a boss in place instead (a new `Statuses.bound`, which bosses obey, unlike `rooted`): the Tripwire Boots' trip 0.5 s; the Fly Agaric Cap's trip a 0.5 s stumble, at most once every 4 s per boss (at 10% a hit a fast hero would otherwise pin a boss); the Lawyer's Wig 0.5 s as drafted.
+- **Shrinking Dust** shrinks your body (hit radius x0.6) and speeds you up; it doesn't halve your damage the way Nettle's own dust does.
+- **Blightthorn Ring** (drafted "Blight Thorn Ring": one letter too long for a narrow card): "from everyone" = every hero's hits and their pets, zones and spells (`combat.strike`); enemies hurting each other don't count.
+- **Inkwell Charm and Spore Wind Band** wait, once ready, for an enemy in reach (10 tiles; 4 tiles), like the Hourglass Ring.
+- **Phylactery:** the order on a fall is Phoenix, then the Phylactery, then the Guild's Second Chance, so a shade that fails can still be caught by Second Chance.
+- **Names on the gear:** the Cleaver of Cuddles is "Cuddles' Cleaver" as a piece (18 letters don't fit a narrow card; the card keeps the long name, like 5b's Black Ice Crown and Lace Parasol), and the Blight Thorn Ring is the "Blightthorn Ring".
+- **Tongue Lasher (5a) and Acorn Bandolier** now work for every hero, a bard without Sheet Music too (they need no shots of yours: `RunRules._relic_patterns`). Before, the Tongue Lasher did nothing for that bard.
+
+**Settled when built:**
+- **Shrinking Dust:** 2 s from the roll's start; +35% walking speed (the power); drawn a size smaller.
+- **Blightthorn Ring:** a hit that gets through blights its enemy 4 s; +25% (the power) on heroes' hits on it. Shown as a green thorn over it.
+- **Cleaver of Cuddles:** 2 tiles out, 2.5 rad/s at x1; cuts each enemy at most every 0.5 s (a pet's hit, 15 = the power); every kill of yours +5% spin, up to x2, slowing back to x1 over 10 s.
+- **Acorn Bandolier:** every 4th attack, 3 acorns lobbed 6 tiles out, 0.35 rad apart round the aim; each bursts within 1.5 tiles for the power (8). `WEAPONS["acorn_lob"]`.
+- **Tripwire Boots:** a wire from the roll's start to its end (rolls under half a tile lay none), for 5 s; the first enemy whose body touches it is dazed the power's 1.5 s and the wire is spent. Drawn dotted, blinking its last second.
+- **Rootbound Boots:** after 0.5 s standing still, the roots grow a shield at the power's 5 a second up to 25% of max HP; walking fades what they grew (not other shields) over 3 s.
+- **Heartwood Ring:** trees = tree, pine, gnarled tree, hollow tree, marked tree, grove tree tiles within 2 tiles (looked for every 0.25 s); 2 HP a second (the power). Leaves show while it heals you.
+- **Mycelial Ring:** a kill leaves a 2-tile poison pool for the power's 5 s (a poison stack a second to whoever stands in it).
+- **Fly Agaric Cap:** the chance is the power (10%); your own hits only; a tripped enemy drifts at half speed in a wandering direction for 2 s instead of thinking ("?" over it).
+- **Inkwell Charm:** every 5 s the nearest enemy within 10 tiles takes the power (15) and can't see you for 2 s (the AI's smoke rule: it stops seeing you and goes where it last saw you). "%" over it.
+- **Lawyer's Wig:** your hits on an enemy count up; every 5th binds it the power's 2 s (bosses 0.5 s). "===" under a bound enemy.
+- **Puffball Sandals:** the power's 20 damage (poison-tagged) and a poison stack to every enemy within 2 tiles of where the roll starts.
+- **Spore Wind Band:** every 12 s, enemies within 4 tiles are pushed 4 tiles away (bosses stay put) and every status on them gets the power's 2 s longer.
+- **Phylactery:** once a run; the shade has 1 HP and is untouchable for 10 s, its damage x0.5; the 10th kill brings you back at the power's 30% of max HP; at 10 s with fewer, you fall. Over the shade: kills still needed and seconds left.
+- **Lich's Gaze:** "under your aim" = the nearest enemy within 0.5 tiles (plus its body) of the aim line and 6 tiles out; 1.5 s there marks it for you ("<O>"); your next own hit does x the power (2) and spends the mark.
+- **Corpse Candle:** a kill lights a 6 s candle on the body; enemies within 2 tiles burn for the power (8) a second (fire-tagged, every 0.5 s); you heal 3 a second inside any of your candles' light (not stacking); at most 12 candles a hero.
+- **The affixes:** Shrinking Dust move speed / evasion / roll recharge; Blightthorn Ring damage / status chance / armor; Cleaver of Cuddles area / crit damage / lifesteal; Acorn Bandolier area / attack speed / range; Tripwire Boots move speed / +1 roll / duration; Rootbound Boots armor / max HP / regen; Heartwood Ring regen / max HP / pickup range; Mycelial Ring status damage / duration / area; Fly Agaric Cap status chance / crit chance / luck; Inkwell Charm spell speed / crit chance / XP; Lawyer's Wig attack speed / duration / XP; Puffball Sandals +1 roll / status damage / roll recharge; Spore Wind Band duration / status chance / evasion; Phylactery max HP / lifesteal / loot; Lich's Gaze crit damage / crit chance / range; Corpse Candle elemental / regen / area.
+- **Code:** `systems/relics.py` (`on_kill` from `RunRules._kill_effects`, `on_hit` from `combat._relic_on_hit`, `wander` from the scene's enemy loop, `rise_as_shade` from `RunRules.revive`, `dust` / `puff` / `lay_wire` from the roll, `acorns`, `gaze_mult`, the clocks in `tick`); `Statuses.wander` / `bound`; `combat.strike` (the shade's half, blight, the gaze); `ai/brain.smoked` (ink); `Character.move` (dust speed) and `take_damage` (blight); `Player.phylactery_used`; zone kind "candle" (`render/spell_fx`); `render/relics` (`_draw_5c`, `_draw_marks`).
+- **Tests:** `tests/test_m28_5.py` (52 now: 21 new). Older count tests now leave the relics out or count them (`test_cards`: 163 cards, 38 "U" codes, op "power"; `test_m28_2i` / `test_m28_3l`: the 100 base pieces). The relics' marks on enemies use their own names (`ink_blot`, `wig_marks`): the ink cap boss already has `inked` and `scrawls`.
+
+**NEXT: M28.6, gear on the painted heroes (GEAR.md 12).**
+
+## 22. Built: M28.6 (2026-11-21) -- gear on the heroes
+
+The heroes are 14 x 18 letter sprites (`render/characters.ART`), not painted figures as section 9 assumed, so the docs said nothing about how each piece looks. **User picks (2026-11-21):** the head = **shape + colour**; the chest = **body colour**; the main hand = **accent colour**; extras: **the hero on the gear screen** and **a legendary glint**.
+
+- **Head (16 pieces).** The shape comes from the name; the tint from the element. Hoods: Cinderveil Hood (flame, an ember at the brow), Rime Hood (ice), Bloodtrail Cowl (blood), Latch Hood (leech brown, dark leeches on it). Helms: Glassfrost Helm (glass), Stormvane Helm (gold, a vane on top), Thornhelm (dark iron, a spike). Crowns: Blazecrown (flame, red gems), Steamcrown (white, blue gems). Masks (two rows over the eyes; they keep the hero's own hat): Viper Mask (green, yellow eyes), Galvanic Mask (teal, yellow eyes), Plaguebeak (pale, dark goggles, a bone beak). The relics' own drawings: Black Ice Crown (black, ice spikes), Fly Agaric Cap (a wide red cap with white spots), Lawyer's Wig (white curls framing the face), Lich's Gaze (a dark cowl, the face in shadow, two glowing eyes). A hood, helm, crown, cap or wig replaces the hero's own headgear; the weapon stays in front.
+- **Chest (17 pieces).** The body's two colours take the piece's: the wizard's robe, the bard's doublet, the princess's gown, the huntress's tunic; on the dwarf only his sleeves and trousers show it (the beard covers his chest). Brambleguard olive, Wardweave Robe blue, Anvil Plate steel, Shattercoat glass, Grudge Mail dark red, Spotless Tunic white, Wolfpelt fur, Bastion Plate dark iron, Mountainhide hide, Sunward Aegis gold, Phoenix Mantle flame; the relics: Bubble Belt bubbles, Leechskin dark brown, Engorged Mantle blood-pink, Scarab Carapace teal sheen, Lead Apron lead (a new sprite colour "x"/"X"), Hermit's Furs grey.
+- **Main hand (34 pieces).** The weapon's accent: the wizard's staff orb, the dwarf's axe head (his thrown axes' heads too), the huntress's bow, the princess's wand star, the bard's lute body. Each piece its own colour, never the weapon's own (table in `render/gear_looks.MAIN_LOOKS`).
+- **New on the base sprites:** the dwarf carries an axe over his right shoulder and the princess a small wand (they had no weapon in the picture to recolour).
+- **Legendary glint:** a worn legendary head, chest or main-hand piece blinks a small white cross on that part of the hero (0.16 s of every 1.8 s, the three slots a third apart).
+- **Where it shows:** the hero in the world, its afterimages (Windrunners), riding a mount, and the gear screen. The bat roll (Bat Form) stays bats.
+- **The gear screen** draws the hero big in the middle (as large as fits beside three rows of boxes; scale 13 on every grid). The doll moved round it: head, chest and feet down the left, main hand and off-hand on the right, then the rings, trinkets and bag as before. UP / DOWN now go to the nearest box in the next row (by position, not by index).
+- **Code:** `render/gear_looks.py` (the looks, `HEADGEAR` per hero and shape, `BODY`, `WEAPON`, `SPARKLE`, `Look`, `look_of`, `dress`, `axe_head_color`); `render/characters` (`_picture(name, hurt, look)`, baked per look; `dressed_picture`; `draw_sparkles`; `draw_body` and the afterimages pass `hero.look`); `render/mounts` (the rider); `render/ascii_fx` (the axe head); `Character.look`, set in `GameScene._apply_loadout`; `ui/gear_screen` (`rows`, `_cell_rects`, `figure_area`, `_draw_figure`, `_move`).
+- **Tests:** `tests/test_m28_6.py` (24).
+- **Not done:** the upgrade / slot / drop screens opened from the level-up picker or the ground-drop panel show no figure (they don't know the hero); the glint isn't drawn on a rider.
+
+**NEXT: M29, the first ocean zone (BOSSES.md section 8): draft it with the user first (which zone, its terrain, enemies, quest, boss).**

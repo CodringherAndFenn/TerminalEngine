@@ -57,6 +57,7 @@ from .combat import (_may_hurt, attack, crush_tile, fire, push, segment_circle_t
                      volley)
 from .statuses import has, inflict
 from .zones import Zone
+from . import relics
 
 ROLL_SOUND = "swing"          # a soft whoosh
 BLINK_SOUND = "zap"
@@ -195,6 +196,17 @@ def _ended(scene, p) -> None:
     hero = p.hero
     st = hero.stats
     sounds = []
+    hero.bats = False                                                 # (M28.5b: Bat Form)
+    if st.has("tripwire_boots"):
+        relics.lay_wire(hero)                                         # (M28.5c: a wire)
+    if st.has("frogskin_boots"):                                      # (M28.5a: the splash)
+        r, shove = config.U_FROGSKIN
+        scene.effects.append(Effect("nova", hero.x, hero.y, size=r))
+        for a in scene.enemies:
+            d = math.hypot(a.x - hero.x, a.y - hero.y)
+            if a.alive and a.hittable and d <= r + a.hit_radius:
+                ang = math.atan2(a.y - hero.y, a.x - hero.x) if d > 1e-6 else hero.heading
+                push(a, scene.world, math.cos(ang) * shove, math.sin(ang) * shove)
     if st.has("slipstream"):
         hero.slipstream = config.SLIPSTREAM[1]
     if st.has("close_call+9") and hero.roll_grazes >= config.UNTOUCHABLE[0]:
@@ -239,8 +251,19 @@ def start(scene, p, move_x: float, move_y: float) -> None:
     hero.vault = None
     if st is not None and st.has("scorched_trail+9"):
         hero.roll_speed *= config.FIREWALK[0]                         # Firewalk
+    if st is not None and st.has("frogskin_boots"):                   # (M28.5a: a leap)
+        hero.roll_speed *= 1 + st.uniques.get("frogskin_boots", 0.5)
+    hero.bats = False
+    if st is not None and st.has("bat_form"):
+        relics.bat_roll(scene, hero)                                  # (M28.5b: as bats)
     if st is not None and st.has("backflip+L"):
         _vault(scene, hero)                                           # (L): Vault
+    if st is not None and st.has("sand_slippers"):
+        relics.raise_dune(scene, hero)                                # (M28.5b: a dune)
+    if st is not None and st.has("shrinking_dust"):
+        relics.dust(hero)                                             # (M28.5c: shrunk)
+    if st is not None and st.has("puffball_sandals"):
+        relics.puff(scene, hero)                                      # (M28.5c: spores)
     hero.roll_passed = set()
     hero.roll_trail = 0.0
     hero.roll_steps = 0

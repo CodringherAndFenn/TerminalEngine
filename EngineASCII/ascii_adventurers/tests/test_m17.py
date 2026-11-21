@@ -69,7 +69,7 @@ class LandmarkTest(unittest.TestCase):
         # M22.5: every quest's camp and lair, at random spots, never overlapping.
         gap = config.QUEST_SITE_GAP
         for seed in SEEDS:
-            big = [m for m in world(seed).layout.landmarks if m.kind != "spot"]
+            big = [m for m in world(seed).layout.landmarks if m.kind not in ("spot", "chest")]
             none = sum(1 for q in config.QUESTS.values() if q.camp == "none")   # (M27)
             self.assertEqual(len(big), 2 * len(config.QUESTS) - none, seed)
             for i, a in enumerate(big):

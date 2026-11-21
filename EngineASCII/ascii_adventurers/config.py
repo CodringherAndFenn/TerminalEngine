@@ -206,6 +206,24 @@ WEAPONS = {
         shell=ShellSpec(speed=12.0, damage=4, max_range=7.0, damages_terrain=False,
                         look="spine", sound="bow"),
     ),
+    # M28.4c: the mimic's coins, spat in a fan.
+    # M28.5c: the Acorn Bandolier's acorns (lobbed; burst where they land).
+    "acorn_lob": WeaponSpec(
+        name="acorns", fire_interval=1.0,
+        shell=ShellSpec(speed=12.0, damage=8, max_range=9.0, damages_terrain=False,
+                        look="acorn", sound="fizzle", lob=True, blast_radius=1.5),
+    ),
+    # M28.5b: the Spittoon's glob (a hero's relic; ricochets off walls).
+    "spittoon_glob": WeaponSpec(
+        name="glob", fire_interval=4.0,
+        shell=ShellSpec(speed=13.0, damage=20, max_range=26.0, damages_terrain=False,
+                        look="spit", sound="fizzle", bounces=3),
+    ),
+    "mimic_coins": WeaponSpec(
+        name="coins", fire_interval=1.0,
+        shell=ShellSpec(speed=11.0, damage=9, max_range=9.0, damages_terrain=False,
+                        look="coin", sound="spark"),
+    ),
     # P10: the ruins. The clockwork sentry's bolts (a sweep of five), the
     # crossbow sniper's bolt (through everything in its line).
     "clock_bolts": WeaponSpec(
@@ -479,6 +497,12 @@ ENEMIES = {
         max_hp=320, sight=18, biomes=("plains",), weight=1, speed=3.5,
         damage=32, attack_radius=11.0,   # charges from up to this far away
         windup=1.0, cooldown=3.0, size_px=40, xp=20,
+    ),
+    # M28.4c: a chest with teeth (systems/chests.py wakes one; never rostered).
+    "mimic": EnemySpec(
+        name="mimic", kind="mimic", sprite="mimic_forest", scale=4, elite=True,
+        max_hp=420, sight=16, biomes=(), weight=0, speed=3.6,
+        damage=18, attack_radius=1.6, windup=0.55, cooldown=1.2, size_px=36, xp=30,
     ),
     # Bandits and folk (the slinger and the shieldbearer are Characters).
     "slinger": EnemySpec(
@@ -1990,6 +2014,173 @@ CARDS = {
                                (("chain_reaction", "flag", 1),), rarity="rare", max_stacks=1,
                                needs=("volatile",), tags=("area",),
                                unlock="A:chain_reaction", code="R02"),
+    # --- Boss uniques (M28.5; GEAR.md 21.2). unlock "U:<boss>": never offered. ---
+    "tongue_lasher": CardSpec(
+        "Tongue Lasher", "every 6th attack also lashes a tongue 7 tiles along the aim that pulls "
+        "the first enemy hit to you", (("tongue_lasher", "flag", 1), ("tongue_lasher", "power", 7.0)),
+        rarity="legendary", max_stacks=1, unlock="U:froggy", code="U01"),
+    "bubble_belt": CardSpec(
+        "Bubble Belt", "when hit, a bubble wraps you for 1 s: enemy shots bounce off it (once "
+        "every 8 s)", (("bubble_belt", "flag", 1), ("bubble_belt", "power", 1.0)),
+        rarity="legendary", max_stacks=1, unlock="U:froggy", code="U02"),
+    "frogskin_boots": CardSpec(
+        "Frogskin Boots", "your roll is a leap: 50% farther, landing with a splash that pushes "
+        "enemies within 2 tiles away", (("frogskin_boots", "flag", 1), ("frogskin_boots", "power", 0.5)),
+        rarity="legendary", max_stacks=1, unlock="U:froggy", code="U03"),
+    "leechskin": CardSpec(
+        "Leechskin", "a fifth of every hit you take is drunk back: it returns as HP over 5 s, "
+        "unless you're hit again", (("leechskin", "flag", 1), ("leechskin", "power", 0.2)),
+        rarity="legendary", max_stacks=1, unlock="U:leech_swarm", code="U04"),
+    "latch_hood": CardSpec(
+        "Latch Hood", "your hits latch: the 5th hit in a row on one enemy makes it bleed 3% of "
+        "its max HP a second until it's out of your sight",
+        (("latch_hood", "flag", 1), ("latch_hood", "power", 0.03)),
+        rarity="legendary", max_stacks=1, unlock="U:leech_swarm", code="U05"),
+    "bloated_charm": CardSpec(
+        "Bloated Charm", "a leechling clings to the enemy you hit last, draining 2% of its max "
+        "HP a second and healing you for half of that",
+        (("bloated_charm", "flag", 1), ("bloated_charm", "power", 0.02)),
+        rarity="legendary", max_stacks=1, unlock="U:leech_swarm", code="U06"),
+    "proboscis_ring": CardSpec(
+        "Proboscis Ring", "hits on bleeding enemies heal 1 HP (once per enemy a second)",
+        (("proboscis_ring", "flag", 1), ("proboscis_ring", "power", 1.0)),
+        rarity="legendary", max_stacks=1, unlock="U:proboscia", code="U07"),
+    "engorged_mantle": CardSpec(
+        "Engorged Mantle", "healing engorges you: +1% damage for every 5 HP healed, up to +30%; "
+        "a hit taken bleeds it all out",
+        (("engorged_mantle", "flag", 1), ("engorged_mantle", "power", 0.30)),
+        rarity="legendary", max_stacks=1, unlock="U:proboscia", code="U08"),
+    "dung_ball": CardSpec(
+        "Dung Ball", "a ball rolls ahead of you (10 damage), growing with each enemy it flattens "
+        "(+5 damage, +0.2 tiles, up to 3 tiles); it bursts on a wall and rolls anew after 4 s",
+        (("dung_ball", "flag", 1), ("dung_ball", "power", 10.0)),
+        rarity="legendary", max_stacks=1, unlock="U:khepri", code="U09"),
+    "scarab_carapace": CardSpec(
+        "Scarab Carapace", "hits from behind you do half damage (you can't be flanked)",
+        (("scarab_carapace", "flag", 1), ("scarab_carapace", "power", 0.5)),
+        rarity="legendary", max_stacks=1, unlock="U:khepri", code="U10"),
+    "spittoon": CardSpec(
+        "Spittoon", "every 4 s, spits a ricocheting glob (20 damage, bounces off walls 3 times) "
+        "at the nearest enemy", (("spittoon", "flag", 1), ("spittoon", "power", 20.0)),
+        rarity="legendary", max_stacks=1, unlock="U:ol_spitter", code="U11"),
+    "hump_pack": CardSpec(
+        "Hump Pack", "every 5th attack fires two extra shots behind you that bounce off walls once",
+        (("hump_pack", "flag", 1), ("hump_pack", "power", 1.0)),
+        rarity="legendary", max_stacks=1, unlock="U:ol_spitter", code="U12"),
+    "hourglass_ring": CardSpec(
+        "Hourglass Ring", "every 20 s, enemy shots within 6 tiles of you slow to a crawl for 2 s",
+        (("hourglass_ring", "flag", 1), ("hourglass_ring", "power", 2.0)),
+        rarity="legendary", max_stacks=1, unlock="U:nameless_magus", code="U13"),
+    "sand_slippers": CardSpec(
+        "Sand Slippers", "your roll raises a dune where it started: 3 tiles wide, it blocks "
+        "shots for 2 s", (("sand_slippers", "flag", 1), ("sand_slippers", "power", 2.0)),
+        rarity="legendary", max_stacks=1, unlock="U:nameless_magus", code="U14"),
+    "lead_apron": CardSpec(
+        "Lead Apron", "stand still 1 s and you take 40% less damage",
+        (("lead_apron", "flag", 1), ("lead_apron", "power", 0.4)),
+        rarity="legendary", max_stacks=1, unlock="U:fallout_king", code="U15"),
+    "geiger_ring": CardSpec(
+        "Geiger Ring", "enemies within 4 tiles of you take 1% of their max HP a second as rads "
+        "(0.2% bosses)", (("geiger_ring", "flag", 1), ("geiger_ring", "power", 0.01)),
+        rarity="legendary", max_stacks=1, unlock="U:fallout_king", code="U16"),
+    "rod_of_fission": CardSpec(
+        "Rod of Fission", "a rod planted where you stand pulses every 2 s: 10 damage within 3 "
+        "tiles, and irradiated enemies take +10% damage for 3 s; replanted when you're 8 tiles "
+        "away", (("rod_of_fission", "flag", 1), ("rod_of_fission", "power", 10.0)),
+        rarity="legendary", max_stacks=1, unlock="U:fallout_king", code="U17"),
+    "black_ice_crown": CardSpec(
+        "Crown of Black Ice", "hits chill; chilled enemies leave black ice where they walk (3 s), "
+        "and enemies on it are chilled too",
+        (("black_ice_crown", "flag", 1), ("black_ice_crown", "power", 3.0)),
+        rarity="legendary", max_stacks=1, unlock="U:snow_king", code="U18"),
+    "hermits_furs": CardSpec(
+        "Hermit's Furs", "stand still 2 s and frost gathers: the next enemy to hit you is frozen "
+        "for 3 s", (("hermits_furs", "flag", 1), ("hermits_furs", "power", 3.0)),
+        rarity="legendary", max_stacks=1, unlock="U:snow_king", code="U19"),
+    "parasol": CardSpec(
+        "Black Lace Parasol", "blocks enemy shots coming from in front of you (55 degrees either "
+        "side of the aim) while you hold the attack",
+        (("parasol", "flag", 1), ("parasol", "power", 55.0)),
+        rarity="legendary", max_stacks=1, unlock="U:fragile", code="U20"),
+    "mr_buttons": CardSpec(
+        "Mr. Buttons", "the bear follows you; enemies would rather attack him (200 HP; he mends "
+        "10 HP a second while nobody hits him, and stands up again 10 s after falling)",
+        (("mr_buttons", "flag", 1), ("mr_buttons", "power", 200.0)),
+        rarity="legendary", max_stacks=1, unlock="U:fragile", code="U21"),
+    "bat_form": CardSpec(
+        "Bat Form Boots", "your roll turns you into bats: you fly over everything, untouchable, "
+        "50% farther", (("bat_form", "flag", 1), ("bat_form", "power", 0.5)),
+        rarity="legendary", max_stacks=1, unlock="U:fragile", code="U22"),
+    "shrinking_dust": CardSpec(
+        "Shrinking Dust", "rolls shrink you for 2 s: +35% speed and a smaller body",
+        (("shrinking_dust", "flag", 1), ("shrinking_dust", "power", 0.35)),
+        rarity="legendary", max_stacks=1, unlock="U:nettle", code="U23"),
+    "blight_thorn_ring": CardSpec(
+        "Blightthorn Ring", "an enemy that hurts you is blighted: it takes +25% damage from "
+        "everyone for 4 s", (("blight_thorn_ring", "flag", 1), ("blight_thorn_ring", "power", 0.25)),
+        rarity="legendary", max_stacks=1, unlock="U:nettle", code="U24"),
+    "cleaver_of_cuddles": CardSpec(
+        "Cleaver of Cuddles", "a cleaver orbits you (15 damage), spinning faster with each kill "
+        "(+5% a kill, up to x2; it slows back over 10 s)",
+        (("cleaver_of_cuddles", "flag", 1), ("cleaver_of_cuddles", "power", 15.0)),
+        rarity="legendary", max_stacks=1, unlock="U:love_cuddles", code="U25"),
+    "acorn_bandolier": CardSpec(
+        "Acorn Bandolier", "every 4th attack also lobs 3 acorns that burst where they land (8 "
+        "damage within 1.5 tiles)", (("acorn_bandolier", "flag", 1), ("acorn_bandolier", "power", 8.0)),
+        rarity="legendary", max_stacks=1, unlock="U:love_cuddles", code="U26"),
+    "tripwire_boots": CardSpec(
+        "Tripwire Boots", "your roll lays a tripwire along its path for 5 s: the first enemy to "
+        "cross it is knocked down for 1.5 s",
+        (("tripwire_boots", "flag", 1), ("tripwire_boots", "power", 1.5)),
+        rarity="legendary", max_stacks=1, unlock="U:love_cuddles", code="U27"),
+    "rootbound_boots": CardSpec(
+        "Rootbound Boots", "stand still to root in and grow a shield (5 a second, up to 25% of "
+        "max HP); walk on and it fades over 3 s",
+        (("rootbound_boots", "flag", 1), ("rootbound_boots", "power", 5.0)),
+        rarity="legendary", max_stacks=1, unlock="U:the_fallen", code="U28"),
+    "heartwood_ring": CardSpec(
+        "Heartwood Ring", "within 2 tiles of a tree you regain 2 HP a second",
+        (("heartwood_ring", "flag", 1), ("heartwood_ring", "power", 2.0)),
+        rarity="legendary", max_stacks=1, unlock="U:the_fallen", code="U29"),
+    "mycelial_ring": CardSpec(
+        "Mycelial Ring", "kills leave a spore patch (2 tiles, 5 s) that poisons",
+        (("mycelial_ring", "flag", 1), ("mycelial_ring", "power", 5.0)),
+        rarity="legendary", max_stacks=1, unlock="U:mycelium_amanita", code="U30"),
+    "fly_agaric_cap": CardSpec(
+        "Fly Agaric Cap", "hits have a 10% chance to trip the enemy: it wanders aimlessly for 2 s "
+        "(a boss stumbles)", (("fly_agaric_cap", "flag", 1), ("fly_agaric_cap", "power", 0.10)),
+        rarity="legendary", max_stacks=1, unlock="U:mycelium_amanita", code="U31"),
+    "inkwell_charm": CardSpec(
+        "Inkwell Charm", "every 5 s an ink blot falls on the nearest enemy: 15 damage, and it "
+        "can't see you for 2 s", (("inkwell_charm", "flag", 1), ("inkwell_charm", "power", 15.0)),
+        rarity="legendary", max_stacks=1, unlock="U:mycelium_inkcap", code="U32"),
+    "lawyers_wig": CardSpec(
+        "Lawyer's Wig", "hits scrawl on the enemy; the 5th scrawl binds it in ink: rooted 2 s "
+        "(bosses 0.5 s)", (("lawyers_wig", "flag", 1), ("lawyers_wig", "power", 2.0)),
+        rarity="legendary", max_stacks=1, unlock="U:mycelium_inkcap", code="U33"),
+    "puffball_sandals": CardSpec(
+        "Puffball Sandals", "your roll bursts a spore cloud where it started: 20 damage and "
+        "poison within 2 tiles", (("puffball_sandals", "flag", 1), ("puffball_sandals", "power", 20.0)),
+        rarity="legendary", max_stacks=1, unlock="U:mycelium_puffball", code="U34"),
+    "spore_wind_band": CardSpec(
+        "Spore Wind Band", "every 12 s a gust pushes enemies within 4 tiles 4 tiles away and "
+        "makes their statuses last 2 s longer",
+        (("spore_wind_band", "flag", 1), ("spore_wind_band", "power", 2.0)),
+        rarity="legendary", max_stacks=1, unlock="U:mycelium_puffball", code="U35"),
+    "phylactery": CardSpec(
+        "Phylactery", "once a run, on death, you rise as a shade for 10 s (untouchable, half "
+        "damage); kill 10 enemies to come back at 30% HP, or fall",
+        (("phylactery", "flag", 1), ("phylactery", "power", 0.30)),
+        rarity="legendary", max_stacks=1, unlock="U:necromancer", code="U36"),
+    "lichs_gaze": CardSpec(
+        "Lich's Gaze", "keep an enemy under your aim within 6 tiles for 1.5 s and it's marked: "
+        "your next hit on it does x2", (("lichs_gaze", "flag", 1), ("lichs_gaze", "power", 2.0)),
+        rarity="legendary", max_stacks=1, unlock="U:necromancer", code="U37"),
+    "corpse_candle": CardSpec(
+        "Corpse Candle", "every kill lights a candle at the body for 6 s: enemies in its light (2 "
+        "tiles) burn 8 a second, and you heal 3 a second standing in it",
+        (("corpse_candle", "flag", 1), ("corpse_candle", "power", 8.0)),
+        rarity="legendary", max_stacks=1, unlock="U:necromancer", code="U38"),
     "retaliation": CardSpec("Retaliation", "when hit: a shockwave deals 30 and pushes (3 s)",
                             (("retaliation", "flag", 1),), rarity="uncommon", max_stacks=1,
                             code="R03"),
@@ -2151,6 +2342,99 @@ GEAR_BAG = 3
 # Salvage: loot = GEAR_SALVAGE[rarity] x (1 + GEAR_SALVAGE_LEVEL x level).
 GEAR_SALVAGE = {"common": 20, "uncommon": 40, "rare": 80, "epic": 160, "legendary": 320}
 GEAR_SALVAGE_LEVEL = 0.5
+# Drops (M28.4a, GEAR.md 4.2): an elite's kill drops a piece ELITE_DROP of
+# the time (seeded by the kill), rolled like an offer's new piece for the
+# killer. A piece lies where it fell with its rarity's glow; a hero within
+# GEAR_DROP_RADIUS tiles opens the pickup panel (wear / bag / salvage /
+# leave); its name shows within GEAR_DROP_LABEL tiles; it's pinned on the
+# maps once a hero came within GEAR_DROP_SEEN tiles.
+ELITE_DROP = 0.15
+GEAR_DROP_RADIUS = 1.4
+GEAR_DROP_LABEL = 9.0
+GEAR_DROP_SEEN = 26.0
+# Chests (M28.4b, GEAR.md 4.2): CHESTS_PER_BIOME (low, high) per ring biome
+# at scattered clearings (world/landmarks.py). CHEST_GUARDED of them are
+# guarded: CHEST_GUARDS of one of CHEST_GUARD_KINDS[biome] stand round it
+# (CHEST_GUARD_RING tiles out) and it opens once they're dead. CHEST_MIMIC
+# of them are mimics (M28.4c): touched, an elite with teeth (ENEMIES
+# "mimic") bites, and drops an epic or better piece when beaten. A hero
+# within CHEST_RADIUS tiles opens one; its piece rolls with CHEST_LUCK
+# extra luck. Chests are looked at within CHEST_LOOK tiles of a hero (their
+# chunks are loaded) and pinned once one came within CHEST_SEEN.
+CHESTS_PER_BIOME = (6, 8)
+CHEST_GUARDED = 0.5
+CHEST_MIMIC = 0.1
+CHEST_GUARDS = 4
+CHEST_GUARD_RING = 3.2
+CHEST_GUARD_KINDS = {"forest": ("skeleton", "boar", "centipede"),
+                     "desert": ("jackal", "sand_imp", "husk"),
+                     "ruins": ("gnoll", "stone_imp", "lost_soldier"),
+                     "swamp": ("bog_zombie", "newt", "lizardman"),
+                     "mushroom": ("sporeling", "shroomling", "mold_zombie")}
+CHEST_RADIUS = 1.9
+CHEST_LUCK = 10
+CHEST_LOOK = 40.0
+CHEST_SEEN = 26.0
+# The mimic (ai/mimic.py): it hops after you (MIMIC_HOP: s moving, s
+# still), and, off cooldown (MIMIC_COOLDOWNS: lunge, tongue, spit):
+#   lunges (MIMIC_LUNGE: tell s, tiles/s, tiles, x damage; a bite on
+#   whatever it meets, once a lunge, stopped by walls);
+#   lashes its tongue (MIMIC_TONGUE: tell s, reach tiles, tiles you're
+#   dragged toward it, x damage) along a line that shows;
+#   spits coins (MIMIC_SPIT: tell s, coins, fan degrees; WEAPONS
+#   "mimic_coins") when you're MIMIC_SPIT_RANGE[0]..[1] tiles off.
+MIMIC_HOP = (0.35, 0.3)
+MIMIC_LUNGE = (0.55, 13.0, 6.0, 1.5)
+MIMIC_TONGUE = (0.5, 7.0, 3.0, 0.6)
+MIMIC_SPIT = (0.4, 3, 40.0)
+MIMIC_SPIT_RANGE = (4.0, 12.0)
+MIMIC_COOLDOWNS = (3.0, 4.5, 3.5)
+
+# --- Boss uniques (M28.5; design/GEAR.md 21) ---------------------------------------
+# A boss's relics: legendary-only pieces with a power of their own (a
+# "power" mod holds the main number, +10% a level) and three fixed affixes
+# (GEAR[key].affixes). One drops by the body when the boss falls, once a
+# run per player (scenes/game.py _drop_unique); they're never offered.
+# The swamp's (M28.5a):
+U_TONGUE = (6, 0.9, 1.0)       # Tongue Lasher: every Nth attack; the line's half-width; a boss is pulled this far
+U_BUBBLE = 8.0                 # Bubble Belt: s between bubbles (the bubble's length is the power)
+U_FROGSKIN = (2.0, 1.5)        # Frogskin Boots: the splash's radius; how far it pushes
+U_LEECHSKIN = 5.0              # Leechskin: s the drunk-back share of a hit returns over
+U_LATCH = (5, 0.01, 0.5, 16.0) # Latch Hood: hits in a row; a boss's share a second; s between bleeds; "in sight" = within this many tiles, no wall between
+U_BLOATED = (0.005, 0.5, 0.5)  # Bloated Charm: a boss's share a second; the share healed; s between bites
+U_PROBOSCIS = 1.0              # Proboscis Ring: s between sips of one enemy
+U_ENGORGED = 5.0               # Engorged Mantle: HP healed per +1% damage
+# The desert's and the ruins' (M28.5b):
+U_DUNG_BALL = (6.0, 0.6, 5.0, 0.2, 3.0, 0.4, 12.0, 4.0)   # tiles/s; radius at first; +damage and +radius a kill; the most radius; s between hits on one enemy; tiles it rolls before bursting; s before it rolls anew (the power: its damage)
+U_SPITTOON = (4.0, 10.0, 3)    # s between globs; tiles it looks for an enemy; bounces (the power: the glob's damage)
+U_HUMP_PACK = (5, 2, 0.12)     # every Nth attack; shots; radians either side of straight back (the power: x their damage)
+U_HOURGLASS = (20.0, 6.0, 0.15)  # s between; tiles round you; shots crawl at x this (the power: s it lasts)
+U_SAND_SLIPPERS = 3            # tiles wide (the power: s the dune stands)
+U_LEAD_APRON = 1.0             # s standing still (the power: the share of damage not taken)
+U_GEIGER = (4.0, 0.002, 0.5)   # tiles round you; a boss's share a second; s between ticks (the power: the share a second)
+U_FISSION = (2.0, 3.0, 3.0, 0.10, 8.0)   # s between pulses; tiles; s irradiated; +damage taken; tiles off before it's replanted (the power: the pulse's damage)
+U_BLACK_ICE = (0.5, 0.8, 1.0, 40)   # tiles a chilled enemy walks per patch; a patch's radius; s between its chills; most patches a hero has down (the oldest melt first) (the power: s a patch lasts)
+U_HERMITS_FURS = (2.0, 0.5)    # s standing still; s a boss is frozen (the power: s the attacker is frozen)
+U_PARASOL = 1.0                # (the power: degrees either side of the aim it blocks)
+U_BUTTONS = (10.0, 1.0, 10.0, 1.5, 8.0)   # HP he mends a second; s since a hit before he mends; s down before he stands again; tiles behind you he keeps; px half-size (the power: his max HP)
+U_BAT_FORM = 1.0               # (the power: the roll's extra distance, x)
+# (M28.5c)
+U_SHRINKING_DUST = (2.0, 0.6)  # s shrunk; x your body (the power: +speed)
+U_BLIGHT_THORN = 4.0           # s blighted (the power: +damage it takes from heroes)
+U_CLEAVER = (2.0, 2.5, 0.05, 2.0, 10.0, 0.5, 0.6)   # tiles out; rad/s; +spin a kill; the most x; s to slow back from the most; s between hits on one enemy; the blade's reach (tiles) (the power: its damage)
+U_ACORNS = (4, 3, 6.0, 0.35, 1.5)   # every Nth attack; acorns; tiles out; rad between; burst radius (the power: their damage)
+U_TRIPWIRE = (5.0, 0.5)        # s it lasts; s a boss is knocked down (the power: s knocked down)
+U_ROOTBOUND = (0.25, 3.0)      # the most shield, x max HP; s it fades over once you walk (the power: shield a second)
+U_HEARTWOOD = (2.0, 0.25)      # tiles from a tree; s between looks (the power: HP a second)
+U_MYCELIAL = (2.0, 1.0)        # the patch's radius; s between its poisons (the power: s it lasts)
+U_FLY_AGARIC = (2.0, 0.5, 4.0) # s wandering; s a boss stumbles; s before a boss can stumble again (the power: the chance)
+U_INKWELL = (5.0, 2.0, 10.0)   # s between blots; s it can't see you; tiles it looks for an enemy (the power: the damage)
+U_WIG = (5, 0.5)               # scrawls; s a boss is bound (the power: s bound)
+U_PUFFBALL = 2.0               # the cloud's radius (the power: its damage)
+U_SPORE_WIND = (12.0, 4.0, 4.0)   # s between gusts; tiles round you; tiles pushed (the power: s added to statuses)
+U_PHYLACTERY = (10.0, 10, 0.5) # s as a shade; kills to come back; x your damage as a shade (the power: x max HP you come back with)
+U_LICHS_GAZE = (6.0, 1.5, 0.5) # tiles; s under the aim; tiles off the aim line that still count (the power: x the next hit)
+U_CANDLE = (6.0, 2.0, 3.0, 0.5, 12)   # s lit; tiles of light; HP a second healed; s between burns; most candles a hero (the power: burn a second)
 
 # --- Tricks: +3 / +6 / +9 (players/gear.py; design/GEAR.md 17, M28.2) ---------------
 # Each built piece's three tricks: (name, what it does), unlocked at +3, +6
@@ -3104,7 +3388,93 @@ GEAR = {
     "healing_totem": GearSpec("Mender's Totem", "trinket"),
     "fire_wand": GearSpec("Firefly Lantern", "trinket"),
     "bone_turret": GearSpec("Skull Sentry", "trinket"),
+    # --- Boss uniques (M28.5; GEAR.md 21): `unique` = the boss, three fixed affixes ---
+    "tongue_lasher": GearSpec("Tongue Lasher", "off", unique="froggy",
+                              affixes=("long_reach", "quick_hands", "brutal")),
+    "bubble_belt": GearSpec("Bubble Belt", "chest", unique="froggy",
+                            affixes=("thick_hide", "nimble", "second_wind")),
+    "frogskin_boots": GearSpec("Frogskin Boots", "feet", unique="froggy",
+                               affixes=("swift_boots", "quick_recovery", "extra_roll")),
+    "leechskin": GearSpec("Leechskin", "chest", unique="leech_swarm",
+                          affixes=("vampiric", "thick_hide", "second_wind")),
+    "latch_hood": GearSpec("Latch Hood", "head", unique="leech_swarm",
+                           affixes=("affliction", "lingering", "keen_eye")),
+    "bloated_charm": GearSpec("Bloated Charm", "trinket", unique="leech_swarm",
+                              affixes=("vampiric", "potency", "quickened")),
+    "proboscis_ring": GearSpec("Proboscis Ring", "ring", unique="proboscia",
+                               affixes=("vampiric", "affliction", "lucky_charm")),
+    "engorged_mantle": GearSpec("Engorged Mantle", "chest", unique="proboscia",
+                                affixes=("sharpened", "iron_skin", "second_wind")),
+    # (M28.5b: the desert's and the ruins')
+    "dung_ball": GearSpec("Dung Ball", "trinket", unique="khepri",
+                          affixes=("broad_strokes", "sharpened", "swift_boots")),
+    "scarab_carapace": GearSpec("Scarab Carapace", "chest", unique="khepri",
+                                affixes=("iron_skin", "thick_hide", "nimble")),
+    "spittoon": GearSpec("Spittoon", "trinket", unique="ol_spitter",
+                         affixes=("quickened", "potency", "long_reach")),
+    "hump_pack": GearSpec("Hump Pack", "off", unique="ol_spitter",
+                          affixes=("multishot", "quick_hands", "piercing")),
+    "hourglass_ring": GearSpec("Hourglass Ring", "ring", unique="nameless_magus",
+                               affixes=("nimble", "quick_recovery", "keen_eye")),
+    "sand_slippers": GearSpec("Sand Slippers", "feet", unique="nameless_magus",
+                              affixes=("swift_boots", "extra_roll", "thick_hide")),
+    "lead_apron": GearSpec("Lead Apron", "chest", unique="fallout_king",
+                           affixes=("iron_skin", "thick_hide", "scholar")),
+    "geiger_ring": GearSpec("Geiger Ring", "ring", unique="fallout_king",
+                            affixes=("affliction", "potency", "prospector")),
+    "rod_of_fission": GearSpec("Rod of Fission", "trinket", unique="fallout_king",
+                               affixes=("broad_strokes", "elementalist", "quickened")),
+    "black_ice_crown": GearSpec("Black Ice Crown", "head", unique="snow_king",
+                                mods=(("chill", "status", 1),), needs=(),
+                                affixes=("affliction", "lingering", "elementalist")),
+    "hermits_furs": GearSpec("Hermit's Furs", "chest", unique="snow_king",
+                             affixes=("thick_hide", "second_wind", "iron_skin")),
+    "parasol": GearSpec("Lace Parasol", "off", unique="fragile",
+                        affixes=("nimble", "keen_eye", "brutal")),
+    "mr_buttons": GearSpec("Mr. Buttons", "trinket", unique="fragile",
+                           affixes=("thick_hide", "second_wind", "lucky_charm")),
+    "bat_form": GearSpec("Bat Form Boots", "feet", unique="fragile",
+                         affixes=("swift_boots", "quick_recovery", "nimble")),
+    # (M28.5c: the forest's, Mycelium's and the necromancer's)
+    "shrinking_dust": GearSpec("Shrinking Dust", "feet", unique="nettle",
+                               affixes=("swift_boots", "nimble", "quick_recovery")),
+    "blight_thorn_ring": GearSpec("Blightthorn Ring", "ring", unique="nettle",
+                                  affixes=("sharpened", "affliction", "thick_hide")),
+    "cleaver_of_cuddles": GearSpec("Cuddles' Cleaver", "trinket", unique="love_cuddles",
+                                   affixes=("broad_strokes", "brutal", "vampiric")),
+    "acorn_bandolier": GearSpec("Acorn Bandolier", "off", unique="love_cuddles",
+                                affixes=("broad_strokes", "quick_hands", "long_reach")),
+    "tripwire_boots": GearSpec("Tripwire Boots", "feet", unique="love_cuddles",
+                               affixes=("swift_boots", "extra_roll", "lingering")),
+    "rootbound_boots": GearSpec("Rootbound Boots", "feet", unique="the_fallen",
+                                affixes=("thick_hide", "iron_skin", "second_wind")),
+    "heartwood_ring": GearSpec("Heartwood Ring", "ring", unique="the_fallen",
+                               affixes=("second_wind", "iron_skin", "magnet")),
+    "mycelial_ring": GearSpec("Mycelial Ring", "ring", unique="mycelium_amanita",
+                              affixes=("potency", "lingering", "broad_strokes")),
+    "fly_agaric_cap": GearSpec("Fly Agaric Cap", "head", unique="mycelium_amanita",
+                               affixes=("affliction", "keen_eye", "lucky_charm")),
+    "inkwell_charm": GearSpec("Inkwell Charm", "trinket", unique="mycelium_inkcap",
+                              affixes=("quickened", "keen_eye", "scholar")),
+    "lawyers_wig": GearSpec("Lawyer's Wig", "head", unique="mycelium_inkcap",
+                            affixes=("quick_hands", "lingering", "scholar")),
+    "puffball_sandals": GearSpec("Puffball Sandals", "feet", unique="mycelium_puffball",
+                                 affixes=("extra_roll", "potency", "quick_recovery")),
+    "spore_wind_band": GearSpec("Spore Wind Band", "ring", unique="mycelium_puffball",
+                                affixes=("lingering", "affliction", "nimble")),
+    "phylactery": GearSpec("Phylactery", "ring", unique="necromancer",
+                           affixes=("iron_skin", "vampiric", "prospector")),
+    "lichs_gaze": GearSpec("Lich's Gaze", "head", unique="necromancer",
+                           affixes=("brutal", "keen_eye", "long_reach")),
+    "corpse_candle": GearSpec("Corpse Candle", "trinket", unique="necromancer",
+                              affixes=("elementalist", "second_wind", "broad_strokes")),
 }
+# Each boss's relics, in a fixed order (the drop picks by index).
+BOSS_UNIQUES: dict = {}
+for _key, _g in GEAR.items():
+    if _g.unique is not None:
+        BOSS_UNIQUES.setdefault(_g.unique, []).append(_key)
+BOSS_UNIQUES = {b: tuple(ks) for b, ks in BOSS_UNIQUES.items()}
 
 # Spells whose things last a while, so Lingering (+duration) does something
 # for them (statuses count too, see players/cards._gate_met).
@@ -3187,6 +3557,8 @@ GUILD_UPGRADES = {
                                  growth=2.5),
     "arcane_wing": UpgradeSpec("Arcane Wing", "+1 spell slot", (("spell_slots", "add", 1),),
                                max_level=1, base_cost=8000),
+    "saddlebags": UpgradeSpec("Saddlebags", "+1 bag space for spare gear", (("bag", "add", 1),),
+                              max_level=2, base_cost=800, growth=1.8),          # (M28.4d)
 }
 SECOND_CHANCE_HP = 0.30
 
@@ -3433,6 +3805,9 @@ BESTIARY = {
     # M27
     "necromancer": (10000, "Twice-living. Crush the corpses; hide from his gaze; find the one he hides in."),
     "risen_dead": (1500, "Raised by More than Life from whatever falls in his necropolis."),
+    # M28.4c
+    "mimic": (1200, "A chest with teeth. It lunges, lashes a tongue that drags you in and spits "
+                    "coins. Beaten, it coughs up the best of what it ate."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -4680,6 +5055,7 @@ BOSSES = {
         loot=0, achievement="necromancer", pages=(),
     ),
 }
+BOSS_KEYS = tuple(BOSSES)         # (M28.5: a stable order for the relic drop's seed)
 
 # Khepri the Dung Emperor (ai/bosses.Khepri): a giant dung beetle with his
 # ball. Damages are per hit at level 1 (x the enemy damage scaling).

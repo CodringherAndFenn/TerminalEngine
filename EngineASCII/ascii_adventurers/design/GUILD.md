@@ -47,6 +47,7 @@ Each line is the **only** place in the hall that sells its effect. A level costs
 | Recruit's Kit 🆕 | start runs one level higher (one free card pick) | 3 | level 4 | 1,500 → 6,000 | 10,500 |
 | Second Chance 🆕 | once per run, revive at 30% HP when you fall | 2 | 2 revives | 3,000 → 7,500 | 10,500 |
 | Arcane Wing | +1 spell slot (the 4th) | 1 | 4 slots | 8,000 | 8,000 |
+| Saddlebags (M28.4d) | +1 bag space for spare gear (`GEAR.md` 4.3) | 2 | a bag of 5 | 800 → 1,440 | 2,240 |
 
 Guildmaster total: **~142,000**.
 

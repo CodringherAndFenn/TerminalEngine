@@ -22,9 +22,12 @@ The screen only shows and chooses: it calls `done(choice)` (a slot id, a
 bag index...) or `act(action)` in browse mode, and `cancel()` on
 ESC / Tab / BACK; the game applies the change and calls refresh().
 
-Layout: the paper doll (head; main hand, chest, off-hand; feet; the rings;
-the trinkets), the bag under it, the focused piece's card on the right
-(below the doll on narrow screens). Arrows move by rows and columns.
+Layout: the paper doll -- the hero drawn big in the middle in what they
+wear (M28.6, render/gear_looks), the head, chest and feet down its left,
+the main hand and off-hand on its right; the rings, the trinkets -- the
+bag under it, the focused piece's card on the right (below the doll on
+narrow screens). LEFT / RIGHT move along a row, UP / DOWN to the nearest
+box in the next row.
 """
 
 from __future__ import annotations
@@ -37,13 +40,18 @@ import pygame
 from engine import TextRenderer, colors
 
 from .. import config, palette
-from ..players.gear import (Equipment, Piece, legendary_trick, next_level_text, next_trick,
-                            power_name, power_text, salvage_value, slot_kind, affix_text, tricks)
+from ..render.characters import ART, ART_H, ART_W, dressed_picture, draw_sparkles
+from ..render.gear_looks import look_of
+from ..players.gear import (Equipment, Piece, boss_of, legendary_trick, next_level_text,
+                            next_trick, power_name, power_text, salvage_value, slot_kind,
+                            affix_text, tricks)
 from .frame import center, draw_box, glint
 from .gear_stats import damage_lines, total_lines
 
 BOX_W = 20
 BOX_H = 3
+FIGURE_ROWS = 3        # rows of boxes beside the hero (head/main, chest/off, feet)
+FIGURE_ART_ROWS = 16   # the hero's art rows shown (the last two are empty)
 DETAIL_W = 34
 _LEFT = (pygame.K_LEFT, pygame.K_a)
 _RIGHT = (pygame.K_RIGHT, pygame.K_d)
@@ -82,6 +90,8 @@ def piece_lines(key: str, rarity: str, level: int, affixes, width: int, kind: st
             palette.CARD_RARITY[rarity]), ("", palette.CARD_TEXT)]
     name = config.GEAR[key].name + (f" +{level}" if level and kind != "plus" else "")
     out.append((name, palette.CARD_TITLE))
+    if config.GEAR[key].unique is not None:    # (M28.5: a boss's relic)
+        out.append((f"UNIQUE: {boss_of(key)}"[:width], palette.CARD_RARITY["legendary"]))
     out.append((power_name(key), palette.CARD_TAG))
     for line in wrap(power_text(key, level, rarity), width):
         out.append((line, palette.CARD_TEXT))
@@ -143,6 +153,7 @@ class GearScreen:
         self.confirm = None              # the cell a salvage waits on a second press for
         self.message = ""
         self.sub: GearScreen | None = None   # browse: wearing a ring/trinket asks which slot
+        self._figures: dict = {}         # the hero's scaled picture, by (sprite, look, scale)
         self.refresh(progress)
         self.focus = self._first_enabled()
 
@@ -167,10 +178,10 @@ class GearScreen:
         piece coming off)."""
         eq = self.eq
         ids = eq.slot_ids()
-        rows = [["head"], ["main", "chest", "off"], ["feet"],
+        rows = [["head", "main"], ["chest", "off"], ["feet"],      # (round the hero, M28.6)
                 [s for s in ids if slot_kind(s) == "ring"],
                 [s for s in ids if slot_kind(s) == "trinket"]]
-        bag = [("bag", i) for i in range(config.GEAR_BAG)]
+        bag = [("bag", i) for i in range(eq.bag_size)]
         if self.mode == "drop":
             bag.append("out")
         rows.append(bag)
@@ -233,8 +244,19 @@ class GearScreen:
             span = n * bw + (n - 1)
             col = left + 2 + (doll_w - span) // 2
             for i, cell in enumerate(row):
+                if r < FIGURE_ROWS:              # the hero's column: body left, hands right
+                    out[cell] = (left + 2 + (0 if i == 0 else 3) * (bw + 1),
+                                 top + 2 + r * BOX_H, bw)
+                    continue
                 out[cell] = (col + i * (bw + 1), top + 2 + r * BOX_H, bw)
         return out
+
+    def figure_area(self) -> tuple[int, int, int, int]:
+        """(col, row, width, height) in cells where the hero stands: the two
+        middle columns beside the first FIGURE_ROWS rows of boxes."""
+        left, top, _, _ = self.geometry()
+        bw = self._box_w()
+        return left + 2 + bw + 1, top + 2, 2 * bw + 1, FIGURE_ROWS * BOX_H
 
     def cell_at(self, col: int, row: int):
         for cell, (c, r, w) in self._cell_rects().items():
@@ -251,10 +273,12 @@ class GearScreen:
         c = rows[r].index(cur)
         if dc:
             c = (c + dc) % len(rows[r])
-        else:                            # keep roughly the same place across
-            frac = (c + 0.5) / len(rows[r])
+        else:                            # the nearest box across in the next row
+            rects = self._cell_rects()
+            mid = rects[cur][0] + rects[cur][2] / 2
             r = (r + dr) % len(rows)
-            c = min(len(rows[r]) - 1, int(frac * len(rows[r])))
+            c = min(range(len(rows[r])),
+                    key=lambda i: abs(rects[rows[r][i]][0] + rects[rows[r][i]][2] / 2 - mid))
         self.focus = self.cells().index(rows[r][c])
         self.confirm = None
 
@@ -282,7 +306,8 @@ class GearScreen:
             else:
                 self.sub = GearScreen(self.manager, _Prog(self.eq), "slot", kind=p.slot,
                                       done=lambda s, i=cell[1]: self._wear(i, s),
-                                      cancel=self._close_sub, pauses=self.pauses)
+                                      cancel=self._close_sub, pauses=self.pauses,
+                                      hero=self.hero)
             return
         self._salvage(cell)
 
@@ -397,6 +422,7 @@ class GearScreen:
         focus = cells[self.focus]
         for cell, (col, row, bw) in self._cell_rects().items():
             self._box(text, col, row, bw, cell, cell == focus)
+        self._draw_figure()
         _, bag_top, _ = self._cell_rects()[("bag", 0)]
         text.put(left + 2, bag_top + 1, "BAG", palette.CARD_TAG)
         # The focused piece's card.
@@ -429,6 +455,32 @@ class GearScreen:
         if self.message:
             center(text, top + h - 3, self.message[:w - 4], palette.CARD_SELECTED, left, w, None)
         center(text, top + h - 2, hint[:w - 4], colors.GREY, left, w, None)
+
+    def _draw_figure(self) -> None:
+        """The hero, big, in what they wear (M28.6): the picture the world
+        draws (render/characters.dressed_picture), scaled to fill the
+        figure area, with the glints of worn legendaries."""
+        sprite = getattr(getattr(self.hero, "spec", None), "sprite", None)
+        if sprite not in ART:
+            return
+        d = self.manager.display
+        col, row, w, h = self.figure_area()
+        w_px, h_px = w * d.cell_w, h * d.cell_h
+        scale = max(1, min(h_px // FIGURE_ART_ROWS, w_px // ART_W))
+        look = look_of(self.eq)
+        key = (sprite, look.key if look else "", scale)
+        img = self._figures.get(key)
+        if img is None:
+            art = dressed_picture(sprite, look).subsurface(pygame.Rect(0, 0, ART_W,
+                                                                       FIGURE_ART_ROWS))
+            img = pygame.transform.scale(art, (ART_W * scale, FIGURE_ART_ROWS * scale))
+            self._figures = {key: img}
+        x = col * d.cell_w + (w_px - img.get_width()) // 2
+        y = row * d.cell_h + (h_px - img.get_height()) // 2
+        d.canvas.blit(img, (x, y))
+        if look is not None and look.legend:
+            # draw_sparkles takes the centre of the whole (uncropped) sprite.
+            draw_sparkles(d.canvas, x + ART_W * scale / 2, y + ART_H * scale / 2, sprite, scale, False, 0, look, pygame.time.get_ticks() / 1000)
 
     def _box(self, text: TextRenderer, col: int, row: int, bw: int, cell, focused: bool) -> None:
         p = self.piece_at(cell)

@@ -254,7 +254,7 @@ class QuestTest(unittest.TestCase):
 
     def test_light_the_braziers_then_the_fight(self):
         from ascii_adventurers.tests.test_m16 import game
-        from ascii_adventurers.systems.quests import free_spot
+        from ascii_adventurers.systems.quests import QUEST_SID, free_spot
         m, s = game("wizard", seed=31)
         q = s.quests
         st = q.states["smoke_keeper"]
@@ -263,7 +263,7 @@ class QuestTest(unittest.TestCase):
         s.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e, unicode="e", mod=0))
         step(s)
         self.assertTrue(st.taken)
-        self.assertFalse(any(k[1] == st.qid for k in s.spawner.fixed))   # nothing to hunt
+        self.assertFalse(any(k[0] == QUEST_SID and k[1] == st.qid for k in s.spawner.fixed))   # nothing to hunt
         h = s.hero
         h.invulnerable = True
         # Stand by a brazier: it heats, the mosquitoes come, it catches.

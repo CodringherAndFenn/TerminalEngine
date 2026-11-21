@@ -94,6 +94,7 @@ class Character(Actor):
         self.last_blocked = False
         self.half = spec.size_px / 2     # collision half-size, px
         self.weapon = Weapon(config.WEAPONS[spec.weapon])
+        self.look = None                 # (M28.6) worn gear that shows: render/gear_looks.Look
         # Heroes (M14): their card stats (players/stats.HeroStats; None for
         # enemies), the dice for crits / evasions / status rolls (the game
         # seeds it per player so runs replay), Hunter's Mark's target,
@@ -109,6 +110,60 @@ class Character(Actor):
         # clock, whether the last strike crit, bestiary kinds known.
         self.shield = 0.0
         self.since_hit = 0.0
+        # M28.5a, the swamp's relics: Bubble Belt (s of bubble left; when the
+        # last one came), Leechskin (HP owed back, at this rate a second),
+        # Engorged Mantle (bucket A from healing), Latch Hood (the enemy hit
+        # last in a row, and how many times), Bloated Charm (the leechling's
+        # enemy; the drain owed; s to its next bite).
+        self.bubble = 0.0
+        self.bubble_t = -1e9
+        self.leech: list | None = None
+        self.engorged = 0.0
+        self.latch_last = None
+        self.latch_n = 0
+        self.leech_target = None
+        self.leech_owed = 0.0
+        self.leech_bite = 0.0
+        # M28.5b, the desert's and the ruins' relics (systems/relics.py):
+        # the Dung Ball (the ball; s before a new one), the Spittoon's clock,
+        # the Hourglass Ring (s of crawl left; s to the next; the shots it
+        # slowed), the Geiger Ring's clock, the Rod of Fission ([x, y, s to
+        # its pulse]), Mr. Buttons (the bear), Hermit's Furs (frost gathered),
+        # Sand Slippers' dunes ([s left, [(tx, ty, tile under it)]]), and a
+        # Bat Form roll (drawn as bats).
+        self.ball = None
+        self.ball_t = 0.0
+        self.spit_t = 0.0
+        self.hourglass_t = 0.0
+        self.hourglass_cd = 0.0
+        self.slowed_shots: list = []
+        self.geiger_t = 0.0
+        self.rod: list | None = None
+        self.bear = None
+        self.frost = False
+        self.dunes: list = []
+        self.bats = False
+        # M28.5c, the forest's, Mycelium's and the necromancer's relics:
+        # Shrinking Dust (s shrunk; the body's own size), the Cleaver of
+        # Cuddles ([angle, spin x, {id(enemy): time of its last cut}]),
+        # Tripwire Boots' wires ([x0, y0, x1, y1, s left]), Rootbound
+        # Boots (the shield the roots grew), Heartwood Ring (a tree near;
+        # s to the next look), the Inkwell Charm's and the Spore Wind Band's
+        # clocks, the Phylactery (s left as a shade; kills since), Lich's
+        # Gaze (the enemy under the aim; s it's been there).
+        self.dusted = 0.0
+        self.body_r = self.hit_radius
+        self.cleaver: list | None = None
+        self.wires: list = []
+        self.roots = 0.0
+        self.near_tree = False
+        self.tree_t = 0.0
+        self.ink_t = 0.0
+        self.gust_t = 0.0
+        self.shade = 0.0
+        self.shade_kills = 0
+        self.gaze = None
+        self.gaze_t = 0.0
         self.retaliate = False
         self.streak = 0
         self.bloodlust: list[float] = []
@@ -387,6 +442,11 @@ class Character(Actor):
             return 0.0
         if armor:
             amount *= 1 - armor / (abs(armor) + config.ARMOR_K)
+        if st.has("scarab_carapace") and from_angle is not None \
+                and abs(wrap_angle(from_angle + math.pi - self.aim_angle)) > math.pi / 2:
+            amount *= 1 - min(0.9, st.uniques.get("scarab_carapace", 0.5))   # (M28.5b: behind)
+        if st.has("lead_apron") and self.still_t >= config.U_LEAD_APRON:
+            amount *= 1 - min(0.9, st.uniques.get("lead_apron", 0.4))        # (M28.5b: braced)
         if st.has("momentum+L"):                        # (Gallopers (L): Iron hooves)
             from ..systems.combat import momentum
             amount *= 1 - min(config.IRON_HOOVES, momentum(st, self))
@@ -410,6 +470,10 @@ class Character(Actor):
         if source is not None and source is not self \
                 and getattr(source, "faction", None) == "enemy" and source.alive:
             self.struck_by = source                     # (Stormjar +6: Thunderhead)
+        if self.frost and source is not None and source is not self \
+                and getattr(source, "faction", None) == "enemy" and source.alive:
+            from ..systems.relics import frost_bite        # (Hermit's Furs, M28.5b)
+            frost_bite(self, source)
         if st.has("pack_leader+9") and source is not None and source is not self \
                 and getattr(source, "faction", None) == "enemy" and source.alive:
             self.rush = (source, self.time + config.PACK_RUSH)   # (Packmaster +9: The pack)
@@ -446,6 +510,18 @@ class Character(Actor):
         if amount <= 0:
             self.hurt_flash = 0.12
             return 0.0
+        if st.has("blight_thorn_ring") and source is not None and source is not self \
+                and getattr(source, "faction", None) == "enemy" and source.alive:
+            source.blighted = (self.time + config.U_BLIGHT_THORN,     # (M28.5c)
+                               st.uniques.get("blight_thorn_ring", 0.25))
+        if st.has("bubble_belt") and self.bubble <= 0 \
+                and self.time - self.bubble_t >= config.U_BUBBLE:      # (Bubble Belt, M28.5a)
+            self.bubble, self.bubble_t = st.uniques.get("bubble_belt", 1.0), self.time
+        if st.has("leechskin"):                         # (Leechskin: a new hit, new leeches)
+            share = min(0.9, st.uniques.get("leechskin", 0.2))
+            self.leech = [amount * share, amount * share / config.U_LEECHSKIN]
+        if st.has("engorged_mantle"):                   # (Engorged Mantle: bled out)
+            self.engorged = 0.0
         if self.last_stand > 0 or (st.has("berserker+9")
                                    and self.hp - amount < self.max_hp * config.LAST_STAND[0]):
             amount = self._last_stand(amount)               # Wolfpelt +9 (Last stand)
@@ -491,6 +567,9 @@ class Character(Actor):
         if st is not None and st.has("aegis") and amount > room:
             cap = max(self.shield, self.max_hp * config.AEGIS_MAX)
             self.shield = min(cap, self.shield + amount - room)
+        if st is not None and healed > 0 and st.has("engorged_mantle"):   # (M28.5a)
+            cap = st.uniques.get("engorged_mantle", 0.3)
+            self.engorged = min(cap, self.engorged + healed / config.U_ENGORGED * 0.01)
         return healed
 
     # --- Moving -------------------------------------------------------------------------
@@ -521,6 +600,8 @@ class Character(Actor):
                 top *= self.slow_mult
         if self.shrunk > 0:                   # (tiny: quicker on your feet, M25.1)
             top *= config.SHRINK[1]
+        if self.dusted > 0 and self.stats is not None:   # (Shrinking Dust, M28.5c)
+            top *= 1 + self.stats.uniques.get("shrinking_dust", 0.35)
         if n > 0:
             tx, ty = ax / n * top, ay / n * top
             rate = spec.accel * dt * self.traction

@@ -125,6 +125,24 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 rr = z.radius * (0.55 + 0.45 * ((k * 5) % 7) / 6)
                 batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
                             "*" if k % 3 == 0 else ".", palette.FROZEN[k % 2])
+        elif z.kind == "candle":
+            # M28.5c Corpse Candle: a flame on the body, its light round it.
+            flick = (steps // 5 + int(z.x * 7)) % 2
+            batch.put_c(x, y - 4, "i", palette.CANDLE[flick])
+            batch.put_c(x, y - 14, "'", palette.CANDLE[1 - flick])
+            for k in range(10):
+                a = k * math.tau / 10 + steps * 0.01
+                batch.put_c(x + math.cos(a) * z.radius * tw, y + math.sin(a) * z.radius * th,
+                            ".", palette.CANDLE[2])
+        elif z.kind == "black_ice":
+            # M28.5b Crown of Black Ice: a slick patch where a chilled enemy walked.
+            fade = 1.0 - z.age / z.life
+            for k in range(3):
+                a = k * math.tau / 3 + (z.x * 3.1 + z.y * 1.7)
+                rr = z.radius * 0.45
+                batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
+                            "_" if k != 1 else ("-" if fade > 0.4 else "."),
+                            palette.BLACK_ICE[0 if fade > 0.4 else 1])
         elif z.kind == "puddle":
             # M28.2f Downpour: rain rings on the ground under the storm cloud.
             n = max(6, int(z.radius * 4))

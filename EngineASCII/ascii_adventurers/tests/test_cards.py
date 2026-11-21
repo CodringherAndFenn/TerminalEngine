@@ -12,7 +12,7 @@ from ascii_adventurers.players import cards
 from ascii_adventurers.players.stats import HeroStats
 from ascii_adventurers.ui import gear_screen
 
-OPS = ("add", "mul", "flag", "status", "source", "spell")
+OPS = ("add", "mul", "flag", "status", "source", "spell", "power")   # (M28.5: a relic's main number)
 GAP = 3                       # (ui/gear_picker.GAP)
 
 
@@ -60,8 +60,10 @@ class CardDataTest(unittest.TestCase):
         codes = [c.code for c in config.CARDS.values()]
         # + 11 dodge roll cards (M18), + 5 patterns and 4 hero cards (M19)
         # + 6 wizard cards (M20), - Arcane Mastery and Weapons Master (M28.1)
-        self.assertEqual(len(codes), 125)
-        self.assertEqual(len(set(codes)), 125)
+        # + the 38 boss relics (M28.5, "U" codes)
+        self.assertEqual(len(codes), 163)
+        self.assertEqual(len(set(codes)), 163)
+        self.assertEqual(sum(c.startswith("U") for c in codes), 38)
         for prefix, n in (("G", 21), ("T", 12), ("S", 12), ("C", 8), ("X", 6), ("R", 6),
                           ("E", 3), ("K", 6), ("V", 6), ("M", 5)):
             self.assertEqual(sum(c.startswith(prefix) for c in codes), n, prefix)

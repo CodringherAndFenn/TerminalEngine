@@ -28,7 +28,7 @@ class _Chest(_Legend):
 
 class FrameworkTest(unittest.TestCase):
     def test_every_chest_piece_has_its_legendary_trick(self):
-        chests = [k for k, g in config.GEAR.items() if g.slot == "chest"]
+        chests = [k for k, g in config.GEAR.items() if g.slot == "chest" and g.unique is None]
         self.assertEqual(sorted(chests), sorted(CHEST + ALWAYS))
         for key in CHEST + ALWAYS:
             name, text = gear.legendary_trick(key)

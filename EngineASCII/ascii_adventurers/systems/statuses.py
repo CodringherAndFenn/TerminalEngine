@@ -96,6 +96,12 @@ class Statuses:
         # chill a boss has taken since it was last free of it (Deep freeze).
         self.brush_tile: tuple | None = None
         self.deep = 0
+        # M28.5c, relics: s left wandering aimlessly and which way (the Fly
+        # Agaric Cap's trip), and s left bound in place (the Lawyer's Wig's
+        # ink, a boss's tripwire or stumble -- bosses too, unlike `rooted`).
+        self.wander = 0.0
+        self.wander_dir = 0.0
+        self.bound = 0.0
 
     def stacks(self, name: str) -> int:
         s = self.active.get(name)
@@ -108,7 +114,7 @@ class Statuses:
     def empty(self) -> bool:
         return (not self.active and self.frozen <= 0 and self.dazed <= 0 and self.rooted <= 0
                 and self.asleep <= 0 and self.scared <= 0 and not self.cooldowns
-                and not self.shocks)
+                and not self.shocks and self.wander <= 0 and self.bound <= 0)
 
     @property
     def vulnerability(self) -> float:
@@ -170,6 +176,8 @@ class Statuses:
         self.asleep = max(0.0, self.asleep - dt)
         self.rooted = max(0.0, self.rooted - dt)
         self.scared = max(0.0, self.scared - dt)
+        self.wander = max(0.0, self.wander - dt)
+        self.bound = max(0.0, self.bound - dt)
         for k in list(self.cooldowns):
             self.cooldowns[k] -= dt
             if self.cooldowns[k] <= 0:
@@ -371,6 +379,14 @@ def _tricks(victim, st: Statuses, name: str, before: int, source, stats) -> None
 def on_hero_hit(victim, source, stats, crit: bool) -> None:
     """A hero's hit (one that may apply statuses) landed: the head tricks
     that act on hits (M28.2b). Statuses roll after this (roll_on_hit)."""
+    if stats.has("latch_hood") and getattr(victim, "faction", None) == "enemy":
+        # Latch Hood (M28.5a): the U_LATCH[0]-th hit in a row on one enemy
+        # latches it (run_rules.status_tricks bleeds it).
+        if source.latch_last is not victim:
+            source.latch_last, source.latch_n = victim, 0
+        source.latch_n += 1
+        if source.latch_n >= config.U_LATCH[0] and getattr(victim, "latched", None) is not source:
+            victim.latched, victim.latch_owed, victim.latch_t = source, 0.0, config.U_LATCH[2]
     st = victim.status
     if stats.has("kindling+3"):                                          # Kindle
         last, n = getattr(source, "kindle", (None, 0))

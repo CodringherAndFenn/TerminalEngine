@@ -1035,6 +1035,7 @@ class Quests:
             scene.rules.award(p, spec.achievement)
             if p.hero.bestiary is not None:
                 p.hero.bestiary.update(spec.pages)
+            scene._drop_unique(p, s.spec.boss, boss.x, boss.y)      # (M28.5: its relic)
         guild.pages.update(spec.pages)
         if guild.open_difficulty(level):                      # (P5: the next level opens)
             name = config.DIFFICULTIES[guild.difficulty_open].upper()
@@ -1080,6 +1081,7 @@ class Quests:
             scene.rules.award(p, spec.achievement)
             if p.hero.bestiary is not None:
                 p.hero.bestiary.update(spec.pages)
+            scene._drop_unique(p, s.spec.boss, boss.x, boss.y)      # (M28.5: its relic)
         guild.pages.update(spec.pages)
         if guild.open_difficulty(level):
             name = config.DIFFICULTIES[guild.difficulty_open].upper()

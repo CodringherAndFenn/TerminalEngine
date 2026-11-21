@@ -142,6 +142,8 @@ _PIN_COLORS = {"quest": palette.PIN_QUEST, "lair": palette.PIN_LAIR,
                "blood": palette.PIN_BLOOD,                                       # M28.2b
                "giver_done": palette.PIN_DONE}                                # P2
 _PIN_COLORS.update({f"giver_{biome}": c for biome, c in palette.PIN_GIVER.items()})
+_PIN_COLORS.update({f"gear_{r}": c for r, c in palette.PIN_GEAR.items()})        # M28.4a
+_PIN_COLORS.update({"chest": palette.PIN_CHEST, "chest_done": palette.PIN_DONE})  # M28.4b
 
 
 def is_giver(kind: str) -> bool:

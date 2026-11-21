@@ -53,6 +53,7 @@ class Projectile:
         self.size = 0.0
         self.group: dict | None = None
         self.bounces = 0
+        self.free_bounces = 0         # M28.5b: wall bounces past its spec's (Hump Pack)
         self.child = False
         self.summon = False
         self.inflicts: tuple[str, int] | None = None

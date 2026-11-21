@@ -67,6 +67,9 @@ def draw_plains_tells(text, camera, e) -> None:
             a = k * math.tau / 28
             px, py = camera.world_to_px(e.x + math.cos(a) * r, e.y + math.sin(a) * r)
             batch.put_c(px, py, "." if k % 2 else "'", color)
+    if getattr(e, "kind_key", "") == "mimic":                 # (M28.4c)
+        from .chests import draw_mimic_tells
+        draw_mimic_tells(batch, camera, e)
     if e.espec.elite:
         batch.put_c(x, top - 12, "*", palette.ELITE_STAR)
     if getattr(e, "open", 0.0) > 0:                       # the shieldbearer, unguarded

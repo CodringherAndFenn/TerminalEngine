@@ -101,6 +101,8 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
     crit is left in source.last_crit."""
     if getattr(source, "shrunk", 0) > 0:              # tiny (Nettle's dust, M25.1)
         mult *= config.SHRINK[2]
+    if getattr(source, "shade", 0) > 0:               # (the Phylactery's shade, M28.5c)
+        mult *= config.U_PHYLACTERY[2]
     if victim.status is not None and victim.status.asleep > 0 \
             and not getattr(source, "lulling", False):
         victim.status.asleep = 0.0                    # (Cradlesong +3: a hit wakes it)
@@ -129,6 +131,14 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
         m *= config.SHATTER[0]
     elif st is not None and stats.has("shatter+3") and st.has("chill"):
         m *= config.BRITTLE                         # Glassfrost Helm +3 (Brittle)
+    if getattr(victim, "fissioned", -1e9) > source.time:
+        m *= 1 + config.U_FISSION[3]                # (Rod of Fission, M28.5b: irradiated)
+    blight = getattr(victim, "blighted", None)
+    if blight is not None and blight[0] > source.time:
+        m *= 1 + blight[1]                          # (Blight Thorn Ring, M28.5c)
+    if not pet and "lich_marks" in victim.__dict__:
+        from .relics import gaze_mult               # (Lich's Gaze, M28.5c)
+        m *= gaze_mult(victim, source)
     if stats.has("glass_cannon+9") and getattr(source, "since_hit", 0.0) >= config.DIAMOND[0]:
         m *= config.DIAMOND[1]                      # Shattercoat +9 (Diamond)
     chance = crit_chance(stats, source)
@@ -175,6 +185,7 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
             roll_on_hit(victim, source, stats)
     if dealt > 0:
         _feet_on_hit(victim, source, stats, crit)
+        _relic_on_hit(victim, source, stats, pet)       # (M28.5: the swamp's relics)
         if not pet and victim.alive and stats.has("daggers+L") \
                 and not getattr(source, "orbiting", False):
             source.satellite = (victim, source.time)    # (Bladewheel Charm (L): Satellite)
@@ -208,6 +219,25 @@ def _feet_on_hit(victim, source, stats, crit: bool) -> None:
     if crit and stats.has("fleet_strike+3"):                        # Quickstep
         _, seconds, most = config.QUICKSTEP
         source.quick = (source.quick + [seconds])[-most:]
+
+
+def _relic_on_hit(victim, source, stats, pet: bool) -> None:
+    """The boss uniques a hero's hit sets off (M28.5a). Proboscis Ring: a
+    hit on a bleeding enemy heals the power (once per enemy every
+    U_PROBOSCIS s). Bloated Charm: the leechling moves to the enemy hit
+    last (not by a summon)."""
+    if getattr(victim, "faction", None) != "enemy" or not victim.alive:
+        return
+    if stats.has("proboscis_ring") and victim.status is not None and victim.status.has("bleed"):
+        sipped = victim.__dict__.setdefault("sipped", {})
+        if source.time - sipped.get(id(source), -1e9) >= config.U_PROBOSCIS:
+            sipped[id(source)] = source.time
+            source.heal(stats.uniques.get("proboscis_ring", 1.0))
+    if not pet and stats.has("bloated_charm"):
+        source.leech_target = victim
+    if not pet and (stats.has("fly_agaric_cap") or stats.has("lawyers_wig")):
+        from .relics import on_hit                 # (M28.5c: the trip, the scrawls)
+        on_hit(victim, source, stats)
 
 
 def _ring_on_hit(victim, source, stats, dealt: float, on_hit: bool) -> None:
@@ -299,6 +329,7 @@ def situational_bonus(stats, source: Actor, victim: Actor) -> float:
     """Bucket A from the cards that depend on the moment (catalog 6.5,
     Point Blank, Wildfire, Golden Hoard, Juggernaut, the bestiary)."""
     a = 0.0
+    a += getattr(source, "engorged", 0.0)            # (Engorged Mantle, M28.5a)
     if stats.point_blank:
         a += _point_blank(stats, source, victim)
     hp = source.hp / source.max_hp if source.max_hp else 0.0
@@ -1392,7 +1423,7 @@ def update_projectiles(
                 world, tile_hit, outgoing(p.owner, p.damage, p.tags) * p.mult,
                 p.spec.damages_terrain, p.angle, effects
             ))
-            if p.bounces < p.spec.bounces:    # (P9: glass shards glance off walls)
+            if p.bounces < p.spec.bounces + p.free_bounces:   # (P9: glass shards; Hump Pack)
                 p.travelled += step * tile_hit.t
                 p.x = tile_hit.x - p.dir_x * 0.05
                 p.y = tile_hit.y - p.dir_y * 0.05
@@ -2148,6 +2179,26 @@ def _hit_actor(p: Projectile, victim: Actor, hx: float, hy: float, world,
             mult *= 1 + config.BUCKSHOT
         p.family[id(victim)] = p.family.get(id(victim), 0) + 1
     vst = getattr(victim, "stats", None)
+    if vst is not None and getattr(victim, "bubble", 0.0) > 0 \
+            and getattr(owner, "faction", None) != "player" and not p.spec.lob:
+        # Bubble Belt (M28.5a): the shot bounces off, the hero's now.
+        p.owner = victim
+        p.dir_x, p.dir_y = -p.dir_x, -p.dir_y
+        p.angle = math.atan2(p.dir_y, p.dir_x)
+        p.hit = set()
+        p.travelled = 0.0
+        effects.append(Effect("impact", hx, hy, p.angle))
+        return []
+    if vst is not None and vst.has("parasol") and getattr(victim, "trigger", False) \
+            and getattr(owner, "faction", None) != "player" and not p.spec.lob \
+            and abs(wrap_angle(p.angle + math.pi - victim.aim_angle)) \
+            <= math.radians(min(90.0, vst.uniques.get("parasol", 55.0))):
+        # Lace Parasol (M28.5b): held up while attacking, it stops shots
+        # from in front.
+        p.alive = False
+        victim.blocked += 1
+        effects.append(Effect("impact", hx, hy, p.angle))
+        return []
     if vst is not None and vst.has("juggernaut+3") and getattr(owner, "faction", None) != "player":
         armor = max(0.0, vst.armor + bonus_armor(victim))          # Mountainhide +3 (Glance)
         if victim.rng.random() < min(config.GLANCE[1], config.GLANCE[0] * armor):

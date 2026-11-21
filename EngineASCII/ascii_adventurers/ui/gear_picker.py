@@ -59,6 +59,10 @@ class GearPicker:
         self.button = 0                   # highlighted button (row 1)
         self.sub: GearScreen | None = None
         self.progress = progress
+        # (M28.4a: the pickup panel, ui/drop_panel.py, swaps these for its own.)
+        self.buttons = BUTTONS
+        self.hotkeys = _HOTKEYS
+        self.title = " LEVEL UP!  choose a piece of gear{more} "
         self.refresh(progress)
 
     def refresh(self, progress) -> None:
@@ -204,7 +208,7 @@ class GearPicker:
 
     def _swap_into(self, i: int, slot: str) -> None:
         self.sub = None
-        if len(self.eq.bag) >= config.GEAR_BAG:
+        if len(self.eq.bag) >= self.eq.bag_size:
             self.sub = GearScreen(self.manager, self.progress, "drop",
                                   outgoing=self.eq.worn.get(slot),
                                   done=lambda d: self._send(i, slot, d), cancel=self._back,
@@ -246,8 +250,8 @@ class GearPicker:
             self.sub.handle_event(event)
             return
         if event.type == pygame.KEYDOWN:
-            if event.key in _HOTKEYS:
-                self._act(_HOTKEYS[event.key])
+            if event.key in self.hotkeys:
+                self._act(self.hotkeys[event.key])
             elif event.key in _DOWN:
                 self.row = 1
             elif event.key in _UP:
@@ -257,12 +261,12 @@ class GearPicker:
                 if self.row == 0:
                     self.index = (self.index + step) % len(self.offer)
                 else:
-                    self.button = (self.button + step) % len(BUTTONS)
+                    self.button = (self.button + step) % len(self.buttons)
             elif event.key in _TAKE:
                 if self.row == 0:
                     self.take(self.index)
                 else:
-                    self._act(BUTTONS[self.button])
+                    self._act(self.buttons[self.button])
             return
         if event.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN):
             cell = self.manager.display.window_to_cell(*event.pos)
@@ -279,7 +283,7 @@ class GearPicker:
             if b is not None:
                 self.button, self.row = b, 1
                 if click:
-                    self._act(BUTTONS[b])
+                    self._act(self.buttons[b])
 
     # --- Drawing ----------------------------------------------------------------------
 
@@ -292,7 +296,7 @@ class GearPicker:
         left, top, w = self._layout()
         total = len(self.offer) * w + (len(self.offer) - 1) * GAP
         more = f"   (+{self.waiting} more)" if self.waiting > 0 else ""
-        center(text, top - 2, f" LEVEL UP!  choose a piece of gear{more} ", palette.CARD_TITLE,
+        center(text, top - 2, self.title.format(more=more), palette.CARD_TITLE,
                left, total, palette.HUD_PANEL)
         for i in range(len(self.offer)):
             col = left + i * (w + GAP)
@@ -301,7 +305,7 @@ class GearPicker:
         for i, (col, row, label) in enumerate(self._buttons()):
             on = self.row == 1 and i == self.button
             fg = (palette.CARD_SELECTED if on else palette.CARD_TEXT) \
-                if self.enabled(BUTTONS[i]) else palette.CARD_TAG
+                if self.enabled(self.buttons[i]) else palette.CARD_TAG
             text.put(col, row, label, fg, palette.CARD_BG_SELECTED if on else palette.HUD_PANEL)
         hint = " LEFT / RIGHT choose   ENTER or click take   DOWN for the buttons "
         if len(hint) > total:

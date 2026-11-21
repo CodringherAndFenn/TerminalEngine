@@ -30,6 +30,7 @@ from .. import config, palette
 from ..engine_ext.camera import Camera
 from ..entities.effects import Effect
 from ..entities.projectile import Projectile
+from .gear_looks import axe_head_color
 from ..systems.collision import screen_angle
 from ..systems.combat import chain_links
 from ..systems.raycast import first_hit
@@ -80,6 +81,7 @@ SHOT_LOOKS = {
     "orb": ("o", (".", "."), palette.SHOT_ORB),
     "boulder": ("O", (".", ","), palette.SHOT_BOULDER),
     "spark": ("*", ("+", "."), palette.SHOT_SPARK),
+    "coin": ("$", (".", "."), palette.SHOT_COIN),          # M28.4c: the mimic's coins
     "longarrow": (None, (None, None), palette.SHOT_LONGARROW),
     "prism": ("o", (".", "."), None),        # colors: palette.RAINBOW_SHOTS by pellet
     "wisp": ("*", (".", "."), palette.SHOT_WISP),
@@ -231,6 +233,8 @@ def draw_projectiles(text: TextRenderer, camera: Camera, projectiles: list[Proje
         x, y = camera.world_to_px(p.x, p.y)
         if p.spec.look in ("axe", "ghost_axe"):
             head = AXE_SPIN[int((p.travelled + p.spin) / AXE_SPIN_TILES) % len(AXE_SPIN)]
+            if p.spec.look == "axe":                 # (M28.6: the main hand's axe head)
+                head_col = axe_head_color(p.owner, head_col)
             stats = getattr(p.owner, "stats", None)
             if stats is not None and stats.has("tether"):
                 _chain(batch, camera, p, trail_cols[1])

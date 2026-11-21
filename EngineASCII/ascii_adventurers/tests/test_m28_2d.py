@@ -38,7 +38,7 @@ class _Chest(_Case):
 
 class FrameworkTest(unittest.TestCase):
     def test_every_chest_piece_has_three_tricks(self):
-        chest = [k for k, g in config.GEAR.items() if g.slot == "chest"]
+        chest = [k for k, g in config.GEAR.items() if g.slot == "chest" and g.unique is None]
         self.assertEqual(len(chest), 11)
         for key in chest:
             self.assertEqual([t for t, _, _ in gear.tricks(key)], [3, 6, 9], key)

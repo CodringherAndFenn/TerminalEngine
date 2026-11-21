@@ -41,13 +41,14 @@ BLURBS = {"guild": "Upgrades for every adventurer of the guild.",
           "hero": "Training for one hero.",
           "archive": "Knowledge, bought with loot.",
           "gate": "Pacts make the dungeon far deadlier, for a little more loot."}
-SHELVES = ("cards", "spells", "pacts", "bestiary", "journal")
+SHELVES = ("cards", "spells", "pacts", "bestiary", "journal", "relics")
 SHELF_BLURBS = {"cards": "Gear bought here can be offered on level-ups.",
                 "spells": "Spell trinkets bought here can be offered on level-ups.",
                 "pacts": "Buy a pact here; switch it on at the dungeon gate.",
                 "bestiary": f"A page is yours after {config.BESTIARY_KILLS} kills, or bought: "
                             f"+{round(config.BESTIARY_BONUS * 100)}% damage to that enemy.",
-                "journal": "Every quest whose guardian you have beaten."}
+                "journal": "Every quest whose guardian you have beaten.",
+                "relics": "Each boss drops one of its relics when it falls. Found ones are listed."}
 _UP = (pygame.K_UP, pygame.K_w)
 _DOWN = (pygame.K_DOWN, pygame.K_s)
 _LEFT = (pygame.K_LEFT, pygame.K_a)
@@ -157,6 +158,27 @@ class GuildPanel:
                            "KNOWN", describe))
         return out
 
+    def _relics_rows(self) -> list[Row]:
+        """M28.5: the boss uniques, FOUND or ???, by boss."""
+        from ..players.gear import affix_text, boss_of, power_text
+        out = []
+        for key, g in config.GEAR.items():
+            if g.unique is None:
+                continue
+            found = key in self.guild.uniques
+            boss = boss_of(key)
+            slot = config.GEAR_SLOT_NAMES[g.slot].lower()
+            if found:
+                lines = "; ".join(affix_text(a, "legendary") for a in g.affixes)
+                out.append(Row(key, g.name, boss.upper()[:NAME_W], f"{slot}: {power_text(key)}",
+                               None, "FOUND", f"{g.name} ({slot}, from {boss}): "
+                               f"{power_text(key)}. {lines}.",
+                               column_color=palette.CARD_RARITY["legendary"]))
+            else:
+                out.append(Row(key, "???", boss.upper()[:NAME_W], f"{slot}: ???", None, "",
+                               f"A relic {boss} drops. Beat them to find it."))
+        return out
+
     def _journal_rows(self) -> list[Row]:
         out = []
         for key, q in config.QUESTS.items():
@@ -212,7 +234,7 @@ class GuildPanel:
             ok = g.buy_upgrade(key, self._hero_arg())
         else:
             shelf = SHELVES[self.shelf]
-            if shelf == "journal":
+            if shelf in ("journal", "relics"):
                 return False                   # (only to read)
             ok = (g.buy_pact(key) if shelf == "pacts" else g.buy_page(key) if shelf == "bestiary"
                   else g.buy_card(key))

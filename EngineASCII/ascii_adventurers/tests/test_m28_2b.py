@@ -67,7 +67,7 @@ class _Case(unittest.TestCase):
 
 class FrameworkTest(unittest.TestCase):
     def test_every_head_piece_has_three_tricks(self):
-        head = [k for k, g in config.GEAR.items() if g.slot == "head"]
+        head = [k for k, g in config.GEAR.items() if g.slot == "head" and g.unique is None]
         self.assertEqual(len(head), 11)
         for key in head:
             self.assertEqual([t for t, _, _ in gear.tricks(key)], [3, 6, 9], key)

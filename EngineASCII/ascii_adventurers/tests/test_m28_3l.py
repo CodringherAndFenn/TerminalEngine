@@ -49,8 +49,11 @@ class FrameworkTest(unittest.TestCase):
             self.assertTrue(name and text and text.isascii(), key)
 
     def test_all_100_pieces_have_their_legendary_trick(self):
-        self.assertEqual(set(config.GEAR_LEGENDARY), set(config.GEAR))
+        self.assertEqual(set(config.GEAR_LEGENDARY),
+                         {k for k, g in config.GEAR.items() if g.unique is None})   # (M28.5)
         for key in config.GEAR:
+            if config.GEAR[key].unique is not None:        # (M28.5: a relic's power is its trick)
+                continue
             flags = [f for f, _, _ in gear.trick_flags(key, 0, "legendary")]
             self.assertIn(f"{key}+L", flags, key)
 

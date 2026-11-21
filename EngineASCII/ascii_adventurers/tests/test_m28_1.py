@@ -34,14 +34,15 @@ def wearing(*pieces, trinkets=3):
 
 class DataTest(unittest.TestCase):
     def test_every_card_has_one_home(self):
-        bases, affixes = set(config.GEAR), set(config.AFFIXES)
+        uniques = {k for k, g in config.GEAR.items() if g.unique is not None}   # (M28.5)
+        bases, affixes = set(config.GEAR) - uniques, set(config.AFFIXES)
         self.assertEqual(len(bases), 100)
         self.assertEqual(len(affixes), 25)
         self.assertFalse(bases & affixes)
-        self.assertEqual(bases | affixes, set(config.CARDS))
+        self.assertEqual(bases | affixes | uniques, set(config.CARDS))
         self.assertNotIn("arcane_mastery", config.CARDS)          # cut (GEAR.md 8)
         self.assertNotIn("weapons_master", config.CARDS)
-        homes = Counter(g.slot for g in config.GEAR.values())
+        homes = Counter(g.slot for k, g in config.GEAR.items() if k in bases)
         self.assertEqual(homes, {"main": 34, "off": 8, "head": 11, "chest": 11, "feet": 11,
                                  "ring": 14, "trinket": 11})
         for key, g in config.GEAR.items():

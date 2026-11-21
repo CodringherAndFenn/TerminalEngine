@@ -40,7 +40,7 @@ class _Off(_Legend):
 
 class FrameworkTest(unittest.TestCase):
     def test_every_offhand_piece_has_its_legendary_trick(self):
-        offs = [k for k, g in config.GEAR.items() if g.slot == "off"]
+        offs = [k for k, g in config.GEAR.items() if g.slot == "off" and g.unique is None]
         self.assertEqual(sorted(offs), sorted(OFF))
         for key in OFF:
             name, text = gear.legendary_trick(key)

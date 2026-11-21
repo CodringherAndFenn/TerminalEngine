@@ -41,7 +41,7 @@ class _Feet(_Legend):
 
 class FrameworkTest(unittest.TestCase):
     def test_every_feet_piece_has_its_legendary_trick(self):
-        feet = [k for k, g in config.GEAR.items() if g.slot == "feet"]
+        feet = [k for k, g in config.GEAR.items() if g.slot == "feet" and g.unique is None]
         self.assertEqual(sorted(feet), sorted(FEET))
         for key in FEET:
             name, text = gear.legendary_trick(key)

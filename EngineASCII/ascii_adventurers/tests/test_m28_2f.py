@@ -55,7 +55,7 @@ def victims(hit):
 
 class FrameworkTest(unittest.TestCase):
     def test_every_trinket_has_three_tricks(self):
-        trinkets = [k for k, g in config.GEAR.items() if g.slot == "trinket"]
+        trinkets = [k for k, g in config.GEAR.items() if g.slot == "trinket" and g.unique is None]
         self.assertEqual(len(trinkets), 11)
         for key in trinkets:
             self.assertEqual([t for t, _, _ in gear.tricks(key)], [3, 6, 9], key)

@@ -191,6 +191,11 @@ SAND = TileType(
 DUNE = TileType(
     "dunes", ("--", "-.", ".-", "_-"), palette.DUNE_FG, palette.SAND_BG,
 )
+# M28.5b: Sand Slippers' dune: walked over, but shots stop at it.
+SAND_HEAP = TileType(
+    "sand heap", ("/\\", "^^"), palette.SAND_HEAP_FG, palette.SAND_BG,
+    blocks_shots=True,
+)
 CACTUS_DEBRIS = TileType(
     "cactus pulp", ("_.", "._", ",."), palette.CACTUS_FG, palette.SAND_BG,
 )
@@ -389,6 +394,16 @@ HAY = TileType(
 )
 CARGO = TileType(
     "cargo bundle", ("[#",), palette.CARGO_FG, palette.CARGO_BG,
+    solid=True,
+)
+# M28.4b: a chest of gear (systems/chests.py), shut and opened. A mimic
+# looks exactly like a shut one until it's touched.
+CHEST = TileType(
+    "chest", ("[$",), palette.CHEST_FG, palette.CHEST_BG,
+    solid=True,
+)
+CHEST_OPEN = TileType(
+    "open chest", ("[_",), palette.CHEST_OPEN_FG, palette.CHEST_OPEN_BG,
     solid=True,
 )
 CRATES = TileType(

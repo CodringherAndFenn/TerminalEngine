@@ -65,7 +65,7 @@ class _Ring(_Case):
 
 class FrameworkTest(unittest.TestCase):
     def test_every_ring_has_three_tricks(self):
-        rings = [k for k, g in config.GEAR.items() if g.slot == "ring"]
+        rings = [k for k, g in config.GEAR.items() if g.slot == "ring" and g.unique is None]
         self.assertEqual(len(rings), 14)
         for key in rings:
             self.assertEqual([t for t, _, _ in gear.tricks(key)], [3, 6, 9], key)

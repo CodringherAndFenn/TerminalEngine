@@ -37,7 +37,7 @@ class _Head(_Legend):
 
 class FrameworkTest(unittest.TestCase):
     def test_every_head_piece_has_its_legendary_trick(self):
-        heads = [k for k, g in config.GEAR.items() if g.slot == "head"]
+        heads = [k for k, g in config.GEAR.items() if g.slot == "head" and g.unique is None]
         self.assertEqual(sorted(heads), sorted(HEAD))
         for key in HEAD:
             name, text = gear.legendary_trick(key)

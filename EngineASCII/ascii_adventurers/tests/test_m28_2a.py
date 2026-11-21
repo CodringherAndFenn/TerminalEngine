@@ -73,7 +73,7 @@ class FrameworkTest(unittest.TestCase):
 
     def test_every_offhand_piece_has_three_tricks(self):
         # (M28.2b added the head: tests/test_m28_2b.py checks the slots built so far.)
-        offhand = [k for k, g in config.GEAR.items() if g.slot == "off"]
+        offhand = [k for k, g in config.GEAR.items() if g.slot == "off" and g.unique is None]
         self.assertTrue(set(offhand) <= set(config.GEAR_TRICKS))
         for key in offhand:
             self.assertEqual([t for t, _, _ in gear.tricks(key)], [3, 6, 9])

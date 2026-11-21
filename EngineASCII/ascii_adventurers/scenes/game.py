@@ -73,20 +73,26 @@ from ..engine_ext.gamepads import (BUTTON_A, BUTTON_B, BUTTON_LB, BUTTON_RB, BUT
 from ..engine_ext.input import Mouse, move_axes
 from ..entities.character import Character
 from ..entities.effects import Effect, update_effects
+from ..entities.drops import GearDrop, update_drops
 from ..entities.gems import Gem, drop, update_gems
 from ..entities.projectile import Projectile
 from ..meta.run_stats import RunStats
 from ..players.cards import loadout_from_steps
-from ..players.gear import draw_offer, eligible, foresee, keep_in, salvage_value
+from ..players.gear import (draw_drop, draw_offer, eligible, foresee, is_unique, keep_in, offer_for,
+                            salvage_value, unique_piece)
 from ..players.controls import AutoControls, GhostControls, PlayerInput
 from ..players.player import Player, player_color
 from ..render.ascii_fx import draw_effects, draw_projectiles
+from ..render.chests import draw_chests
+from ..render.drops import draw_drops
 from ..render.bosses import draw_banner, draw_froggy, draw_npc, draw_pointer
 from ..render.fragile import draw_bear_riders, draw_carried
 from ..render.snowking import draw_captives, draw_fight_marks
 from ..render.magus import draw_seals
 from ..render.mosquito import draw_braziers
 from ..render.characters import draw_body, draw_chest_marks, draw_feet_marks
+from ..render.gear_looks import look_of
+from ..render.relics import draw_relics
 from ..render.enemies_sprite import draw_enemy
 from ..render.fallen import draw_groves
 from ..render.haunt import draw_wisps
@@ -96,7 +102,8 @@ from ..render.spell_fx import (draw_gems, draw_ghost_sight, draw_overcast, draw_
 from ..render.sprites import SpriteBank
 from ..render.terrain import TerrainRenderer
 from ..ai.plains import drum_haste, tick_drum
-from ..systems import combat, mount, roll
+from ..systems import combat, mount, relics, roll
+from ..systems.chests import Chests
 from ..systems.quests import Quests, free_spot
 from ..systems.spawner import Spawner
 from ..systems.run_rules import RunRules, difficulty_totals, pact_totals
@@ -104,6 +111,7 @@ from ..systems.spells import sync_spells, update_spells
 from ..systems.statuses import has as has_flag, update_statuses
 from ..systems.zones import update_zones
 from ..ui.crosshair import draw_crosshair
+from ..ui.drop_panel import DropPanel
 from ..ui.frame import center, dim_canvas
 from ..ui.gear_picker import GearPicker
 from ..ui.gear_screen import GearScreen
@@ -166,9 +174,12 @@ class GameScene(Scene):
         self.effects: list[Effect] = []
         self.enemies: list = []
         self.gems: list[Gem] = []
+        self.drops: list[GearDrop] = []   # pieces of gear on the ground (M28.4a)
+        self._drop_ids = 0                # drops made so far (ids, and the roll's draw number)
         self.spawner = Spawner(self.world, seed) if seed is not None else None
         self._update_spawner()
         self.quests = Quests(self)
+        self.chests = Chests(self)        # (M28.4b)
         # Maps exist only on the island (the test map has no layout).
         self.big_map = BigMap(self.world) if self.players[0].minimap is not None else None
         self.dev_targets = False        # dev mode, F4: the big map shows every quest's targets
@@ -461,6 +472,7 @@ class GameScene(Scene):
                     and event.key == pygame.K_r:
                 self._restart()
             elif isinstance(self.overlay, GearPicker) and self.overlay.sub is None \
+                    and not isinstance(self.overlay, DropPanel) \
                     and event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self._pause()      # the cards come back when the game resumes
             else:
@@ -582,6 +594,9 @@ class GameScene(Scene):
         living = [p for p in self.players if p.alive]
 
         inputs: dict[int, PlayerInput] = {}
+        for p in self.players:
+            if p.hero.dunes and not p.alive:
+                relics.flatten_dunes(self, p.hero)    # (M28.5b: a fallen hero's dunes sink)
         for p in living:
             inp = p.controls.read(p.hero, p.camera, self.world, self.enemies)
             if inp.pick is None:
@@ -643,6 +658,9 @@ class GameScene(Scene):
                 x, y = e.x, e.y
                 if self.rules.flee(e, dt):               # (Bloodtrail Cowl +3: Panic)
                     continue
+                if relics.wander(self, e, dt):           # (M28.5c: the Fly Agaric Cap's trip)
+                    continue
+                bound = e.status is not None and e.status.bound > 0   # (M28.5c: held in place)
                 # Chill slows the enemy's whole clock; frozen, it doesn't act.
                 # Pacts and Bounty speed it up.
                 tick_drum(e, dt)                          # (P7: the war drummer's ring)
@@ -657,6 +675,8 @@ class GameScene(Scene):
                             and has_flag(e.status.frozen_by, "frostbite+L"):
                         continue
                     e.think(ctx, dt * max(scale, config.BOSS_MIN_TIME_SCALE))
+                    if bound:
+                        e.x, e.y = x, y
                     continue
                 if scale <= 0:
                     continue
@@ -668,7 +688,7 @@ class GameScene(Scene):
                                 e.think(g, dt * scale)
                         else:
                             e.think(ctx, dt * scale)
-                        if e.status is not None and e.status.rooted > 0:
+                        if e.status is not None and e.status.rooted > 0 or bound:
                             e.x, e.y = x, y              # (Viper Mask +9: rooted)
                         break
         self.rules.enemy_shots(self.projectiles[shots_before:])   # (Blazecrown +6)
@@ -687,8 +707,13 @@ class GameScene(Scene):
         self.rules.resolve_combos()
         sounds += self._handle_deaths(ctx)
         self.quests.step(dt, self.players, inputs)
+        self.chests.step(dt, self.players)                         # (M28.4b)
         for p, xp in update_gems(self.gems, self.players, dt):
             self._gain_xp(p, xp)
+        for p, found in update_drops(self.drops, self.players, dt):   # (M28.4a)
+            if p.local and self.overlay is None and not self.map_open:
+                self._set_overlay(DropPanel(self.manager, p.progress, found, self._choose_card,
+                                            pauses=self._solo))
         for p in self.players:
             if p.hero.evaded:
                 self.effects.append(Effect("evade", p.hero.x, p.hero.y - p.hero.hit_radius))
@@ -814,6 +839,13 @@ class GameScene(Scene):
             ov.locked = mount.in_arena(self, self.me.hero)
             ov.refresh(self.me.progress)
             return
+        if isinstance(ov, DropPanel):                      # (M28.4a: a found piece)
+            d = ov.drop
+            if d.taken or d not in self.drops or self.me.index in d.cooled or not self.me.alive:
+                self._set_overlay(None)
+            else:
+                ov.refresh(self.me.progress)
+            return
         if not isinstance(ov, GearPicker):
             return
         if self.me.progress.offer:
@@ -865,6 +897,9 @@ class GameScene(Scene):
             self._apply_loadout(p)
         if isinstance(pick, tuple) and pick and pick[0] in ("wear", "salvage"):
             self._gear_action(p, pick)
+            pick = None
+        if isinstance(pick, tuple) and pick and pick[0] == "found":     # (M28.4a)
+            self._found_action(p, pick)
             pick = None
         if isinstance(pick, tuple) and pick and pick[0] == "keep":   # (M28.3h: Foresight)
             if len(pick) == 2 and isinstance(pick[1], int) and 0 <= pick[1] < len(prog.next_offer):
@@ -971,7 +1006,9 @@ class GameScene(Scene):
         meta = list(p.meta) + ([("max_hp", "add", p.harvest)] if p.harvest else [])   # (Harvest)
         lo = loadout_from_steps(p.stats.hero, p.progress.gear.steps(), meta, p.progress.level)
         p.progress.gear.trinkets = max(1, round(lo.stats.spell_slots))
+        p.progress.gear.bag_size = config.GEAR_BAG + max(0, round(lo.stats.bag))   # (Saddlebags)
         cls._use_loadout(p, lo)
+        p.hero.look = look_of(p.progress.gear)                  # (M28.6: gear on the sprite)
 
     @staticmethod
     def _use_loadout(p: Player, lo) -> None:
@@ -1050,8 +1087,12 @@ class GameScene(Scene):
             + [e for e in self.enemies if e.alive]
 
     def _images(self) -> list:
-        """Windrunners +6 (Afterimage): the images heroes left behind."""
-        return [im for p in self.players if p.hero.alive for im in p.hero.images if im.alive]
+        """Windrunners +6 (Afterimage): the images heroes left behind; and
+        Mr. Buttons (M28.5b), the bear at his hero's heels. Enemies go for
+        these first (ai/brain.Brain._pick_player) and their shots hit them."""
+        return [im for p in self.players if p.hero.alive for im in p.hero.images if im.alive] \
+            + [p.hero.bear for p in self.players
+               if p.hero.alive and p.hero.bear is not None and p.hero.bear.alive]
 
     def _player_of(self, actor) -> Player | None:
         return next((p for p in self.players if p.hero is actor), None)
@@ -1091,6 +1132,7 @@ class GameScene(Scene):
                 ghost = getattr(by, "possessed", None)
                 killer = self._player_of(ghost[0] if ghost is not None else by)
                 self.quests.on_death(e, killer)
+                self.chests.on_death(e, killer)            # (M28.4c: a mimic's drop)
                 if killer is not None:
                     killer.stats.killed(e.espec.name)
                     xp = e.espec.xp
@@ -1099,6 +1141,7 @@ class GameScene(Scene):
                     drop(self.gems, e.x, e.y, xp)
                     self._loot(killer, e)
                     self.rules.on_kill(killer, e)
+                    self._elite_drop(killer, e)            # (M28.4a)
                 self.rules.possess(e)                      # (M28.3j: Ghostwood Staff (L))
             self._wake_spawned(ctx)
             ctx.actors = self._actors()
@@ -1158,6 +1201,101 @@ class GameScene(Scene):
         self.effects.append(Effect("toast", p.hero.x, p.hero.y,
                                    label=f"HUNTER'S PAY: {piece.name}"))
         self._salvaged(p, prog.gear.stash(piece))
+
+    # --- Dropped gear (M28.4a; GEAR.md 4.2) -------------------------------------------
+
+    def _elite_drop(self, p: Player, e) -> None:
+        """An elite's kill drops a piece ELITE_DROP of the time, decided by
+        the kill's spawn id (or where and when it fell), so a run replays."""
+        if not e.espec.elite or getattr(e, "boss", False) or getattr(e, "kind_key", "") == "mimic":
+            return                                   # (a mimic's drop is the chest's: systems/chests.py)
+        seed = getattr(self.world, "seed", 0) or 0
+        sid = e.spawn_id if isinstance(e.spawn_id, tuple) else \
+            (self.steps, round(e.x * 4), round(e.y * 4))
+        if random.Random(hash_coords(seed, 0xD40B, *sid)).random() < config.ELITE_DROP:
+            self._drop_piece(p, e.x, e.y)
+
+    def _drop_piece(self, p: Player, x: float, y: float, luck: float = 0.0,
+                    min_rarity_: str | None = None) -> GearDrop | None:
+        """A piece rolled for `p` (never a base they wear) lies at the
+        nearest open ground to (x, y). None if nothing's left to roll."""
+        prog, st = p.progress, p.hero.stats
+        hero_key = p.stats.hero
+        self._drop_ids += 1
+        piece = draw_drop(hero_key, config.WEAPONS[config.HEROES[hero_key].weapon], prog.gear,
+                          getattr(self.world, "seed", 0) or 0, p.index, 0xD000 + self._drop_ids,
+                          st, prog.banished, p.unlocked, level=prog.level, luck=luck,
+                          min_rarity_=min_rarity_)
+        if piece is None:
+            return None
+        return self._lay_piece(p, x, y, piece)
+
+    def _lay_piece(self, p: Player, x: float, y: float, piece) -> GearDrop:
+        x, y = free_spot(self.world, x, y, config.TILE_PX_W * 0.4)
+        d = GearDrop(x, y, piece, self._drop_ids)
+        self.drops.append(d)
+        self.effects.append(Effect("nova", x, y, size=1.2))
+        if p.local:
+            self._sounds.append("chime")
+        return d
+
+    def _drop_unique(self, p: Player, boss_key: str, x: float, y: float) -> GearDrop | None:
+        """A beaten boss's relic (M28.5, GEAR.md 21): one of its uniques,
+        picked by the seed, the boss and the player, once a run per player,
+        laid by the body."""
+        keys = config.BOSS_UNIQUES.get(boss_key, ())
+        if not keys or boss_key in p.uniques_dropped or p.ghost:
+            return None
+        p.uniques_dropped.add(boss_key)
+        seed = getattr(self.world, "seed", 0) or 0
+        pick = keys[hash_coords(seed, 0xB055, config.BOSS_KEYS.index(boss_key), p.index) % len(keys)]
+        self._drop_ids += 1
+        d = self._lay_piece(p, x, y, unique_piece(pick))
+        self.effects.append(Effect("toast", x, y - 2, label=f"RELIC: {d.name.upper()}"))
+        return d
+
+    def _found_action(self, p: Player, pick) -> None:
+        """The pickup panel's choice on a lying piece: ("found", id, "take",
+        slot, drop index) wears it (a new piece, a swap, or +1 to the worn
+        piece of its base), ("found", id, "bag", drop index) bags it,
+        ("found", id, "salvage") turns it to loot, ("found", id, "leave")
+        leaves it lying (it opens again once they've walked away and back)."""
+        d = next((x for x in self.drops if x.id == pick[1]), None)
+        if d is None or d.taken or len(pick) < 3:
+            return
+        gear, what = p.progress.gear, pick[2]
+        if what == "take":
+            offer = offer_for(d.piece, gear)
+            if offer.kind == "plus" and gear.worn[gear.wearing(offer.key)].level \
+                    >= config.GEAR_MAX_LEVEL:
+                return
+            slot, drop_i = (pick[3:] + (None, None))[:2]
+            self._salvaged(p, gear.take(offer, slot, drop_i))
+            if offer.kind != "plus":
+                p.stats.cards.append(offer.key)
+            self._apply_loadout(p)
+            self.rules.check_build(p)
+        elif what == "bag":
+            self._salvaged(p, gear.stash(d.piece, (pick[3:] + (None,))[0]))
+        elif what == "salvage":
+            self._salvaged(p, [d.piece])
+        elif what == "leave":
+            d.cooled.add(p.index)
+            return
+        else:
+            return
+        d.taken = True
+        if is_unique(d.piece.key) and d.piece.key not in self.app.guild.uniques:
+            self.app.guild.uniques.add(d.piece.key)          # (M28.5: the relics shelf)
+            self.app.save_guild()
+        self.drops = [x for x in self.drops if not x.taken]
+        if p.local:
+            self._sounds.append("ui")
+
+    def _drop_pins(self) -> list:
+        """Map pins for the pieces seen lying about (M28.4a)."""
+        return [(d.x, d.y, f"gear_{d.piece.rarity}", d.name.upper()) for d in self.drops
+                if d.seen]
 
     def _loot(self, p: Player, enemy, times: int = 1) -> None:
         """A kill's loot goes straight into the run's purse; a shard flies
@@ -1261,6 +1399,7 @@ class GameScene(Scene):
         draw_effects(text, cam, self.world, ground)
         draw_wisps(text, cam, self.world, self.steps)
         draw_gems(text, cam, self.gems, self.steps)
+        draw_drops(text, cam, self.drops, self.steps, (me.hero.x, me.hero.y))   # (M28.4a)
         margin = 3
         x0, y0 = cam.canvas_to_world(0, 0)
         x1, y1 = cam.canvas_to_world(cam.view_w, cam.view_h)
@@ -1275,14 +1414,18 @@ class GameScene(Scene):
             if x0 - margin <= npc.x <= x1 + margin and y0 - margin <= npc.y <= y1 + margin:
                 draw_npc(text, self.sprites, cam, npc, me.hero.x, npc is talk_to)
         draw_braziers(text, cam, self.quests, self.steps / config.SIM_HZ)
+        draw_chests(text, cam, self.chests, self.steps)                       # (M28.4b)
         draw_seals(text, cam, self.quests, self.steps / config.SIM_HZ)
         draw_captives(text, self.sprites, cam, self.quests, self.steps / config.SIM_HZ)
         draw_carried(text, self.sprites, cam, self.quests, self.players)
         draw_feet_marks(text, self.sprites, cam, self.players, self.steps)   # (M28.2c)
         for p in self.players:
             h = p.hero
-            if p.alive and x0 - margin <= h.x <= x1 + margin and y0 - margin <= h.y <= y1 + margin:
+            if p.alive and x0 - margin <= h.x <= x1 + margin and y0 - margin <= h.y <= y1 + margin \
+                    and not h.bats:                    # (M28.5b: a Bat Form roll is bats)
                 draw_body(self.sprites, cam, h)
+        draw_relics(text, self.sprites, cam, [p for p in self.players if p.alive], self.enemies,
+                    self.steps)
         draw_bear_riders(self.sprites, cam, self.quests, self.players)
         draw_statuses(text, cam, self.enemies, [e for p in self.players if p.alive
                                                  for e in [p.hero.marked]
@@ -1302,7 +1445,8 @@ class GameScene(Scene):
         draw_chest_marks(text, cam, me, self.projectiles, self.steps)    # (M28.2d)
         draw_effects(text, cam, self.world, air)
         others = [(p.hero.x, p.hero.y, p.color) for p in self.players if p is not me and p.alive]
-        pins = self.quests.pins((me.hero.x, me.hero.y)) + self._blood_pins(me)
+        pins = self.quests.pins((me.hero.x, me.hero.y)) + self._blood_pins(me) + self._drop_pins() \
+            + self.chests.pins()
         fight = self.quests.fight_for(me.hero)
         if fight is not None and fight.boss is not None and fight.boss.alive and not self.map_open:
             b = fight.boss
@@ -1359,7 +1503,8 @@ class GameScene(Scene):
                      palette.DEV_TAG, palette.HUD_PANEL)
         if self.map_open:
             if self.app.dev and self.dev_targets:     # (P2, F4: every quest's targets)
-                pins = self.quests.pins((me.hero.x, me.hero.y), every_target=True)
+                pins = self.quests.pins((me.hero.x, me.hero.y), every_target=True) \
+                    + self._drop_pins() + self.chests.pins()
             self.big_map.draw(text, self.sprites, cam.view_rows,
                               (me.hero.x, me.hero.y), me.hero.aim_angle, others, pins,
                               self.quests.log())

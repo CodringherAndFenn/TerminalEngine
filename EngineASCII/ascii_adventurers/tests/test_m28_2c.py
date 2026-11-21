@@ -91,7 +91,7 @@ class _Case(unittest.TestCase):
 
 class FrameworkTest(unittest.TestCase):
     def test_every_feet_piece_has_three_tricks(self):
-        feet = [k for k, g in config.GEAR.items() if g.slot == "feet"]
+        feet = [k for k, g in config.GEAR.items() if g.slot == "feet" and g.unique is None]
         self.assertEqual(len(feet), 11)
         for key in feet:
             self.assertEqual([t for t, _, _ in gear.tricks(key)], [3, 6, 9], key)

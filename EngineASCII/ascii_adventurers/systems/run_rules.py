@@ -37,7 +37,7 @@ from dataclasses import replace
 from .. import config
 from ..entities.effects import Effect
 from ..entities.gems import drop
-from . import spells, statuses
+from . import relics, spells, statuses
 from ..entities.projectile import Projectile
 from .combat import (_may_hurt, add_bloodlust, crit_chance, move_bonus, pulse, push, shot_origin,
                      split_now, storm_dart, strike, volley)
@@ -391,6 +391,8 @@ class RunRules:
         hero, st = p.hero, p.hero.stats
         got = self._shooter(p, kw)
         if got is None:
+            if st is not None:
+                self._relic_patterns(p, hero.aim_angle)     # (they need no shots of yours)
             return []
         shoot, aim, pellets, spread, notes, targets = got
         flags = st.flags
@@ -419,6 +421,9 @@ class RunRules:
         every = config.CARDINAL_EVERY if st.has("cross_fire+9") else config.CROSS_FIRE_EVERY
         if "cross_fire" in flags and n % every == 0:
             self._cross(p, shoot, aim, pellets, spread)
+        self._relic_patterns(p, aim)
+        if "hump_pack" in flags and n % config.U_HUMP_PACK[0] == 0:
+            self._hump(p, shoot, aim)                        # (M28.5b: Ol' Spitter's)
         if "starburst" in flags:
             # Every STARBURST[0] attacks (a meter: Sunwheel +6 adds hits taken).
             p.burst_meter += 1
@@ -437,6 +442,59 @@ class RunRules:
             if st.has("arrow_rain+9"):               # Cloudburst Bow +9 (Squall line)
                 self._arrow_rain(hero, kw, hold=config.SQUALL_LINE)
         return list(dict.fromkeys(sounds))
+
+    def _tongue(self, p, aim: float) -> None:
+        """Tongue Lasher (M28.5a): a tongue along the aim, the power's reach,
+        pulls the first enemy on its line (a clear one) to the hero -- a
+        boss by U_TONGUE[2] tiles."""
+        hero, st = p.hero, p.hero.stats
+        reach = st.uniques.get("tongue_lasher", 7.0)
+        ca, sa = math.cos(aim), math.sin(aim)
+        best, best_along = None, reach + 1
+        for e in self.scene.enemies:
+            if not e.alive or not e.hittable or getattr(e, "faction", None) != "enemy":
+                continue
+            rx, ry = e.x - hero.x, e.y - hero.y
+            along = rx * ca + ry * sa
+            if along < 0.5 or along > reach or along >= best_along:
+                continue
+            if abs(-rx * sa + ry * ca) > config.U_TONGUE[1] + e.hit_radius:
+                continue
+            if first_hit(self.scene.world.tile_at, hero.x, hero.y, e.x, e.y) is not None:
+                continue
+            best, best_along = e, along
+        self.scene.effects.append(Effect("arc", hero.x, hero.y, x2=hero.x + ca * reach,
+                                         y2=hero.y + sa * reach))
+        if best is None:
+            return
+        boss = getattr(best, "boss", False)
+        pull = config.U_TONGUE[2] if boss else max(0.0, best_along - hero.hit_radius
+                                                   - best.hit_radius - 0.3)
+        push(best, self.scene.world, -ca * pull, -sa * pull, boss=boss)
+        if hasattr(best, "hear"):
+            best.hear(hero.x, hero.y)
+
+    def _relic_patterns(self, p, aim: float) -> None:
+        """The off-hand relics that aren't shots of the hero's weapon, so
+        every hero gets them (a bard's beat too): the Tongue Lasher
+        (M28.5a) and the Acorn Bandolier (M28.5c)."""
+        hero, flags = p.hero, p.hero.stats.flags
+        n = hero.attacks
+        if "tongue_lasher" in flags and n % config.U_TONGUE[0] == 0:
+            self._tongue(p, aim)                             # (Froggy's relic)
+        if "acorn_bandolier" in flags and n % config.U_ACORNS[0] == 0:
+            relics.acorns(self.scene, hero, aim)             # (Love & Cuddles')
+
+    def _hump(self, p, shoot, aim: float) -> None:
+        """Hump Pack (M28.5b): U_HUMP_PACK[1] shots behind you, fanned
+        U_HUMP_PACK[2] rad either side of straight back, at the power x
+        their damage; each glances off a wall once."""
+        _, count, side = config.U_HUMP_PACK
+        mult = p.hero.stats.uniques.get("hump_pack", 1.0)
+        for k in range(count):
+            off = side * (2 * k / (count - 1) - 1) if count > 1 else 0.0
+            for q in shoot(aim + math.pi + off, mult=mult):
+                q.free_bounces += 1
 
     def hair_trigger(self, p) -> None:
         """Pepperbox (L), Hair trigger: an attack splits every shot of the
@@ -818,6 +876,7 @@ class RunRules:
         self._feet_tick(p, dt)
         self._chest_tick(p, dt)
         self._ring_tick(p, dt)
+        self._relic_tick(p, dt)                      # (M28.5: the boss uniques)
         if st.has("grand_finale+6"):
             self.curtain_call(p)                     # (Showstopper Lute +6)
         if hero.duelist is not None and not hero.duelist.alive:
@@ -844,6 +903,36 @@ class RunRules:
                     p.echo_timer = config.ECHO_DELAY
                 else:
                     p.echo_stage, p.echo_mult = 0, 1.0
+
+    def _relic_tick(self, p, dt: float) -> None:
+        """The boss uniques' clocks (M28.5a): the Bubble Belt's bubble,
+        Leechskin's HP coming back, the Bloated Charm's leechling; the
+        desert's and the ruins' (M28.5b) are systems/relics.tick."""
+        hero, st = p.hero, p.hero.stats
+        relics.tick(self.scene, p, dt)
+        hero.bubble = max(0.0, hero.bubble - dt)
+        if hero.leech is not None:
+            owed, rate = hero.leech
+            back = min(owed, rate * dt)
+            hero.heal(back)
+            hero.leech = [owed - back, rate] if owed - back > 1e-6 else None
+        t = hero.leech_target
+        if t is None:
+            return
+        if not st.has("bloated_charm") or not t.alive or not t.hittable:
+            hero.leech_target, hero.leech_owed = None, 0.0
+            return
+        share = config.U_BLOATED[0] if getattr(t, "boss", False) \
+            else st.uniques.get("bloated_charm", 0.02)
+        hero.leech_owed += t.max_hp * share * dt
+        hero.leech_bite -= dt
+        if hero.leech_bite <= 0:
+            hero.leech_bite = config.U_BLOATED[2]
+            dealt = t.take_damage(hero.leech_owed, hero, None)
+            hero.leech_owed = 0.0
+            if dealt > 0:
+                self._number(t, dealt, "bleed")
+                hero.heal(dealt * config.U_BLOATED[1])
 
     def _ring_tick(self, p, dt: float) -> None:
         """The rings' tricks on the clock (M28.2e): Deluge's crits running
@@ -1301,6 +1390,7 @@ class RunRules:
         flags = st.flags
         last, p.last_kill = p.last_kill, hero.time
         hero.kill_spot = (enemy.x, enemy.y)                 # (Skull Sentry +3: Ossuary)
+        relics.on_kill(scene, p, enemy)                     # (M28.5c: the relics' kills)
         elite = _elite(enemy)
         line = hero.max_hp * config.UNTOUCHED_HP
         if "untouched+L" in flags and hero.hp < line \
@@ -1653,6 +1743,10 @@ class RunRules:
                                             (config.STATUSES["burn"].tag,), "burn"))
             if st.has("phoenix+6"):
                 hero.untouchable = max(hero.untouchable, config.REBIRTH)   # Rebirth
+        elif relics.rise_as_shade(scene, p):            # (M28.5c: the Phylactery)
+            if p.local:
+                scene._sounds.append("chime")
+            return True
         elif st.revives > p.revives_used:
             p.revives_used += 1
             hero.hp = hero.max_hp * config.SECOND_CHANCE_HP
@@ -1714,6 +1808,26 @@ class RunRules:
                             if has(s.source, "thermal_shock+9")), None)
                 if src is not None:                                       # Geyser
                     statuses.combos.append(("thermal_shock", e, src))
+        for e in enemies:                                                 # Latch Hood (M28.5a)
+            hero = getattr(e, "latched", None)
+            if hero is None:
+                continue
+            hst = getattr(hero, "stats", None)
+            if not e.alive or not hero.alive or hst is None or not hst.has("latch_hood") \
+                    or math.hypot(e.x - hero.x, e.y - hero.y) > config.U_LATCH[3] \
+                    or first_hit(self.scene.world.tile_at, hero.x, hero.y, e.x, e.y) is not None:
+                e.latched = None                                          # (out of sight)
+                continue
+            share = config.U_LATCH[1] if getattr(e, "boss", False) \
+                else hst.uniques.get("latch_hood", 0.03)
+            e.latch_owed += e.max_hp * share * dt
+            e.latch_t -= dt
+            if e.latch_t <= 0:
+                e.latch_t += config.U_LATCH[2]
+                dealt = e.take_damage(e.latch_owed, hero, None)
+                e.latch_owed = 0.0
+                if dealt > 0:
+                    self._number(e, dealt, "bleed")
 
     def flee(self, e, dt: float) -> bool:
         """Bloodtrail Cowl +3 (Panic): a scared enemy runs straight away from

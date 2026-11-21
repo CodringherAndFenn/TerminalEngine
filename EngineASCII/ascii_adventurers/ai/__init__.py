@@ -14,6 +14,7 @@ ai -- enemy behaviour.
                 The Fallen (M25.3), Mycelium the fly agaric (M26.1),
                 Mycelium the shaggy ink cap (M26.2), Mycelium the giant puffball (M26.3),
                 More than Life / More than Death (M27, the plains boss)
+  mimic.py      the mimic (M28.4c): a chest with teeth (systems/chests.py)
   plains.py     the plains' P7 enemies: chasers (rats, farmhands, geese,
                 mole rats, crows), hounds, hawk, molehill, bull, lancer,
                 shieldbearer, priest, straw golem, scarecrow, drummer
@@ -59,9 +60,11 @@ from .forest import (Banshee, Bat, BonePile, Candle, Centipede, Cultist, GiantSp
 from .plains import (Bull, Chaser, Crow, Drummer, Hawk, Hound, Lancer, Molehill, Priest,
                      Scarecrow, Shieldbearer, StrawGolem)
 from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
+from .mimic import Mimic
 
 KINDS = {
     "archer": Archer,
+    "mimic": Mimic,              # M28.4c
     "warlock": Warlock,
     "ogre": Ogre,
     "tower": Tower,

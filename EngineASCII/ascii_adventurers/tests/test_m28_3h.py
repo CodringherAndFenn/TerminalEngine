@@ -34,7 +34,7 @@ class _Ring(_Legend):
 
 class FrameworkTest(unittest.TestCase):
     def test_every_ring_has_its_legendary_trick(self):
-        rings = [k for k, g in config.GEAR.items() if g.slot == "ring"]
+        rings = [k for k, g in config.GEAR.items() if g.slot == "ring" and g.unique is None]
         self.assertEqual(sorted(rings), sorted(RINGS + ALWAYS))
         for key in RINGS + ALWAYS:
             name, text = gear.legendary_trick(key)

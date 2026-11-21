@@ -19,6 +19,10 @@ exact pixel position:
 A few big figures are painted from shapes instead (render/painted.PAINTED:
 the Snow King, Fragile, Mr. Buttons); draw_character() draws those too,
 by the same name.
+
+Worn gear shows on a hero (M28.6, render/gear_looks.py): the picture is
+dressed in its `look` (head shape, chest colours, weapon accent) before it
+is baked, and a worn legendary blinks a glint (draw_sparkles).
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ import math
 import pygame
 
 from .. import config, palette
+from .gear_looks import SPARKLE, Look, dress
 from .painted import PAINTED, painter
 from .sprites import SpriteBank
 
@@ -57,11 +62,11 @@ ART: dict[str, list[str]] = {
         "..............",
         "....kkkkkk....",
         "...kmmmmmMk...",
-        "..kmmmyymmMk..",
-        "..kkkkkkkkkk..",
-        "...ksksskSk...",
-        "..kaassssaAk..",
-        "..kaaaaaaaAk..",
+        "..kmmmyymmMk.m",
+        "..kkkkkkkkkkmm",
+        "...ksksskSk.tM",
+        "..kaassssaAkt.",
+        "..kaaaaaaaAkt.",
         ".kRkaaaaaaAkrk",
         ".kRraaaaaaArrk",
         ".ksraaaaaaArsk",
@@ -99,10 +104,10 @@ ART: dict[str, list[str]] = {
         "....kHHHHHk...",
         "...kHHssssHk..",
         "...kHssssSHk..",
-        "...kHHssSHHk..",
-        "...kHkkkkkHk..",
-        "...kkppppkkk..",
-        "..kppwppppPk..",
+        "...kHHssSHHky.",
+        "...kHkkkkkHkYy",
+        "...kkppppkkkd.",
+        "..kppwppppPkd.",
         "..ksppppppPsk.",
         "..kkppppppPkk.",
         ".kpppppppppPk.",
@@ -736,10 +741,10 @@ ART_W, ART_H = 14, 18
 _HIT_MIX = 0.65          # hit flash: this far toward white
 
 
-def _picture(name: str, hurt: bool) -> pygame.Surface:
+def _picture(name: str, hurt: bool, look: Look | None = None) -> pygame.Surface:
     colors = palette.SPRITE_COLORS
     surf = pygame.Surface((ART_W, ART_H), pygame.SRCALPHA)
-    for y, row in enumerate(ART[name]):
+    for y, row in enumerate(dress(name, ART[name], look)):
         for x, ch in enumerate(row):
             if ch == ".":
                 continue
@@ -748,6 +753,12 @@ def _picture(name: str, hurt: bool) -> pygame.Surface:
                 c = tuple(round(v + (255 - v) * _HIT_MIX) for v in c)
             surf.set_at((x, y), c)
     return surf
+
+
+def dressed_picture(name: str, look: Look | None = None) -> pygame.Surface:
+    """A hero's picture (ART_W x ART_H art pixels, facing right) in `look`:
+    for the gear screen's figure (M28.6)."""
+    return _picture(name, False, look)
 
 
 def _walk_frame(base: pygame.Surface, frame: int) -> pygame.Surface:
@@ -766,9 +777,10 @@ def _walk_frame(base: pygame.Surface, frame: int) -> pygame.Surface:
     return out
 
 
-def _painter(name: str, scale: int, flip: bool, frame: int, hurt: bool):
+def _painter(name: str, scale: int, flip: bool, frame: int, hurt: bool,
+             look: Look | None = None):
     def paint(surf, to_px):
-        img = _walk_frame(_picture(name, hurt), frame)
+        img = _walk_frame(_picture(name, hurt, look), frame)
         if flip:
             img = pygame.transform.flip(img, True, False)
         img = pygame.transform.scale(img, (ART_W * scale, ART_H * scale))
@@ -785,27 +797,63 @@ def walk_frame(character) -> int:
 
 
 def draw_character(bank: SpriteBank, x: float, y: float, sprite: str, scale: int,
-                   facing_left: bool, frame: int, hurt: bool, pose: str = "") -> None:
-    """Draw a character centred on canvas pixel (x, y). Each (sprite, facing,
-    frame, hurt) combination is baked once and kept. A painted figure
-    (render/painted.PAINTED) is drawn the same way, and can take a `pose`."""
+                   facing_left: bool, frame: int, hurt: bool, pose: str = "",
+                   look: Look | None = None) -> None:
+    """Draw a character centred on canvas pixel (x, y). Each (sprite, look,
+    facing, frame, hurt) combination is baked once and kept. A painted
+    figure (render/painted.PAINTED) is drawn the same way, and can take a
+    `pose`. `look`: a hero's worn gear (M28.6)."""
     fig = PAINTED.get(sprite)
     if fig is not None:
         key = f"paint:{sprite}:{pose}:{scale}:{int(facing_left)}:{frame}:{int(hurt)}"
         bank.draw(bank.static(key, painter(sprite, scale, facing_left, frame, hurt, pose),
                               fig.reach * scale), x, y)
         return
-    key = f"char:{sprite}:{scale}:{int(facing_left)}:{frame}:{int(hurt)}"
+    dressed = f":{look.key}" if look is not None else ""
+    key = f"char:{sprite}{dressed}:{scale}:{int(facing_left)}:{frame}:{int(hurt)}"
     reach = max(ART_W, ART_H) * scale / 2 + 1
-    sprite = bank.static(key, _painter(sprite, scale, facing_left, frame, hurt), reach)
+    sprite = bank.static(key, _painter(sprite, scale, facing_left, frame, hurt, look), reach)
     bank.draw(sprite, x, y)
+
+
+# A worn legendary's glint (M28.6): each slot's blinks SPARKLE_ON of every
+# SPARKLE_PERIOD s, the slots a third of a period apart.
+SPARKLE_PERIOD = 1.8
+SPARKLE_ON = 0.16
+SPARKLE_COLOR = (255, 250, 220)
+_SPARKLE_PHASE = {"head": 0.0, "chest": 1 / 3, "main": 2 / 3}
+
+
+def draw_sparkles(canvas: pygame.Surface, x: float, y: float, sprite: str, scale: int,
+                  facing_left: bool, frame: int, look: Look | None, clock: float) -> None:
+    """The glints of a hero's worn legendaries (head, chest, main hand),
+    drawn over its sprite centred on canvas pixel (x, y): a bright pixel
+    with a short cross round it, at render/gear_looks.SPARKLE's spot."""
+    if look is None or not look.legend or sprite not in SPARKLE:
+        return
+    hop = 1 if frame % 2 == 1 else 0                 # the walk frame's hop (_walk_frame)
+    for slot in look.legend:
+        t = (clock / SPARKLE_PERIOD + _SPARKLE_PHASE[slot]) % 1.0
+        if t >= SPARKLE_ON / SPARKLE_PERIOD:
+            continue
+        ax, ay = SPARKLE[sprite][slot]
+        if facing_left:
+            ax = ART_W - 1 - ax
+        cx = round(x - ART_W * scale / 2 + (ax + 0.5) * scale)
+        cy = round(y - ART_H * scale / 2 + (ay - hop + 0.5) * scale)
+        arm = scale
+        half = max(1, scale // 2)
+        canvas.fill(SPARKLE_COLOR, pygame.Rect(cx - half, cy - half, 2 * half, 2 * half))
+        canvas.fill(SPARKLE_COLOR, pygame.Rect(cx - arm - half, cy, 2 * (arm + half), 1))
+        canvas.fill(SPARKLE_COLOR, pygame.Rect(cx, cy - arm - half, 1, 2 * (arm + half)))
 
 
 def body_scale(c) -> int:
     """How big a Character is drawn: its spec's scale, a size smaller while
     Nettle's dust has it shrunk (M25.1)."""
     scale = c.spec.sprite_scale
-    return max(1, scale - 1) if getattr(c, "shrunk", 0) > 0 else scale
+    small = getattr(c, "shrunk", 0) > 0 or getattr(c, "dusted", 0) > 0   # (M28.5c too)
+    return max(1, scale - 1) if small else scale
 
 
 def draw_body(bank: SpriteBank, camera, c) -> None:
@@ -816,8 +864,13 @@ def draw_body(bank: SpriteBank, camera, c) -> None:
         draw_mounted(bank, camera, c, getattr(c, "time", 0.0))
         return
     x, y = camera.world_to_px(c.x, c.y)
-    draw_character(bank, x, y, c.spec.sprite, body_scale(c), c.facing_left,
-                   walk_frame(c), c.hurt_flash > 0)
+    look = getattr(c, "look", None)
+    frame, scale = walk_frame(c), body_scale(c)
+    draw_character(bank, x, y, c.spec.sprite, scale, c.facing_left, frame, c.hurt_flash > 0,
+                   look=look)
+    if look is not None and look.legend:
+        draw_sparkles(bank.text.display.canvas, x, y, c.spec.sprite, scale, c.facing_left,
+                      frame, look, getattr(c, "time", 0.0))
 
 
 def draw_feet_marks(text, bank: SpriteBank, camera, players, steps: int) -> None:
@@ -829,7 +882,8 @@ def draw_feet_marks(text, bank: SpriteBank, camera, players, steps: int) -> None
         if (steps // 4) % 2 == 0:
             for im in h.images:
                 x, y = camera.world_to_px(im.x, im.y)
-                draw_character(bank, x, y, h.spec.sprite, body_scale(h), h.facing_left, 0, True)
+                draw_character(bank, x, y, h.spec.sprite, body_scale(h), h.facing_left, 0, True,
+                               look=h.look)
         for amp in h.amps:
             x, y = camera.world_to_px(amp[0], amp[1])
             text.put_px(x - 1.5 * cw, y - ch / 2, "(o)", palette.AMP, None)
@@ -844,6 +898,18 @@ def draw_chest_marks(text, camera, me, projectiles, steps: int) -> None:
     if st is None or not me.alive:
         return
     cw, ch = text.display.cell_w, text.display.cell_h
+    if h.bubble > 0:                                   # (Bubble Belt, M28.5a)
+        r = h.hit_radius + 0.7
+        for k in range(10):
+            a = steps * 0.05 + k * math.tau / 10
+            x, y = camera.world_to_px(h.x + math.cos(a) * r, h.y + math.sin(a) * r * 0.8)
+            text.put_px(x - cw / 2, y - ch / 2, "o" if k % 2 else ".", palette.SHOT_BOLT[0], None)
+    t = h.leech_target
+    if t is not None and t.alive and st.has("bloated_charm"):   # (the leechling)
+        x, y = camera.world_to_px(t.x, t.y)
+        wiggle = 2 if (steps // 6) % 2 else -2
+        text.put_px(x + t.hit_radius * cw * 0.8, y - ch / 2 + wiggle, "e", palette.MIMIC_TONGUE[1],
+                    None)
     if st.has("thorn_mail+6") and h.still_t >= config.OVERGROWTH[0]:
         r = config.OVERGROWTH[1]
         turn = steps * 0.02
