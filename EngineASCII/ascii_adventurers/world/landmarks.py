@@ -254,6 +254,10 @@ def build_landmarks(layout) -> list[Landmark]:
                 trail.quest = key
                 out.insert(0, trail)
     out += _chests(layout, out, spots)          # (M28.4b: after every quest's spots)
+    if layout.zones:                            # (M29.1: the ocean zones' own landmarks)
+        from .paradise import plan_of
+        for z in layout.zones:
+            out += plan_of(layout, z).marks
     return out
 
 

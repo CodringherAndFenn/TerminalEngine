@@ -802,3 +802,146 @@ BONE_WALL = TileType(
     "bone wall", ("#%", "%#", "##"), palette.BONE_FG, palette.GRAVE_SOIL_BG,
     solid=True, blocks_shots=True, hp=config.NECRO_BONE_WALL_HP, becomes=BONE_LITTER,
 )
+
+
+# --- Paradise (M29.1, design/OCEAN.md 3) ---------------------------------------------
+# Marble and clouds: soft cloud ground, marble roads lined with gold posts,
+# white blossom trees, marble columns standing and fallen, a cloud bank
+# instead of a beach. Red comes only from blood: the river, the fonts, the
+# weeping statues' tears. (Ground stays dark so shots read on it; the white
+# is in the glyphs.)
+CLOUD = TileType(
+    "cloud", ("  ", "  ", "  ", "  ", ". ", " '"), palette.CLOUD_FG, palette.CLOUD_BG,
+)
+CLOUD_DRIFT = TileType(
+    "cloud drift", ("░ ", " ░", "  ", "░░", "  "), palette.CLOUD_DRIFT_FG, palette.CLOUD_BG,
+)
+PETALS = TileType(
+    # What a felled blossom tree leaves.
+    "petals", (", ", "'.", ".,", " '"), palette.PETALS_FG, palette.CLOUD_BG,
+)
+BLOSSOM = TileType(
+    "blossom tree", ("**", "*@", "@*", "@@"), palette.BLOSSOM_FG, palette.BLOSSOM_BG,
+    solid=True, blocks_shots=True, hp=config.TREE_HP,
+    wear=(("*,", ",*", "@."),),
+    becomes=PETALS,
+)
+MARBLE_RUBBLE = TileType(
+    "marble rubble", (".:", ":.", ";.", ".;"), palette.MARBLE_RUBBLE_FG, palette.CLOUD_BG,
+)
+COLUMN = TileType(
+    # A standing column: a white shaft in the middle of the tile. The
+    # Behemoth breaks them (M29.3); so can you.
+    "marble column", ("▐▌",), palette.COLUMN_FG, palette.CLOUD_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP,
+    wear=(("▐▒", "▒▌"),),
+    becomes=MARBLE_RUBBLE,
+)
+FALLEN_COLUMN = TileType(
+    # A column lying on its side: low cover, like the forest's logs.
+    "fallen column", ("▄▄",), palette.FALLEN_COLUMN_FG, palette.CLOUD_BG,
+    solid=True, blocks_shots=True, hp=config.LOG_HP,
+    becomes=MARBLE_RUBBLE,
+)
+MARBLE_ROAD = TileType(
+    "marble road", ("  ", ". ", " .", "_.", "  "), palette.MARBLE_ROAD_FG, palette.MARBLE_ROAD_BG,
+)
+GOLD_POST = TileType(
+    # The roads' posts: they stop you, not shots.
+    "gold post", ("| ", " |"), palette.GOLD, palette.CLOUD_BG,
+    solid=True,
+)
+STEP = TileType(
+    # The terraces round the summit (Paradise climbs gently to its centre).
+    "marble step", ("__",), palette.STEP_FG, palette.STEP_BG,
+)
+BLOOD_RIVER = TileType(
+    # Watery: only water walkers cross it (heroes here always are).
+    "blood river", ("░ ", " ░", "  ", "▒░", "  "), palette.BLOOD_FG, palette.BLOOD_BG,
+    solid=True,
+)
+MARBLE_BRIDGE = TileType(
+    "marble bridge", ("==",), palette.BRIDGE_FG, palette.BRIDGE_BG,
+)
+CLOUD_BANK = TileType(
+    # The sea round Paradise, turned to cloud: watery, like the ocean.
+    "cloud bank", ("░░", "▒░", "░▒", "░ ", " ░"), palette.CLOUD_BANK_FG, palette.CLOUD_BANK_BG,
+    solid=True,
+)
+MARBLE_FLOOR = TileType(
+    "marble floor", ("  ", ". ", "  ", " ."), palette.MARBLE_FLOOR_FG, palette.MARBLE_FLOOR_BG,
+)
+GOLD_INLAY = TileType(
+    "gold inlay", ("::", ".:", ":."), palette.GOLD, palette.MARBLE_FLOOR_BG,
+)
+PEARL_WALL = TileType(
+    "pearl wall", ("██", "▓█", "█▓"), palette.PEARL, palette.PEARL_BG,
+    solid=True, blocks_shots=True,
+)
+GATE_PILLAR = TileType(
+    "gate pillar", ("██",), palette.GOLD, palette.GOLD_DARK,
+    solid=True, blocks_shots=True,
+)
+GATE_BARS = TileType(
+    # Golden bars: the Gate's closed leaf, and the summit court's seal
+    # (until the seventh seal breaks, M29.4). They stop you, not shots.
+    "golden bars", ("||",), palette.GOLD, palette.MARBLE_FLOOR_BG,
+    solid=True,
+)
+THRONE = TileType(
+    "throne", ("██", "▓▓"), palette.GOLD, palette.PEARL_BG,
+    solid=True, blocks_shots=True,
+)
+ALTAR = TileType(
+    "altar", ("##",), palette.GOLD, palette.PEARL_BG,
+    solid=True, blocks_shots=True,
+)
+STATUE = TileType(
+    # A choir ring's singing statue.
+    "statue", ("&&",), palette.STATUE_FG, palette.STATUE_BG,
+    solid=True, blocks_shots=True,
+)
+WEEPING_STATUE = TileType(
+    # A saint crying red tears; its blood trickles away over the marble.
+    "weeping statue", ("&,", ",&"), palette.STATUE_FG, palette.BLOOD_BG,
+    solid=True, blocks_shots=True,
+)
+BLOOD_TRICKLE = TileType(
+    "blood trickle", (",.", ".,", ";,", ",;"), palette.BLOOD_TRICKLE_FG, palette.BLOOD_TRICKLE_BG,
+)
+BLOOD_FONT = TileType(
+    # A marble basin's blood: unveiled angels drink here to heal (M29.2).
+    "blood font", ("▒▒", "▓▒", "▒▓"), palette.BLOOD_FG, palette.BLOOD_BG,
+    solid=True,
+)
+FONT_RIM = TileType(
+    "font rim", ("[]",), palette.FONT_RIM_FG, palette.FONT_RIM_BG,
+    solid=True,
+)
+STAIR = TileType(
+    # The stairway to nowhere: white steps climbing out of the island.
+    "white stair", ("==",), palette.STAIR_FG, palette.STAIR_BG,
+)
+STAIR_END = TileType(
+    # Its last steps, fading into the air.
+    "white stair", ("=-", "-=", "- "), palette.STAIR_FG, palette.CLOUD_BG,
+)
+BALUSTRADE = TileType(
+    "balustrade", ("::",), palette.STATUE_FG, palette.CLOUD_BG,
+    solid=True,
+)
+CHAIN_POST = TileType(
+    # Where the fallen angel is chained (the giver, M29.4).
+    "chain post", ("8|",), palette.CHAIN_FG, palette.CLOUD_BG,
+    solid=True, blocks_shots=True,
+)
+GLASS_RED = TileType(
+    # The fallen cathedral's shattered rose window, on the floor.
+    "rose glass", ("*.", ".*", ",*"), palette.GLASS["red"], palette.MARBLE_FLOOR_BG,
+)
+GLASS_BLUE = TileType(
+    "rose glass", ("*.", ".*", "*,"), palette.GLASS["blue"], palette.MARBLE_FLOOR_BG,
+)
+GLASS_GOLD = TileType(
+    "rose glass", (".*", "*.", "*'"), palette.GLASS["gold"], palette.MARBLE_FLOOR_BG,
+)

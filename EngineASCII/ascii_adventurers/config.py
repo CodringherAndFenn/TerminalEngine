@@ -4075,7 +4075,64 @@ BIOME_BORDER_JITTER = 7.0
 BIOME_BORDER_SCALE = 6
 # Four regions out in the ocean, due N/E/S/W of the centre at this many
 # island radii, are reserved for a later milestone. For now they're ocean.
+# (M29: a built zone is placed from the actual coast instead, below; this
+# is still where the unbuilt ones are reserved.)
 CARDINAL_REGION_DISTANCE = 1.35
+
+# --- The ocean zones (M29, design/OCEAN.md) --------------------------------------
+# Four islands out in the ocean, one due N/E/S/W, reached by water walking
+# (Adventurer's Glory). Fixed places (user): Paradise north, Hell south,
+# the Past west, the Future east. Only the zones listed in OCEAN_ZONES are
+# built; the others' places stay open sea.
+ZONE_PLACES = {"paradise": "N", "hell": "S", "past": "W", "future": "E"}
+OCEAN_ZONES = ("paradise",)
+# Each zone is one island ZONE_RADIUS tiles across (half: about 40 s to
+# cross), its coast wandering by up to ZONE_COAST_AMPLITUDE of that (fBm,
+# ZONE_COAST_SCALE tiles across). Its centre is put far enough out that its
+# near shore is at least ZONE_GAP tiles past the main island's farthest
+# land within ZONE_FAN radians of its direction (about a minute of water
+# walking at 8.5 tiles/s).
+ZONE_RADIUS = 350
+ZONE_COAST_AMPLITUDE = 0.15
+ZONE_COAST_SCALE = 260
+ZONE_GAP = 500
+ZONE_FAN = 0.45
+# A zone is hidden on the maps until a player has been this many tiles from
+# its shore (user: "hidden until found"); then its outline and name show.
+ZONE_FOUND_RANGE = 120
+# The banner the first time a player sets foot on a zone: its name, and this.
+ZONE_ARRIVAL = {"paradise": "where the angels sing"}
+
+# Paradise (M29.1, OCEAN.md 3). Its land: soft cloud ground, puffier drifts
+# where the detail field is above PARADISE_DRIFT_MIN, blossom trees in
+# clumps, marble columns standing and fallen (chances per tile).
+PARADISE_DRIFT_MIN = 0.70
+PARADISE_TREE_MIN = 0.67          # detail below 1 - this: a blossom grove ...
+PARADISE_TREE_CHANCE = 0.4        # ... where this many tiles are trees
+PARADISE_COLUMN_CHANCE = 0.004
+PARADISE_FALLEN_CHANCE = 0.003
+# The ocean round it fades into a cloud bank this many tiles wide.
+PARADISE_CLOUD_BANK = 22
+# The summit court (the boss's arena, sealed until the seventh seal): an
+# oval of these radii at the island's centre, walled, its gate facing the
+# Gate; terraces (rings of marble steps) round it this many tiles out.
+PARADISE_COURT_RADII = (92, 62)
+PARADISE_COURT_GATE = 7           # the gate's width, tiles
+PARADISE_TERRACES = (10, 22, 34)
+# Marble roads (half-width, tiles) lined with gold posts every
+# PARADISE_POST_EVERY tiles; the main road meanders by up to
+# PARADISE_ROAD_SWAY tiles between the Gate and the court.
+PARADISE_ROAD_W = 1.6
+PARADISE_POST_EVERY = 8
+PARADISE_ROAD_SWAY = 18
+# The river of blood (half-width) from the court down to the sea.
+PARADISE_RIVER_W = 2.6
+PARADISE_RIVER_SWAY = 26
+# How many of each landmark, and their spacing (tiles between footprints).
+PARADISE_CHOIRS = 5
+PARADISE_FONTS = 10
+PARADISE_STATUES = 14
+PARADISE_SITE_GAP = 14
 
 # Start: the tile nearest the centre (searched every SPAWN_SEARCH_STEP
 # tiles) that isn't in a lake and has dry land connecting it to at least

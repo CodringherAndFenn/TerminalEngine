@@ -1000,3 +1000,59 @@ LOVE_CUDDLES = {"edge": (56, 26, 44), "fur": (248, 194, 214), "fur_hi": (255, 22
 MR_BUTTONS = {"edge": (60, 36, 20), "fur": (200, 146, 88), "shade": (160, 110, 64),
               "inner": (232, 186, 150), "muzzle": (236, 206, 160), "button": (90, 140, 225),
               "patch": (150, 104, 160), "stitch": (90, 56, 30), "bow": (214, 36, 58)}
+
+# --- Paradise (M29.1, design/OCEAN.md 3): marble and clouds; red only from blood ---------
+# Lighter than any other ground (it's the white island), still dark enough
+# for shots to read on it; the white is in the glyphs, marble and columns.
+CLOUD_BG = (80, 82, 100)
+CLOUD_FG = (232, 234, 246)
+CLOUD_DRIFT_FG = (196, 200, 220)
+MARBLE_ROAD_FG = (240, 240, 248)
+MARBLE_ROAD_BG = (124, 124, 140)
+MARBLE_FLOOR_FG = (196, 196, 210)
+MARBLE_FLOOR_BG = (104, 104, 120)
+STEP_FG = (206, 208, 224)
+STEP_BG = (96, 98, 116)
+GOLD = (240, 202, 86)
+GOLD_DARK = (170, 130, 40)
+PEARL = (236, 232, 222)
+PEARL_BG = (176, 172, 164)
+COLUMN_FG = (242, 242, 250)
+FALLEN_COLUMN_FG = (214, 214, 226)
+MARBLE_RUBBLE_FG = (170, 170, 184)
+BLOSSOM_FG = (252, 226, 236)
+BLOSSOM_BG = (122, 100, 118)
+PETALS_FG = (238, 186, 208)
+STATUE_FG = (236, 236, 244)
+STATUE_BG = (98, 98, 112)
+BLOOD_FG = (206, 30, 42)
+BLOOD_BG = (92, 8, 16)
+BLOOD_TRICKLE_FG = (220, 36, 48)
+BLOOD_TRICKLE_BG = (96, 30, 40)
+FONT_RIM_FG = (226, 226, 236)
+FONT_RIM_BG = (96, 96, 110)
+BRIDGE_FG = (226, 226, 236)
+BRIDGE_BG = (112, 104, 110)
+CLOUD_BANK_FG = (228, 230, 244)
+CLOUD_BANK_BG = (116, 122, 148)
+STAIR_FG = (246, 246, 252)
+STAIR_BG = (128, 128, 144)
+CHAIN_FG = (150, 150, 160)
+GLASS = {"red": (226, 54, 72), "blue": (80, 120, 236), "gold": (244, 206, 90)}
+
+MAP_BIOME["paradise"] = (170, 172, 192)
+MAP_TILE.update({
+    "blossom tree": (236, 200, 214), "marble column": (240, 240, 248),
+    "fallen column": (210, 210, 222), "pearl wall": PEARL, "gate pillar": GOLD,
+    "golden bars": GOLD, "gold post": GOLD, "throne": GOLD, "altar": GOLD,
+    "statue": (230, 230, 240), "weeping statue": (230, 200, 206),
+    "blood river": (170, 24, 34), "blood font": (170, 24, 34), "blood trickle": (150, 40, 50),
+    "font rim": (200, 200, 212), "cloud bank": (150, 156, 180),
+    "marble road": (232, 232, 240), "marble bridge": (232, 232, 240),
+    "white stair": (250, 250, 255), "balustrade": (220, 220, 232),
+    "chain post": (150, 150, 160),
+})
+MAP_TILE_BIOME.update({"cloud": "paradise", "cloud drift": "paradise", "petals": "paradise",
+                       "marble rubble": "paradise", "marble step": "paradise",
+                       "marble floor": "paradise", "gold inlay": "paradise",
+                       "rose glass": "paradise"})

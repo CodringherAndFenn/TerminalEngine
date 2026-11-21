@@ -60,6 +60,7 @@ import random
 import time
 from contextlib import contextmanager
 
+import numpy as np
 import pygame
 
 from engine import Scene, TextRenderer
@@ -104,7 +105,7 @@ from ..render.terrain import TerrainRenderer
 from ..ai.plains import drum_haste, tick_drum
 from ..systems import combat, mount, relics, roll
 from ..systems.chests import Chests
-from ..systems.quests import Quests, free_spot
+from ..systems.quests import Banner, Quests, free_spot
 from ..systems.spawner import Spawner
 from ..systems.run_rules import RunRules, difficulty_totals, pact_totals
 from ..systems.spells import sync_spells, update_spells
@@ -183,6 +184,7 @@ class GameScene(Scene):
         # Maps exist only on the island (the test map has no layout).
         self.big_map = BigMap(self.world) if self.players[0].minimap is not None else None
         self.dev_targets = False        # dev mode, F4: the big map shows every quest's targets
+        self.arrived: set[str] = set()  # (M29.1) ocean zones someone has set foot on: their banner
         self._run_recorded = False
         self.broken: set[str] = set()     # records this run broke
         self.overlay = None               # None | PauseMenu | SettingsPanel | GameOverPanel
@@ -417,6 +419,51 @@ class GameScene(Scene):
         self.me.camera.center_on(h.x, h.y)
         self._stream_world(budget_ms=None)
 
+    def _zones_near(self, p: Player, biome: str | None) -> None:
+        """The ocean zones (M29.1): one shows on the maps once a player has
+        come within ZONE_FOUND_RANGE tiles of its shore; the first time a
+        player sets foot on it, its name comes up as a banner."""
+        layout = getattr(self.world, "layout", None)
+        if layout is None or not layout.zones or p.ghost:
+            return
+        h = p.hero
+        z = layout.zone_at(h.x, h.y, config.ZONE_FOUND_RANGE)
+        if z is None:
+            return
+        found = self.world.found_zones
+        if z.key not in found:
+            shore = float(z.coast(np.array([h.x]), np.array([h.y]))[0])
+            if math.hypot(h.x - z.cx, h.y - z.cy) - shore < config.ZONE_FOUND_RANGE:
+                found.add(z.key)
+                self.world.explored.version += 1          # (the maps redraw)
+        if biome == z.biome.name and z.key not in self.arrived:
+            self.arrived.add(z.key)
+            self.quests.banner = Banner(z.biome.title.upper(), config.ZONE_ARRIVAL.get(z.key, ""))
+
+    def _dev_zone(self) -> None:
+        """Developer mode, F3: jump to the next ocean zone (M29.1), just
+        inside its Gate, walking on water (Adventurer's Glory's gift)."""
+        layout = getattr(self.world, "layout", None)
+        if layout is None or not layout.zones or not self.me.alive:
+            return
+        from ..world.paradise import plan_of
+        h = self.hero
+        here = layout.zone_at(h.x, h.y)
+        keys = [z.key for z in layout.zones]
+        z = layout.zones[(keys.index(here.key) + 1) % len(keys) if here else 0]
+        plan = plan_of(layout, z)
+        gx, gy = plan.facing
+        spot = (plan.gate[0] - gx * 10 + 0.5, plan.gate[1] - gy * 10 + 0.5)
+        h.water_walk = True
+        self._stream_world(budget_ms=None)
+        self.world.ensure_ready(int(spot[0]) - 48, int(spot[1]) - 20, int(spot[0]) + 48,
+                                int(spot[1]) + 20)
+        h.x, h.y = free_spot(self.world, *spot, h.half)
+        h.prev_pos = (h.x, h.y)
+        self.me.camera.center_on(h.x, h.y)
+        self._stream_world(budget_ms=None)
+        self._sounds.append("ui")
+
     def _restart(self) -> None:
         """Go again: same hero, and the same island if a seed was chosen."""
         self.manager.switch_to(GameScene(self.hero_key, self.seed_choice, self.difficulty))
@@ -509,6 +556,8 @@ class GameScene(Scene):
                 self._open_gear()                     # (M28.1)
             elif event.key == pygame.K_l and self.app.dev and self.me.alive:
                 self._dev_level_up()
+            elif event.key == pygame.K_F3 and self.app.dev:
+                self._dev_zone()                        # (M29.1)
             elif event.key in (pygame.K_F4, pygame.K_F5, pygame.K_F6, pygame.K_F7, pygame.K_F8,
                                pygame.K_F9) and self.app.dev:
                 self._dev_quest(event.key)
@@ -621,6 +670,7 @@ class GameScene(Scene):
             biome_at = getattr(self.world, "biome_at", None)
             biome = biome_at(math.floor(p.hero.x), math.floor(p.hero.y)).name if biome_at else None
             p.stats.tick(dt, p.hero.x, p.hero.y, p.hero.walked, biome)
+            self._zones_near(p, biome)
 
         update_effects(self.effects, dt)   # age first: new effects show frame 0
         for p in living:
@@ -1499,7 +1549,7 @@ class GameScene(Scene):
             name = f"{dq.biome.upper()} {dq.spec.camp_name or dq.spec.giver.upper()}" if dq else "-"
             text.put(0, d.rows - 1, f" DEV  L: level up  F4: all targets "
                                     f"{'on' if self.dev_targets else 'off'}  F5: quest [{name}]  "
-                                    "F6: giver  F7: finish  F8: lair  F9: target ",
+                                    "F6: giver  F7: finish  F8: lair  F9: target  F3: zone ",
                      palette.DEV_TAG, palette.HUD_PANEL)
         if self.map_open:
             if self.app.dev and self.dev_targets:     # (P2, F4: every quest's targets)

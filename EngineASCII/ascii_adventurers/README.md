@@ -806,6 +806,14 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   big in the middle: head, chest and feet down the left, the hands on the
   right.
 
+- **Paradise, M29.1** (`design/OCEAN.md` 8): the first ocean zone's island,
+  far north past the coast (water walking), hidden on the maps until you
+  come near. Marble and clouds: cloud ground, blossom groves, columns,
+  marble roads with gold posts, a cloud bank instead of a beach; the river
+  of blood, blood fonts, weeping statues; the Gate on the shore, the fallen
+  cathedral, the stairway to nowhere, choir rings, and the sealed summit
+  court with its throne. No enemies yet. Dev mode: F3 jumps there.
+
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

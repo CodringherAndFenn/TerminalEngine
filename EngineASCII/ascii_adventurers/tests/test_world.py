@@ -175,10 +175,15 @@ class LayoutTest(unittest.TestCase):
             r = rng.uniform(0, lay.plains_radius * (1 - config.PLAINS_EDGE_AMPLITUDE) - border, 4000)
             ids = lay.biome_ids(r * np.cos(a), r * np.sin(a))
             self.assertTrue((ids == biomes.PLAINS.id).all(), seed)
-            # Past the farthest the coast can reach: ocean.
+            # Past the farthest the coast can reach: ocean (but for the
+            # ocean zones' islands, M29).
             r = rng.uniform(lay.max_land_radius, lay.max_land_radius * 2, 4000)
-            ids = lay.biome_ids(r * np.cos(a), r * np.sin(a))
-            self.assertTrue((ids == biomes.OCEAN.id).all(), seed)
+            xs, ys = r * np.cos(a), r * np.sin(a)
+            ids = lay.biome_ids(xs, ys)
+            open_sea = np.ones(len(r), dtype=bool)
+            for z in lay.zones:
+                open_sea &= np.hypot(xs - z.cx, ys - z.cy) > z.max_radius
+            self.assertTrue((ids[open_sea] == biomes.OCEAN.id).all(), seed)
             # Inside the nearest the coast can come: land.
             r = rng.uniform(0, lay.radius * (1 - config.COAST_AMPLITUDE) - border, 4000)
             ids = lay.biome_ids(r * np.cos(a), r * np.sin(a))
@@ -231,9 +236,14 @@ class LayoutTest(unittest.TestCase):
         spread = (max(radii) - min(radii)) / lay.radius
         self.assertGreater(spread, config.COAST_AMPLITUDE * 0.5)
 
-    def test_cardinal_sites_are_open_ocean(self):
+    def test_cardinal_sites_are_open_ocean_or_their_zone(self):
+        """(M29: a built zone's site is its island's centre.)"""
         lay = IslandLayout(3)
-        for x, y in lay.cardinal_sites().values():
+        built = {z.place: z for z in lay.zones}
+        for place, (x, y) in lay.cardinal_sites().items():
+            if place in built:
+                self.assertIs(lay.biome_at(x, y), built[place].biome)
+                continue
             self.assertIs(lay.biome_at(x, y), biomes.OCEAN)
             self.assertTrue(lay.all_ocean(x - 200, y - 200, x + 200, y + 200))
 

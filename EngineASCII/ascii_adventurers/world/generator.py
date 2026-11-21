@@ -65,6 +65,10 @@ _TILES = (
     tiles.DEAD_LEAVES, tiles.FOG, tiles.GNARLED_TRUNK, tiles.STUMP,
     tiles.LOG_LEFT, tiles.LOG_MID, tiles.LOG_RIGHT,
     *tiles.CROWN.values(),
+    # Paradise (M29.1, world/paradise.py)
+    tiles.CLOUD, tiles.CLOUD_DRIFT, tiles.BLOSSOM, tiles.COLUMN, tiles.FALLEN_COLUMN,
+    tiles.MARBLE_ROAD, tiles.GOLD_POST, tiles.STEP, tiles.BLOOD_RIVER, tiles.MARBLE_BRIDGE,
+    tiles.CLOUD_BANK,
 )
 _IDX = {t: i for i, t in enumerate(_TILES)}
 _T = _IDX.__getitem__
@@ -134,6 +138,19 @@ def _ocean(detail, r1, r2):
     return np.full(detail.shape, _T(tiles.WATER))
 
 
+def _paradise(detail, r1, r2):
+    """Paradise's ground (M29.1): soft cloud, puffier drifts, blossom
+    groves where the detail field is low, lone columns standing and fallen.
+    Its roads, river, posts, terraces and cloud bank are its plan's
+    (world/paradise.Plan.paint)."""
+    return np.select(
+        [(detail < 1.0 - config.PARADISE_TREE_MIN) & (r1 < config.PARADISE_TREE_CHANCE),
+         r1 > 1.0 - config.PARADISE_COLUMN_CHANCE, r2 < config.PARADISE_FALLEN_CHANCE,
+         detail > config.PARADISE_DRIFT_MIN],
+        [_T(tiles.BLOSSOM), _T(tiles.COLUMN), _T(tiles.FALLEN_COLUMN), _T(tiles.CLOUD_DRIFT)],
+        _T(tiles.CLOUD))
+
+
 _FEATURES = {
     biomes.PLAINS.id: _plains,
     biomes.FOREST.id: _forest,
@@ -142,6 +159,7 @@ _FEATURES = {
     biomes.SWAMP.id: _swamp,
     biomes.MUSHROOM.id: _mushroom,
     biomes.OCEAN.id: _ocean,
+    biomes.PARADISE.id: _paradise,
 }
 # Lakes form in plains, forest and mushroom land (swamps have bogs, deserts
 # and ruins stay dry).
@@ -175,6 +193,11 @@ def build_chunk(layout: IslandLayout, cx: int, cy: int) -> Generator[None, None,
         mask = biome_ids == bid
         ids[mask] = _FEATURES[int(bid)](detail, r1, r2)[mask]
     ids[lakes] = _T(tiles.WATER)
+    zone = layout.zone_near_rect(x0, y0, x0 + n, y0 + n)
+    if zone is not None:                    # (M29.1: an ocean zone's own plan)
+        from .paradise import plan_of
+        plan_of(layout, zone).paint(x0, y0, xs, ys, ids, biome_ids, r1, _T)
+        yield
     lights: tuple = ()
     if (biome_ids == biomes.FOREST.id).any():
         lights = _haunt(layout, x0, y0, ids, biome_ids)

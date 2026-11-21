@@ -69,6 +69,11 @@ def map_pixels(world, cx: float, cy: float, k: float, w: int, h: int) -> np.ndar
     unseen = cls == UNSEEN
     if unseen.any():
         outline = world.layout.biome_ids(txs + 0.5, tys + 0.5, jitter=False).astype(np.int64)
+        # An ocean zone nobody has come near yet is still open sea (M29.1).
+        found = getattr(world, "found_zones", ())
+        for z in world.layout.zones:
+            if z.key not in found:
+                outline[outline == z.biome_id] = biomes.OCEAN.id
         cls = np.where(unseen, outline + _DIM_OFFSET, cls)
     return cls
 
@@ -299,14 +304,19 @@ class BigMap:
 
     # --- Geometry (in map pixels; see map_pixels for the mapping) -----------------
 
+    def _reach(self) -> float:
+        """How far out the map goes: the island, and the ocean zones found
+        (M29.1)."""
+        return self.layout.view_radius(getattr(self.world, "found_zones", ()))
+
     def _fit_k(self) -> float:
-        """Tiles per pixel that shows the whole island."""
+        """Tiles per pixel that shows the whole island (and the zones found)."""
         w, h = self._size
-        return 2 * self.layout.max_land_radius * 1.04 / min(w, h)
+        return 2 * self._reach() * 1.04 / min(w, h)
 
     def _clamp(self) -> None:
         self.k = min(max(self.k, config.MAP_MIN_TILES_PER_PIXEL), self._fit_k())
-        lim = self.layout.max_land_radius
+        lim = self._reach()
         self.cx = min(max(self.cx, -lim), lim)
         self.cy = min(max(self.cy, -lim), lim)
 
@@ -439,7 +449,9 @@ class BigMap:
             return (1 <= col and col + n <= w + 1 and 1 <= row <= rows
                     and not any((c, row) in used for c in range(col - 1, col + n + 1)))
 
-        for name, x, y in self._labels:
+        found = getattr(self.world, "found_zones", ())
+        zones = [(z.biome.title.upper(), z.cx, z.cy) for z in self.layout.zones if z.key in found]
+        for name, x, y in self._labels + zones:
             px, py = self._world_to_canvas(x, y, cw, ch)
             col, row = round(px / cw - len(name) / 2), int(py // ch)
             if room(col, row, len(name)):

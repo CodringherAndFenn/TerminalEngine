@@ -52,6 +52,9 @@ class ChunkedWorld:
         self.layout.landmarks
         # What the player has seen (every chunk ever generated), for the maps.
         self.explored = ExploredMap()
+        # The ocean zones a player has come near (M29.1): hidden on the maps
+        # until then. Zone keys; the game adds to it.
+        self.found_zones: set[str] = set()
         self._shift = n.bit_length() - 1   # tx >> shift == floor(tx / n)
         self._mask = n - 1                 # tx & mask == tx mod n (also < 0)
         self._chunks: dict[tuple[int, int], Chunk] = {}

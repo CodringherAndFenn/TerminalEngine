@@ -19,6 +19,8 @@ The maths, for a point at distance r and angle theta from the centre:
     with smaller wiggles on top).
   * plains if r < plains radius: WORLD_RADIUS * PLAINS_RADIUS_FRACTION,
     wobbling by +-PLAINS_EDGE_AMPLITUDE of itself.
+  * the ocean zones (M29, world/zones.py): islands of their own out at
+    sea, painted over the ocean where each one's coast says.
   * otherwise the ring. theta is bent by a smooth noise field (up to
     +-BIOME_WARP radians) so slice borders curve; the jitter is converted
     from tiles to an angle (jitter / r) so the raggedness has the same size
@@ -68,6 +70,11 @@ class IslandLayout:
         # No point can be land beyond this (every wobble at its maximum).
         self.max_land_radius = (self.radius * (1 + config.COAST_AMPLITUDE)
                                 + config.BORDER_WOBBLE + config.BIOME_BORDER_JITTER + 1)
+        # The ocean zones (M29). Placed from the main island's own coast, so
+        # placed while there are none yet (_classify then sees no zones).
+        self.zones: tuple = ()
+        from .zones import place_zones
+        self.zones = place_zones(self)
         # Found once, when the run starts (~20 ms), not in the middle of
         # generating a chunk.
         self.spawn: tuple[int, int] = self._find_spawn()
@@ -131,6 +138,13 @@ class IslandLayout:
         ids = self._ring_ids[sector]
         ids = np.where(r + j < plains, np.uint8(biomes.PLAINS.id), ids)
         ids = np.where(r + j > coast, np.uint8(biomes.OCEAN.id), ids)
+        for z in self.zones:
+            # (Most queries are nowhere near a zone: one bounding-box test.)
+            reach = z.max_radius
+            if (np.max(xs) < z.cx - reach or np.min(xs) > z.cx + reach
+                    or np.max(ys) < z.cy - reach or np.min(ys) > z.cy + reach):
+                continue
+            ids = np.where(z.inside(xs, ys), np.uint8(z.biome_id), ids)
         return ids.astype(np.uint8)
 
     def biome_at(self, x: float, y: float) -> biomes.Biome:
@@ -143,7 +157,39 @@ class IslandLayout:
         nearest point is past the farthest the coast can reach)."""
         nx = min(max(0.0, x0), x1)
         ny = min(max(0.0, y0), y1)
-        return math.hypot(nx, ny) > self.max_land_radius
+        if math.hypot(nx, ny) <= self.max_land_radius:
+            return False
+        # (M29: nor near an ocean zone, its cloud bank included.)
+        return self.zone_near_rect(x0, y0, x1, y1) is None
+
+    # --- The ocean zones (M29) -----------------------------------------------------------
+
+    def zone_near_rect(self, x0: float, y0: float, x1: float, y1: float):
+        """The zone whose island (or the cloud bank off its shore) may reach
+        into rect [x0, x1] x [y0, y1], or None."""
+        for z in self.zones:
+            nx = min(max(z.cx, x0), x1)
+            ny = min(max(z.cy, y0), y1)
+            if math.hypot(nx - z.cx, ny - z.cy) <= z.max_radius + config.PARADISE_CLOUD_BANK + 2:
+                return z
+        return None
+
+    def zone_at(self, x: float, y: float, margin: float = 0.0):
+        """The zone (x, y) is within `margin` tiles of (by its farthest
+        reach), or None."""
+        return next((z for z in self.zones if z.near(x, y, margin)), None)
+
+    def zone(self, key: str):
+        return next((z for z in self.zones if z.key == key), None)
+
+    def view_radius(self, found=()) -> float:
+        """How far from the centre the maps must reach to show the island
+        and every zone in `found` (zone keys)."""
+        r = self.max_land_radius
+        for z in self.zones:
+            if z.key in found:
+                r = max(r, math.hypot(z.cx, z.cy) + z.max_radius + config.PARADISE_CLOUD_BANK)
+        return r
 
     # --- The start -----------------------------------------------------------------------
 
@@ -222,6 +268,10 @@ class IslandLayout:
             reached = grown
 
     def cardinal_sites(self) -> dict[str, tuple[float, float]]:
-        """Centres of the four ocean regions reserved for a later milestone."""
+        """Centres of the four ocean regions: a built zone's own centre
+        (M29), else the spot reserved for it."""
         d = self.radius * config.CARDINAL_REGION_DISTANCE
-        return {"N": (0.0, -d), "E": (d, 0.0), "S": (0.0, d), "W": (-d, 0.0)}
+        out = {"N": (0.0, -d), "E": (d, 0.0), "S": (0.0, d), "W": (-d, 0.0)}
+        for z in self.zones:
+            out[z.place] = (z.cx, z.cy)
+        return out

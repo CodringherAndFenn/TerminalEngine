@@ -139,7 +139,8 @@ def move_hull(
 
 # Water a hero with Adventurer's Glory walks on (M27): lakes, the ocean, bogs
 # and ponds of every kind.
-WATERY = {"water", "bog", "pond", "blood pool", "stagnant water", "oasis", "frozen pond"}
+WATERY = {"water", "bog", "pond", "blood pool", "stagnant water", "oasis", "frozen pond",
+          "blood river", "blood font", "cloud bank"}     # (M29.1: Paradise)
 
 
 class WaterWalk:

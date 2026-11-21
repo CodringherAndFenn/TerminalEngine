@@ -32,6 +32,10 @@ RUINS = Biome(3, "ruins", tiles.CONCRETE)
 SWAMP = Biome(4, "swamp", tiles.MUD)
 MUSHROOM = Biome(5, "mushroom", tiles.MYCELIUM)
 OCEAN = Biome(6, "ocean", tiles.WATER)       # everything past the coast
+# The ocean zones (M29, design/OCEAN.md): islands of their own out at sea.
+PARADISE = Biome(7, "paradise", tiles.CLOUD)
 
-BY_ID = (PLAINS, FOREST, DESERT, RUINS, SWAMP, MUSHROOM, OCEAN)
+BY_ID = (PLAINS, FOREST, DESERT, RUINS, SWAMP, MUSHROOM, OCEAN, PARADISE)
+# The zones' biomes by zone key.
+ZONES = {"paradise": PARADISE}
 BY_NAME = {b.name: b for b in BY_ID}
