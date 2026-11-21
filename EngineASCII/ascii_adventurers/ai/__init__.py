@@ -29,8 +29,10 @@ ai -- enemy behaviour.
   mushroom.py   the mushroom biome's P12 enemies: myconid shaman, cordyceps
                 hunter, fungal brute, rootweaver, giant snail, pillbug,
                 mantis, fairy ring (and caps), mold core
-  paradise.py   Paradise's M29.2 enemies, all unveiling (serene -> horror):
-                cherub, seraph, ophan, watcher, the Lamb, doves, locusts, halo
+  paradise.py   Paradise's enemies, all unveiling (serene -> horror): cherub,
+                seraph, ophan, watcher, the Lamb, doves, locusts, halo (M29.2);
+                trumpeter, censer-bearer, bowl-bearer, chorister, weeping
+                saint, martyr, behemoth, leviathan (M29.3)
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -63,7 +65,9 @@ from .plains import (Bull, Chaser, Crow, Drummer, Hawk, Hound, Lancer, Molehill,
                      Scarecrow, Shieldbearer, StrawGolem)
 from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 from .mimic import Mimic
-from .paradise import Cherub, Dove, Halo, Lamb, Locust, Ophan, Seraph, Watcher
+from .paradise import (BowlBearer, CenserBearer, Cherub, Chorister, Dove, Halo, Lamb,
+                       Leviathan, Locust, Martyr, Ophan, Seraph, Trumpeter, Watcher,
+                       WeepingSaint, Behemoth)
 
 KINDS = {
     "archer": Archer,
@@ -208,6 +212,15 @@ KINDS = {
     "dove": Dove,
     "locust": Locust,
     "halo": Halo,
+    # M29.3
+    "trumpeter": Trumpeter,
+    "censer_bearer": CenserBearer,
+    "bowl_bearer": BowlBearer,
+    "chorister": Chorister,
+    "weeping_saint": WeepingSaint,
+    "martyr": Martyr,
+    "behemoth": Behemoth,
+    "leviathan": Leviathan,
 }
 
 

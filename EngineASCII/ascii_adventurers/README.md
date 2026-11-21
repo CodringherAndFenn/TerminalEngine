@@ -825,6 +825,16 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   Endgame tough: x2.5 HP and x1.5 damage on top of the level scaling,
   bigger packs, more elites.
 
+- **Paradise's other angels, M29.3** (`design/OCEAN.md` 10): all sixteen now.
+  The trumpeter (elite) calls a marked hail of fire and blood; the
+  censer-bearer hurls burning coals; the bowl-bearer pours a spreading pool
+  of blood where you stand; the choristers live at the choir rings, healing
+  the angels round them; the weeping saint lobs tears that pool; the
+  martyr throws its arrows back (every hit gives it another); the
+  behemoth (elite) charges through columns, its bone plates shrugging off
+  hits from the front; the leviathan (elite) lives in the river of blood,
+  surging along it to spit at you.
+
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

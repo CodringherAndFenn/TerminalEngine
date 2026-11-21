@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Ocean Zones
 
-Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -116,7 +116,7 @@ At 0 the cavalry unveils into **the Four Horsemen**, each with **its own health 
 |------|---------|
 | M29.1 | **The region framework + Paradise's land:** placing the four zone islands (only Paradise generated; the others stay ocean), Paradise's terrain (cloud ground, cloud-bank shore, marble roads, gold posts, blossom trees, columns), the river of blood, fonts, weeping statues, the four landmarks, the summit court (sealed shell), hidden-until-found on the big map and the minimap, the HUD name. **Built, section 8** (the blood stains moved to M29.2 and the sky's tint to M29.4: they need the enemies and the seals) |
 | M29.2 | **The unveiling + the first 8 enemies:** the shared serene/unveiled framework (tells, blood trails **and the stains they leave, kept on the ground**, fonts healing), endgame toughness; Cherub, Seraph, Ophan, Watcher, the Lamb, Doves, Locusts, Halo. **Built, section 9** |
-| M29.3 | **The other 8 enemies:** Trumpeter, Censer-bearer, Bowl-bearer, Chorister, Weeping Saint, Martyr, Behemoth, Leviathan |
+| M29.3 | **The other 8 enemies:** Trumpeter, Censer-bearer, Bowl-bearer, Chorister, Weeping Saint, Martyr, Behemoth, Leviathan. **Built, section 10** |
 | M29.4 | **The quest + form 1:** the seven seals (**and the sky reddening, seal by seal**), the fallen angel, waking and sealing the court; the serene cavalry (4 phases, 4 signatures, 4 moves), always riding |
 | M29.5 | **Form 2:** the Four Horsemen (16 abilities), inheritance, the bot benchmark; then the 4 relics drafted with the user |
 
@@ -170,4 +170,25 @@ At 0 the cavalry unveils into **the Four Horsemen**, each with **its own health 
 
 **For later:** the density, the toughness and every enemy's numbers want a play test (and the bot, once the Horsemen exist). M29.3 adds the other eight (the heralds, the saints and beasts); the Choristers will gather at the choir rings.
 
-**NEXT: M29.3, the other eight enemies.**
+## 10. Built: M29.3 (2026-11-21) -- the other eight enemies
+
+On the same unveiling as section 9 (`ai/paradise.Angel`). **(mine)** Where section 4 gives a serene form only a look (the censer's haze, the bowl, the praying saint, the kneeling martyr, the grazing ox, the white serpent), it's harmless while serene: killing it before it unveils costs you nothing. The trumpeter pushes and the chorister heals while serene.
+
+| Enemy | Serene | Unveiled |
+|-------|--------|----------|
+| **Trumpeter** (elite, 300) | keeps 9 back; a long note every 3.5 s pushes heroes within 6 tiles 1.5 back (no damage) | each blast (0.7 s tell) calls a plague: a 4-tile circle round you is marked for 1.2 s (orange ring), then 10 strikes fall in it over 1.2 s, fire (leaving a burning patch) and blood (leaving stains) in turn. The plague falls even if the trumpeter goes off to drink |
+| **Censer-bearer** (65) | follows you swinging its censer: puffs of harmless incense | keeps 7 back; every 2.4 s hurls 2 burning coals in an arc (a mark where each will land); they burst and leave fire (burning) for 3 s |
+| **Bowl-bearer** (70) | follows you with its gold bowl (harmless) | keeps 5 back; every 4 s marks where you stand (a growing ring, 0.9 s) and pours: a pool of blood that spreads from 1 to 3 tiles over 6 s, slows you (x0.6) and bleeds you; the ground under it stains |
+| **Chorister** (55) | **lives at the choir rings, 3 to a ring** (mine); lingers there singing, healing every angel within 6 tiles 3% of its max HP a second (not itself; gold notes rise while it heals) | keeps 4-7 back; shrieks (0.5 s tell) 3 rings of 16 shots, each turned half a gap from the last |
+| **Weeping Saint** (80) | kneels where it is, praying (harmless) | bleeds from its eyes; keeps 8 back; every 2.8 s lobs 3 tears (marks where they land) that burst and leave pools of blood (slow x0.7, 5 s) |
+| **Martyr** (75) | kneels, pierced with 10 arrows (harmless) | **every hit from a hero sticks another arrow in it, up to 15** (mine); keeps 7 back and every 1.6 s rips out up to 5 and throws them back in a fan. Out of arrows, it throws nothing: shooting it feeds it |
+| **Behemoth** (elite, 420) | a huge white ox grazing round where it lives (harmless) | bone plates: hits from within 60 degrees of its front do half. Within 14 tiles it scrapes (its line shows) and charges 16 tiles at 15 tiles/s, three charges in a row, **trampling columns, fallen columns and blossom trees** (they break), goring and shoving; pearl walls, statues and the like daze it 1.6 s |
+| **Leviathan** (elite, 380) | **lives in the river of blood, 3 to the river** (mine); a white serpent swimming lazily within 18 tiles of home (harmless) | surges along the river (11 tiles/s) to the stretch nearest you and spits 3 gobs of blood in a 30-degree fan every 1.6 s; bites whoever stands on it. It never leaves the river (it moves along the river's line) and never goes to the fonts |
+
+**Residents** (`systems/spawner`): the choristers and the leviathans aren't rolled at random (`biomes=()`); `ai/paradise.residents` puts them at their places and the spawner adds them to their chunk's roster (ids from `RESIDENT_ID`), so they wake, sleep and stay dead like any other. The other 14 are rolled across the island as before.
+
+**Look:** 16 new pictures (`render/paradise_art.py`): the trumpeter with its long gold trumpet (unveiled: the bell gapes, eyes down its wings), the censer-bearer (unveiled: coals burning in the censer), the bowl-bearer (the bowl brimming with blood), the chorister with its open book (unveiled: its mouth torn wide), the grey kneeling saint (red tears), the martyr full of arrows (the wounds open), the white ox (bone plates and raw red), the serpent rising out of the blood (eyed, fanged). Tells (`render/paradise.py`): the arcs and landing marks of coals and tears, the plague ring, the bowl's ring, the behemoth's charge line, the chorister's notes. Zones: incense, blood pools. Shots: a martyr's arrows, a chorister's shrieks (pale red), a leviathan's spit.
+
+**Code:** `ai/paradise.py` (Trumpeter, CenserBearer, BowlBearer, Chorister, WeepingSaint, Martyr, Behemoth, Leviathan; Angel gains `lob`/`landed`, `always` and `drinks`; `rivers`, `residents`); config `TRUMPET`, `CENSER`, `BOWL`, `CHORISTER`, `SAINT`, `MARTYR`, `BEHEMOTH`, `LEVIATHAN`, three more `PARADISE_SHOTS`; `systems/spawner` (residents). **Tests:** `tests/test_m29_3.py` (19); two `test_m29_2` checks widened (Paradise has more than the first eight now).
+
+**NEXT: M29.4, the quest and form 1** (the seven seals and the sky reddening, the fallen angel, waking and sealing the court; the serene cavalry).

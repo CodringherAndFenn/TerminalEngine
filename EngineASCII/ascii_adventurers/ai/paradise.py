@@ -54,7 +54,7 @@ from ..world import tiles
 from .brain import AIContext
 from .creatures import _numbered_hit
 from .desert import _dash
-from .plains import PlainsCreature
+from .plains import Bull, PlainsCreature
 
 
 # --- Blood on the ground ------------------------------------------------------------------
@@ -123,9 +123,11 @@ class Angel(PlainsCreature):
     sprite + "_unveiled"."""
 
     bleed = 1.0                     # x how often it stains (small fliers less)
+    drinks = True                   # goes to the fonts to heal (not the watcher or leviathan)
 
     def __init__(self, *a, **kw) -> None:
         super().__init__(*a, **kw)
+        self.lobs: list[list] = []   # things it threw, in the air: [x0, y0, x1, y1, s, of s, what]
         self.state = "serene"
         self.timer = 0.0            # the unveiling's tell left
         self.clock = 0.0
@@ -190,6 +192,8 @@ class Angel(PlainsCreature):
         super().think(ctx, dt)                 # (_moved, the cooldown)
         self.sense(ctx, dt)
         self.clock += dt
+        self._fly_lobs(ctx, dt)
+        self.always(ctx, dt)
         if self.serene and any(p.alive and math.hypot(p.x - self.x, p.y - self.y) <= config.UNVEIL[1]
                                for p in ctx.players):
             self.unveil()
@@ -224,6 +228,9 @@ class Angel(PlainsCreature):
 
     def on_unveil(self, ctx: AIContext) -> None:
         """What it does the moment it's unveiled (most: nothing more)."""
+
+    def always(self, ctx: AIContext, dt: float) -> None:
+        """Every turn, whatever its state (what it set going plays out)."""
 
     # --- Shared moves -------------------------------------------------------------------
 
@@ -262,6 +269,23 @@ class Angel(PlainsCreature):
                 _numbered_hit(a, damage * self.damage_mult, self,
                               self.angle_to(a.x, a.y) if angle is None else angle, ctx)
 
+    # --- Things thrown in an arc (coals, tears) ------------------------------------------
+
+    def lob(self, x1: float, y1: float, flight: float, what: str) -> None:
+        """Throw something in an arc to (x1, y1): it lands `flight` s later
+        (`landed`); where it'll land shows meanwhile (render/paradise.py)."""
+        self.lobs.append([self.x, self.y, x1, y1, 0.0, flight, what])
+
+    def _fly_lobs(self, ctx: AIContext, dt: float) -> None:
+        for b in self.lobs:
+            b[4] += dt
+            if b[4] >= b[5]:
+                self.landed(ctx, b[2], b[3], b[6])
+        self.lobs = [b for b in self.lobs if b[4] < b[5]]
+
+    def landed(self, ctx: AIContext, x: float, y: float, what: str) -> None:
+        """Something it threw came down at (x, y)."""
+
     # --- The fonts and the blood --------------------------------------------------------
 
     def _drink(self, ctx: AIContext, dt: float) -> bool:
@@ -270,7 +294,8 @@ class Angel(PlainsCreature):
         low, reach, near, rate, until, patience = config.FONT
         self.font_wait = max(0.0, self.font_wait - dt)
         if self.font is None:
-            if self.hp >= self.max_hp * low or self.font_wait > 0 or self.espec.speed <= 0:
+            if self.hp >= self.max_hp * low or self.font_wait > 0 or self.espec.speed <= 0 \
+                    or not self.drinks:
                 return False
             self.font = nearest_font(ctx.world, self.x, self.y, reach)
             self.font_time = 0.0
@@ -309,6 +334,9 @@ class Angel(PlainsCreature):
                 stain(ctx.world, self.x + math.cos(a) * r, self.y + math.sin(a) * r)
 
     def on_death(self, ctx: AIContext) -> None:
+        for b in self.lobs:                    # (what's in the air still comes down)
+            self.landed(ctx, b[2], b[3], b[6])
+        self.lobs = []
         if self.unveiled:
             ctx.effects.append(Effect("gore", self.x, self.y, size=self.hit_radius))
             pool(ctx.world, self.x, self.y + self.hit_radius * 0.3,
@@ -551,6 +579,8 @@ class Watcher(Angel):
     s, sweeping WATCHER[2] degrees the way you were going, out to
     WATCHER[1] tiles or the first thing that blocks shots; it hurts each
     body once a sweep."""
+
+    drinks = False
 
     def __init__(self, *a, **kw) -> None:
         super().__init__(*a, **kw)
@@ -901,3 +931,585 @@ class Halo(Angel):
         self._moved = step
         self.walked += step
         self.touch(ctx, self.espec.damage, every)
+
+
+# --- Heralds (M29.3) -----------------------------------------------------------------------
+
+
+class Trumpeter(Angel):
+    """Elite. Keeps TRUMPET[0] back. Serene: a long note every TRUMPET[1] s
+    that gently pushes heroes within TRUMPET[2] tiles TRUMPET[3] back.
+    Unveiled: every cooldown it raises the trumpet (the windup) and its
+    blast calls a plague: a TRUMPET[4]-tile circle round you is marked for
+    TRUMPET[5] s, then TRUMPET[6] strikes of fire and blood fall in it over
+    TRUMPET[7] s, each hurting what's within TRUMPET[8] -- fire leaves a
+    burning patch, blood a stain."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.cooldown = self.rng.uniform(1.0, config.TRUMPET[1])
+        self.plague: list | None = None      # [x, y, s of marking left, strikes left, s to the next]
+
+    def _note(self, ctx: AIContext) -> None:
+        _, _, reach, push = config.TRUMPET[:4]
+        ctx.effects.append(Effect("pulse", self.x, self.y, size=reach))
+        ctx.events.append("orb")
+        for a in ctx.actors:
+            if getattr(a, "faction", "") != "player" or not a.hittable:
+                continue
+            d = math.hypot(a.x - self.x, a.y - self.y)
+            if 0 < d <= reach + a.hit_radius:
+                combat.push(a, ctx.world, (a.x - self.x) / d * push, (a.y - self.y) / d * push)
+
+    def serene_turn(self, ctx: AIContext, dt: float) -> None:
+        keep, every = config.TRUMPET[:2]
+        t = self.target
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        self.keep(ctx, t, keep * 0.8, keep * 1.25, dt)
+        if self.cooldown <= 0:
+            self.cooldown = every
+            self._note(ctx)
+
+    def unveiled_turn(self, ctx: AIContext, dt: float) -> None:
+        keep, _, _, _, _, mark, strikes = config.TRUMPET[:7]
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = self.windup
+            if self.windup <= 0:
+                self.tell = 0.0
+                self._note(ctx)
+                if t is not None and self.plague is None:
+                    self.plague = [t.x, t.y, mark, strikes, 0.0]
+                self.cooldown = self.espec.cooldown
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        self.keep(ctx, t, keep * 0.8, keep * 1.25, dt)
+        if self.cooldown <= 0 and self.plague is None:
+            self.windup = self.espec.windup
+
+    def always(self, ctx: AIContext, dt: float) -> None:
+        """The plague it called falls, whatever it's doing now."""
+        p = self.plague
+        if p is None:
+            return
+        radius, _, strikes, over, width = config.TRUMPET[4:]
+        if p[2] > 0:
+            p[2] -= dt
+            return
+        p[4] -= dt
+        while p[4] <= 0 and p[3] > 0:
+            p[4] += over / strikes
+            p[3] -= 1
+            a, r = self.rng.uniform(0, math.tau), radius * math.sqrt(self.rng.random())
+            self._strike(ctx, p[0] + math.cos(a) * r, p[1] + math.sin(a) * r, width,
+                         fire=p[3] % 2 == 0)
+        if p[3] <= 0:
+            self.plague = None
+
+    def _strike(self, ctx: AIContext, x: float, y: float, width: float, fire: bool) -> None:
+        combat.blast(x, y, width, self.espec.damage * self.damage_mult, self, ctx.actors,
+                     effects=ctx.effects, ground=True)
+        ctx.effects.append(Effect("explosion" if fire else "gore", x, y, size=width))
+        if fire and ctx.zones is not None:
+            damage, tick = config.FIRE_PATCH
+            ctx.zones.append(Zone("trail", x, y, width * 0.9, 3.0, tick, damage, self,
+                                  (config.STATUSES["burn"].tag,), "burn"))
+        elif not fire:
+            pool(ctx.world, x, y, width * 0.8)
+        ctx.events.append(combat.BREAK)
+
+
+class CenserBearer(Angel):
+    """Serene: swings its censer -- harmless puffs of incense every CENSER[1]
+    s -- and drifts after you. Unveiled: keeps CENSER[0] back and every
+    cooldown hurls CENSER[2] burning coals (the windup) that land CENSER[3]
+    s later, CENSER[4] apart round you (where shows first): they hurt and
+    leave fire (CENSER[5] s)."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.puff = self.rng.uniform(0.0, config.CENSER[1])
+
+    def serene_turn(self, ctx: AIContext, dt: float) -> None:
+        self.puff -= dt
+        if self.puff <= 0 and ctx.zones is not None:
+            self.puff = config.CENSER[1]
+            ctx.zones.append(Zone("incense", self.x, self.y - 0.4, 1.1, 2.5, 99.0, 0.0, self))
+        t = self.target
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+        else:
+            self.go(ctx, t.x, t.y, dt, self.speed)
+
+    def unveiled_turn(self, ctx: AIContext, dt: float) -> None:
+        keep, _, n, flight, spread, _ = config.CENSER
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = self.windup
+            if self.windup <= 0:
+                self.tell = 0.0
+                if t is not None:
+                    a0 = self.rng.uniform(0, math.tau)
+                    for k in range(n):
+                        a = a0 + k * math.tau / n
+                        r = spread * (0.5 if n > 1 else 0.0)
+                        self.lob(t.x + math.cos(a) * r, t.y + math.sin(a) * r, flight, "coal")
+                    ctx.events.append("bow")
+                self.cooldown = self.espec.cooldown
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        self.keep(ctx, t, keep * 0.8, keep * 1.25, dt)
+        if self.cooldown <= 0:
+            self.windup = self.espec.windup
+
+    def landed(self, ctx: AIContext, x: float, y: float, what: str) -> None:
+        combat.blast(x, y, 0.9, self.espec.damage * self.damage_mult, self, ctx.actors,
+                     effects=ctx.effects, ground=True)
+        ctx.effects.append(Effect("explosion", x, y))
+        if ctx.zones is not None:
+            damage, tick = config.FIRE_PATCH
+            ctx.zones.append(Zone("trail", x, y, 1.0, config.CENSER[5], tick, damage, self,
+                                  (config.STATUSES["burn"].tag,), "burn"))
+
+
+class BowlBearer(Angel):
+    """Serene: carries its gold bowl after you (harmless). Unveiled: keeps
+    BOWL[0] back; every cooldown it marks where you stand (the windup: a
+    ring on the ground) and pours: a pool of blood there, BOWL[1] wide and
+    spreading x(1 + BOWL[2]) over its BOWL[3] s, that slows (x BOWL[4]) and
+    bleeds whoever stands in it (its damage every BOWL[5] s). The ground
+    under it stains."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.mark: tuple[float, float] | None = None
+
+    def serene_turn(self, ctx: AIContext, dt: float) -> None:
+        t = self.target
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+        else:
+            self.go(ctx, t.x, t.y, dt, self.speed)
+
+    def unveiled_turn(self, ctx: AIContext, dt: float) -> None:
+        keep, wide, grow, life, slow, every = config.BOWL
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = self.windup
+            if self.windup <= 0:
+                self.tell = 0.0
+                x, y = self.mark
+                self.mark = None
+                if ctx.zones is not None:
+                    ctx.zones.append(Zone("blood_pool", x, y, wide, life, every,
+                                          self.espec.damage * self.damage_mult, self, slow=slow,
+                                          grow=grow))
+                pool(ctx.world, x, y, wide + 0.5)
+                ctx.events.append("fizzle")
+                self.cooldown = self.espec.cooldown
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        self.keep(ctx, t, keep * 0.8, keep * 1.3, dt)
+        if self.cooldown <= 0:
+            self.windup, self.mark = self.espec.windup, (t.x, t.y)
+
+
+class Chorister(Angel):
+    """Lives at a choir ring (CHORISTER[2] to a ring: systems/spawner's
+    residents). Serene: lingers there singing; its hymn heals every angel
+    within CHORISTER[0] (not itself) CHORISTER[1] x max HP a second.
+    Unveiled: keeps back and every cooldown shrieks (the windup) --
+    CHORISTER[3] rings of CHORISTER[4] shots, CHORISTER[5] s apart, each
+    turned half a gap from the last."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.rings = 0
+        self.ring_t = 0.0
+        self.turn = self.rng.uniform(0, math.tau)
+        self.singing = False
+
+    def serene_turn(self, ctx: AIContext, dt: float) -> None:
+        reach, share = config.CHORISTER[:2]
+        self.go(ctx, *self.wander_goal(dt), dt, self.speed * 0.4)
+        self.singing = False
+        for a in ctx.actors:
+            if a is self or not isinstance(a, Angel) or not a.alive or a.hp >= a.max_hp \
+                    or wounded(a) or math.hypot(a.x - self.x, a.y - self.y) > reach:
+                continue
+            a.hp = min(float(a.max_hp), a.hp + a.max_hp * share * dt)
+            self.singing = True
+
+    def unveiled_turn(self, ctx: AIContext, dt: float) -> None:
+        _, _, _, rings, n, gap = config.CHORISTER
+        t = self.target
+        if self.rings > 0:
+            self.ring_t -= dt
+            if self.ring_t <= 0:
+                self.ring_t = gap
+                self.rings -= 1
+                self.turn += math.pi / n
+                shell = config.PARADISE_SHOTS["shriek"]
+                patterns.radial(self, self.x, self.y, n, shell, ctx.projectiles, turn=self.turn)
+                ctx.events.append(shell.sound)
+                if self.rings == 0:
+                    self.cooldown = self.espec.cooldown
+            return
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = self.windup
+            if self.windup <= 0:
+                self.tell = 0.0
+                self.rings, self.ring_t = rings, 0.0
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        self.keep(ctx, t, 4.0, 7.0, dt)
+        if self.cooldown <= 0:
+            self.windup = self.espec.windup
+
+
+# --- Saints and beasts (M29.3) -------------------------------------------------------------
+
+
+class WeepingSaint(Angel):
+    """Serene: kneels where it is, praying (harmless). Unveiled: bleeds
+    from its eyes; keeps SAINT[0] back and every cooldown lobs SAINT[1]
+    tears (the windup) that land SAINT[2] s later, SAINT[3] apart round you
+    (where shows first): each hurts and leaves a pool of blood SAINT[4]
+    wide for SAINT[5] s that slows (x SAINT[6])."""
+
+    def serene_turn(self, ctx: AIContext, dt: float) -> None:
+        t = self.target
+        if t is not None:
+            self.facing = self.angle_to(t.x, t.y)
+
+    def unveiled_turn(self, ctx: AIContext, dt: float) -> None:
+        keep, n, flight, spread = config.SAINT[:4]
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = self.windup
+            if self.windup <= 0:
+                self.tell = 0.0
+                if t is not None:
+                    a0 = self.rng.uniform(0, math.tau)
+                    for k in range(n):
+                        a = a0 + k * math.tau / n
+                        r = spread * (0 if k == 0 else 1)
+                        self.lob(t.x + math.cos(a) * r, t.y + math.sin(a) * r, flight, "tear")
+                    ctx.events.append("fizzle")
+                self.cooldown = self.espec.cooldown
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        self.keep(ctx, t, keep * 0.8, keep * 1.25, dt)
+        if self.cooldown <= 0:
+            self.windup = self.espec.windup
+
+    def landed(self, ctx: AIContext, x: float, y: float, what: str) -> None:
+        wide, life, slow = config.SAINT[4:]
+        combat.blast(x, y, 0.8, self.espec.damage * self.damage_mult, self, ctx.actors,
+                     effects=ctx.effects, ground=True)
+        ctx.effects.append(Effect("gore", x, y, size=0.6))
+        if ctx.zones is not None:
+            ctx.zones.append(Zone("blood_pool", x, y, wide, life, 0.5, 0.0, self, slow=slow))
+        stain(ctx.world, x, y)
+
+
+class Martyr(Angel):
+    """Starts pierced with MARTYR[0] arrows; every hit from a hero sticks
+    one more in (up to MARTYR[1]). Serene: kneels (harmless). Unveiled:
+    keeps MARTYR[4] back and every cooldown, with arrows in it, rips them
+    out (the windup) and throws up to MARTYR[2] back in a MARTYR[3]-degree
+    fan. Shooting it feeds it."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.arrows = config.MARTYR[0]
+
+    def take_damage(self, amount, source, from_angle):
+        dealt = super().take_damage(amount, source, from_angle)
+        if dealt > 0 and getattr(source, "faction", "") == "player":
+            self.arrows = min(config.MARTYR[1], self.arrows + 1)
+        return dealt
+
+    def serene_turn(self, ctx: AIContext, dt: float) -> None:
+        t = self.target
+        if t is not None:
+            self.facing = self.angle_to(t.x, t.y)
+
+    def unveiled_turn(self, ctx: AIContext, dt: float) -> None:
+        _, _, per, fan, keep = config.MARTYR
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = self.windup
+            if self.windup <= 0:
+                self.tell = 0.0
+                n = min(per, self.arrows)
+                if t is not None and n > 0:
+                    self.arrows -= n
+                    shell = config.PARADISE_SHOTS["arrow"]
+                    patterns.fan(self, self.x, self.y, self.angle_to(t.x, t.y), n,
+                                 fan * (n - 1) / max(1, per - 1), shell, ctx.projectiles)
+                    ctx.events.append(shell.sound)
+                self.cooldown = self.espec.cooldown
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        self.keep(ctx, t, keep * 0.8, keep * 1.25, dt)
+        if self.cooldown <= 0 and self.arrows > 0:
+            self.windup = self.espec.windup
+
+
+class Behemoth(Angel):
+    """Elite. Serene: a huge white ox, grazing round where it lives
+    (harmless). Unveiled: its hide splits on bone plates (hits from within
+    BEHEMOTH[6] degrees of its front do x BEHEMOTH[5]); within attack_radius
+    it scrapes (the windup; the line shows) and charges BEHEMOTH[1] tiles at
+    BEHEMOTH[0], trampling columns, trees and anything else that breaks (like
+    the bull), goring and shoving (BEHEMOTH[7]) whoever it runs into once a
+    charge; BEHEMOTH[2] charges in a row (BEHEMOTH[3] s turning between),
+    then a rest. What doesn't break dazes it (BEHEMOTH[4] s)."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.charging = "walk"      # unveiled: walk -> scrape -> charge -> turn -> scrape ... | dazed
+        self.ran = 0.0
+        self.passes = 0
+        self.gored: set[int] = set()
+
+    def take_damage(self, amount, source, from_angle):
+        if self.unveiled and from_angle is not None:
+            came_from = from_angle + math.pi
+            if abs(_wrap(came_from - self.facing)) < math.radians(config.BEHEMOTH[6]):
+                amount *= config.BEHEMOTH[5]
+        return super().take_damage(amount, source, from_angle)
+
+    def serene_turn(self, ctx: AIContext, dt: float) -> None:
+        self.go(ctx, *self.wander_goal(dt), dt, self.speed * 0.4)    # (grazing)
+
+    def unveiled_turn(self, ctx: AIContext, dt: float) -> None:
+        speed, length, passes, turn, daze, _, _, shove = config.BEHEMOTH
+        t = self.target
+        if self.charging in ("scrape", "turn", "dazed"):
+            self.timer -= dt
+            if self.charging == "scrape":
+                self.tell = self.timer
+            if self.charging == "turn" and t is not None:
+                self.facing = self.angle_to(t.x, t.y)
+            if self.timer <= 0:
+                self.tell = 0.0
+                if self.charging == "scrape":
+                    self.charging, self.ran, self.gored = "charge", 0.0, set()
+                elif self.charging == "turn":
+                    self.charging, self.timer = "scrape", self.espec.windup * 0.6
+                else:
+                    self.charging, self.cooldown = "walk", self.espec.cooldown
+            return
+        if self.charging == "charge":
+            moved, blocked = _dash(self, ctx, self.facing, speed, dt)
+            self.ran += moved
+            for a in ctx.actors:
+                if a is self or not a.hittable or id(a) in self.gored:
+                    continue
+                if math.hypot(a.x - self.x, a.y - self.y) <= self.hit_radius + a.hit_radius + 0.2:
+                    self.gored.add(id(a))
+                    _numbered_hit(a, self.espec.damage * self.damage_mult, self, self.facing, ctx)
+                    combat.push(a, ctx.world, math.cos(self.facing) * shove,
+                                math.sin(self.facing) * shove)
+            if blocked and not Bull._trample(self, ctx):
+                ctx.events.append(combat.BREAK)
+                ctx.effects.append(Effect("debris", self.x + math.cos(self.facing),
+                                          self.y + math.sin(self.facing)))
+                self.charging, self.timer = "dazed", daze
+            elif self.ran >= length:
+                self.passes += 1
+                if self.passes >= passes:
+                    self.charging, self.cooldown = "walk", self.espec.cooldown
+                else:
+                    self.charging, self.timer = "turn", turn
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        if self.dist_to(t) <= self.espec.attack_radius and self.cooldown <= 0:
+            self.facing = self.angle_to(t.x, t.y)
+            self.charging, self.timer, self.passes = "scrape", self.espec.windup, 0
+            return
+        self.go(ctx, t.x, t.y, dt, self.speed)
+
+
+def rivers(world) -> list[list[tuple[float, float]]]:
+    """The world's rivers of blood, as polylines (Paradise's plan; a test
+    map may set `world.rivers`)."""
+    lines = getattr(world, "rivers", None)
+    if lines is not None:
+        return lines
+    lines = []
+    layout = getattr(world, "layout", None)
+    for z in getattr(layout, "zones", ()):
+        if z.key == "paradise":
+            from ..world.paradise import plan_of
+            lines.append(plan_of(layout, z).river)
+    try:
+        world.rivers = lines
+    except AttributeError:
+        pass
+    return lines
+
+
+class _Line:
+    """A polyline walked by distance along it."""
+
+    def __init__(self, pts) -> None:
+        self.pts = list(pts)
+        self.at = [0.0]
+        for (ax, ay), (bx, by) in zip(self.pts, self.pts[1:]):
+            self.at.append(self.at[-1] + math.hypot(bx - ax, by - ay))
+        self.length = self.at[-1]
+
+    def point(self, s: float) -> tuple[float, float]:
+        s = max(0.0, min(self.length, s))
+        for k in range(1, len(self.pts)):
+            if s <= self.at[k] or k == len(self.pts) - 1:
+                seg = self.at[k] - self.at[k - 1] or 1e-9
+                f = (s - self.at[k - 1]) / seg
+                (ax, ay), (bx, by) = self.pts[k - 1], self.pts[k]
+                return ax + (bx - ax) * f, ay + (by - ay) * f
+        return self.pts[-1]
+
+    def project(self, x: float, y: float) -> tuple[float, float]:
+        """(distance along it of the point nearest (x, y), how far that is)."""
+        best, best_s = math.inf, 0.0
+        for k in range(1, len(self.pts)):
+            (ax, ay), (bx, by) = self.pts[k - 1], self.pts[k]
+            dx, dy = bx - ax, by - ay
+            ll = dx * dx + dy * dy or 1e-9
+            f = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / ll))
+            d = math.hypot(x - (ax + dx * f), y - (ay + dy * f))
+            if d < best:
+                best, best_s = d, self.at[k - 1] + f * math.sqrt(ll)
+        return best_s, best
+
+
+class Leviathan(Angel):
+    """Elite. Lives in the river of blood (LEVIATHAN[0] to a river:
+    systems/spawner's residents) and never leaves it: it moves along the
+    river's line. Serene: a white serpent swimming lazily within
+    LEVIATHAN[2] of where it lives (harmless). Unveiled: surges along the
+    river (its speed) to the stretch nearest you, and once within
+    LEVIATHAN[6] of it spits (the windup) LEVIATHAN[3] gobs of blood in a
+    LEVIATHAN[4]-degree fan every cooldown; whoever stands on it is bitten
+    (every LEVIATHAN[5] s). It doesn't go to the fonts."""
+
+    drinks = False
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.line: _Line | None = None
+        self.s = 0.0
+        self.home_s = 0.0
+        self.way = 1.0
+
+    def _river(self, world) -> bool:
+        if self.line is None:
+            lines = [_Line(p) for p in rivers(world) if len(p) > 1]
+            if not lines:
+                return False
+            self.line = min(lines, key=lambda ln: ln.project(self.x, self.y)[1])
+            self.s = self.home_s = self.line.project(self.x, self.y)[0]
+        return True
+
+    def _swim(self, ds: float) -> None:
+        x0, y0 = self.x, self.y
+        self.s = max(0.0, min(self.line.length, self.s + ds))
+        self.x, self.y = self.line.point(self.s)
+        if math.hypot(self.x - x0, self.y - y0) > 1e-6:
+            self.facing = math.atan2(self.y - y0, self.x - x0)
+        self._moved = math.hypot(self.x - x0, self.y - y0)
+        self.walked += self._moved
+
+    def go(self, ctx, gx, gy, dt, speed) -> bool:          # (only ever along the river)
+        if not self._river(ctx.world):
+            self._moved = 0.0
+            return False
+        goal = self.line.project(gx, gy)[0]
+        self._swim(max(-speed * dt, min(speed * dt, goal - self.s)))
+        return abs(goal - self.s) < 0.5
+
+    def serene_turn(self, ctx: AIContext, dt: float) -> None:
+        if not self._river(ctx.world):
+            return
+        swim, reach = config.LEVIATHAN[1:3]
+        if self.s - self.home_s > reach or self.s >= self.line.length:
+            self.way = -1.0
+        elif self.home_s - self.s > reach or self.s <= 0.0:
+            self.way = 1.0
+        self._swim(self.way * swim * dt)
+
+    def unveiled_turn(self, ctx: AIContext, dt: float) -> None:
+        _, _, _, n, fan, bite, near = config.LEVIATHAN
+        if not self._river(ctx.world):
+            return
+        self.touch(ctx, self.espec.damage, bite)
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = self.windup
+            if t is not None:
+                self.facing = self.angle_to(t.x, t.y)
+            if self.windup <= 0:
+                self.tell = 0.0
+                if t is not None:
+                    shell = config.PARADISE_SHOTS["spit"]
+                    patterns.fan(self, self.x, self.y, self.angle_to(t.x, t.y), n, fan, shell,
+                                 ctx.projectiles)
+                    ctx.events.append(shell.sound)
+                self.cooldown = self.espec.cooldown
+            return
+        if t is None or not self.sees_target:
+            self.serene_turn(ctx, dt)
+            return
+        goal = self.line.project(t.x, t.y)[0]
+        self.go(ctx, t.x, t.y, dt, self.speed)
+        if abs(goal - self.s) <= near and self.cooldown <= 0:
+            self.windup = self.espec.windup
+
+
+def residents(layout, zone) -> list[tuple[str, float, float]]:
+    """The enemies that live at fixed places on a zone, (key, x, y): on
+    Paradise, CHORISTER[2] choristers round each choir ring (between its
+    statues and the middle) and LEVIATHAN[0] leviathans spread along the
+    river of blood. systems/spawner rosters them with their chunks."""
+    if zone.key != "paradise":
+        return []
+    from ..world.paradise import plan_of
+    plan = plan_of(layout, zone)
+    out = []
+    singers = config.CHORISTER[2]
+    for qx, qy in plan.choirs:
+        for k in range(singers):
+            a = 0.5 + k * math.tau / singers
+            out.append(("chorister", qx + 0.5 + math.cos(a) * 3.6, qy + 0.5 + math.sin(a) * 3.6))
+    line = _Line(plan.river)
+    n = config.LEVIATHAN[0]
+    for k in range(n):
+        x, y = line.point(line.length * (k + 0.5) / n)
+        out.append(("leviathan", x, y))
+    return out

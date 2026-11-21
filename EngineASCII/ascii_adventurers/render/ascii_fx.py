@@ -173,6 +173,7 @@ SHOT_LOOKS = {
     # M29.2: Paradise's serene angels: a cherub's lyre notes, rings and orbs of light.
     "lyre": (NOTE, ("'", "."), palette.SHOT_LYRE),
     "light": ("o", ("'", "."), palette.SHOT_LIGHT),
+    "shriek": ("o", (":", "."), palette.SHOT_SHRIEK),     # M29.3: a chorister's rings
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).

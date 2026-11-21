@@ -1079,3 +1079,7 @@ GORE = ((230, 40, 52), (150, 20, 30), (90, 10, 18))                # an unveiled
 GAZE = ((255, 236, 150), (255, 70, 60))                            # the watcher: aim, beam
 SLICK = ((200, 30, 44), (120, 16, 28))                             # an ophan's blood
 DRINK = (236, 54, 66)                                              # drinking at a font
+PLAGUE = ((255, 170, 60), (236, 50, 60))                           # a trumpeter's plague circle
+SHOT_SHRIEK = ((255, 214, 220), ((230, 90, 110), (150, 40, 60)))   # a chorister's shriek
+INCENSE = ((214, 210, 196), (160, 156, 146))                       # a censer's harmless haze
+BLOOD_POOL = ((214, 30, 44), (130, 14, 26))                        # a poured pool, a tear's pool

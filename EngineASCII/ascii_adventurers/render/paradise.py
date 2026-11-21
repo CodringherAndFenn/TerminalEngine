@@ -9,7 +9,11 @@ with the usual red "!" over it):
   * the lines of what's coming: an ophan lining up its race, the Lamb
     scraping before its charge, a cherub crouched to lunge;
   * an unveiled one bleeding (drops falling off it), and drinking at a
-    font (red "+" rising).
+    font (red "+" rising);
+  * M29.3: coals and tears in the air (an arc, and a mark where each will
+    land), the trumpeter's plague (the marked circle, then the strikes),
+    the bowl-bearer's mark where it'll pour, a chorister singing, the
+    behemoth's charge line.
 (The ophan's slick of blood is a zone: render/spell_fx.py. The stains are
 tiles: world/tiles.STAINS.)
 """
@@ -19,7 +23,8 @@ from __future__ import annotations
 import math
 
 from .. import config, palette
-from ..ai.paradise import Angel, Cherub, Lamb, Ophan, Watcher
+from ..ai.paradise import (Angel, Behemoth, BowlBearer, Cherub, Chorister, Lamb, Ophan,
+                           Trumpeter, Watcher)
 from .forest import _dots
 
 
@@ -45,6 +50,37 @@ def draw_paradise_tells(batch, camera, e) -> None:
         _dots(batch, camera, e.x, e.y, e.facing, config.LAMB[1], palette.PLAINS_TELL[1])
     if isinstance(e, Cherub) and e.unveiled and e.move == "lunge" and e.windup > 0:
         _dots(batch, camera, e.x, e.y, e.aim, config.CHERUB[5], palette.PLAINS_TELL[1])
+    if isinstance(e, Behemoth) and e.charging == "scrape":
+        _dots(batch, camera, e.x, e.y, e.facing, config.BEHEMOTH[1], palette.PLAINS_TELL[1])
+    for x0, y0, x1, y1, t, flight, what in e.lobs:          # (coals and tears in the air)
+        f = t / flight
+        tx, ty = camera.world_to_px(x1, y1)
+        near = f > 0.7 and int(e.clock * 16) % 2
+        batch.put_c(tx, ty, "x" if near else "+", palette.PLAINS_TELL[0 if near else 1])
+        px, py = camera.world_to_px(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f)
+        lift = math.sin(math.pi * f) * 40                      # (pixels up: the arc)
+        batch.put_c(px, py - lift, "*" if what == "coal" else "o",
+                    palette.SHOT_EMBER[0] if what == "coal" else palette.SLICK[0])
+    if isinstance(e, Trumpeter) and e.plague is not None:
+        px, py, mark = e.plague[:3]
+        r = config.TRUMPET[4]
+        col = palette.PLAGUE[0 if mark > 0.4 or int(e.clock * 16) % 2 else 1]
+        for k in range(28):
+            a = k * math.tau / 28
+            cx, cy = camera.world_to_px(px + math.cos(a) * r, py + math.sin(a) * r)
+            batch.put_c(cx, cy, ":" if mark > 0 else "*" if k % 2 else "'", col)
+        cx, cy = camera.world_to_px(px, py)
+        batch.put_c(cx, cy, "+", col)
+    if isinstance(e, BowlBearer) and e.mark is not None and e.windup > 0:
+        mx, my = e.mark
+        grow = 1.0 - e.windup / e.espec.windup
+        r = config.BOWL[1] * (0.4 + 0.6 * grow)
+        for k in range(10):
+            a = k * math.tau / 10
+            cx, cy = camera.world_to_px(mx + math.cos(a) * r, my + math.sin(a) * r)
+            batch.put_c(cx, cy, ".", palette.SLICK[0])
+    if isinstance(e, Chorister) and e.serene and e.singing and int(e.clock * 3) % 2 == 0:
+        batch.put_c(x + 12, y - 44 - (e.clock * 18) % 14, "'", palette.SHOT_LYRE[0])
     if e.unveiled:
         if e.drinking and int(e.clock * 4) % 2 == 0:
             batch.put_c(x + 10, y - 40 - (e.clock * 20) % 12, "+", palette.DRINK)

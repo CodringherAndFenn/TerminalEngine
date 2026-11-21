@@ -225,6 +225,25 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 rr = z.radius * (0.3 + 0.6 * ((k * 0.43) % 1.0))
                 batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
                             "," if k % 2 else ".", col)
+        elif z.kind == "incense":
+            # M29.3: a censer's harmless haze, drifting up and thinning.
+            col = palette.INCENSE[0 if z.age < z.life * 0.5 else 1]
+            for k in range(4):
+                a = k * math.tau / 4 + z.age * 0.8
+                batch.put_c(x + math.cos(a) * z.radius * tw * 0.5,
+                            y + math.sin(a) * z.radius * th * 0.3 - z.age * 10,
+                            "o" if k % 2 else ".", col)
+        elif z.kind == "blood_pool":
+            # M29.3: a poured bowl or a fallen tear: a pool of blood, spreading.
+            col = palette.BLOOD_POOL[0 if z.age < z.life * 0.75 else 1]
+            n = 8 if z.radius > 1.5 else 5
+            for k in range(n):
+                a = k * math.tau / n + 0.3
+                for rr in (0.45, 0.9):
+                    batch.put_c(x + math.cos(a) * z.radius * rr * tw,
+                                y + math.sin(a) * z.radius * rr * th,
+                                "," if (k + int(rr * 2)) % 2 else ".", col)
+            batch.put_c(x, y, "o", col)
         elif z.kind == "stake":
             pass                               # (the javelin is the tile itself)
         elif z.kind == "web":

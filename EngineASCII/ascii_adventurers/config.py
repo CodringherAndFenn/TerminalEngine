@@ -986,6 +986,51 @@ ENEMIES = {
         max_hp=40, sight=16, biomes=("paradise",), weight=2, speed=8.5,
         damage=5, size_px=16, xp=8,
     ),
+    # M29.3. Heralds. (Serene, all but the trumpeter and the chorister are
+    # harmless.) The choristers live at the choir rings (CHORISTER), not
+    # rolled at random.
+    "trumpeter": EnemySpec(
+        name="trumpeter", kind="trumpeter", sprite="trumpeter", scale=4, elite=True,
+        max_hp=300, sight=18, biomes=("paradise",), weight=1, speed=2.6,
+        damage=14, windup=0.7, cooldown=5.0, size_px=34, xp=35,
+    ),
+    "censer_bearer": EnemySpec(
+        name="censer-bearer", kind="censer_bearer", sprite="censer_bearer",
+        max_hp=65, sight=16, biomes=("paradise",), weight=2, speed=3.4,
+        damage=10, windup=0.4, cooldown=2.4, size_px=22, xp=10,
+    ),
+    "bowl_bearer": EnemySpec(
+        name="bowl-bearer", kind="bowl_bearer", sprite="bowl_bearer",
+        max_hp=70, sight=16, biomes=("paradise",), weight=2, speed=3.2,
+        damage=4, windup=0.9, cooldown=4.0, size_px=22, xp=10,
+    ),
+    "chorister": EnemySpec(
+        name="chorister", kind="chorister", sprite="chorister",
+        max_hp=55, sight=16, biomes=(), speed=3.0,
+        damage=0, windup=0.5, cooldown=3.5, size_px=22, xp=10,
+    ),
+    # Saints and beasts. The leviathans live in the river of blood
+    # (LEVIATHAN), not rolled at random.
+    "weeping_saint": EnemySpec(
+        name="weeping saint", kind="weeping_saint", sprite="weeping_saint",
+        max_hp=80, sight=16, biomes=("paradise",), weight=2, speed=2.4,
+        damage=12, windup=0.5, cooldown=2.8, size_px=22, xp=11,
+    ),
+    "martyr": EnemySpec(
+        name="martyr", kind="martyr", sprite="martyr",
+        max_hp=75, sight=16, biomes=("paradise",), weight=2, speed=3.0,
+        damage=0, windup=0.45, cooldown=1.6, size_px=22, xp=11,
+    ),
+    "behemoth": EnemySpec(
+        name="behemoth", kind="behemoth", sprite="behemoth", scale=4, elite=True,
+        max_hp=420, sight=16, biomes=("paradise",), weight=1, speed=2.8,
+        damage=30, attack_radius=14.0, windup=0.8, cooldown=2.0, size_px=40, xp=40,
+    ),
+    "leviathan": EnemySpec(
+        name="leviathan", kind="leviathan", sprite="leviathan", scale=4, elite=True,
+        max_hp=380, sight=20, biomes=(), speed=11.0,
+        damage=16, windup=0.4, cooldown=1.6, size_px=36, xp=40,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -1354,6 +1399,44 @@ DOVES = (5.0, 16.0, 1.0, (0.6, 1.6), 3, 0.25)
 LOCUSTS = (1.0, 2, 0.3)      # wobble (radians); serene: a sting this hard; bleeding x this
 HALO = (2.6, 0.3, 4, 1.0, 0.3)  # unveiled: turns this many rad/s, saws every this many s;
                              # serene: a touch this hard every this many s; bleeding x this
+# M29.3 (OCEAN.md 4): the heralds, the saints and the beasts.
+TRUMPET = (9.0, 3.5, 6.0, 1.5, 4.0, 1.2, 10, 1.2, 1.0)
+                             # keeps this far; serene: a long note every this many s pushes
+                             # heroes within this far this far back; unveiled: each blast
+                             # calls a plague over this many tiles round you, marked this many
+                             # s, then this many strikes of fire and blood over this many s,
+                             # each this wide
+CENSER = (7.0, 1.2, 2, 0.8, 1.2, 3.0)
+                             # unveiled: keeps this far; serene: a puff of harmless incense
+                             # every this many s; unveiled: coals a throw, in the air this many
+                             # s, landing this far apart, their fire lasting this many s
+BOWL = (5.0, 1.0, 2.0, 6.0, 0.6, 0.5)
+                             # unveiled: keeps this far; the pool it pours starts this wide,
+                             # grows x(1 + this) over its life of this many s, slows to x
+                             # this, hurts every this many s (the spec's damage)
+CHORISTER = (6.0, 0.03, 3, 3, 16, 0.35)
+                             # serene: its hymn heals angels within this far x this max HP a
+                             # second; this many live at each choir ring; unveiled: shrieks
+                             # this many rings of this many shots, this many s apart
+SAINT = (8.0, 3, 0.9, 1.5, 1.2, 5.0, 0.7)
+                             # unveiled: keeps this far; lobs this many tears a volley, in the
+                             # air this many s, landing this far apart; each leaves a pool this
+                             # wide for this many s that slows to x this
+MARTYR = (10, 15, 5, 36.0, 7.0)
+                             # arrows in it at first, at most (each hit from a hero sticks one
+                             # more in); unveiled: throws this many a volley over this many
+                             # degrees; keeps this far
+BEHEMOTH = (15.0, 16.0, 3, 0.5, 1.6, 0.5, 60.0, 2.0)
+                             # unveiled: charges at this speed this far, this many in a row,
+                             # turning this many s between, dazed this long by what doesn't
+                             # break; its bone plates take x this from within this many degrees
+                             # of its front; a goring shoves this far
+LEVIATHAN = (3, 2.0, 18.0, 3, 30.0, 1.0, 6.0)
+                             # this many live along each river of blood; serene: swims this
+                             # fast within this far of home; unveiled: surges (spec speed) to
+                             # the stretch nearest you and spits this many in a fan this many
+                             # degrees; bites what's on top of it every this many s; spits
+                             # once it's within this far of that stretch
 
 # P12 enemy behaviour (ai/mushroom.py; design/BOSSES.md 24.10).
 POLLEN = (9.0, 2.5, 5.0, 0.04, 0.5)  # the shaman keeps this far; its cloud: radius, s,
@@ -3920,6 +4003,17 @@ BESTIARY = {
     "dove": (1500, "A flock. Unveiled, they circle and dive at you one after another."),
     "locust": (1500, "Crowned, with human faces. Unveiled, a stinging swarm."),
     "halo": (2000, "Drifts at you. Unveiled, a buzzsaw that turns wide: step aside and it overshoots."),
+    # M29.3
+    "trumpeter": (4000, "Its notes push you back. Unveiled, each blast calls a hail of fire and blood "
+                        "on the ground it marks."),
+    "censer_bearer": (2500, "Harmless incense. Unveiled, it hurls burning coals: watch where they'll land."),
+    "bowl_bearer": (2500, "Unveiled, it pours its bowl where you stand: a spreading pool of blood."),
+    "chorister": (2500, "Sings at the choir rings, healing the angels near it. Unveiled, it shrieks in rings."),
+    "weeping_saint": (2500, "Unveiled, it lobs arcs of blood tears that leave pools."),
+    "martyr": (2500, "Every hit sticks another arrow in it, and unveiled it throws them back."),
+    "behemoth": (4000, "Unveiled, it charges through columns. Its bone plates shrug off hits from "
+                       "the front."),
+    "leviathan": (4000, "Lives in the river of blood. Unveiled, it surges along it and spits at you."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -4259,6 +4353,13 @@ PARADISE_SHOTS = {
                        look="blood", sound="fizzle"),
     "fire": ShellSpec(speed=7.0, damage=8, max_range=20.0, damages_terrain=False,
                       look="ember", sound="fizzle"),
+    # M29.3: a martyr's arrows thrown back, a chorister's shriek, a leviathan's spit.
+    "arrow": ShellSpec(speed=14.0, damage=7, max_range=18.0, damages_terrain=False,
+                       look="arrow", sound="bow"),
+    "shriek": ShellSpec(speed=6.5, damage=7, max_range=14.0, damages_terrain=False,
+                        look="shriek", sound="orb"),
+    "spit": ShellSpec(speed=9.0, damage=9, max_range=18.0, damages_terrain=False,
+                      look="blood", sound="fizzle"),
 }
 
 # Start: the tile nearest the centre (searched every SPAWN_SEARCH_STEP

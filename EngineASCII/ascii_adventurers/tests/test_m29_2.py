@@ -78,7 +78,7 @@ class CatalogTest(unittest.TestCase):
     def test_paradise_has_enemies_now(self):
         self.assertGreater(config.BIOME_ENEMY_DENSITY["paradise"], 0)
         here = [k for k, s in config.ENEMIES.items() if "paradise" in s.biomes]
-        self.assertEqual(sorted(here), sorted(NEW))
+        self.assertTrue(set(NEW) <= set(here))                # (M29.3 adds more)
 
 
 class UnveilingTest(unittest.TestCase):
@@ -358,7 +358,8 @@ class ZoneToughTest(unittest.TestCase):
                     self.assertIs(self.w.biome_at(math.floor(x), math.floor(y)), biomes.PARADISE)
                     k = sid[2] if sid[2] < PACK_ID else (sid[2] - PACK_ID) // 16
                     packs.setdefault((cx, cy, k), []).append(key)
-        self.assertTrue(keys <= set(NEW))
+        paradise = {k for k, sp in config.ENEMIES.items() if "paradise" in sp.biomes}
+        self.assertTrue(keys <= paradise | {"chorister", "leviathan"})   # (M29.3's residents)
         self.assertGreaterEqual(len(keys), 5)
         doves = [len(v) for v in packs.values() if v[0] == "dove"]
         lo, hi = config.ENEMIES["dove"].group

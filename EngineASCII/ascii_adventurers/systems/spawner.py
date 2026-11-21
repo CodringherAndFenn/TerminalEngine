@@ -27,6 +27,9 @@ and choir rings are the angels' own).
 The ocean zones (M29.2): enemies woken on one are endgame tough
 (ZONE_TOUGH: more HP, more damage), and the zone's packs are bigger and
 its elites more common.
+Residents (M29.3): some of a zone's enemies live at fixed places (the
+choristers at Paradise's choir rings, the leviathans in its river of
+blood); they're added to their chunk's roster and live like the rest.
 
 Fixed spawns (M17): the quest system adds its own enemies (the
 psychedelic frogs) with `place`; they wake, sleep and stay dead like
@@ -48,6 +51,7 @@ from .collision import hull_hits_solid
 
 PACK_ID = 1000      # a pack's other members' roster ids start here (a chunk's own are < it)
 ZONE_BIOMES = frozenset(config.OCEAN_ZONES)   # (M29.2: a zone's biome is named after it)
+RESIDENT_ID = 5000  # a chunk's residents' roster ids start here (M29.3: past any pack's)
 
 
 class Spawner:
@@ -75,6 +79,7 @@ class Spawner:
         self.damage_mult = 1.0
         self._quiet_of = None             # (the landmark list _quiet was worked out for)
         self._quiet_list: list = []
+        self._residents: dict | None = None   # chunk -> [(key, x, y)] (M29.3, worked out once)
 
     def roster(self, cx: int, cy: int) -> list[tuple[tuple, str, float, float]]:
         """[(spawn id, enemy key, x, y)] for one chunk. Deterministic."""
@@ -122,7 +127,24 @@ class Spawner:
                     out.append(((cx, cy, PACK_ID + 16 * k + j), key, *spot))
                     if k >= plain:
                         self.beckoned.add((cx, cy, PACK_ID + 16 * k + j))
+        out += self._residents_in(cx, cy)
         return out
+
+    def _residents_in(self, cx: int, cy: int) -> list:
+        """A zone's residents in this chunk (M29.3: Paradise's choristers at
+        their choir rings, leviathans in the river), rostered like the rest:
+        ids (cx, cy, RESIDENT_ID + j)."""
+        if self._residents is None:
+            from ..ai.paradise import residents
+            self._residents = {}
+            layout = getattr(self.world, "layout", None)
+            n = config.CHUNK_SIZE
+            for z in getattr(layout, "zones", ()):
+                for key, x, y in residents(layout, z):
+                    self._residents.setdefault((math.floor(x) // n, math.floor(y) // n),
+                                               []).append((key, x, y))
+        return [((cx, cy, RESIDENT_ID + j), key, x, y)
+                for j, (key, x, y) in enumerate(self._residents.get((cx, cy), ()))]
 
     def _near(self, key, x: float, y: float, rng) -> tuple[float, float] | None:
         """A free spot within 2.5 tiles of (x, y) for one more of a pack."""
