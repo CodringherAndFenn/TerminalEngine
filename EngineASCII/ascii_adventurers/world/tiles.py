@@ -945,3 +945,31 @@ GLASS_BLUE = TileType(
 GLASS_GOLD = TileType(
     "rose glass", (".*", "*.", "*'"), palette.GLASS["gold"], palette.MARBLE_FLOOR_BG,
 )
+
+
+# --- Blood on Paradise (M29.2, design/OCEAN.md 3) ------------------------------------
+# Unveiled angels bleed where they go, where they're hit and where they die,
+# and the stains stay (ChunkedWorld.set_tile): the island gets redder the
+# more you fight on it. Ground only; walls, posts and the blood itself keep
+# their look. Cloud stained again soaks through.
+SOAKED_CLOUD = TileType(
+    "soaked cloud", (";,", ",;", ":.", ".:", ";."), palette.SOAKED_CLOUD_FG, palette.SOAKED_CLOUD_BG,
+)
+STAINED_CLOUD = TileType(
+    "stained cloud", (", ", " ,", ".,", ", "), palette.STAINED_CLOUD_FG, palette.STAINED_CLOUD_BG,
+)
+STAINED_ROAD = TileType(
+    "stained marble", (",.", ".,", ", "), palette.STAINED_ROAD_FG, palette.STAINED_ROAD_BG,
+)
+STAINED_FLOOR = TileType(
+    "stained marble", (", ", " ,", ",."), palette.STAINED_ROAD_FG, palette.STAINED_FLOOR_BG,
+)
+STAINED_STEP = TileType(
+    "stained step", ("_,", ",_"), palette.STAINED_ROAD_FG, palette.STAINED_STEP_BG,
+)
+# What a stain turns each ground into (by tile name; anything else stays).
+STAINS: dict[str, TileType] = {
+    "cloud": STAINED_CLOUD, "cloud drift": STAINED_CLOUD, "petals": STAINED_CLOUD,
+    "marble rubble": STAINED_CLOUD, "stained cloud": SOAKED_CLOUD,
+    "marble road": STAINED_ROAD, "marble floor": STAINED_FLOOR, "marble step": STAINED_STEP,
+}

@@ -53,6 +53,10 @@ DURATIONS = {
     "implode": 0.3,         # Implosion (P4): a ring closing on a dart's hit (size: radius)
     "blink": 0.3,           # Blink's flash, where the wizard left and arrived (size: radius)
     "beam": config.BEAM[1], # M28.2i: the Spyglass Wand's beam, every color, to (x2, y2)
+    # M29.2: Paradise's angels (size: about their radius)
+    "unveil": 0.5,          # unveiled: a ring of eyes bursting out
+    "feathers": 0.6,        # a serene one dying: a puff of feathers
+    "gore": 0.5,            # an unveiled one dying: a burst of blood
 }
 
 

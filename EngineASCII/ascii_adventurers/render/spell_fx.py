@@ -217,6 +217,14 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 rr = z.radius * (0.3 + 0.65 * ((k * 0.41) % 1.0))
                 batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
                             glyph if k % 2 else ".", col)
+        elif z.kind == "blood_slick":
+            # M29.2: an ophan's trail of blood (it slows).
+            col = palette.SLICK[0 if z.age < z.life * 0.7 else 1]
+            for k in range(5):
+                a = k * math.tau / 5 + 0.4
+                rr = z.radius * (0.3 + 0.6 * ((k * 0.43) % 1.0))
+                batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
+                            "," if k % 2 else ".", col)
         elif z.kind == "stake":
             pass                               # (the javelin is the tile itself)
         elif z.kind == "web":

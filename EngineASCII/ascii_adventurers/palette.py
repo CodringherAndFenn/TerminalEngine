@@ -115,6 +115,8 @@ SPRITE_COLORS = {
     "q": (110, 190, 160), "Q": (60, 120, 100),       # mold teal
     # M28.6 (worn gear on the heroes: render/gear_looks.py)
     "x": (128, 136, 122), "X": (86, 92, 82),         # lead (the Lead Apron)
+    # M29.2 (Paradise's angels: render/paradise_art.py)
+    "z": (120, 16, 28), "Z": (255, 246, 196),        # clotted blood, holy light
 }
 # Creature sprites (warrior, worm) flash this for a moment when hit.
 HIT_FLASH = (255, 235, 220)
@@ -1056,3 +1058,24 @@ MAP_TILE_BIOME.update({"cloud": "paradise", "cloud drift": "paradise", "petals":
                        "marble rubble": "paradise", "marble step": "paradise",
                        "marble floor": "paradise", "gold inlay": "paradise",
                        "rose glass": "paradise"})
+
+# M29.2: blood on Paradise. The stains a fight leaves on the ground (they
+# stay: the island gets redder), and the angels' shots and tells.
+STAINED_CLOUD_FG = (214, 70, 84)
+STAINED_CLOUD_BG = (98, 66, 82)
+SOAKED_CLOUD_FG = (226, 52, 64)
+SOAKED_CLOUD_BG = (110, 34, 48)
+STAINED_ROAD_FG = (222, 64, 76)
+STAINED_ROAD_BG = (132, 92, 106)
+STAINED_FLOOR_BG = (114, 76, 92)
+STAINED_STEP_BG = (106, 72, 88)
+MAP_TILE.update({"stained cloud": (150, 96, 112), "soaked cloud": (160, 56, 72),
+                 "stained marble": (196, 120, 134), "stained step": (170, 110, 124)})
+SHOT_LYRE = ((255, 226, 120), ((210, 170, 70), (150, 120, 50)))     # a cherub's notes
+SHOT_LIGHT = ((255, 250, 214), ((240, 214, 130), (180, 160, 100)))  # rings and orbs of light
+UNVEIL = ((255, 255, 255), (236, 60, 70), (140, 20, 32))           # the unveiling's burst
+FEATHERS = ((246, 246, 252), (196, 198, 214))                      # a serene one dying
+GORE = ((230, 40, 52), (150, 20, 30), (90, 10, 18))                # an unveiled one dying
+GAZE = ((255, 236, 150), (255, 70, 60))                            # the watcher: aim, beam
+SLICK = ((200, 30, 44), (120, 16, 28))                             # an ophan's blood
+DRINK = (236, 54, 66)                                              # drinking at a font

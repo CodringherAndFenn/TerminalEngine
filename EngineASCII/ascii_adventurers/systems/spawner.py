@@ -20,7 +20,13 @@ Life cycle (update_views, once per simulation step):
   * an enemy dies -> its id is remembered forever, so kills stay killed.
 No enemies spawn within ENEMY_FREE_RADIUS of the spawn point, nor inside
 any player's view (so nothing pops into existence in front of anyone), nor
-on a landmark (world/landmarks.py: quest camps and boss lairs stay quiet).
+on a landmark (world/landmarks.py: quest camps and boss lairs stay quiet;
+on an ocean zone only its ZONE_QUIET_MARKS do -- Paradise's fonts, statues
+and choir rings are the angels' own).
+
+The ocean zones (M29.2): enemies woken on one are endgame tough
+(ZONE_TOUGH: more HP, more damage), and the zone's packs are bigger and
+its elites more common.
 
 Fixed spawns (M17): the quest system adds its own enemies (the
 psychedelic frogs) with `place`; they wake, sleep and stay dead like
@@ -41,6 +47,7 @@ from .collision import hull_hits_solid
 
 
 PACK_ID = 1000      # a pack's other members' roster ids start here (a chunk's own are < it)
+ZONE_BIOMES = frozenset(config.OCEAN_ZONES)   # (M29.2: a zone's biome is named after it)
 
 
 class Spawner:
@@ -66,6 +73,8 @@ class Spawner:
         # The run's difficulty level (P5): x max HP and x damage, bosses too.
         self.hp_mult = 1.0
         self.damage_mult = 1.0
+        self._quiet_of = None             # (the landmark list _quiet was worked out for)
+        self._quiet_list: list = []
 
     def roster(self, cx: int, cy: int) -> list[tuple[tuple, str, float, float]]:
         """[(spawn id, enemy key, x, y)] for one chunk. Deterministic."""
@@ -82,7 +91,9 @@ class Spawner:
         count = int(expected) + (r < expected - int(expected))
         plain = expected / (1 + self.beckon)
         plain = int(plain) + (r < plain - int(plain))   # how many without Beacon
-        choices = [(k, s.weight) for k, s in config.ENEMIES.items() if biome in s.biomes]
+        zone = biome in ZONE_BIOMES
+        choices = [(k, s.weight * (config.ZONE_TOUGH[3] if zone and s.elite else 1))
+                   for k, s in config.ENEMIES.items() if biome in s.biomes]
         elites = [c for c in choices if config.ENEMIES[c[0]].elite]
         out = []
         for k in range(count):
@@ -103,6 +114,8 @@ class Spawner:
             lo, hi = config.ENEMIES[key].group
             if hi <= 1:
                 continue                     # (no extra dice: other rosters stay as they were)
+            if zone:                         # (M29.2: a zone's packs are bigger)
+                lo, hi = round(lo * config.ZONE_TOUGH[2]), round(hi * config.ZONE_TOUGH[2])
             for j in range(1, rng.randint(lo, hi)):
                 spot = self._near(key, *pos, rng)
                 if spot is not None:
@@ -137,7 +150,7 @@ class Spawner:
             if biome not in spec.biomes:
                 continue
             x, y = tx + 0.5, ty + 0.5
-            if any(m.contains(x, y, config.LANDMARK_QUIET) for m in self._landmarks):
+            if any(m.contains(x, y, config.LANDMARK_QUIET) for m in self._quiet):
                 continue
             if spec.kind == "tower" and not self._near_wall(tx, ty):
                 continue
@@ -151,6 +164,17 @@ class Spawner:
     @property
     def _landmarks(self) -> list:
         return getattr(self.world, "landmarks", ())
+
+    @property
+    def _quiet(self) -> list:
+        """The landmarks no enemy spawns near: all but an ocean zone's own
+        (only its ZONE_QUIET_MARKS are kept clear)."""
+        marks = self._landmarks
+        if self._quiet_of is not marks:
+            self._quiet_of = marks
+            self._quiet_list = [m for m in marks if m.kind != "zone"
+                                or m.key in config.ZONE_QUIET_MARKS]
+        return self._quiet_list
 
     def place(self, sid, key: str, x: float, y: float) -> None:
         """Add one fixed enemy (a quest's): it wakes and sleeps at (x, y)
@@ -257,11 +281,19 @@ class Spawner:
         if self.hp_mult != 1.0 and hasattr(e, "toughen"):
             e.toughen(self.hp_mult)
         e.damage_mult *= (1 + self.damage_bonus) * self.damage_mult
+        if self._on_zone(x, y) and hasattr(e, "toughen"):    # (M29.2: endgame tough)
+            e.toughen(config.ZONE_TOUGH[0])
+            e.damage_mult *= config.ZONE_TOUGH[1]
+            e.zone_tough = True
         e.haste = self.haste
         e.beckoned = sid in self.beckoned
         if sid is not None:
             self.awake[sid] = e
         return e
+
+    def _on_zone(self, x: float, y: float) -> bool:
+        biome_at = getattr(self.world, "biome_at", None)
+        return biome_at is not None and biome_at(math.floor(x), math.floor(y)).name in ZONE_BIOMES
 
     def killed(self, enemy) -> None:
         self.awake.pop(enemy.spawn_id, None)

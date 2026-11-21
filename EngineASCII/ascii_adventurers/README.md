@@ -812,7 +812,18 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   marble roads with gold posts, a cloud bank instead of a beach; the river
   of blood, blood fonts, weeping statues; the Gate on the shore, the fallen
   cathedral, the stairway to nowhere, choir rings, and the sealed summit
-  court with its throne. No enemies yet. Dev mode: F3 jumps there.
+  court with its throne. Dev mode: F3 jumps there.
+
+- **Paradise's angels, M29.2** (`design/OCEAN.md` 9): the first eight of
+  its sixteen enemies -- cherub, seraph (elite), ophan, watcher, the Lamb,
+  doves, locusts, halo. Every one starts serene (white, a gold halo, slow
+  hymn-like attacks) and unveils on its own when hurt below 70% or when
+  you come within 5 tiles: a short flicker, then the horror (eyes, wheels,
+  blood), faster and deadlier. Kill them before they unveil. Unveiled
+  ones bleed, and the stains stay (the island gets redder the more you
+  fight on it); badly hurt, they go to drink at the blood fonts and heal.
+  Endgame tough: x2.5 HP and x1.5 damage on top of the level scaling,
+  bigger packs, more elites.
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

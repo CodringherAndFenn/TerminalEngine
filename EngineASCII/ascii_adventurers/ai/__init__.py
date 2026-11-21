@@ -29,6 +29,8 @@ ai -- enemy behaviour.
   mushroom.py   the mushroom biome's P12 enemies: myconid shaman, cordyceps
                 hunter, fungal brute, rootweaver, giant snail, pillbug,
                 mantis, fairy ring (and caps), mold core
+  paradise.py   Paradise's M29.2 enemies, all unveiling (serene -> horror):
+                cherub, seraph, ophan, watcher, the Lamb, doves, locusts, halo
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -61,6 +63,7 @@ from .plains import (Bull, Chaser, Crow, Drummer, Hawk, Hound, Lancer, Molehill,
                      Scarecrow, Shieldbearer, StrawGolem)
 from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 from .mimic import Mimic
+from .paradise import Cherub, Dove, Halo, Lamb, Locust, Ophan, Seraph, Watcher
 
 KINDS = {
     "archer": Archer,
@@ -196,6 +199,15 @@ KINDS = {
     "fairy_ring": FairyRing,
     "fairy_cap": FairyCap,
     "mold_core": MoldCore,
+    # M29.2: Paradise (they all unveil: ai/paradise.Angel)
+    "cherub": Cherub,
+    "seraph": Seraph,
+    "ophan": Ophan,
+    "watcher": Watcher,
+    "lamb": Lamb,
+    "dove": Dove,
+    "locust": Locust,
+    "halo": Halo,
 }
 
 

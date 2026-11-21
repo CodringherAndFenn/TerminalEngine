@@ -170,6 +170,9 @@ SHOT_LOOKS = {
     # M27: More than Life's bone spears and souls.
     "bone_spear": ("=", ("-", None), palette.SHOT_BONE_SPEAR),
     "soul": ("o", ("'", None), palette.SHOT_SOUL),
+    # M29.2: Paradise's serene angels: a cherub's lyre notes, rings and orbs of light.
+    "lyre": (NOTE, ("'", "."), palette.SHOT_LYRE),
+    "light": ("o", ("'", "."), palette.SHOT_LIGHT),
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).
@@ -320,6 +323,27 @@ def _frame(e: Effect) -> list:
         return [(math.cos(k * math.tau / 16) * r * config.TILE_PX_W,
                  math.sin(k * math.tau / 16) * r * config.TILE_PX_H,
                  "*" if k % 2 else "o", col) for k in range(16)]
+    if e.kind == "unveil":                       # (M29.2: a ring of eyes bursting out)
+        r = (e.size or 1.5) * (0.3 + 0.9 * p)
+        col = palette.UNVEIL[min(2, int(p * 3))]
+        n = 14
+        return [(math.cos(k * math.tau / n + p) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / n + p) * r * config.TILE_PX_H,
+                 "o" if k % 2 else "*", col) for k in range(n)] + (
+            [(0, 0, "@", palette.UNVEIL[1])] if p < 0.4 else [])
+    if e.kind == "feathers":                     # (M29.2: a serene one, gone in a puff)
+        col = palette.FEATHERS[0 if p < 0.5 else 1]
+        r = (e.size or 1.0) * (0.4 + 0.8 * p)
+        return [(math.cos(k * 1.9) * r * config.TILE_PX_W,
+                 math.sin(k * 1.9) * r * config.TILE_PX_H * 0.6 + p * 14,
+                 "'" if k % 2 else ",", col) for k in range(7)]
+    if e.kind == "gore":                         # (M29.2: an unveiled one, burst)
+        f = min(2, int(p * 3))
+        r = (e.size or 1.0) * (0.5 + 1.0 * p)
+        return [(0, 0, "@" if f == 0 else "*", palette.GORE[f])] + [
+            (math.cos(k * math.tau / 10) * r * config.TILE_PX_W,
+             math.sin(k * math.tau / 10) * r * config.TILE_PX_H,
+             "*" if (k + f) % 2 else ",", palette.GORE[min(2, f + k % 2)]) for k in range(10)]
     if e.kind == "nova":
         r = e.size * (0.2 + 0.8 * p)
         col = palette.NOVA[min(2, int(p * 3))]

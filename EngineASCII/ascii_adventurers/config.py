@@ -940,6 +940,52 @@ ENEMIES = {
         max_hp=120, sight=14, biomes=("mushroom",), weight=1, speed=0.0,
         damage=3, size_px=26, xp=8,
     ),
+    # --- M29.2: Paradise (design/OCEAN.md 4; ai/paradise.py) ---------------------------
+    # Every one unveils on its own (ai/paradise.Angel): `speed` and `damage`
+    # are the unveiled ones; serene they move at x UNVEIL[3] and their slow
+    # hymn-like attacks use PARADISE_SHOTS. On top of these: ZONE_TOUGH.
+    # Angels.
+    "cherub": EnemySpec(
+        name="cherub", kind="cherub", sprite="cherub", group=(1, 2),
+        max_hp=60, sight=16, biomes=("paradise",), weight=3, speed=5.5,
+        damage=14, attack_radius=1.3, windup=0.35, cooldown=1.2, size_px=24, xp=10,
+    ),
+    "seraph": EnemySpec(
+        name="seraph", kind="seraph", sprite="seraph", scale=4, elite=True,
+        max_hp=320, sight=18, biomes=("paradise",), weight=1, speed=3.0,
+        damage=0, windup=0.5, cooldown=4.5, size_px=36, xp=35,
+    ),
+    "ophan": EnemySpec(
+        name="ophan", kind="ophan", sprite="ophan",
+        max_hp=70, sight=16, biomes=("paradise",), weight=2, speed=4.0,
+        damage=16, windup=0.5, size_px=24, xp=10,
+    ),
+    "watcher": EnemySpec(
+        name="watcher", kind="watcher", sprite="watcher",
+        max_hp=110, sight=18, biomes=("paradise",), weight=2, speed=0.0,
+        damage=20, windup=0.9, cooldown=3.2, size_px=26, xp=12,
+    ),
+    # Chasers.
+    "lamb": EnemySpec(
+        name="the Lamb", kind="lamb", sprite="lamb", group=(2, 3),
+        max_hp=50, sight=16, biomes=("paradise",), weight=3, speed=4.5,
+        damage=18, attack_radius=10.0, windup=0.6, cooldown=1.4, size_px=22, xp=8,
+    ),
+    "dove": EnemySpec(
+        name="dove", kind="dove", sprite="dove", scale=2, group=(5, 7),
+        max_hp=10, sight=18, biomes=("paradise",), weight=2, speed=6.0,
+        damage=7, attack_radius=0.8, windup=0.2, cooldown=2.0, size_px=12, xp=2,
+    ),
+    "locust": EnemySpec(
+        name="locust", kind="locust", sprite="locust", scale=2, group=(6, 9),
+        max_hp=7, sight=16, biomes=("paradise",), weight=2, speed=7.5,
+        damage=4, attack_radius=0.7, windup=0.15, cooldown=0.6, size_px=10, xp=1,
+    ),
+    "halo": EnemySpec(
+        name="halo", kind="halo", sprite="halo", scale=2,
+        max_hp=40, sight=16, biomes=("paradise",), weight=2, speed=8.5,
+        damage=5, size_px=16, xp=8,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -1251,6 +1297,63 @@ DRUM_KEEP = 9.0              # tiles it keeps from the heroes
 SHIELD_WINDUP = 0.8          # s the shieldbearer raises its shield before a bash...
 SHIELD_SHOVE = 2.0           # ...which shoves who it hits this far...
 SHIELD_OPEN = 1.4            # ...then it stands open (its front unguarded) this long
+
+# M29.2: Paradise's enemies (ai/paradise.py; design/OCEAN.md 4).
+# THE UNVEILING (user): serene first, each unveils on its own once it's hurt
+# below UNVEIL[0] of its max HP or a hero comes within UNVEIL[1] tiles
+# (mine: 5), after a tell of UNVEIL[2] s (mine: 0.6) that can't be stopped
+# or undone. Serene, it moves at x UNVEIL[3] of its speed.
+UNVEIL = (0.7, 5.0, 0.6, 0.45)
+# The fonts (mine): an unveiled enemy under FONT[0] of its max HP goes to a
+# blood font within FONT[1] tiles; within FONT[2] of its middle it drinks,
+# healing FONT[3] x max HP a second until it's back to FONT[4]. It gives up
+# on a font it hasn't reached in FONT[5] s.
+FONT = (0.4, 30.0, 3.6, 0.06, 0.9, 12.0)
+# Blood (user: unveiled angels bleed a trail and the stains stay): a stain
+# every STAIN[0] tiles an unveiled enemy moves (a STAIN[1] chance), one by it
+# for each hit it takes (chance STAIN[2]), and a pool where it dies (STAIN[3]
+# tiles round, plus half its body's radius). Stained cloud stained again soaks (world/tiles.STAINS).
+STAIN = (1.5, 0.6, 0.35, 1.3)
+# The zones' toughness (OCEAN.md 2; numbers mine, from the user's "endgame
+# tough"): enemies woken on a zone have x ZONE_TOUGH[0] max HP and x [1]
+# damage, on top of the level scaling; packs are x [2] bigger and elites
+# x [3] as likely.
+ZONE_TOUGH = (2.5, 1.5, 4 / 3, 2.0)
+# The landmarks on a zone that keep enemies off (LANDMARK_QUIET): the Gate
+# where you land, the giver's stairway and the boss's court. The fonts,
+# statues, choir rings and the cathedral are the angels' own.
+ZONE_QUIET_MARKS = ("paradise_gate", "paradise_stairway", "paradise_court")
+CHERUB = (7.0, 2.2, 3, 0.25, 14.0, 4.0, 4.0, 0.5, 5.0, 60.0, 1.5)
+                             # serene: keeps this far, plinks every this many s a run of this
+                             # many notes, s apart; unveiled: lunges at this speed for up to
+                             # this many tiles; roars every this many s (this windup) when
+                             # within this far, a cone this many degrees, pushing this far
+SERAPH = (9.0, 3.0, 12, 7.0, 1.8, 0.12, 4, 0.35)
+                             # serene: keeps this far, a ring of light every this many s of
+                             # this many shots; unveiled: keeps this far, spins a spiral
+                             # (every spec cooldown, after its windup) for this many s, a
+                             # burst every this many s of this many shots, turning this much
+OPHAN = (6, 1.0, 13.0, 2.2, 1.0, 0.8, 0.6, 4.0, 0.25)
+                             # serene: a bump this hard every this many s; unveiled: races at
+                             # this speed for this many s, then rests this long, hurting the
+                             # same body at most every this many s; its slick slows to x this
+                             # for this many s, a patch every this many s of racing
+WATCHER = (2.6, 14.0, 50.0, 1.0, 0.3, 0.5)
+                             # serene: an orb every this many s; unveiled: the gaze reaches
+                             # this far, sweeps this many degrees over this many s; its aim
+                             # line stops following you this many s before; the beam's
+                             # half-width
+LAMB = (14.0, 12.0, 1.0, 0.8, 5)
+                             # unveiled: charges at this speed this far, dazed this long by
+                             # what stops it, this long getting its footing back; serene: a
+                             # butt this hard
+DOVES = (5.0, 16.0, 1.0, (0.6, 1.6), 3, 0.25)
+                             # unveiled: circle this far out, dive at this speed, climbing
+                             # away this long, s between one dove's dive and the next;
+                             # serene: a peck this hard; a dove's bleeding x this
+LOCUSTS = (1.0, 2, 0.3)      # wobble (radians); serene: a sting this hard; bleeding x this
+HALO = (2.6, 0.3, 4, 1.0, 0.3)  # unveiled: turns this many rad/s, saws every this many s;
+                             # serene: a touch this hard every this many s; bleeding x this
 
 # P12 enemy behaviour (ai/mushroom.py; design/BOSSES.md 24.10).
 POLLEN = (9.0, 2.5, 5.0, 0.04, 0.5)  # the shaman keeps this far; its cloud: radius, s,
@@ -3808,6 +3911,15 @@ BESTIARY = {
     # M28.4c
     "mimic": (1200, "A chest with teeth. It lunges, lashes a tongue that drags you in and spits "
                     "coins. Beaten, it coughs up the best of what it ate."),
+    # M29.2: Paradise (all unveil: hurt below 70%, or come close)
+    "cherub": (2500, "Plinks slow notes. Unveiled: four faces; it lunges, bites and roars you back."),
+    "seraph": (4000, "Rings of light. Unveiled: a burning eye spinning spirals of blood and fire."),
+    "ophan": (2500, "A rolling halo. Unveiled: wheels of eyes racing and bouncing; mind the slick."),
+    "watcher": (2500, "Never moves. Unveiled: its gaze sweeps along the line it shows first."),
+    "lamb": (2000, "Seven horns, seven eyes: it charges along the line it shows. Walls daze it."),
+    "dove": (1500, "A flock. Unveiled, they circle and dive at you one after another."),
+    "locust": (1500, "Crowned, with human faces. Unveiled, a stinging swarm."),
+    "halo": (2000, "Drifts at you. Unveiled, a buzzsaw that turns wide: step aside and it overshoots."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -3883,7 +3995,8 @@ REV1_PRICES = {
 # more. With the values below: plains ~28/min, swamp ~52, forest ~59,
 # mushroom ~72, desert ~77, ruins ~100. Doubling a density doubles its rate.
 BIOME_ENEMY_DENSITY = {"plains": 0.35, "forest": 1.0, "desert": 1.0, "ruins": 1.3,
-                       "swamp": 0.9, "mushroom": 1.1}
+                       "swamp": 0.9, "mushroom": 1.1,
+                       "paradise": 1.0}     # (M29.2, mine; packs are bigger there: ZONE_TOUGH)
 # Scales every biome at once (0.5 = half as many enemies everywhere).
 # 2.0 on 2026-09-30 (user: "increase around 2x"), then 1.6 the same day
 # (user: "a bit too hard, dial down the difficulty a bit").
@@ -4133,6 +4246,20 @@ PARADISE_CHOIRS = 5
 PARADISE_FONTS = 10
 PARADISE_STATUES = 14
 PARADISE_SITE_GAP = 14
+# The angels' shots (M29.2, ai/paradise.py): serene, slow notes, rings and
+# orbs of light; unveiled, the seraph's spirals of blood and fire.
+PARADISE_SHOTS = {
+    "note": ShellSpec(speed=6.0, damage=6, max_range=16.0, damages_terrain=False,
+                      look="lyre", sound="orb"),
+    "light": ShellSpec(speed=4.5, damage=7, max_range=18.0, damages_terrain=False,
+                       look="light", sound="orb"),
+    "orb": ShellSpec(speed=5.0, damage=8, max_range=20.0, damages_terrain=False,
+                     look="light", sound="orb"),
+    "blood": ShellSpec(speed=7.0, damage=8, max_range=20.0, damages_terrain=False,
+                       look="blood", sound="fizzle"),
+    "fire": ShellSpec(speed=7.0, damage=8, max_range=20.0, damages_terrain=False,
+                      look="ember", sound="fizzle"),
+}
 
 # Start: the tile nearest the centre (searched every SPAWN_SEARCH_STEP
 # tiles) that isn't in a lake and has dry land connecting it to at least

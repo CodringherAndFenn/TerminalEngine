@@ -176,8 +176,8 @@ class TilesTest(unittest.TestCase):
         for t in (tiles.BLOOD_RIVER, tiles.BLOOD_FONT, tiles.CLOUD_BANK):
             self.assertTrue(t.solid)
 
-    def test_no_enemies_yet(self):
-        self.assertEqual(config.BIOME_ENEMY_DENSITY.get("paradise", 0.0), 0.0)
+    def test_enemies_since_m29_2(self):
+        self.assertGreater(config.BIOME_ENEMY_DENSITY.get("paradise", 0.0), 0.0)
 
 
 class MapTest(unittest.TestCase):

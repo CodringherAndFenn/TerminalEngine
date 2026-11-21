@@ -144,6 +144,8 @@ class LandmarkTest(unittest.TestCase):
         sp = Spawner(w, w.seed)
         n = config.CHUNK_SIZE
         for m in w.layout.landmarks:
+            if m.kind == "zone" and m.key not in config.ZONE_QUIET_MARKS:
+                continue        # (M29.2: Paradise's fonts, statues, choir rings are the angels')
             for cy in range(m.y0 // n, (m.y0 + m.h) // n + 1):
                 for cx in range(m.x0 // n, (m.x0 + m.w) // n + 1):
                     for _, _, x, y in sp.roster(cx, cy):
