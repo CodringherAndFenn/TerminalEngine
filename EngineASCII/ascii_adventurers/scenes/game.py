@@ -684,6 +684,9 @@ class GameScene(Scene):
             if inp.aim is not None:
                 p.hero.aim_at(*inp.aim, dt)
                 p.aim = inp.aim
+            if p.hero.dazzled > 0:                   # (M30.3: the Vain's mirror -- aim wavers)
+                p.hero.dazzled = max(0.0, p.hero.dazzled - dt)
+                p.hero.aim_angle += p.hero.rng.uniform(-config.VAIN[5], config.VAIN[5])
             weapon = p.hero.weapon
             frozen = p.hero.encased > 0            # (M24.2: encased in ice: no attacks)
             frozen = frozen or bool(p.hero.mount)  # (P6: nobody attacks from the saddle)

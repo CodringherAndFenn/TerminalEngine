@@ -88,7 +88,6 @@ SHOT_LOOKS = {
     "acid": ("o", (".", ","), palette.SHOT_ACID),
     "spore": ("o", (".", "."), palette.SHOT_SPORE),
     "bomb": ("@", (None, None), None),       # lobbed: drawn by _draw_lobbed
-    "sand": ("*", (".", "."), palette.SHOT_SAND),
     "axe": (None, (".", "."), palette.SHOT_AXE),    # head: spins (AXE_SPIN)
     "ember": ("*", ("'", "."), palette.SHOT_EMBER),  # Fire Wand
     "bone": ("o", (".", "."), palette.SHOT_BONE),    # Bone Turret
@@ -173,6 +172,7 @@ SHOT_LOOKS = {
     # M29.2: Paradise's serene angels: a cherub's lyre notes, rings and orbs of light.
     "lyre": (NOTE, ("'", "."), palette.SHOT_LYRE),
     "light": ("o", ("'", "."), palette.SHOT_LIGHT),
+    "revel_glitter": ("*", ("+", ":"), palette.REVEL_GLITTER),   # M30.3: the Beloved's
     "shriek": ("o", (":", "."), palette.SHOT_SHRIEK),     # M29.3: a chorister's rings
     "crown": (None, (None, None), palette.SHOT_CROWN),    # M29.5: Conquest's (an arrow)
 }
@@ -332,11 +332,13 @@ def _frame(e: Effect) -> list:
         return [(math.cos(q * math.tau / 4 + (k + 0.5) * (math.tau / 4) / 9) * r * config.TILE_PX_W,
                  math.sin(q * math.tau / 4 + (k + 0.5) * (math.tau / 4) / 9) * r * config.TILE_PX_H,
                  "*" if k % 2 else "x", col) for k in range(9)]
-    if e.kind in ("belly_slam", "beat", "wine_wave"):   # (M30.2: rings going out, at their speed)
+    if e.kind in ("belly_slam", "beat", "wine_wave", "gold_slam", "bell"):   # (M30.2-3: rings)
         r = e.size * p
         col = {"belly_slam": palette.REVEL_SLAM, "beat": palette.REVEL_BEAT,
-               "wine_wave": palette.REVEL_WINE}[e.kind][min(1, int(p * 2))]
-        glyph = {"belly_slam": "o", "beat": "=", "wine_wave": "*"}[e.kind]
+               "wine_wave": palette.REVEL_WINE, "gold_slam": palette.REVEL_GOLD,
+               "bell": palette.REVEL_BELL}[e.kind][min(1, int(p * 2))]
+        glyph = {"belly_slam": "o", "beat": "=", "wine_wave": "*", "gold_slam": "#",
+                 "bell": "o"}[e.kind]
         n = max(12, int(r * 5))
         return [(math.cos(k * math.tau / n) * r * config.TILE_PX_W,
                  math.sin(k * math.tau / n) * r * config.TILE_PX_H, glyph, col) for k in range(n)]
@@ -353,6 +355,27 @@ def _frame(e: Effect) -> list:
             (math.cos(k * math.tau / 10) * r * config.TILE_PX_W,
              math.sin(k * math.tau / 10) * r * config.TILE_PX_H,
              "o" if (k + f) % 3 == 0 else ",", palette.REVEL_SPILL[(k + f) % 3]) for k in range(10)]
+    if e.kind == "mirror_flash":                 # (M30.3: the Vain's mirror, a cone of light)
+        col = palette.REVEL_MIRROR[0 if p < 0.5 else 1]
+        out = []
+        for k in range(7):
+            a = e.angle + math.radians(config.VAIN[2]) * (k / 6 - 0.5)
+            for f in (0.35, 0.7, 1.0):
+                r = e.size * f * (0.4 + 0.6 * p)
+                out.append((math.cos(a) * r * config.TILE_PX_W, math.sin(a) * r * config.TILE_PX_H,
+                            "*" if f == 1.0 else "'", col))
+        return out
+    if e.kind == "gold_crack":                   # (M30.3: a gold shell cracking off)
+        r = (e.size or 1.0) * (0.4 + 1.0 * p)
+        col = palette.REVEL_GOLD[0 if p < 0.5 else 1]
+        return [(math.cos(k * math.tau / 9) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / 9) * r * config.TILE_PX_H,
+                 "/" if k % 2 else "\\", col) for k in range(9)]
+    if e.kind == "fireworks":                    # (M30.3: a firework bursting)
+        r = (e.size or 1.0) * (0.3 + 0.9 * p)
+        return [(math.cos(k * math.tau / 10) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / 10) * r * config.TILE_PX_H,
+                 "*" if k % 2 else "+", palette.REVEL_FIREWORK[k % 3]) for k in range(10)]
     if e.kind == "mask_swap":                    # (M30.2: a flash where a masked dancer was)
         r = (e.size or 1.0) * (1.0 - 0.7 * p)
         col = palette.REVEL_MASK[0 if p < 0.5 else 1]

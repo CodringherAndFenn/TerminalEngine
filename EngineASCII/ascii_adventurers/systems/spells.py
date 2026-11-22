@@ -843,7 +843,7 @@ def _cleanse(hero, effects) -> None:
            or getattr(hero, "rads", 0) > 0 or getattr(hero, "irradiated", 0) > 0
            or getattr(hero, "chill", 0) > 0 or getattr(hero, "encased", 0) > 0
            or getattr(hero, "shrunk", 0) > 0 or getattr(hero, "temptation", 0) > 0
-           or getattr(hero, "entranced", 0) > 0)
+           or getattr(hero, "entranced", 0) > 0 or getattr(hero, "dazzled", 0) > 0)
     if not had:
         return
     hero.slow_t, hero.slow_mult = 0.0, 1.0
@@ -852,6 +852,7 @@ def _cleanse(hero, effects) -> None:
     hero.chill = hero.encased = 0.0
     hero.shrunk = 0.0
     hero.temptation = hero.entranced = 0.0        # (M30.2: Pandemonium's temptation)
+    hero.dazzled = 0.0                            # (M30.3: the Vain's mirror)
     effects.append(Effect("heal_beam", hero.x, hero.y - 1.0, x2=hero.x, y2=hero.y))
 
 

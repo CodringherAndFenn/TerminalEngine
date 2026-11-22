@@ -109,7 +109,7 @@ class Plan:
                                    for _ in range(config.PANDEMONIUM_TABLES)) if s]
         self.fountains = [s for s in (self._site(rng, 4, 3, avoid)
                                       for _ in range(config.PANDEMONIUM_FOUNTAINS)) if s]
-        self.statues = [s for s in (self._site(rng, 2, 2, avoid)
+        self.statues = [s for s in (self._site(rng, 4, 3, avoid)
                                     for _ in range(config.PANDEMONIUM_STATUES)) if s]
         self.quest = next((k for k, q in config.QUESTS.items() if q.biome == zone.key), "")
 
@@ -444,7 +444,9 @@ class Plan:
         return self._mark("pandemonium_fountain", "zone", "Wine Fountain", cells, x + 0.5, y)
 
     def _statue(self, x: int, y: int):
-        cells = {(x + i, y + j): tiles.GILT_FLOOR for j in range(-1, 2) for i in range(-1, 2)}
+        """A gilded statue on its plinth, room round it for the vain and the
+        greedy who gather there (M30.3)."""
+        cells = {(x + i, y + j): tiles.GILT_FLOOR for j in range(-2, 3) for i in range(-3, 4)}
         cells[(x, y)] = tiles.GILDED_STATUE
         return self._mark("pandemonium_statue", "zone", "Gilded Statue", cells, x + 0.5, y + 0.5)
 

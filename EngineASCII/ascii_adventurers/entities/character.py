@@ -337,6 +337,7 @@ class Character(Actor):
         self.temptation = 0.0
         self.entranced = 0.0
         self.struck_at = -99.0
+        self.dazzled = 0.0                # M30.3: s dazzled by the Vain's mirror (aim wavers)
         self.water_walk = False           # M27: Adventurer's Glory -- water is ground
         self.spiral = 0                   # Spiral: how far round its extra shot has turned
         # M28.3f, the feet's legendary tricks: when a hit last readied a

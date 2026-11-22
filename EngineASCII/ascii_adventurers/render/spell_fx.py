@@ -248,6 +248,13 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 batch.put_c(x + math.cos(a) * z.radius * tw * 0.5,
                             y + math.sin(a) * z.radius * th * 0.3 - z.age * 10,
                             "o" if k % 2 else ".", col)
+        elif z.kind == "loose_coins":
+            # M30.3: a hoarder's coins lying where they landed (they trip you).
+            col = palette.REVEL_GOLD[0 if z.age < z.life * 0.75 else 1]
+            for k in range(4):
+                a = k * math.tau / 4 + 0.7
+                batch.put_c(x + math.cos(a) * z.radius * 0.7 * tw,
+                            y + math.sin(a) * z.radius * 0.7 * th, "o" if k % 2 else ".", col)
         elif z.kind == "wine_puddle":
             # M30.2: a drunkard's shattered bottle: a puddle of wine (slows,
             # tempts), glass glinting in it.

@@ -877,6 +877,17 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   wine go out as rings (roll through them); the Ravenous latch on until you
   roll; the dancers' steps repeat; the piper's song tempts in a cone.
 
+- **Pandemonium's other eight, M30.3** (`design/OCEAN.md` 21): the vain
+  and the greedy gather at the gilded statues -- the Vain (its mirror's
+  flash dazzles you and turns your shots back), the gilded reveller (it
+  poses as a statue; a gold shell soaks hits until it cracks), the hoarder
+  (fistfuls of coins that lie there and trip you), the Beloved (elite: its
+  admirers circle it and take its hits). And the demon hosts, never in the
+  trance, posted by the groups: the cupbearer (refills the hurt revellers),
+  the carver (cleavers that come back), the bouncer (charges, and throws
+  you at the nearest feast), the master of revels (elite: its bell wakes
+  every group near it -- and snaps you out of a trance).
+
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

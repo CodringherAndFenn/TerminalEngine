@@ -36,6 +36,29 @@ shared by the group.
                temptation fast in a cone, and every few seconds it plays the
                frenzy on to the next group in the trance
 
+M30.3, the other eight. The vain and the greedy gather at the gilded
+statues (in the trance like the rest):
+  vain         admiring itself in a hand mirror; frenzied its mirror flashes
+               (the cone is marked first): you're dazzled, and your shots in
+               it turn back at you
+  gilded reveller  posing as a second statue; frenzied, a gold shell soaks
+               hits until it cracks off; slow, heavy slams
+  hoarder      counting coins; frenzied it throws fistfuls that hurt where
+               they land and lie there, tripping you
+  beloved      (elite) the centre of admiration; its admirers (its group's
+               Vain) circle it and take its hits, and while it lives its
+               group is faster; frenzied it throws fans of glitter
+The demon hosts are never in the trance -- always alert, at their posts by
+the groups (Host):
+  cupbearer    refills the hurt revellers (heals them) and throws wine that
+               tempts you
+  carver       lunging cleaves; cleavers thrown out that curve back to it
+  bouncer      charges along a shown line; caught, you're thrown at the
+               nearest group still in the trance
+  master of revels  (elite) rings its bell: every group near it frenzies,
+               and every entranced hero snaps out; fireworks on marked
+               circles
+
 Their pictures: render/pandemonium_art.py; their tells: render/pandemonium.py.
 """
 
@@ -46,6 +69,7 @@ import random
 
 from .. import config
 from ..entities.effects import Effect
+from ..systems import patterns
 from ..systems.statuses import wounded
 from ..systems.zones import Zone
 from ..world import tiles
@@ -98,6 +122,8 @@ def sites(world) -> dict:
                 out[("banquet", 0)] = (p.banquet[0] + 0.5, float(p.banquet[1]), "banquet")
             if p.mirrors is not None:
                 out[("mirrors", 0)] = (p.mirrors[0] + 0.5, p.mirrors[1] + 0.5, "mirrors")
+            for i, (x, y) in enumerate(p.statues):
+                out[("statue", i)] = (x + 0.5, y + 0.5, "statue")
         return out
     return _cached(world, "revel_sites", make)
 
@@ -217,6 +243,57 @@ def _seat(p, rng: random.Random) -> list:
             x, y = mx + rng.uniform(-15, 15) + 0.5, my + rng.uniform(-7, 7) + 0.5
             out += [("dancer", x, y, ("mirrors", 0))] * 2 if k < pairs \
                 else [("masked_dancer", x, y, ("mirrors", 0))]
+        # (M30.3: the Beloved, admired by the Vain, in the middle of it all)
+        out.append(("beloved", mx + 0.5, my + 0.5, ("mirrors", 0)))
+        for k in range(config.REVEL_STATUE[3]):
+            a = k * math.tau / config.REVEL_STATUE[3]
+            out.append(("vain", mx + 0.5 + math.cos(a) * 3.0, my + 0.5 + math.sin(a) * 2.0,
+                        ("mirrors", 0)))
+    out += _statues(p)
+    out += _hosts(p)
+    return out
+
+
+def _statues(p) -> list:
+    """M30.3: the vain and the greedy at the gilded statues (their plinths)."""
+    out = []
+    vains, gilded, beloved, admirers = config.REVEL_STATUE
+    for i, (x, y) in enumerate(p.statues):
+        home = ("statue", i)
+        if i % beloved == 0:
+            out.append(("beloved", x + 0.5, y + 1.9, home))
+            for sx, sy in ((x - 1.5, y + 1.5), (x + 3.5, y + 1.5), (x + 0.5, y - 1.5))[:admirers]:
+                out.append(("vain", sx, sy, home))
+        else:
+            out += [("vain", x - 1.5, y + 1.5, home)] * min(vains, 1)
+            out.append(("hoarder", x + 2.5, y + 1.5, home))
+        if i % gilded == 0:
+            out.append(("gilded_reveller", x - 2.5, y + 0.5, home))
+    return out
+
+
+def _hosts(p) -> list:
+    """M30.3: the demon hosts at their posts by the groups."""
+    out = []
+    cup, carve, bounce, master = config.REVEL_HOSTS
+    for i, (x, y) in enumerate(p.tables):
+        home = ("table", i)
+        if i % cup == 0:
+            out.append(("cupbearer", x + 5.5, y + 2.5, home))
+        if i % carve == 1:
+            out.append(("carver", x - 4.5, y + 2.5, home))
+        if i % bounce == 2:
+            out.append(("bouncer", x + 0.5, y - 2.5, home))
+    for i, (x, y) in enumerate(p.bandstands):
+        if i % master == 0:
+            out.append(("master_of_revels", x - 2.5, y + 3.5, ("band", i)))
+    if p.banquet is not None:
+        sx, sy = p.banquet
+        out.append(("bouncer", sx - 30.5, sy - 5.5, ("banquet", 0)))
+        out += [("carver", sx - 28.5, sy + 4.5, ("banquet", 0)),
+                ("carver", sx + 28.5, sy + 4.5, ("banquet", 0))]
+    if p.mirrors is not None:
+        out.append(("bouncer", p.mirrors[0] - 18.5, p.mirrors[1] + 0.5, ("mirrors", 0)))
     return out
 
 
@@ -264,6 +341,7 @@ class Reveller(Angel):
         self.home = None              # its group (worked out on its first turn)
         self.provoked = False         # hit in the trance: its group wakes
         self.toasted = 0.0            # s of a toast's burst of speed left
+        self.adored = 0.0             # s its group's Beloved still lives (it keeps this up)
         self.waves: list[list] = []   # rings going out: [x, y, r, reach, speed, damage, tempt, hit]
         self.phase = self.rng.uniform(0.0, math.tau)
 
@@ -274,6 +352,7 @@ class Reveller(Angel):
     @property
     def speed(self) -> float:
         s = self.espec.speed * (1.0 if self.unveiled else config.REVEL[4])
+        s *= config.BELOVED[6] if self.adored > 0 and self.unveiled else 1.0
         return s * (config.TOAST[3] if self.toasted > 0 else 1.0)
 
     def sprite_now(self) -> str:
@@ -311,6 +390,7 @@ class Reveller(Angel):
         self.sense(ctx, dt)
         self.clock += dt
         self.toasted = max(0.0, self.toasted - dt)
+        self.adored = max(0.0, self.adored - dt)
         self._fly_lobs(ctx, dt)
         self._tick_waves(ctx, dt)
         self.always(ctx, dt)
@@ -771,4 +851,475 @@ class Piper(Reveller):
         _, home, x, y = min(near)
         frenzy(ctx.world, home)
         ctx.effects.append(Effect("toast", x, y - 2.5, label="THE SONG CARRIES"))
+        ctx.events.append("chime")
+
+
+# --- The vain and the greedy (M30.3) -------------------------------------------------------
+
+
+def _in_cone(x0: float, y0: float, aim: float, half: float, reach: float, x: float, y: float) -> bool:
+    d = math.hypot(x - x0, y - y0)
+    off = abs((math.atan2(y - y0, x - x0) - aim + math.pi) % math.tau - math.pi)
+    return d <= reach and off <= half
+
+
+class Vain(Reveller):
+    """Its mirror flashes in a marked cone (VAIN): dazzles, turns shots
+    back. With a Beloved to admire, it circles it instead of keeping back."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.aim = 0.0
+        self.admires = None           # its group's Beloved (set by the Beloved)
+        self.around = self.rng.uniform(0.0, math.tau)
+
+    def frenzied_turn(self, ctx: AIContext, dt: float) -> None:
+        lo, hi, cone, reach, dazzle, wobble, back = config.VAIN
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = max(self.windup, 1e-3)
+            if self.windup <= 0:
+                self.tell = 0.0
+                self.flash(ctx)
+            return
+        b = self.admires
+        if b is not None and b.alive:
+            self.around += dt * 1.6
+            r = config.BELOVED[4]
+            self.go(ctx, b.x + math.cos(self.around) * r, b.y + math.sin(self.around) * r, dt,
+                    max(self.speed, 4.0))
+        elif t is not None:
+            self.keep(ctx, t, lo, hi, dt)
+        else:
+            self.roam(ctx, dt)
+            return
+        if t is not None and self.cooldown <= 0 and self.dist_to(t) <= reach:
+            self.aim = self.angle_to(t.x, t.y)
+            self.windup = self.espec.windup
+            self.cooldown = self.espec.cooldown
+
+    def flash(self, ctx: AIContext) -> None:
+        _, _, cone, reach, dazzle, _, back = config.VAIN
+        half = math.radians(cone) / 2
+        for h in ctx.players:
+            if h.alive and _in_cone(self.x, self.y, self.aim, half, reach, h.x, h.y):
+                h.dazzled = dazzle
+                ctx.effects.append(Effect("toast", h.x, h.y - 1.5, label="DAZZLED!"))
+        for p in ctx.projectiles or ():
+            owner = getattr(p, "owner", None)
+            if p.alive and getattr(owner, "faction", "") == "player" \
+                    and _in_cone(self.x, self.y, self.aim, half, reach, p.x, p.y):
+                p.angle += math.pi                    # (turned back at its shooter)
+                p.dir_x, p.dir_y = -p.dir_x, -p.dir_y
+                p.owner = self
+                p.damage *= back
+                p.travelled = 0.0
+        ctx.effects.append(Effect("mirror_flash", self.x, self.y, angle=self.aim, size=reach))
+        ctx.events.append("zap")
+
+
+class GildedReveller(Reveller):
+    """Posing as a statue; frenzied, a gold shell (GILDED) soaks its hits
+    until it cracks off; slow, heavy slams."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.shell = None             # gold left (worked out on its first turn, once toughened)
+        self.facing = math.pi / 2
+
+    @property
+    def speed(self) -> float:
+        cracked = self.shell is not None and self.shell <= 0
+        return super().speed * (config.GILDED[4] if cracked else 1.0)
+
+    def sprite_now(self) -> str:
+        base = self.espec.sprite
+        if self.serene:
+            return base                                   # (a statue, to the eye)
+        if self.shell is not None and self.shell <= 0:
+            return base + "_cracked"
+        return base + "_frenzied"
+
+    def take_damage(self, amount, source, from_angle):
+        if self.shell is None:
+            self.shell = self.max_hp * config.GILDED[0]
+        if self.shell > 0 and amount > 0 and self.alive:
+            self.shell -= amount
+            self.hurt_flash = 0.12
+            if self.serene:
+                self.provoked = True
+            if self.shell <= 0:
+                self.cracked = True
+            return amount
+        return super().take_damage(amount, source, from_angle)
+
+    def trance_turn(self, ctx: AIContext, dt: float) -> None:
+        if self.shell is None:
+            self.shell = self.max_hp * config.GILDED[0]
+
+    def frenzied_turn(self, ctx: AIContext, dt: float) -> None:
+        _, near, ring, speed, _ = config.GILDED
+        if self.shell is None:
+            self.shell = self.max_hp * config.GILDED[0]
+        if getattr(self, "cracked", False):
+            self.cracked = False
+            ctx.effects.append(Effect("gold_crack", self.x, self.y, size=self.hit_radius + 1.0))
+            ctx.events.append("break")
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = max(self.windup, 1e-3)
+            if self.windup <= 0:
+                self.tell = 0.0
+                self.wave(ctx, ring, speed, self.espec.damage, "gold_slam")
+                self.cooldown = self.espec.cooldown
+                ctx.events.append("boulder")
+            return
+        t = self.target
+        if t is None:
+            self.roam(ctx, dt)
+            return
+        self.go(ctx, t.x, t.y, dt, self.speed)
+        if self.cooldown <= 0 and self.dist_to(t) <= near:
+            self.windup = self.espec.windup
+
+
+class Hoarder(Reveller):
+    """Throws fistfuls of coins (HOARD) that hurt and lie there, tripping."""
+
+    def frenzied_turn(self, ctx: AIContext, dt: float) -> None:
+        lo, hi, n, spread, flight, *_ = config.HOARD
+        t = self.target
+        if t is None:
+            self.roam(ctx, dt)
+            return
+        self.keep(ctx, t, lo, hi, dt)
+        if self.cooldown <= 0 and self.dist_to(t) <= hi + 3:
+            a0 = self.angle_to(t.x, t.y)
+            d = self.dist_to(t)
+            for k in range(n):
+                a = a0 + math.radians(spread) * (k / (n - 1) - 0.5)
+                r = d * self.rng.uniform(0.85, 1.15)
+                self.lob(self.x + math.cos(a) * r, self.y + math.sin(a) * r, flight, "coin")
+            self.cooldown = self.espec.cooldown
+            ctx.events.append("swing")
+
+    def landed(self, ctx: AIContext, x: float, y: float, what: str) -> None:
+        _, _, _, _, _, wide, life, trip, _ = config.HOARD
+        for h in ctx.players:
+            if h.hittable and math.hypot(h.x - x, h.y - y) <= 0.6 + h.hit_radius:
+                _numbered_hit(h, self.espec.damage * self.damage_mult, self,
+                              math.atan2(h.y - y, h.x - x), ctx)
+        if ctx.zones is not None:
+            ctx.zones.append(Zone("loose_coins", x, y, wide, life, 0.25, 0.0, self, slow=trip))
+
+
+class Beloved(Reveller):
+    """Its admirers circle it and take its hits (BELOVED); while it lives its
+    group is faster. Fans of glitter."""
+
+    def admirers(self, actors) -> list:
+        return [e for e in actors if isinstance(e, Vain) and e.alive and e.home == self.home]
+
+    def always(self, ctx: AIContext, dt: float) -> None:
+        if self.home is None:
+            return
+        for e in ctx.actors:
+            if isinstance(e, Reveller) and e.alive and e.home == self.home and e is not self:
+                e.adored = 0.3
+                if isinstance(e, Vain):
+                    e.admires = self
+        self._actors = ctx.actors
+
+    def take_damage(self, amount, source, from_angle):
+        near = [e for e in self.admirers(getattr(self, "_actors", ()))
+                if math.hypot(e.x - self.x, e.y - self.y) <= config.BELOVED[5]]
+        if near and amount > 0:
+            shield = min(near, key=lambda e: math.hypot(e.x - self.x, e.y - self.y))
+            if self.serene:
+                self.provoked = True
+            return shield.take_damage(amount, source, from_angle)
+        return super().take_damage(amount, source, from_angle)
+
+    def frenzied_turn(self, ctx: AIContext, dt: float) -> None:
+        lo, hi, n, fan, *_ = config.BELOVED
+        t = self.target
+        if t is None:
+            self.roam(ctx, dt)
+            return
+        self.keep(ctx, t, lo, hi, dt)
+        if self.cooldown <= 0 and self.dist_to(t) <= hi + 5:
+            a0 = self.angle_to(t.x, t.y)
+            shell = config.PANDEMONIUM_SHOTS["glitter"]
+            for k in range(n):
+                patterns.shoot(self, self.x, self.y,
+                               a0 + math.radians(fan) * (k / (n - 1) - 0.5), shell, ctx.projectiles)
+            self.cooldown = self.espec.cooldown
+            ctx.events.append(shell.sound)
+
+
+# --- The demon hosts (M30.3) ----------------------------------------------------------------
+
+
+class Host(Reveller):
+    """Never in the trance: alert from the start, at its post by its group
+    (back there when nobody's about). One picture. It doesn't drink."""
+
+    drinks = False
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "unveiled"
+        self.alert = True
+
+    def sprite_now(self) -> str:
+        return self.espec.sprite
+
+    def idle(self, ctx: AIContext, dt: float) -> None:
+        sx, sy = self.spawn_pt
+        if math.hypot(self.x - sx, self.y - sy) > 0.6:
+            self.go(ctx, sx, sy, dt, self.speed * 0.6)
+
+
+class Cupbearer(Host):
+    """Refills the hurt revellers near it; throws tempting wine (CUPBEARER)."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.pouring = 0.0
+        self.pour_cd = 0.0
+        self.guest = None
+
+    def frenzied_turn(self, ctx: AIContext, dt: float) -> None:
+        reach, low, pour, heal, every, lo, hi, tempt = config.CUPBEARER
+        self.pour_cd = max(0.0, self.pour_cd - dt)
+        g = self.guest
+        if g is not None and (not g.alive or g.hp >= g.max_hp * 0.95):
+            self.guest = g = None
+            self.pouring = 0.0
+        if g is None and self.pour_cd <= 0:
+            hurt = [e for e in ctx.actors if isinstance(e, Reveller) and not isinstance(e, Host)
+                    and e.alive and e.unveiled and e.hp < e.max_hp * low
+                    and math.hypot(e.x - self.x, e.y - self.y) <= reach]
+            if hurt:
+                self.guest = g = min(hurt, key=lambda e: e.hp / e.max_hp)
+        if g is not None:
+            if math.hypot(g.x - self.x, g.y - self.y) > 1.6:
+                self.go(ctx, g.x, g.y, dt, self.speed)
+                return
+            self.pouring += dt
+            self.drinking = True                           # (the "+" over it)
+            if not wounded(g):
+                g.hp = min(float(g.max_hp), g.hp + g.max_hp * heal / pour * dt)
+            if self.pouring >= pour:
+                self.guest, self.pouring, self.pour_cd = None, 0.0, every
+                self.drinking = False
+            return
+        self.drinking = False
+        t = self.target
+        if t is None:
+            self.idle(ctx, dt)
+            return
+        self.keep(ctx, t, lo, hi, dt)
+        if self.cooldown <= 0 and self.dist_to(t) <= hi + 3:
+            self.lob(t.x, t.y, 0.7, "wine")
+            self.cooldown = self.espec.cooldown
+            ctx.events.append("swing")
+
+    def landed(self, ctx: AIContext, x: float, y: float, what: str) -> None:
+        from ..systems import temptation
+        for h in ctx.players:
+            if h.hittable and math.hypot(h.x - x, h.y - y) <= 1.0 + h.hit_radius:
+                _numbered_hit(h, self.espec.damage * self.damage_mult, self,
+                              math.atan2(h.y - y, h.x - x), ctx)
+                temptation.add(h, config.CUPBEARER[7])
+        ctx.events.append("fizzle")
+
+
+class Carver(Host):
+    """Lunging cleaves; cleavers that fly out curving and come back (CARVER)."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.aim = 0.0
+        self.lunge = 0.0
+        self.cleavers: list[list] = []   # [x, y, angle, s out, coming back, hit]
+
+    def always(self, ctx: AIContext, dt: float) -> None:
+        _, _, _, out, speed, curve = config.CARVER
+        for c in self.cleavers:
+            if not c[4]:
+                c[3] += dt
+                c[2] += curve * dt
+                c[0] += math.cos(c[2]) * speed * dt
+                c[1] += math.sin(c[2]) * speed * dt
+                if c[3] >= out:
+                    c[4], c[5] = True, set()
+            else:
+                d = math.hypot(self.x - c[0], self.y - c[1]) or 1.0
+                c[0] += (self.x - c[0]) / d * speed * 1.2 * dt
+                c[1] += (self.y - c[1]) / d * speed * 1.2 * dt
+            for h in ctx.players:
+                if id(h) not in c[5] and h.hittable \
+                        and math.hypot(h.x - c[0], h.y - c[1]) <= 0.6 + h.hit_radius:
+                    c[5].add(id(h))
+                    _numbered_hit(h, self.espec.damage * 0.7 * self.damage_mult, self, c[2], ctx)
+        self.cleavers = [c for c in self.cleavers
+                         if not (c[4] and math.hypot(self.x - c[0], self.y - c[1]) < 0.8)]
+
+    def frenzied_turn(self, ctx: AIContext, dt: float) -> None:
+        near, length, fast, *_ = config.CARVER
+        if self.lunge > 0:
+            self.lunge -= dt
+            self.go(ctx, self.x + math.cos(self.aim) * 3, self.y + math.sin(self.aim) * 3, dt, fast)
+            self.touch(ctx, self.espec.damage, 1.0)
+            return
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = max(self.windup, 1e-3)
+            if self.windup <= 0:
+                self.tell = 0.0
+                self.lunge = length / fast
+                ctx.events.append("swing")
+            return
+        t = self.target
+        if t is None:
+            self.idle(ctx, dt)
+            return
+        self.go(ctx, t.x, t.y, dt, self.speed)
+        self.facing = self.angle_to(t.x, t.y)
+        if self.cooldown <= 0:
+            if self.dist_to(t) <= near:
+                self.aim = self.angle_to(t.x, t.y)
+                self.windup = self.espec.windup
+            elif not self.cleavers:
+                side = self.rng.choice((-1.0, 1.0))
+                self.cleavers.append([self.x, self.y, self.angle_to(t.x, t.y) - side * 0.6,
+                                      0.0, False, set()])
+                ctx.events.append("swing")
+            self.cooldown = self.espec.cooldown
+
+
+class Bouncer(Host):
+    """Charges along a shown line; throws whoever it catches at the nearest
+    group still in the trance (BOUNCER)."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.aim = 0.0
+        self.charge = 0.0
+        self.dazed = 0.0
+
+    def frenzied_turn(self, ctx: AIContext, dt: float) -> None:
+        reach, length, fast, throw, daze = config.BOUNCER
+        if self.dazed > 0:
+            self.dazed -= dt
+            return
+        if self.charge > 0:
+            self.charge -= dt
+            moved = self.go(ctx, self.x + math.cos(self.aim) * 3, self.y + math.sin(self.aim) * 3,
+                            dt, fast)
+            for h in ctx.players:
+                if h.hittable and math.hypot(h.x - self.x, h.y - self.y) <= self.hit_radius + h.hit_radius:
+                    self.throw(ctx, h)
+                    self.charge = 0.0
+                    return
+            if self._moved < fast * dt * 0.3:               # (into a wall)
+                self.charge, self.dazed = 0.0, daze
+            return
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = max(self.windup, 1e-3)
+            if self.windup <= 0:
+                self.tell = 0.0
+                self.charge = length / fast
+                ctx.events.append("boulder")
+            return
+        t = self.target
+        if t is None:
+            self.idle(ctx, dt)
+            return
+        self.go(ctx, t.x, t.y, dt, self.speed)
+        if self.cooldown <= 0 and self.dist_to(t) <= reach:
+            self.aim = self.angle_to(t.x, t.y)
+            self.windup = self.espec.windup
+            self.cooldown = self.espec.cooldown
+
+    def throw(self, ctx: AIContext, h) -> None:
+        from ..systems.combat import push
+        _numbered_hit(h, self.espec.damage * self.damage_mult, self, self.aim, ctx)
+        asleep = [(math.hypot(x - h.x, y - h.y), x, y) for home, (x, y, _) in sites(ctx.world).items()
+                  if not frenzied(ctx.world, home)]
+        if asleep:
+            _, x, y = min(asleep)
+            a = math.atan2(y - h.y, x - h.x)
+        else:
+            a = self.aim
+        dist = config.BOUNCER[3]
+        push(h, ctx.world, math.cos(a) * dist, math.sin(a) * dist, full=True)
+        ctx.effects.append(Effect("toast", h.x, h.y - 1.5, label="THROWN!"))
+
+
+class MasterOfRevels(Host):
+    """Its bell wakes every group near it and snaps entranced heroes out;
+    fireworks on marked circles (MASTER)."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.bell = 0.0               # s to its next ring
+        self.ringing = 0.0            # its bell's tell left
+        self.marks: list[list] = []   # fireworks: [x, y, s left]
+
+    def always(self, ctx: AIContext, dt: float) -> None:
+        r = config.MASTER[5]
+        for m in self.marks:
+            m[2] -= dt
+            if m[2] <= 0:
+                for h in ctx.players:
+                    if h.hittable and math.hypot(h.x - m[0], h.y - m[1]) <= r + h.hit_radius:
+                        _numbered_hit(h, self.espec.damage * self.damage_mult, self,
+                                      math.atan2(h.y - m[1], h.x - m[0]), ctx)
+                ctx.effects.append(Effect("fireworks", m[0], m[1], size=r))
+                ctx.events.append("boulder")
+        self.marks = [m for m in self.marks if m[2] > 0]
+
+    def frenzied_turn(self, ctx: AIContext, dt: float) -> None:
+        reach, every, lo, hi, n, r, mark, spread = config.MASTER
+        self.bell -= dt
+        if self.ringing > 0:
+            self.ringing -= dt
+            self.tell = max(self.ringing, 1e-3)
+            if self.ringing <= 0:
+                self.tell = 0.0
+                self.ring(ctx)
+            return
+        t = self.target
+        if t is None:
+            self.idle(ctx, dt)
+            return
+        if self.bell <= 0:
+            self.ringing, self.bell = self.espec.windup, every
+            return
+        self.keep(ctx, t, lo, hi, dt)
+        if self.cooldown <= 0 and self.dist_to(t) <= hi + 4:
+            self.marks.append([t.x, t.y, mark])
+            for _ in range(n - 1):
+                a = self.rng.uniform(0.0, math.tau)
+                d = self.rng.uniform(1.0, spread)
+                self.marks.append([t.x + math.cos(a) * d, t.y + math.sin(a) * d, mark])
+            self.cooldown = self.espec.cooldown
+
+    def ring(self, ctx: AIContext) -> None:
+        """The bell: every group within MASTER[0] frenzies; every entranced
+        hero there snaps out (an opening)."""
+        reach = config.MASTER[0]
+        for home, (x, y, _) in sites(ctx.world).items():
+            if math.hypot(x - self.x, y - self.y) <= reach:
+                frenzy(ctx.world, home)
+        for h in ctx.players:
+            if getattr(h, "entranced", 0) > 0 and math.hypot(h.x - self.x, h.y - self.y) <= reach:
+                h.entranced, h.temptation = 0.0, 0.0
+                ctx.effects.append(Effect("toast", h.x, h.y - 1.5, label="SNAPPED OUT!"))
+        ctx.effects.append(Effect("bell", self.x, self.y, size=reach))
+        ctx.effects.append(Effect("toast", self.x, self.y - 2.5, label="THE BELL!"))
         ctx.events.append("chime")

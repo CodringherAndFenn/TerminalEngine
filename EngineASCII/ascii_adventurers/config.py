@@ -1118,6 +1118,49 @@ ENEMIES = {
         max_hp=280, sight=18, biomes=(), speed=2.6,
         damage=0, windup=0.6, cooldown=6.0, size_px=30, xp=35,
     ),
+    # M30.3. The vain and the greedy (revellers, in the trance like the rest).
+    "vain": EnemySpec(
+        name="the Vain", kind="vain", sprite="vain",
+        max_hp=70, sight=16, biomes=(), speed=3.4,
+        damage=0, windup=0.8, cooldown=4.0, size_px=22, xp=12,
+    ),
+    "gilded_reveller": EnemySpec(
+        name="gilded reveller", kind="gilded_reveller", sprite="gilded_reveller",
+        max_hp=140, sight=16, biomes=(), speed=1.8,
+        damage=26, windup=0.7, cooldown=2.6, size_px=24, xp=14,
+    ),
+    "hoarder": EnemySpec(
+        name="hoarder", kind="hoarder", sprite="hoarder",
+        max_hp=75, sight=16, biomes=(), speed=3.2,
+        damage=8, windup=0.3, cooldown=2.4, size_px=22, xp=10,
+    ),
+    "beloved": EnemySpec(
+        name="the Beloved", kind="beloved", sprite="beloved", scale=4, elite=True,
+        max_hp=260, sight=18, biomes=(), speed=2.8,
+        damage=0, windup=0.5, cooldown=3.5, size_px=30, xp=35,
+    ),
+    # The demon hosts: never in the trance -- always alert, at their posts
+    # by the groups (ai/pandemonium.residents).
+    "cupbearer": EnemySpec(
+        name="cupbearer", kind="cupbearer", sprite="cupbearer",
+        max_hp=90, sight=16, biomes=(), speed=4.2,
+        damage=8, windup=0.4, cooldown=2.6, size_px=24, xp=12,
+    ),
+    "carver": EnemySpec(
+        name="carver", kind="carver", sprite="carver",
+        max_hp=130, sight=16, biomes=(), speed=3.8,
+        damage=18, attack_radius=1.4, windup=0.45, cooldown=3.0, size_px=26, xp=14,
+    ),
+    "bouncer": EnemySpec(
+        name="bouncer", kind="bouncer", sprite="bouncer", scale=4,
+        max_hp=240, sight=16, biomes=(), speed=2.6,
+        damage=22, windup=0.7, cooldown=4.0, size_px=32, xp=18,
+    ),
+    "master_of_revels": EnemySpec(
+        name="Master of Revels", kind="master_of_revels", sprite="master_of_revels", scale=4,
+        elite=True, max_hp=320, sight=18, biomes=(), speed=2.8,
+        damage=16, windup=1.0, cooldown=4.0, size_px=30, xp=40,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -1525,6 +1568,58 @@ BEAT = (1.25, 8.0, 12.0)
 # PIPER[6] temptation a second; every PIPER[7] s it plays the frenzy on to
 # the nearest group still in the trance within PIPER[8] tiles.
 PIPER = (6.0, 10.0, 60.0, 9.0, 2.5, 2.0, 30.0, 6.0, 25.0)
+# --- M30.3: the vain, the greedy and the demon hosts (OCEAN.md 15) ----------------------
+# Who lives where (mine): the vanity statues are the vain's and the greedy's
+# homes -- REVEL_STATUE[0] of the Vain admiring each and a hoarder counting
+# coins; a gilded reveller posing as a second statue at every
+# REVEL_STATUE[1]-th; at every REVEL_STATUE[2]-th the Beloved, with
+# REVEL_STATUE[3] of the Vain admiring it (and the hall of mirrors has one
+# too). The hosts guard the groups (OCEAN.md 14): a cupbearer at every
+# REVEL_HOSTS[0]-th table, a carver at every [1]-th, a bouncer at every
+# [2]-th, a master of revels at every [3]-th bandstand; at the endless
+# banquet a bouncer by its west door and two carvers; a bouncer in the hall
+# of mirrors.
+REVEL_STATUE = (1, 2, 4, 3)
+REVEL_HOSTS = (2, 3, 4, 2)
+# The Vain: keeps VAIN[0]-[1] tiles away; every cooldown its mirror's cone
+# (VAIN[2] degrees, VAIN[3] tiles: marked for its windup) flashes: whoever's
+# in it is dazzled VAIN[4] s (their aim wavers up to VAIN[5] rad), and
+# shots in it turn back at their shooter at x VAIN[6] damage.
+VAIN = (5.0, 8.0, 50.0, 8.0, 2.0, 0.5, 0.6)
+# The gilded reveller: a gold shell of GILDED[0] x its max HP soaks hits
+# until it cracks off (then it moves x GILDED[4]); within GILDED[1] tiles it
+# slams: a ring GILDED[2] tiles out at GILDED[3] tiles/s.
+GILDED = (0.6, 2.2, 2.8, 8.0, 1.6)
+# The hoarder: keeps HOARD[0]-[1] tiles away; a fistful is HOARD[2] coins in
+# a HOARD[3]-degree spread, flying HOARD[4] s; where each lands it hurts,
+# and coins lie HOARD[5] tiles round for HOARD[6] s: stepping on them, you
+# stumble (x HOARD[7] for HOARD[8] s).
+HOARD = (4.0, 7.0, 5, 50.0, 0.55, 0.6, 7.0, 0.15, 0.35)
+# The Beloved: keeps BELOVED[0]-[1] tiles away; a fan of BELOVED[2] glitter
+# shots over BELOVED[3] degrees every cooldown; its admirers (its group's
+# Vain) circle it BELOVED[4] tiles out and take its hits while within
+# BELOVED[5] tiles; while it lives its group moves x BELOVED[6].
+BELOVED = (6.0, 9.0, 5, 40.0, 2.2, 4.0, 1.25)
+# The cupbearer: goes to a frenzied reveller within CUPBEARER[0] tiles under
+# CUPBEARER[1] of its max HP and pours CUPBEARER[2] s, healing it
+# CUPBEARER[3] x its max (then not for CUPBEARER[4] s); otherwise keeps
+# CUPBEARER[5]-[6] from you, throwing wine that adds CUPBEARER[7] temptation.
+CUPBEARER = (10.0, 0.75, 1.0, 0.3, 4.0, 5.0, 8.0, 20.0)
+# The carver: within CARVER[0] tiles a lunging cleave (CARVER[1] tiles at
+# CARVER[2] tiles/s, its line shown for its windup); otherwise every cooldown
+# a cleaver flies out CARVER[3] s at CARVER[4] tiles/s, curving CARVER[5]
+# rad/s, then comes back to it.
+CARVER = (3.5, 3.0, 12.0, 0.8, 9.0, 1.6)
+# The bouncer: within BOUNCER[0] tiles it charges along a shown line
+# (BOUNCER[1] tiles at BOUNCER[2] tiles/s); caught, you're thrown BOUNCER[3]
+# tiles toward the nearest group still in the trance; a wall dazes it
+# BOUNCER[4] s.
+BOUNCER = (12.0, 10.0, 14.0, 6.0, 0.6)
+# The master of revels: rings its bell (every MASTER[1] s): every group
+# within MASTER[0] tiles frenzies, and every entranced hero there snaps out;
+# keeps MASTER[2]-[3] away; fireworks: MASTER[4] circles MASTER[5] tiles
+# across, marked MASTER[6] s, up to MASTER[7] tiles round you.
+MASTER = (22.0, 10.0, 7.0, 10.0, 3, 1.5, 1.2, 2.5)
 CHERUB = (7.0, 2.2, 3, 0.25, 14.0, 4.0, 4.0, 0.5, 5.0, 60.0, 1.5)
                              # serene: keeps this far, plinks every this many s a run of this
                              # many notes, s apart; unveiled: lunges at this speed for up to
@@ -4220,6 +4315,15 @@ BESTIARY = {
     "masked_dancer": (2000, "Swaps places with another dancer in a flash, then stabs."),
     "band_drummer": (2000, "Never leaves its drums. Every beat sends a ring: roll through it."),
     "piper": (4000, "Its song tempts you in a cone, and it carries the frenzy to the next group."),
+    # M30.3
+    "vain": (2000, "Its mirror's flash dazzles you and turns your shots back. Mind the marked cone."),
+    "gilded_reveller": (2500, "Looks like a statue until its group wakes. Break its gold shell first."),
+    "hoarder": (2000, "Throws fistfuls of coins; the coins stay on the floor and trip you."),
+    "beloved": (4000, "Its admirers circle it and take its hits. Break the ring to reach it."),
+    "cupbearer": (2500, "Never in the trance. Refills the hurt revellers and throws tempting wine."),
+    "carver": (2500, "Never in the trance. Lunging cleaves; its cleavers fly out and come back."),
+    "bouncer": (3000, "Never in the trance. Charges along a shown line and throws you at the nearest feast."),
+    "master_of_revels": (5000, "Its bell wakes every group near it -- and snaps you out of a trance."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -4595,6 +4699,11 @@ PANDEMONIUM_BANDSTAND_GAP = 60
 PANDEMONIUM_SITE_GAP = 12
 # The angels' shots (M29.2, ai/paradise.py): serene, slow notes, rings and
 # orbs of light; unveiled, the seraph's spirals of blood and fire.
+# The Beloved's glitter (M30.3, ai/pandemonium.py).
+PANDEMONIUM_SHOTS = {
+    "glitter": ShellSpec(speed=7.0, damage=8, max_range=14.0, damages_terrain=False,
+                         look="revel_glitter", sound="orb"),
+}
 PARADISE_SHOTS = {
     "note": ShellSpec(speed=6.0, damage=6, max_range=16.0, damages_terrain=False,
                       look="lyre", sound="orb"),

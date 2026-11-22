@@ -277,6 +277,21 @@ class DefinedOnceTest(unittest.TestCase):
             names = self.names(rel)
             self.assertEqual(sorted({n for n in names if names.count(n) > 1}), [], rel)
 
+    def test_no_table_repeats_a_key(self):
+        # (M30.3: a second "glitter" shot look had replaced Nettle's; a second
+        # "sand" had replaced the first since M23.1. A dict literal keeps
+        # the last of a repeated key, silently.)
+        import ast
+        for rel in ("config.py", "palette.py", os.path.join("entities", "effects.py"),
+                    os.path.join("render", "ascii_fx.py"), os.path.join("ai", "__init__.py")):
+            with open(os.path.join(_HERE, rel), encoding="utf-8") as src:
+                tree = ast.parse(src.read())
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Dict):
+                    keys = [k.value for k in node.keys if isinstance(k, ast.Constant)]
+                    self.assertEqual(sorted({k for k in keys if keys.count(k) > 1}, key=str), [],
+                                     (rel, node.lineno))
+
     def test_the_old_lairs_have_their_own_tiles_again(self):
         self.assertEqual(tiles.STATUE.name, "frozen statue")
         self.assertEqual(tiles.THRONE.name, "ice throne")

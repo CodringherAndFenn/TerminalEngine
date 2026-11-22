@@ -71,8 +71,9 @@ from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 from .mimic import Mimic
 from .cavalry import Cavalry
 from .horsemen import ConquestBanner, Horseman, PaleShade
-from .pandemonium import (BandDrummer, Dancer, Drunkard, Glutton, MaskedDancer, Piper,
-                          Ravenous, Toastmaster)
+from .pandemonium import (BandDrummer, Beloved, Bouncer, Carver, Cupbearer, Dancer, Drunkard,
+                          GildedReveller, Glutton, Hoarder, MaskedDancer, MasterOfRevels, Piper,
+                          Ravenous, Toastmaster, Vain)
 from .paradise import (BowlBearer, CenserBearer, Cherub, Chorister, Dove, Halo, Lamb,
                        Leviathan, Locust, Martyr, Ophan, Seraph, Trumpeter, Watcher,
                        WeepingSaint, Behemoth, LightPillar)
@@ -249,6 +250,15 @@ KINDS = {
     "masked_dancer": MaskedDancer,
     "band_drummer": BandDrummer,
     "piper": Piper,
+    # M30.3: the vain and the greedy; the demon hosts (never in the trance)
+    "vain": Vain,
+    "gilded_reveller": GildedReveller,
+    "hoarder": Hoarder,
+    "beloved": Beloved,
+    "cupbearer": Cupbearer,
+    "carver": Carver,
+    "bouncer": Bouncer,
+    "master_of_revels": MasterOfRevels,
 }
 
 

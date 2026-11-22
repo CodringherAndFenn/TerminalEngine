@@ -93,8 +93,9 @@ class ResidentsTest(unittest.TestCase):
         for _, x, y, home in self.p.revellers:
             homes.setdefault(home, []).append(_)
         lo, hi, every = config.REVEL_TABLE
+        hosts = {"cupbearer", "carver", "bouncer", "master_of_revels"}   # (M30.3: posted there)
         for i in range(len(self.p.tables)):
-            group = homes[("table", i)]
+            group = [k for k in homes[("table", i)] if k not in hosts]
             self.assertTrue(lo <= len(group) <= hi, group)
             self.assertTrue(set(group) <= {"glutton", "drunkard", "toastmaster", "ravenous"})
             self.assertEqual("toastmaster" in group, i % every == 0, i)
@@ -103,7 +104,8 @@ class ResidentsTest(unittest.TestCase):
             self.assertEqual(group.count("piper"), 1)
             self.assertEqual(group.count("band_drummer"), config.REVEL_BAND[0])
             self.assertEqual(group.count("dancer"), 2 * config.REVEL_BAND[1])
-        self.assertEqual(len(homes[("banquet", 0)]), 2 * config.REVEL_BANQUET[0])
+        self.assertEqual(len([k for k in homes[("banquet", 0)] if k not in hosts]),
+                         2 * config.REVEL_BANQUET[0])
         self.assertIn("dancer", homes[("mirrors", 0)])
 
     def test_they_stand_on_open_ground_and_know_their_homes(self):

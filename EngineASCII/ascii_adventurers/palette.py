@@ -1189,3 +1189,10 @@ REVEL_MASK = ((255, 255, 255), (206, 176, 226))                  # a masked danc
 REVEL_SONG = ((255, 196, 228), (206, 120, 176))                  # the piper's song
 REVEL_BOTTLE = (96, 160, 86)                                     # a bottle in the air
 REVEL_TEMPT = ((255, 140, 196), (255, 214, 90))                  # an entranced hero's sparkles
+# M30.3: the vain, the greedy and the demon hosts.
+REVEL_MIRROR = ((255, 255, 255), (214, 206, 236))                # the Vain's flash, its cone
+REVEL_GOLD = ((255, 226, 110), (200, 156, 50))                   # a gilded reveller's shell, coins
+REVEL_GLITTER = ((255, 236, 150), ((255, 180, 220), (200, 150, 90)))   # the Beloved's shots
+REVEL_CLEAVER = (214, 220, 226)                                  # a carver's cleaver
+REVEL_BELL = ((255, 214, 90), (255, 244, 190))                   # the master's bell
+REVEL_FIREWORK = ((255, 90, 120), (120, 220, 255), (255, 214, 90))   # fireworks

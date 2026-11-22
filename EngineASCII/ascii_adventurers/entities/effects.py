@@ -67,6 +67,12 @@ DURATIONS = {
     "belly_slam": config.GLUTTON[1] / config.GLUTTON[2],
     "beat": config.BEAT[1] / config.BEAT[2],
     "wine_wave": config.TOAST[5] / config.TOAST[6],
+    # M30.3
+    "mirror_flash": 0.35,   # the Vain's mirror flashing (angle: the cone's middle; size: reach)
+    "gold_crack": 0.5,      # a gilded reveller's shell cracking off
+    "gold_slam": config.GILDED[2] / config.GILDED[3],   # its slam's ring
+    "bell": 0.9,            # the master of revels' bell (size: its reach)
+    "fireworks": 0.5,       # a firework bursting (size: its radius)
 }
 
 
