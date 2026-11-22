@@ -83,7 +83,8 @@ class IslandLayout:
     @property
     def landmarks(self) -> list:
         """The quest camps and boss lairs (world/landmarks.py), placed on
-        first use (a few tens of ms) and the same for every use after."""
+        first use (~0.5 s: every quest, chest and zone) and the same for
+        every use after."""
         if self._landmarks is None:
             from .landmarks import build_landmarks
             self._landmarks = build_landmarks(self)

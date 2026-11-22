@@ -75,13 +75,15 @@ def value_noise(seed: int, salt: int, xs, ys, scale: float) -> np.ndarray:
     y_lo, y_hi = int(iy.min()), int(iy.max()) + 1
     box = (x_hi - x_lo + 1) * (y_hi - y_lo + 1)
     if box <= max(4096, 4 * np.broadcast(ix, iy).size):
-        # Dense: hash the lattice box once, then look corners up in it.
+        # Dense: hash the lattice box once, then look corners up in it
+        # (by flat index: take() is a good deal faster than 2-D indexing).
         lat = lattice(seed, salt,
                       np.arange(x_lo, x_hi + 1)[None, :],
-                      np.arange(y_lo, y_hi + 1)[:, None])
-        cx, cy = ix - x_lo, iy - y_lo
-        a, b = lat[cy, cx], lat[cy, cx + 1]
-        c, d = lat[cy + 1, cx], lat[cy + 1, cx + 1]
+                      np.arange(y_lo, y_hi + 1)[:, None]).ravel()
+        w = x_hi - x_lo + 1
+        k = (iy - y_lo) * w + (ix - x_lo)
+        a, b = lat.take(k), lat.take(k + 1)
+        c, d = lat.take(k + w), lat.take(k + (w + 1))
     else:
         a, b = lattice(seed, salt, ix, iy), lattice(seed, salt, ix + 1, iy)
         c, d = lattice(seed, salt, ix, iy + 1), lattice(seed, salt, ix + 1, iy + 1)

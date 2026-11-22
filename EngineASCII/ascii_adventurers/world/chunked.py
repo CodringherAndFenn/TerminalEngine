@@ -47,7 +47,7 @@ class ChunkedWorld:
         assert n & (n - 1) == 0, "CHUNK_SIZE must be a power of two"
         self.seed = seed
         self.layout = IslandLayout(seed, radius)
-        # Quest camps and boss lairs are placed now (~70 ms, with the start
+        # Quest camps and boss lairs are placed now (~0.5 s, with the start
         # search), never in the middle of a time-budgeted chunk build.
         self.layout.landmarks
         # What the player has seen (every chunk ever generated), for the maps.

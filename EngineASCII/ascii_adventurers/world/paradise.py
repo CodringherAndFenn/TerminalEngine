@@ -90,7 +90,17 @@ def _line_dist(xs, ys, segs, pad: float) -> np.ndarray:
 
 
 def _point_dist(x: float, y: float, segs) -> float:
-    return float(_line_dist(np.array([x]), np.array([y]), segs, 1e9)[0])
+    """_line_dist for one point, every segment in one numpy call (the
+    same sums, so the same distance)."""
+    if not segs:
+        return math.inf
+    ax, ay, bx, by = np.asarray(segs, dtype=np.float64).T
+    dx, dy = bx - ax, by - ay
+    ll = dx * dx + dy * dy
+    ll[ll == 0] = 1e-9
+    x, y = np.float64(x), np.float64(y)
+    t = np.clip(((x - ax) * dx + (y - ay) * dy) / ll, 0.0, 1.0)
+    return float(np.hypot(x - (ax + t * dx), y - (ay + t * dy)).min())
 
 
 def _nearest_on(x: float, y: float, line) -> tuple[float, float]:

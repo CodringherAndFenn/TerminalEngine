@@ -176,23 +176,28 @@ def _random_site(layout, biome: str, hw: float, hh: float, rng: random.Random,
     span = math.tau / len(layout.ring)
     r0, r1 = _ring_radii(layout)
     gap = config.QUEST_SITE_GAP
-
-    def clear(x: float, y: float) -> bool:
-        return all(abs(x - (m.x0 + m.w / 2)) >= hw + m.w / 2 + gap
-                   or abs(y - (m.y0 + m.h / 2)) >= hh + m.h / 2 + gap for m in avoid)
-
-    cands = []
+    pts = []
     for _ in range(config.QUEST_SITE_TRIES):
         a = mid + rng.uniform(-0.5, 0.5) * span
         r = math.sqrt(rng.uniform(r0 * r0, r1 * r1))
-        x, y = round(math.cos(a) * r), round(math.sin(a) * r)
-        if clear(x, y):
-            cands.append((x, y))
-    for i in range(0, len(cands), 64):
-        batch = cands[i:i + 64]
+        pts.append((round(math.cos(a) * r), round(math.sin(a) * r)))
+    # Clear of `avoid`: every point against every landmark at once.
+    cands = pts
+    if avoid:
+        box = np.array([(m.x0 + m.w / 2, m.y0 + m.h / 2, m.w / 2, m.h / 2) for m in avoid])
+        p = np.array(pts, dtype=np.float64)
+        ok = ((np.abs(p[:, :1] - box[:, 0]) >= hw + box[:, 2] + gap)
+              | (np.abs(p[:, 1:] - box[:, 1]) >= hh + box[:, 3] + gap)).all(axis=1)
+        cands = [pt for pt, k in zip(pts, ok.tolist()) if k]
+    # Batches of 4, 8, 16, ... 64: the first point usually fits already, and
+    # a lair's footprint is ~200 noise samples a point.
+    i, size = 0, 4
+    while i < len(cands):
+        batch = cands[i:i + size]
         ok = _fits_many(layout, biome_id, batch, hw, hh)
         if ok.any():
             return batch[int(np.argmax(ok))]
+        i, size = i + size, min(2 * size, 64)
     return None
 
 
@@ -213,7 +218,12 @@ def _skin(mark: Landmark | None, skin: str) -> None:
     swap = SKINS.get(skin)
     if mark is None or not swap:
         return
-    mark.rows = [[swap.get(t, t) for t in row] for row in mark.rows]
+    # (by identity: the tiles are singletons, and hashing a TileType hashes
+    # all its fields -- the slow part of skinning a big lair; a row with
+    # nothing to swap is just copied)
+    by_id = {id(k): v for k, v in swap.items()}
+    mark.rows = [[by_id.get(id(t), t) for t in row] if not by_id.keys().isdisjoint(map(id, row))
+                 else row[:] for row in mark.rows]
 
 
 def build_landmarks(layout) -> list[Landmark]:
@@ -314,17 +324,23 @@ def scatter_in(layout, biome_name: str, want: int, marks, others, rng: random.Ra
     e = config.QUEST_SPOT_EDGE
     # (numpy from here on: P2's 4x targets made the plain loops ~1 s.)
     c = np.asarray(cands, dtype=np.float64)
-    keep = _fits_many(layout, biome_id, cands, e, e)
+    keep = np.ones(len(c), dtype=bool)
     if camp is not None:
         keep &= np.hypot(c[:, 0] - camp.cx, c[:, 1] - camp.cy) >= config.QUEST_SPOT_CAMP_GAP
-    for m in marks:
-        if m.kind != "spot":
-            keep &= ~((m.x0 - e <= c[:, 0]) & (c[:, 0] < m.x0 + m.w + e)
-                      & (m.y0 - e <= c[:, 1]) & (c[:, 1] < m.y0 + m.h + e))
+    box = np.array([(m.x0 - e, m.x0 + m.w + e, m.y0 - e, m.y0 + m.h + e)
+                    for m in marks if m.kind != "spot"], dtype=np.float64).reshape(-1, 4)
+    if len(box):                                    # (every candidate against every landmark)
+        x, y = c[:, :1], c[:, 1:]
+        keep &= ~((box[:, 0] <= x) & (x < box[:, 1]) & (box[:, 2] <= y) & (y < box[:, 3])).any(axis=1)
     if others:
         o = np.asarray(others, dtype=np.float64)
         near = np.hypot(c[:, None, 0] - o[None, :, 0], c[:, None, 1] - o[None, :, 1])
         keep &= (near >= config.QUEST_SPOT_OTHERS).all(axis=1)
+    # The biome test last, only on the points still in: it's the dear one
+    # (each point's answer is its own, so the same points pass).
+    if keep.any():
+        inside = np.flatnonzero(keep)
+        keep[inside] = _fits_many(layout, biome_id, c[inside], e, e)
     c = c[keep]
     sep = config.QUEST_SPOT_SEPARATION
     while True:
@@ -635,17 +651,14 @@ def _arena_shell(layout, quest, rng: random.Random, avoid: list, floor: TileType
     cx, cy = site
     W, H = 2 * (a + t + margin) + 1, 2 * (b + t + margin) + 1
     x0, y0 = cx - (a + t + margin), cy - (b + t + margin)
-    rows = [[None] * W for _ in range(H)]
     xs = (np.arange(x0, x0 + W) + 0.5 - cx)[None, :]
     ys = (np.arange(y0, y0 + H) + 0.5 - cy)[:, None]
     inner = (xs / a) ** 2 + (ys / b) ** 2
     outer = (xs / (a + t)) ** 2 + (ys / (b + t)) ** 2
-    for j in range(H):
-        for i in range(W):
-            if inner[j, i] < 1.0:
-                rows[j][i] = floor
-            elif outer[j, i] < 1.0:
-                rows[j][i] = wall
+    # (row by row from numpy's masks: a tile-by-tile loop over the arrays
+    # was most of a lair's build time)
+    rows = [[floor if f else wall if s else None for f, s in zip(fr, sr)]
+            for fr, sr in zip((inner < 1.0).tolist(), (outer < 1.0).tolist())]
 
     # The gate: the stones' gap facing the island's centre, and a mud
     # causeway out through the margin.
@@ -661,15 +674,18 @@ def _arena_shell(layout, quest, rng: random.Random, avoid: list, floor: TileType
     nn = math.hypot(nx_, ny_)
     nx_, ny_ = nx_ / nn, ny_ / nn
     ex, ey = gx * a, gy * b                      # the gate's middle, on the inner edge
-    for j in range(H):
-        for i in range(W):
-            px, py = i + x0 + 0.5 - cx - ex, j + y0 + 0.5 - cy - ey
-            along = px * tx_ + py * ty_
-            out = px * nx_ + py * ny_
-            if abs(along) <= half_gap and -1.0 <= out <= t + margin:
-                if rows[j][i] is wall:
-                    gate.append((i + x0, j + y0))
-                rows[j][i] = floor
+    # Every tile at once (the same sums, in the same order, as one tile at a
+    # time), then the causeway's tiles in row order.
+    px = (np.arange(W) + x0 + 0.5 - cx - ex)[None, :]
+    py = (np.arange(H) + y0 + 0.5 - cy - ey)[:, None]
+    along = px * tx_ + py * ty_
+    out = px * nx_ + py * ny_
+    path = (np.abs(along) <= half_gap) & (-1.0 <= out) & (out <= t + margin)
+    js, is_ = np.nonzero(path)
+    for j, i in zip(js.tolist(), is_.tolist()):
+        if rows[j][i] is wall:
+            gate.append((i + x0, j + y0))
+        rows[j][i] = floor
     return _Shell(rows, x0, y0, cx, cy, inner, ex, ey, gate)
 
 

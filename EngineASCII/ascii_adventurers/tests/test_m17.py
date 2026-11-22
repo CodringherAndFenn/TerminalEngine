@@ -28,7 +28,7 @@ _worlds: dict = {}
 
 
 def world(seed=31) -> ChunkedWorld:
-    """One island per seed for the whole module (landmarks take ~70 ms)."""
+    """One island per seed for the whole module (landmarks take ~0.5 s)."""
     if seed not in _worlds:
         _worlds[seed] = ChunkedWorld(seed)
     return _worlds[seed]
