@@ -153,7 +153,7 @@ def main() -> None:
         fps_timer += dt
         if fps_timer >= 1.0:
             fps_timer = 0.0
-            win_w, win_h = pygame.display.get_surface().get_size()
+            win_w, win_h = display.window_size()
             print(f"[demo] {clock.get_fps():5.1f} fps | "
                   f"mode={display.mode.value} | window {win_w}x{win_h}")
 

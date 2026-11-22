@@ -296,3 +296,73 @@ step). Nothing in `narrative_engine/` changed.
 **Revert.** Set the Tests step's `run:` back to
 `$PY -m unittest discover -s ascii_adventurers/tests -t .` (that still
 works, in one process).
+
+---
+
+## 2026-11-22 — GPU scaling in `Display.present()` (sharp bilinear), CPU fallback
+
+**What / why.** At 1080p the game's 1280x720 canvas is shown at 1.5x. With
+nearest-neighbor scaling a canvas pixel is alternately 1 and 2 screen
+pixels wide, so as the world scrolls one pixel every thin stroke (water
+waves, dithered ground) doubles and halves in width frame to frame: the
+flicker the user saw "in almost every biome". (Measured: a 1-px line's
+on-screen weight went 2, 1, 2, 1 as it scrolled.) Approved by the user
+("go ahead with gpu scaling and the fallback"), with low-end devices as
+the priority.
+
+`Display` now opens its window with `pygame.Window` and a hardware
+`pygame._sdl2.video.Renderer` when it can. `present()` uploads the canvas
+to a texture each frame. At a whole-number scale it draws it with
+nearest-neighbor, as before. At any other scale it draws it nearest-neighbor
+into a render target at the next whole number (2x), and the GPU's bilinear
+filter takes that down to the window ("sharp bilinear"). Every canvas
+pixel then covers the same 1.5 screen pixels (the 1-px line stays at 1.50),
+crisp but for a soft half-pixel edge. Measured on the dev laptop (Intel
+UHD): `present()` 1.38 ms on the GPU against 3.36 ms on the old CPU path,
+so it is cheaper as well as flicker-free. The CPU's share is the 3.7 MB
+canvas upload, ~1 ms.
+
+The CPU path is the engine's original code, unchanged, and is used:
+- on headless video drivers (`dummy`, `offscreen`: the tests, CI);
+- when there's no hardware renderer (`accelerated=1` never settles for
+  SDL's software renderer, which would be slower);
+- with `Display(gpu=False)`;
+- for good, once anything on the GPU path raises (at a mode change or
+  mid-game).
+A vsync'd GPU window times a few presents; if the driver ignored vsync,
+`display.vsync` is False, so the main loop keeps capping the frame rate
+itself. `RENDER_DEVICE_RESET` (Direct3D on alt-tab) drops the textures, and
+the next present makes new ones.
+
+New public API: `Display(gpu=True)`, `display.gpu` (what's in effect),
+`display.window_size()` (the window's pixel size on either path: there is
+no `pygame.display` surface on the GPU path).
+
+**Files touched.**
+- `narrative_engine/engine/display.py`: the GPU path (`_open_gpu`,
+  `_close_gpu`, `_presents_wait`, `_texture`, `_present_gpu`), the CPU path
+  split out (`_present_cpu`, `_fit`), `window_size()`, the `gpu` flag and
+  `RENDER_DEVICE_RESET` in `handle_event`.
+- `narrative_engine/demo.py`: reads the window size with
+  `display.window_size()`.
+- `CLAUDE.md` (EngineASCII/): the `display.py` description.
+- Game side (`ascii_adventurers/`): `engine_ext/screen.py` uses
+  `display.window_size()`. `run.py` passes `gpu=` (`ASCII_ADVENTURERS_GPU=0`
+  forces the CPU path) and the `--smoke` report says which path ran.
+  `packaging/build.py` bundles `pygame._sdl2.video` explicitly (a build
+  without it would quietly scale on the CPU).
+  `tests/test_gpu_display.py` (10 tests, faked GPU) and README.
+
+**Usage.**
+```python
+display = Display(128, 30, vsync=True)          # GPU when possible
+display.gpu                                     # True: scaled on the GPU
+display.window_size()                           # (1920, 1080)
+Display(128, 30, gpu=False)                     # always the CPU path
+```
+
+**Revert.** In `Display.__init__` set `self._gpu_requested = False` (one
+line: everything then takes the original CPU path). Or revert
+`display.py` and change the three `display.window_size()` calls in
+`ascii_adventurers/engine_ext/screen.py` back to
+`pygame.display.get_surface().get_size()`.

@@ -59,6 +59,9 @@ def pyinstaller_args() -> list[str]:
         # Imported by pygame at runtime, invisible to PyInstaller's scan.
         "--hidden-import", "pygame._sdl2.controller",
         "--hidden-import", "pygame._sdl2.audio",
+        # The engine's GPU scaling (imported inside Display; without it the
+        # build would quietly scale on the CPU).
+        "--hidden-import", "pygame._sdl2.video",
         # Not part of the game.
         "--exclude-module", "ascii_adventurers.tests",
         "--exclude-module", "tkinter",

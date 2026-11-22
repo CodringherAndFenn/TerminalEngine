@@ -65,6 +65,11 @@ def build_display(settings: GameSettings) -> Display:
         # and SDL intermittently crashes (bus error) when it rebuilds a vsync
         # window there. Headless runs have no screen to sync to anyway.
         vsync=settings.vsync and os.environ.get("SDL_VIDEODRIVER") != "dummy",
+        # Scaling on the graphics chip (no flicker at 1.5x and other
+        # fractional scales); the engine falls back to the CPU by itself
+        # when there's no hardware renderer. ASCII_ADVENTURERS_GPU=0 forces
+        # the CPU path (for a driver that misbehaves).
+        gpu=os.environ.get("ASCII_ADVENTURERS_GPU", "1") != "0",
     )
     # Grid shaped like the monitor, then the window (windowed: the player's
     # size, or fitted to the screen) or grid (borderless/fullscreen) fitted
@@ -167,7 +172,8 @@ def smoke(args: argparse.Namespace) -> int:
           f"({scene.steps / config.SIM_HZ:.1f} s of game) in {wall:.1f} s "
           f"({loaded[0] if loaded else 0.0:.1f} s loading), {len(scene.players)} player(s), "
           f"{len(scene.enemies)} enemies awake, "
-          f"{getattr(scene.world, 'loaded_chunks', 0)} chunks loaded")
+          f"{getattr(scene.world, 'loaded_chunks', 0)} chunks loaded, "
+          f"{'GPU' if display.gpu else 'CPU'} scaling")
     return 0 if scene.steps > 0 else 1
 
 

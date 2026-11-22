@@ -954,6 +954,12 @@ has loaded) and quits with a report. It never touches save files.
   (`%APPDATA%\AsciiAdventurers` on Windows, `~/.local/share/AsciiAdventurers`
   on Linux, `~/Library/Application Support/AsciiAdventurers` on macOS)
   instead of `save/`. Set `ASCII_ADVENTURERS_SAVE_DIR` to use another folder.
+- **Scaling:** the graphics chip scales the picture to the screen, smoothing
+  fractional scales (1080p is 1.5x) so thin things don't flicker as the
+  world scrolls. With no hardware renderer (or headless) the game scales on
+  the CPU instead, by itself. Set `ASCII_ADVENTURERS_GPU=0` to force the CPU
+  path, e.g. for a misbehaving graphics driver. The `--smoke` report ends
+  with which one ran (`GPU scaling` / `CPU scaling`).
 - **Each OS builds its own copy:** build on Windows for Windows, on Linux
   for Linux and the Steam Deck. GitHub Actions does both on every push to
   `main` (`.github/workflows/ascii-adventurers.yml`, logged in

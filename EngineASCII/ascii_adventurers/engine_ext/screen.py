@@ -13,12 +13,10 @@ columns that makes the canvas the same shape as the window:
     cols = rows * cell_h * win_w / (win_h * cell_w)
 
 rounded to whole cells, so any remaining bar is thinner than one cell.
-Uses only public engine API (Display.set_grid) and pygame's window size.
+Uses only public engine API (Display.set_grid, Display.window_size).
 """
 
 from __future__ import annotations
-
-import pygame
 
 from engine import Display, DisplayMode
 
@@ -59,10 +57,7 @@ def fit_grid_to_window(display: Display) -> bool:
     if display.mode is DisplayMode.WINDOWED:
         _fit_window_to_canvas(display)
         return False
-    surface = pygame.display.get_surface()
-    if surface is None:
-        return False
-    win_w, win_h = surface.get_size()
+    win_w, win_h = display.window_size()
     rows = config.GRID_ROWS
     cols = fitted_cols(win_w, win_h, rows, display.cell_w, display.cell_h)
     if (cols, rows) == (display.cols, display.rows):
@@ -81,8 +76,7 @@ def _fit_window_to_canvas(display: Display) -> None:
     # Whole-number scales keep every canvas pixel the same size on screen.
     scale = int(fit) if fit >= 1 else fit
     size = (round(can_w * scale), round(can_h * scale))
-    surface = pygame.display.get_surface()
-    if surface is None or surface.get_size() != size:
+    if display.window_size() != size:
         display.set_windowed_resolution(*size)
 
 
@@ -94,8 +88,7 @@ def apply_window(display: Display, window_size: tuple[int, int] | None) -> bool:
     (fit_grid_to_window). Returns True if the grid changed.
     """
     if display.mode is DisplayMode.WINDOWED and window_size is not None:
-        surface = pygame.display.get_surface()
-        if surface is None or surface.get_size() != tuple(window_size):
+        if display.window_size() != tuple(window_size):
             display.set_windowed_resolution(*window_size)
         return False
     return fit_grid_to_window(display)

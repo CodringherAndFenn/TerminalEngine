@@ -4,8 +4,23 @@ display.py -- window management and the fixed-resolution virtual canvas.
 The core idea: all game drawing happens on `Display.canvas`, a pygame
 Surface whose pixel size is (cols * cell_w) x (rows * cell_h) and never
 changes. Once per frame, `Display.present()` scales that canvas to the real
-window with nearest-neighbor filtering, preserving aspect ratio and filling
-any leftover space with letterbox/pillarbox bars.
+window, preserving aspect ratio and filling any leftover space with
+letterbox/pillarbox bars.
+
+Two ways to get it on screen (``Display.gpu`` says which is in effect):
+
+  * GPU (the default when there's a hardware renderer): the canvas is
+    uploaded to a texture and the graphics chip scales it. At whole-number
+    scales (2x, 3x) that's plain nearest-neighbor. At any other scale it is
+    "sharp bilinear": nearest-neighbor up to the next whole number (1.5x
+    -> 2x, into a render target), then smoothed down to the window. Plain
+    nearest-neighbor at 1.5x draws canvas pixels alternately 1 and 2 screen
+    pixels wide, so anything thin flickers as it scrolls; sharp bilinear
+    gives every canvas pixel the same 1.5 pixels, crisp but for a soft
+    half-pixel edge.
+  * CPU (headless drivers, no hardware renderer, gpu=False, or the GPU path
+    failing): the window's own surface, scaled with nearest-neighbor by
+    pygame.transform.scale -- exactly the engine's original path.
 
 Game code therefore never thinks about window size at all -- it only ever
 addresses a fixed character grid.
@@ -14,6 +29,9 @@ addresses a fixed character grid.
 from __future__ import annotations
 
 import enum
+import math
+import os
+import time
 from pathlib import Path
 
 import pygame
@@ -35,6 +53,15 @@ DEFAULT_FONT = ASSETS_DIR / "fonts" / "VT323-Regular.ttf"
 GRID_CLASSIC = (80, 24)
 GRID_WIDE = (128, 30)
 GRID_ULTRAWIDE = (172, 30)
+
+# SDL_WINDOWPOS_CENTERED_DISPLAY(n) is this OR'd with the display index.
+_CENTERED_ON_DISPLAY = 0x2FFF0000
+# Video drivers that never have a hardware renderer (tests, CI).
+_HEADLESS_DRIVERS = ("dummy", "offscreen")
+# A vsync'd present takes a whole refresh (>= ~2.8 ms even at 360 Hz). If
+# presents come back faster than this, the driver ignored vsync, and the
+# main loop must cap the frame rate itself.
+_VSYNC_MIN_GAP = 0.002
 
 
 class DisplayMode(enum.Enum):
@@ -69,6 +96,12 @@ class Display:
         every frame is shown exactly once (no doubled/skipped frames, no
         tearing). Off by default. If the platform refuses, the window falls
         back to no vsync; ``self.vsync`` reports what's actually in effect.
+    gpu:
+        Scale on the graphics chip when there is a hardware renderer (see
+        the module docstring); on by default. False keeps the CPU path.
+        ``self.gpu`` reports what's actually in effect: False on headless
+        drivers, without a hardware renderer, or once the GPU path has
+        failed (it then stays on the CPU path for good).
     """
 
     def __init__(
@@ -83,9 +116,11 @@ class Display:
         title: str = "Narrative Engine",
         monitor: int = 0,
         vsync: bool = False,
+        gpu: bool = True,
     ) -> None:
         pygame.init()
         pygame.display.set_caption(title)
+        self.title = title
 
         self.cols = cols
         self.rows = rows
@@ -123,17 +158,40 @@ class Display:
         self._vsync_requested = vsync
         self.vsync = False
 
+        # The GPU path's window, renderer and textures (all None on the CPU
+        # path, where self._screen is the window's surface instead).
+        self._gpu_requested = gpu
+        self.gpu = False
+        self._window = None
+        self._renderer = None
+        self._tex = None          # the canvas, uploaded each frame (nearest)
+        self._big = None          # render target: the canvas at k x (smoothed down)
+        self._big_k = 0
+        self._screen = None
+
         self.mode = DisplayMode.WINDOWED
         self._screen = self._apply_mode(self.mode)
 
     # --- Window mode handling ------------------------------------------
 
-    def _apply_mode(self, mode: DisplayMode) -> pygame.Surface:
+    def _apply_mode(self, mode: DisplayMode) -> pygame.Surface | None:
         """(Re)create the OS window for the given mode on self.monitor.
 
-        Requests vsync if enabled; if SDL refuses it for this window, retries
-        without so a missing capability never stops the window opening.
+        The GPU path first, if wanted and possible (it returns None: there
+        is no window surface); if it fails, the CPU path, now and from then
+        on. Requests vsync if enabled; if SDL refuses it for this window,
+        retries without so a missing capability never stops the window
+        opening.
         """
+        if self._gpu_requested and pygame.display.get_driver() not in _HEADLESS_DRIVERS:
+            try:
+                self._open_gpu(mode)
+                self.gpu = True
+                return None
+            except Exception:              # (pygame.error, or no _sdl2 at all)
+                self._close_gpu()
+                self._gpu_requested = False
+        self.gpu = False
         if self._vsync_requested:
             try:
                 screen = self._set_mode(mode, vsync=1)
@@ -164,6 +222,70 @@ class Display:
             (0, 0), pygame.FULLSCREEN, display=display, vsync=vsync
         )
 
+    def _open_gpu(self, mode: DisplayMode) -> None:
+        """The GPU path's window (the same three modes as _set_mode, on
+        self.monitor) with a hardware renderer. Raises if there's none:
+        accelerated=1 never settles for SDL's software renderer, which
+        would be slower than the CPU path."""
+        from pygame._sdl2.video import Renderer
+
+        self._close_gpu()
+        desktop = pygame.display.get_desktop_sizes()[self.monitor]
+        if mode is DisplayMode.WINDOWED:
+            kw = dict(size=self._windowed_size, resizable=True)
+        elif mode is DisplayMode.BORDERLESS:
+            kw = dict(size=desktop, borderless=True)
+        else:
+            kw = dict(size=desktop, fullscreen=True)   # exclusive, at the native mode
+        self._window = pygame.Window(self.title, position=_CENTERED_ON_DISPLAY | self.monitor, **kw)
+        self._renderer = Renderer(self._window, accelerated=1, vsync=self._vsync_requested)
+        self.vsync = self._vsync_requested and self._presents_wait()
+
+    def _close_gpu(self) -> None:
+        """Drop the GPU path's textures, renderer and window (in that order)."""
+        self._tex = self._big = None
+        self._big_k = 0
+        self._renderer = None
+        if self._window is not None:
+            self._window.destroy()
+            self._window = None
+        self.gpu = False
+
+    def _presents_wait(self) -> bool:
+        """Whether a present really waits for the monitor (vsync honoured):
+        a few blank presents, timed."""
+        r = self._renderer
+        r.draw_color = (*colors.LETTERBOX, 255)
+        stamps = []
+        for _ in range(4):
+            r.clear()
+            r.present()
+            stamps.append(time.perf_counter())
+        gaps = [b - a for a, b in zip(stamps, stamps[1:])]
+        return sum(gaps) / len(gaps) >= _VSYNC_MIN_GAP
+
+    def _texture(self, size: tuple[int, int], smooth: bool, **kw):
+        """A texture of the renderer's, filtered nearest or linear. (SDL
+        takes a texture's filter from SDL_RENDER_SCALE_QUALITY when it's
+        created; the variable is put back afterwards.)"""
+        from pygame._sdl2.video import Texture
+
+        old = os.environ.get("SDL_RENDER_SCALE_QUALITY")
+        os.environ["SDL_RENDER_SCALE_QUALITY"] = "linear" if smooth else "nearest"
+        try:
+            return Texture(self._renderer, size, **kw)
+        finally:
+            if old is None:
+                del os.environ["SDL_RENDER_SCALE_QUALITY"]
+            else:
+                os.environ["SDL_RENDER_SCALE_QUALITY"] = old
+
+    def window_size(self) -> tuple[int, int]:
+        """The OS window's size in pixels (on either path)."""
+        if self._window is not None:
+            return tuple(self._window.size)
+        return self._screen.get_size()
+
     def cycle_mode(self) -> DisplayMode:
         """Switch windowed -> borderless -> fullscreen -> windowed."""
         self.set_mode(self.mode.next())
@@ -174,7 +296,7 @@ class Display:
             return
         # Leaving windowed mode: remember the current size for the trip back.
         if self.mode is DisplayMode.WINDOWED:
-            self._windowed_size = self._screen.get_size()
+            self._windowed_size = self.window_size()
         self.mode = mode
         self._screen = self._apply_mode(mode)
 
@@ -239,6 +361,13 @@ class Display:
         """
         if event.type == pygame.VIDEORESIZE and self.mode is DisplayMode.WINDOWED:
             self._windowed_size = (event.w, event.h)
+        elif event.type == pygame.RENDER_DEVICE_RESET:
+            # (GPU path: the graphics device was reset -- Direct3D can, e.g.
+            # on alt-tab from fullscreen -- and every texture with it; the
+            # next present makes new ones. A lost render target needs
+            # nothing: it's redrawn every frame.)
+            self._tex = self._big = None
+            self._big_k = 0
 
     def set_grid(self, cols: int, rows: int) -> None:
         """Switch to a different character grid (e.g. classic <-> widescreen).
@@ -310,23 +439,77 @@ class Display:
     # --- Per-frame presentation ----------------------------------------
 
     def present(self) -> None:
-        """Scale the canvas to the window and flip.
+        """Scale the canvas to the window and show it.
 
         Uses the largest scale that fits the window while keeping the
         canvas aspect ratio exact, then centers the result. Leftover space
-        becomes solid letterbox/pillarbox bars. pygame.transform.scale is
-        nearest-neighbor, so glyph pixels stay hard-edged at any size.
+        becomes solid letterbox/pillarbox bars. On the GPU path the scaling
+        is the graphics chip's (sharp bilinear at a fractional scale); on the
+        CPU path it's pygame.transform.scale (nearest-neighbor).
         """
-        win_w, win_h = self._screen.get_size()
-        can_w, can_h = self.canvas.get_size()
+        if self.gpu:
+            try:
+                self._present_gpu()
+                return
+            except pygame.error:
+                # The GPU path broke mid-game: the CPU path from now on.
+                self._close_gpu()
+                self._gpu_requested = False
+                self._screen = self._apply_mode(self.mode)
+        self._present_cpu()
 
+    def _fit(self, win_w: int, win_h: int) -> tuple[int, int, int, int]:
+        """(dst_w, dst_h, off_x, off_y): the canvas scaled to fit, centered."""
+        can_w, can_h = self.canvas.get_size()
         scale = min(win_w / can_w, win_h / can_h)
         # Never collapse to zero if the window is squashed smaller than one
         # canvas pixel in some dimension.
         dst_w = max(1, int(can_w * scale))
         dst_h = max(1, int(can_h * scale))
-        off_x = (win_w - dst_w) // 2
-        off_y = (win_h - dst_h) // 2
+        return dst_w, dst_h, (win_w - dst_w) // 2, (win_h - dst_h) // 2
+
+    def _present_gpu(self) -> None:
+        r = self._renderer
+        out_w, out_h = r.get_viewport().size      # (the renderer's pixels)
+        if out_w <= 0 or out_h <= 0:
+            return                                # (minimized)
+        can_w, can_h = self.canvas.get_size()
+        dst_w, dst_h, off_x, off_y = self._fit(out_w, out_h)
+
+        # Cache the transform (in window coordinates, which mouse events
+        # use -- the same as the renderer's unless the OS scales the window)
+        # so window_to_cell() can invert it for mouse input.
+        win_w, win_h = self._window.size
+        fx, fy = win_w / out_w, win_h / out_h
+        self._scale = dst_w / can_w * fx
+        self._dst_offset = (off_x * fx, off_y * fy)
+
+        if self._tex is None or (self._tex.width, self._tex.height) != (can_w, can_h):
+            self._tex = self._texture((can_w, can_h), smooth=False, streaming=True)
+            self._big, self._big_k = None, 0
+        self._tex.update(self.canvas)
+
+        # A whole-number scale is exact with nearest-neighbor alone. Any
+        # other: nearest-neighbor up to k = the next whole number, then the
+        # GPU's bilinear filter down to the window (sharp bilinear).
+        k = max(1, math.ceil(dst_w / can_w - 1e-9))
+        sharp = (dst_w, dst_h) != (can_w * k, can_h * k)
+        if sharp and self._big_k != k:
+            self._big = self._texture((can_w * k, can_h * k), smooth=True, target=True)
+            self._big_k = k
+        if sharp:
+            r.target = self._big
+            self._tex.draw(dstrect=(0, 0, can_w * k, can_h * k))
+            r.target = None
+        r.draw_color = (*colors.LETTERBOX, 255)
+        r.clear()
+        (self._big if sharp else self._tex).draw(dstrect=(off_x, off_y, dst_w, dst_h))
+        r.present()
+
+    def _present_cpu(self) -> None:
+        win_w, win_h = self._screen.get_size()
+        can_w, can_h = self.canvas.get_size()
+        dst_w, dst_h, off_x, off_y = self._fit(win_w, win_h)
 
         # Cache the transform so window_to_cell() can invert it for mouse input.
         self._scale = dst_w / can_w
