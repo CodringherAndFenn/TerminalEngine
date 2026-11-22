@@ -246,6 +246,9 @@ def start(scene, p, move_x: float, move_y: float) -> None:
         hero.roll_charges -= 1
     hero.roll_dir = roll_direction(hero, move_x, move_y)
     hero.roll_from = (hero.x, hero.y)             # (M28.3i: Ember Amulet (L), Afterburn)
+    if getattr(hero, "crowned", False):           # (M29.5: a roll knocks Conquest's crown off)
+        hero.crowned = False
+        scene.effects.append(Effect("toast", hero.x, hero.y - 2, label="CROWN OFF"))
     hero.roll_t = config.ROLL_TIME
     hero.roll_speed = config.ROLL_DISTANCE / config.ROLL_TIME
     hero.vault = None

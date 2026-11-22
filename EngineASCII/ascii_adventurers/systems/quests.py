@@ -290,7 +290,7 @@ class Quests:
             text = {
                 "hunt": spec.goal.format(n=s.found, count=spec.count),
                 "awake": f"go to {place_name(s.lair.name)}",
-                "fight": f"defeat {boss}",
+                "fight": f"defeat {getattr(s.boss, 'bar_label', None) or boss}",
             }[s.stage]
             out.append((s.biome.upper(), text, False))
         return out
@@ -1050,7 +1050,8 @@ class Quests:
             s.crying.say(("*sob*",))
         spec = config.BOSSES[s.spec.boss]
         scene = self.scene
-        self.banner = Banner(f"{boss.espec.name.upper()} IS DEFEATED",
+        self.banner = Banner(getattr(boss, "defeat_title", None)
+                             or f"{boss.espec.name.upper()} IS DEFEATED",
                              f"{s.biome.capitalize()} falls silent" if s.biome in config.ZONE_PLACES
                              else f"guardians {self.guardians}/{config.GUARDIANS}" if first
                              else f"the {s.biome}'s guardian already fell: a bonus kill")

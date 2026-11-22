@@ -170,6 +170,12 @@ class Character(Actor):
         self.level = 1
         self.run_loot = 0.0
         self.time = 0.0
+        # M29.5, the Four Horsemen's marks on a hero: crowned by Conquest (half
+        # damage until a roll), in War's duel (double damage both ways), and
+        # starved (no healing) until this time (Famine's hunger, Hades).
+        self.crowned = False
+        self.duel = None
+        self.starved_until = -1.0
         self.last_crit = False
         self.bestiary: set[str] = set()
         self.idle = 0.0                   # seconds since the last attack (Capacitor)
@@ -557,6 +563,8 @@ class Character(Actor):
         AEGIS_MAX of max HP. Sunward Aegis (L), Daybreak: healing while
         hurt fills it too, DAYBREAK x what it healed."""
         if not self.alive or amount <= 0:
+            return 0.0
+        if self.time < self.starved_until:            # (M29.5: hunger, Hades: no healing)
             return 0.0
         room = self.max_hp - self.hp
         healed = super().heal(amount)

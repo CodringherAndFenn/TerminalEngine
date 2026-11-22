@@ -615,8 +615,10 @@ class ForestTest(_Relic):
         for boss, keys in LAST.items():
             self.assertEqual(config.BOSS_UNIQUES[boss], keys)
         self.assertEqual(len(uniques()), 38)
-        # (M29.4: the Serene Cavalry's relics come with its second form, M29.5)
-        self.assertEqual(set(config.BOSS_UNIQUES) | {"necromancer_lich", "cavalry"},
+        # (M29.4: the Serene Cavalry's relics come with its second form, M29.5;
+        # its Four Horsemen are its parts: they drop as the cavalry)
+        self.assertEqual(set(config.BOSS_UNIQUES) | {"necromancer_lich", "cavalry", "conquest",
+                                                     "war", "famine", "death"},
                          set(config.BOSSES))
 
     def test_shrinking_dust_shrinks_you_on_a_roll(self):

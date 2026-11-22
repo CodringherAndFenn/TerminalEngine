@@ -117,6 +117,7 @@ from ..ui.frame import center, dim_canvas
 from ..ui.gear_picker import GearPicker
 from ..ui.gear_screen import GearScreen
 from ..ui.hud import HudInfo, draw_hud
+from ..render.horsemen import draw_horsemen_marks
 from ..ui.maps import BigMap, Minimap
 from ..ui.quest_log import draw_quest_log
 from ..ui.overlays import GameOverPanel, PauseMenu, VictoryPanel
@@ -1513,6 +1514,7 @@ class GameScene(Scene):
         draw_projectiles(text, cam, self.projectiles)
         draw_chest_marks(text, cam, me, self.projectiles, self.steps)    # (M28.2d)
         draw_effects(text, cam, self.world, air)
+        draw_horsemen_marks(text, cam, [p.hero for p in self.players])   # (M29.5)
         self._sky(d, cam)                                 # (M29.4: Paradise reddening)
         others = [(p.hero.x, p.hero.y, p.color) for p in self.players if p is not me and p.alive]
         pins = self.quests.pins((me.hero.x, me.hero.y)) + self._blood_pins(me) + self._drop_pins() \
@@ -1552,6 +1554,8 @@ class GameScene(Scene):
                 fps=self.fps if self.app.settings.show_fps else None,
                 gear=self._gear_row(me),
                 loot=int(me.stats.loot), shield=me.hero.shield, boss=boss,
+                boss_parts=(fight.boss.bars() if boss is not None and hasattr(fight.boss, "bars")
+                            else None),
                 roll=(me.hero.roll_charges, me.hero.stats.max_rolls if me.hero.stats else 1,
                       roll.recharge_frac(me.hero)),
                 meter=self._meter(me.hero)))

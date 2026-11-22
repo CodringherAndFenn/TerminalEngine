@@ -1042,6 +1042,34 @@ ENEMIES = {
         name="pillar of light", kind="light_pillar", sprite="light_pillar", scale=3,
         max_hp=100, sight=1, biomes=(), speed=0.0, damage=0, size_px=20, xp=0,
     ),
+    # M29.5: form 2, the Four Horsemen (OCEAN.md 6.2; ai/horsemen.py), each
+    # with its own health; Conquest's banner; the dead risen (Death's power).
+    "conquest": EnemySpec(
+        name="Conquest", kind="conquest", max_hp=6000, sight=400, biomes=(), size_px=56, xp=400,
+    ),
+    "war": EnemySpec(
+        name="War", kind="war", max_hp=6000, sight=400, biomes=(), size_px=56, xp=400,
+    ),
+    "famine": EnemySpec(
+        name="Famine", kind="famine", max_hp=6000, sight=400, biomes=(), size_px=56, xp=400,
+    ),
+    "death": EnemySpec(
+        name="Death", kind="death", max_hp=6000, sight=400, biomes=(), size_px=56, xp=400,
+    ),
+    "conquest_banner": EnemySpec(
+        name="Conquest's banner", kind="conquest_banner", sprite="conquest_banner", scale=3,
+        max_hp=300, sight=1, biomes=(), speed=0.0, damage=6, size_px=20, xp=0,
+    ),
+    "pale_shade": EnemySpec(
+        name="pale shade", kind="pale_shade", sprite="pale_shade",
+        max_hp=30, sight=40, biomes=(), speed=4.5,
+        damage=5, attack_radius=1.1, windup=0.3, cooldown=1.0, size_px=20, xp=0,
+    ),
+    "pale_rider": EnemySpec(
+        name="pale rider", kind="pale_shade", sprite="pale_rider", scale=4,
+        max_hp=300, sight=40, biomes=(), speed=8.5,
+        damage=14, attack_radius=1.8, windup=0.35, cooldown=1.0, size_px=34, xp=0,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -4027,7 +4055,13 @@ BESTIARY = {
     "leviathan": (4000, "Lives in the river of blood. Unveiled, it surges along it and spits at you."),
     # M29.4
     "cavalry": (10000, "Four white riders, one life. Read the lanes; split them when they sing; "
-                       "break a pillar to open the cage."),
+                       "break a pillar to open the cage. Then they unveil: the Four Horsemen."),
+    # M29.5
+    "conquest": (5000, "Its arrows crown you: half damage until you roll. Break its banners."),
+    "war": (5000, "Slashes send waves of blood. In its duel ring both of you hit twice as hard."),
+    "famine": (5000, "Keep it hurt: its scales take from whoever is healthier. No healing near it."),
+    "death": (5000, "Hades follows it: stay out of the dark. Whatever dies in the court rises once."),
+    "pale_shade": (1000, "Something slain in the Horsemen's court, risen for a few seconds."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -4051,7 +4085,7 @@ ACHIEVEMENTS = {
     "mycelium_inkcap": "defeat Mycelium (the shaggy ink cap)",
     "mycelium_puffball": "defeat Mycelium (the giant puffball)",
     "necromancer": "defeat More than Death",
-    "cavalry": "break the seven seals and defeat the Serene Cavalry",
+    "cavalry": "break the seven seals and defeat the Four Horsemen",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -4410,7 +4444,7 @@ SKY_TINT_STEP = (0, 7, 9)          # off green and blue per seal (of 255)
 CAV_RIDE = (11.0, 0.6, 4.0, 7.0, (15.0, 9.0))   # speed, x in a move, middle's speed,
                                                 # s per pattern, the ride's radii (x, y)
 CAV_HIT_RADIUS = 1.4               # tiles: a rider and its horse
-CAV_GALLOP = (12, 1.5, 0.8)        # trampled: damage, push tiles, s apart
+CAV_GALLOP = (8, 1.5, 1.2)        # trampled: damage, push tiles, s apart
 CAV_FORMATION = (1.3, 24.0, 30.0, 4.0, 22, 2.0)   # lanes shown s, charge speed, lane length,
                                                   # lanes apart, damage, push
 CAV_LANCES = (0.8, 7.0, 5.0, 12.0, 14, 0.5, 1.2)  # in the air s, the cage's half-width and
@@ -4424,9 +4458,9 @@ CAV_HYMN = (7.0, 0.3, 0.003, 6.0, 0.015, 4.0, 2.5)  # s, x damage taken while to
 CAV_WINDS = (4, 1.4, 0.5, 5.0, 2, 1.6, (13.0, 8.0))  # gusts, s each, s shown before, push
                                                      # tiles/s, calm spots, their radius, the
                                                      # riders' corners round you
-CAV_CAROUSEL = (3.2, 14.0, 4.0, 0.45)   # s, radius from, to, s between each rider's shots
+CAV_CAROUSEL = (3.2, 14.0, 4.0, 0.7)   # s, radius from, to, s between each rider's shots
 CAV_HOOFS = (4.0, 0.9, 10)              # s, s between rings, shots a ring
-CAV_HALOS = (1.0, 8, 1.6, 2, 0.6, 18)   # marked s, halos a volley, their radius, volleys,
+CAV_HALOS = (1.0, 8, 1.6, 2, 0.6, 14)   # marked s, halos a volley, their radius, volleys,
                                         # s between, damage
 CAV_TRAMPLE = (0.8, 24.0, 26.0, 24, 2.5)  # line shown s, speed, length, damage, push
 CAV_SHOTS = {
@@ -4435,6 +4469,61 @@ CAV_SHOTS = {
     "hoof": ShellSpec(speed=5.5, damage=8, max_range=14.0, damages_terrain=False,
                       look="light", sound="orb"),
 }
+
+# M29.5: form 2, THE FOUR HORSEMEN (OCEAN.md 6.2; ai/horsemen.py). At 0 the
+# cavalry unveils (HORSEMEN_UNVEIL s) into four, each with its own health
+# (config.ENEMIES; user's proposal: 6,000 each) and kit; a fallen one's kit
+# passes to the others. Numbers mine, per hit at level 1 (x the enemy damage
+# scaling, BOSS_DMG_MULT). The cavalry still rides them (CAV_RIDE).
+HORSEMEN_UNVEIL = 2.5
+HORSEMEN = (1.6,)                  # a Horseman's hit radius, tiles
+HORSEMEN_SHOTS = {
+    "crown": ShellSpec(speed=18.0, damage=10, max_range=24.0, damages_terrain=False,
+                       look="crown", sound="bow"),
+    "arrow": ShellSpec(speed=16.0, damage=7, max_range=22.0, damages_terrain=False,
+                       look="longarrow", sound="bow"),
+    "wave": ShellSpec(speed=9.0, damage=10, max_range=14.0, damages_terrain=False,
+                      look="blood", sound="fizzle"),
+    "scythe": ShellSpec(speed=10.0, damage=10, max_range=16.0, damages_terrain=False,
+                        look="slash", sound="bow"),
+}
+# Conquest.
+CROWN = (0.5, 3, 16.0)             # tell s, arrows, over this many degrees
+CROWN_MULT = 0.5                   # crowned, your hits do x this (a roll knocks it off)
+FANS = (5.0, 3, 30.0, 18.0)        # (passive) a fan every this many s, arrows, degrees, at
+                                   # a hero within this far
+BANNER = (0.8, 2.5, 0.35, 7.0, 0.7, 6, 2)   # planting s; its burning ground from this radius,
+                                         # growing this many tiles/s up to this; burns every
+                                         # this many s (the banner spec's damage x its owner's);
+                                         # at most this many standing (a new one: the oldest falls)
+LAP = (4.0, 15.0, 22.0, 0.8, 2)    # s, the lap's radius round you, speed, s between
+                                   # volleys, arrows a volley
+# War.
+SWEEP = (0.5, 3, 4.5, 120.0, 22, 7)      # tell s, slashes, reach, arc degrees, damage,
+                                         # shots in each wave of blood
+BLOOD_CHARGE = (0.8, 22.0, 16.0, 3, 20, 1.5, 0.12, 5.0)  # line shown s, speed, length,
+                                         # charges, damage, push, s between burning patches,
+                                         # their life s
+STRIFE = (18.0, 3, 6)              # (passive) a wave of unveiled angels every this many s,
+                                   # this many, while fewer than this many of its are about
+HM_DUEL = (0.8, 6.0, 8.0, 2.0, 18, 1.6)    # tell s, the ring's radius (at least), s, x damage
+                                         # both ways inside, the sting breaking out, s between
+                                         # its slashes
+# Famine.
+SCALES = (8.0, 0.03, 20.0)         # (passive) weighs you every this many s: the lighter (less
+                                   # health as a share of max) loses this share of its max HP
+                                   # to the other (who gains just that); heroes within this far
+HUNGER = 8.0                       # (passive) no healing within this far of it
+WEIGHTS = (1.2, 3, 5.0, 1.4, 22)   # marked s, weights, spread tiles, crush radius, damage
+HM_PLAGUE = (0.6, 6, 18)          # tell s, locusts, at most this many about
+# Death.
+HADES = (0.4, 1.8, 6.0, 1.5)       # (passive) a pool of darkness every this many s behind it:
+                                   # radius, life s, pull tiles/s (and no healing in it)
+QUARTER = (2.0, 16.0, 28)          # each quarter darkened this many s; radius; damage
+HM_REAP = (3.0, 7.0, 4.2, 22, 0.5, 3)  # s, the scythe's spin rad/s, reach, damage, s before the
+                                    # same hero again, crescents thrown each half-turn
+SHADE_LIFE = 10.0                  # (passive, the dead rise) a pale shade lasts this long...
+SHADES_MOST = 6                    # ...and no more than this many are up at once
 
 # Start: the tile nearest the centre (searched every SPAWN_SEARCH_STEP
 # tiles) that isn't in a lake and has dry land connecting it to at least
@@ -5463,7 +5552,35 @@ BOSSES = {
                              ("carousel", 2), ("hoofs", 1), ("halos", 2), ("trample", 2)),
                       rest=0.7),
         ),
-        loot=10000, achievement="cavalry", pages=("cavalry",),
+        loot=10000, achievement="cavalry",
+        pages=("cavalry", "conquest", "war", "famine", "death", "pale_shade"),
+    ),
+    # M29.5: form 2, the Four Horsemen (ai/horsemen.py). Each picks among its
+    # own kit's moves and its fallen brothers'; past half its health it
+    # rests less between them.
+    "conquest": BossSpec(
+        name="Conquest",
+        phases=(BossPhase(1.0, (("crown", 2), ("banner", 1), ("lap", 1)), rest=1.4),
+                BossPhase(0.5, (("crown", 2), ("banner", 1), ("lap", 1)), rest=1.1)),
+        loot=0, achievement="cavalry", pages=(),
+    ),
+    "war": BossSpec(
+        name="War",
+        phases=(BossPhase(1.0, (("sweep", 2), ("bloodcharge", 1), ("duel", 1)), rest=1.4),
+                BossPhase(0.5, (("sweep", 2), ("bloodcharge", 1), ("duel", 1)), rest=1.1)),
+        loot=0, achievement="cavalry", pages=(),
+    ),
+    "famine": BossSpec(
+        name="Famine",
+        phases=(BossPhase(1.0, (("weights", 2), ("locusts", 1)), rest=2.2),
+                BossPhase(0.5, (("weights", 2), ("locusts", 1)), rest=1.8)),
+        loot=0, achievement="cavalry", pages=(),
+    ),
+    "death": BossSpec(
+        name="Death",
+        phases=(BossPhase(1.0, (("quarter", 1), ("reap", 2)), rest=1.4),
+                BossPhase(0.5, (("quarter", 1), ("reap", 2)), rest=1.1)),
+        loot=0, achievement="cavalry", pages=(),
     ),
 }
 BOSS_KEYS = tuple(BOSSES)         # (M28.5: a stable order for the relic drop's seed)

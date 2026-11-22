@@ -31,8 +31,11 @@ thrown inward; out through the gaps), hoof rings (rings of light from their
 hooves as they gallop), halo rain (gold halos into marked circles),
 trample (one breaks off along a shown line, then rejoins).
 
-(Form 2, the Four Horsemen, is M29.5: for now the cavalry beaten is the
-quest won.)
+FORM 2 (M29.5): at 0 it doesn't fall -- it unveils (HORSEMEN_UNVEIL s) into
+the Four Horsemen (ai/horsemen.py), each with its own health. It still
+rides them; it runs War's strife and Death's dead rising for whoever has
+those powers, passes a fallen Horseman's kit to the others, and its health
+is theirs together: it falls when the last of them does.
 """
 
 from __future__ import annotations
@@ -82,6 +85,7 @@ class Rider(Actor):
         self.lead = False             # the hymn's lead singer
         self.sung = 0.0               # what it took while leading the hymn
         self.thrown = 0.0             # s thrown out of the hymn
+        self.gone = False             # (M29.5: it unveiled into a Horseman)
 
     # Its health is the cavalry's.
     @property
@@ -102,11 +106,11 @@ class Rider(Actor):
 
     @property
     def alive(self) -> bool:
-        return self.part_of.alive
+        return self.part_of.alive and not self.gone
 
     @property
     def hittable(self) -> bool:
-        return self.part_of.alive
+        return self.alive and self.part_of.form == 1    # (not while it unveils)
 
     def take_damage(self, amount, source, from_angle):
         if self.status is not None:
@@ -137,6 +141,8 @@ class Cavalry(Boss):
 
     def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
                  spawn_id=None) -> None:
+        self.form = 1                     # 1, "unveiling", 2: the Four Horsemen (M29.5)
+        self.horsemen: list = []
         super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.CAV_HIT_RADIUS)
         self.shots = config.CAV_SHOTS
         self.riders = [Rider(self, i, x + math.cos(i * _TAU / 4) * 4,
@@ -159,8 +165,39 @@ class Cavalry(Boss):
         self.hymn: dict | None = None     # {"lead": rider, "together": bool}
         self.winds: dict | None = None    # {"corners", "calm", "gust", "next"}
         self.bar_label = spec.name
+        # M29.5: form 2.
+        self.unveil_t = 0.0               # s of the unveiling left
+        self.inherited: list[str] = []    # the fallen Horsemen's kits (the others have them)
+        self.players_n = 1
+        self.banner_req: tuple | None = None   # (title, sub): the quest shows it
+        self.strife_t = config.STRIFE[0] * 0.5
+        self.watch: dict = {}             # the dead rising: id -> (enemy, x, y) in the court
 
     # --- Being the cavalry ----------------------------------------------------------
+
+    # Its health: its own while it's the cavalry; then the four Horsemen's
+    # together (it falls when they all have).
+    @property
+    def hp(self) -> float:
+        if getattr(self, "form", 1) == 2:
+            return sum(max(0.0, h.hp) for h in self.horsemen)
+        return self._hp
+
+    @hp.setter
+    def hp(self, value: float) -> None:
+        if getattr(self, "form", 1) != 2:
+            self._hp = value
+
+    @property
+    def max_hp(self):
+        if getattr(self, "form", 1) == 2:
+            return sum(h.max_hp for h in self.horsemen)
+        return self._max
+
+    @max_hp.setter
+    def max_hp(self, value) -> None:
+        if getattr(self, "form", 1) != 2:
+            self._max = value
 
     @property
     def hittable(self) -> bool:
@@ -168,13 +205,29 @@ class Cavalry(Boss):
 
     def hurt(self, amount: float, source, from_angle, rider: Rider) -> float:
         """A rider was hit: the cavalry takes it (less while the hymn's
-        chord holds)."""
+        chord holds). At 0 it doesn't fall: it unveils (M29.5)."""
+        if self.form != 1:
+            return 0.0
         if self.hymn is not None and self.hymn["together"]:
             amount *= config.CAV_HYMN[1]
         dealt = super().take_damage(amount, source, from_angle)
         if self.hymn is not None and rider.lead:
             rider.sung += dealt
+        if self._hp <= 0:
+            self._hp = 1.0
+            self._unveil()
         return dealt
+
+    @property
+    def defeat_title(self) -> str:
+        return "THE FOUR HORSEMEN ARE DEFEATED" if self.form == 2 else \
+            "THE SERENE CAVALRY IS DEFEATED"
+
+    def bars(self) -> list | None:
+        """The boss bar's parts: each Horseman's health (form 2)."""
+        if self.form != 2:
+            return None
+        return [(h.espec.name, h.frac if h.alive else 0.0) for h in self.horsemen]
 
     def take_damage(self, amount, source, from_angle):
         """Hurt as such (a retaliation...): the rider nearest the source
@@ -185,6 +238,7 @@ class Cavalry(Boss):
 
     def scale_for(self, players: int) -> None:
         super().scale_for(players)
+        self.players_n = players
 
     def shove_heroes(self, extra: float = 0.3) -> None:
         pass                              # (the riders trample instead: _gallop)
@@ -201,14 +255,151 @@ class Cavalry(Boss):
 
     def think(self, ctx, dt: float) -> None:
         self.ctx = ctx
-        self._ride(dt)
-        super().think(ctx, dt)
-        self._gallop(ctx)
+        if self.form == 1:
+            self._ride(dt)
+            super().think(ctx, dt)
+            self._gallop(ctx)
+        else:
+            self.dt = dt
+            self.time += dt
+            if self.form == "unveiling":
+                self.unveil_t -= dt
+                self.slow = 0.3
+                self._ride(dt)
+                if self.unveil_t <= 0:
+                    self._become_horsemen(ctx)
+            else:
+                self.riders = [h for h in self.horsemen if h.alive]
+                if not self.riders:
+                    return
+                self.slow = 1.0
+                self._ride(dt)
+                self._gallop(ctx)
+                self._strife(ctx, dt)
+                self._risen(ctx)
         self._fly_lances(dt)
         self._fences(ctx, dt)
         n = len(self.riders)
-        self.x = sum(r.x for r in self.riders) / n
-        self.y = sum(r.y for r in self.riders) / n
+        if n:
+            self.x = sum(r.x for r in self.riders) / n
+            self.y = sum(r.y for r in self.riders) / n
+
+    # --- Form 2: the Four Horsemen (M29.5, ai/horsemen.py) ------------------------
+
+    def _unveil(self) -> None:
+        """Its health is gone: the cavalry unveils (HORSEMEN_UNVEIL s, its
+        riders flickering), whatever it was doing."""
+        self.form = "unveiling"
+        self.unveil_t = config.HORSEMEN_UNVEIL
+        self._gen = None
+        self.move = None
+        self.tell = None
+        self.lanes, self.line, self.ring, self.marks = [], None, None, []
+        self.charging = False
+        self.hymn = self.winds = None
+        for r in self.riders:
+            r.ctrl, r.lead, r.thrown = None, False, 0.0
+        self._clear_cages()
+        self.banner_req = ("THE FOUR HORSEMEN", "the cavalry unveils")
+        if self.ctx is not None:
+            for r in self.riders:
+                self.ctx.effects.append(Effect("unveil", r.x, r.y, size=2.5))
+            self.ctx.events.append("hex")
+
+    def _clear_cages(self) -> None:
+        for c in self.cages:
+            for p in c["pillars"]:
+                if p.alive:
+                    p.hp = 0.0
+                    p.last_hit_by = None
+        self.cages = []
+        self.lances = []
+
+    def _become_horsemen(self, ctx) -> None:
+        from . import make_enemy
+        from .horsemen import ORDER
+        for r, key in zip(self.riders, ORDER):
+            h = self.recruit(key, r.x, r.y) if self.recruit is not None else None
+            if h is None:
+                h = make_enemy(key, r.x, r.y, random.Random(self.rng.random()))
+                h.scale_to_level(self.level)
+                ctx.spawned.append(h)
+            h.scale_for(self.players_n)
+            h.cavalry = self
+            h.lair = self.lair
+            h.recruit = self.recruit
+            h.facing = r.facing
+            h.alert = True
+            self.horsemen.append(h)
+            r.gone = True
+            ctx.effects.append(Effect("gore", r.x, r.y, size=2.0))
+        self.riders = list(self.horsemen)
+        self.form = 2
+        self.bar_label = "The Four Horsemen"
+        ctx.events.append(combat.BREAK)
+
+    def fallen(self, h, ctx) -> None:
+        """A Horseman fell: its kit passes to the others; with the dead
+        rising, it rises as a pale rider for SHADE_LIFE s."""
+        self.inherited.append(h.kit)
+        alive = [o for o in self.horsemen if o.alive and o is not h]
+        if not alive:
+            return
+        ctx.effects.append(Effect("toast", h.x, h.y - 3,
+                                  label=f"{h.espec.name.upper()} FALLS - ITS POWER PASSES ON"))
+        for o in alive:
+            ctx.effects.append(Effect("unveil", o.x, o.y, size=2.0))
+        if any(o.has("risen") for o in alive):
+            ctx.spawned.append(("pale_rider", h.x, h.y))
+
+    def _strife(self, ctx, dt: float) -> None:
+        """War's strife (and whoever has it now): waves of unveiled angels
+        into the court."""
+        if not any(h.has("strife") for h in self.riders) or self.recruit is None:
+            return
+        self.strife_t -= dt
+        if self.strife_t > 0:
+            return
+        self.strife_t = config.STRIFE[0]
+        t = self.drift_target()
+        if t is None:
+            return
+        about = sum(1 for e in ctx.actors if getattr(e, "strife", False) and e.alive)
+        for k in range(min(config.STRIFE[1], config.STRIFE[2] - about)):
+            a = self.rng.uniform(0, _TAU)
+            x, y = self.clamp_to_lair(t.x + math.cos(a) * 14, t.y + math.sin(a) * 10, 3.0)
+            e = self.recruit(self.rng.choice(config.SEVEN_SEAL_ANGELS), x, y)
+            if e is not None:
+                e.alert = True
+                e.strife = True
+                if hasattr(e, "unveil"):
+                    e.unveil()
+                ctx.effects.append(Effect("unveil", x, y, size=1.5))
+        ctx.events.append("hex")
+
+    def _risen(self, ctx) -> None:
+        """Death's power (and whoever has it now): anything slain in the
+        court rises once as a pale shade."""
+        if not any(h.has("risen") for h in self.riders):
+            self.watch.clear()
+            return
+        from .horsemen import ConquestBanner, Horseman, PaleShade
+        from .paradise import LightPillar
+        skip = (Horseman, Rider, Cavalry, PaleShade, LightPillar, ConquestBanner)
+        for e in ctx.actors:
+            if getattr(e, "faction", "") != "enemy" or isinstance(e, skip) or not e.alive:
+                continue
+            if self.lair is None or self.lair.inside(e.x, e.y):
+                self.watch[id(e)] = (e, e.x, e.y)
+        up = sum(1 for e in ctx.actors if isinstance(e, PaleShade) and e.alive)
+        for k, (e, x, y) in list(self.watch.items()):
+            if e.alive:
+                continue
+            del self.watch[k]
+            if e.last_hit_by is not None and up < config.SHADES_MOST:   # (slain, not faded)
+                up += 1
+                ctx.spawned.append(("pale_shade", x, y))
+                ctx.effects.append(Effect("unveil", x, y, size=1.2))
 
     # --- Always riding --------------------------------------------------------------
 
@@ -647,9 +838,9 @@ class Cavalry(Boss):
             ctx.effects.append(Effect("explosion", r.x, r.y))
             ctx.effects.append(Effect("feathers", r.x, r.y, size=1.5))
         ctx.events.append(combat.BREAK)
-        for c in self.cages:
-            for p in c["pillars"]:
-                if p.alive:
-                    p.hp = 0.0
-                    p.last_hit_by = None
-        self.cages = []
+        self._clear_cages()
+        from .horsemen import ConquestBanner
+        for e in ctx.actors:                       # (their banners fall with them)
+            if isinstance(e, ConquestBanner) and e.alive:
+                e.hp = 0.0
+                e.last_hit_by = None

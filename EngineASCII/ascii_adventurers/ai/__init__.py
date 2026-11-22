@@ -34,7 +34,9 @@ ai -- enemy behaviour.
                 trumpeter, censer-bearer, bowl-bearer, chorister, weeping
                 saint, martyr, behemoth, leviathan (M29.3); light pillars
   cavalry.py    Paradise's boss, form 1 (M29.4): the Serene Cavalry, four
-                riders on one health bar
+                riders on one health bar -- unveiling into form 2 (M29.5)
+  horsemen.py   form 2 (M29.5): the Four Horsemen, each its own health and
+                kit, the fallen's passing to the others
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -68,6 +70,7 @@ from .plains import (Bull, Chaser, Crow, Drummer, Hawk, Hound, Lancer, Molehill,
 from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 from .mimic import Mimic
 from .cavalry import Cavalry
+from .horsemen import ConquestBanner, Horseman, PaleShade
 from .paradise import (BowlBearer, CenserBearer, Cherub, Chorister, Dove, Halo, Lamb,
                        Leviathan, Locust, Martyr, Ophan, Seraph, Trumpeter, Watcher,
                        WeepingSaint, Behemoth, LightPillar)
@@ -227,6 +230,13 @@ KINDS = {
     # M29.4: Paradise's boss, form 1, and its lances' pillars
     "cavalry": Cavalry,
     "light_pillar": LightPillar,
+    # M29.5: form 2, the Four Horsemen; Conquest's banner; the dead risen
+    "conquest": Horseman,
+    "war": Horseman,
+    "famine": Horseman,
+    "death": Horseman,
+    "conquest_banner": ConquestBanner,
+    "pale_shade": PaleShade,
 }
 
 

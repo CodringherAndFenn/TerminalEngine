@@ -174,6 +174,7 @@ SHOT_LOOKS = {
     "lyre": (NOTE, ("'", "."), palette.SHOT_LYRE),
     "light": ("o", ("'", "."), palette.SHOT_LIGHT),
     "shriek": ("o", (":", "."), palette.SHOT_SHRIEK),     # M29.3: a chorister's rings
+    "crown": (None, (None, None), palette.SHOT_CROWN),    # M29.5: Conquest's (an arrow)
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).
@@ -324,6 +325,13 @@ def _frame(e: Effect) -> list:
         return [(math.cos(k * math.tau / 16) * r * config.TILE_PX_W,
                  math.sin(k * math.tau / 16) * r * config.TILE_PX_H,
                  "*" if k % 2 else "o", col) for k in range(16)]
+    if e.kind == "quarter_wave":                 # (M29.5: a quarter of the earth struck)
+        r = (e.size or 10.0) * (0.15 + 0.85 * p)
+        q = int(e.angle)
+        col = palette.QUARTER[1 if p < 0.5 else 0]
+        return [(math.cos(q * math.tau / 4 + (k + 0.5) * (math.tau / 4) / 9) * r * config.TILE_PX_W,
+                 math.sin(q * math.tau / 4 + (k + 0.5) * (math.tau / 4) / 9) * r * config.TILE_PX_H,
+                 "*" if k % 2 else "x", col) for k in range(9)]
     if e.kind == "unveil":                       # (M29.2: a ring of eyes bursting out)
         r = (e.size or 1.5) * (0.3 + 0.9 * p)
         col = palette.UNVEIL[min(2, int(p * 3))]

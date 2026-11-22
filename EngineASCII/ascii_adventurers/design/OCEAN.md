@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Ocean Zones
 
-Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT but for its relics (2026-11-22, section 12).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -118,7 +118,7 @@ At 0 the cavalry unveils into **the Four Horsemen**, each with **its own health 
 | M29.2 | **The unveiling + the first 8 enemies:** the shared serene/unveiled framework (tells, blood trails **and the stains they leave, kept on the ground**, fonts healing), endgame toughness; Cherub, Seraph, Ophan, Watcher, the Lamb, Doves, Locusts, Halo. **Built, section 9** |
 | M29.3 | **The other 8 enemies:** Trumpeter, Censer-bearer, Bowl-bearer, Chorister, Weeping Saint, Martyr, Behemoth, Leviathan. **Built, section 10** |
 | M29.4 | **The quest + form 1:** the seven seals (**and the sky reddening, seal by seal**), the fallen angel, waking and sealing the court; the serene cavalry (4 phases, 4 signatures, 4 moves), always riding. **Built, section 11** |
-| M29.5 | **Form 2:** the Four Horsemen (16 abilities), inheritance, the bot benchmark; then the 4 relics drafted with the user |
+| M29.5 | **Form 2:** the Four Horsemen (16 abilities), inheritance, the bot benchmark; then the 4 relics drafted with the user. **Built but for the relics, section 12** |
 
 ## 8. Built: M29.1 (2026-11-21) -- the zone framework and Paradise's land
 
@@ -214,4 +214,33 @@ On the same unveiling as section 9 (`ai/paradise.Angel`). **(mine)** Where secti
 
 **Code:** `ai/cavalry.py` (Cavalry, Rider), `ai/paradise.LightPillar`, `render/cavalry.py`, art (`fallen_angel`, `white_knight`, `light_pillar`, the `white_horse` mount) in `render/paradise_art.py`; `world/paradise` (seals, the camp and lair), `world/landmarks` (zones' quests skipped), tiles `SEVEN_SEAL`, `SEVEN_SEAL_BROKEN` (212 of 255 map classes); `systems/quests` (kind "seals", guards, waves, the barred lair, pins, guardians, `broken_seals`); `systems/spawner` (bosses keep their own numbers); `scenes/game._sky`; `render/magus.draw_seals`. **Tests:** `tests/test_m29_4.py` (23); `test_m29_1` (the court is the quest's lair now); `test_m17`, `test_p2`, `test_m22_5`, `test_m27` (a zone's quest: pinned once found, exactly seven spots, not a guardian); `test_m28_5` (the cavalry's relics come with M29.5). Full suite 1805 OK after those.
 
-**NEXT: M29.5, form 2: the Four Horsemen** (16 abilities, inheritance, the bot benchmark; then the 4 relics drafted with the user).
+## 12. Built: M29.5 (2026-11-22) -- the Four Horsemen (the relics still to draft)
+
+**The unveiling** (`ai/cavalry.py`): at 0 the Serene Cavalry doesn't fall. Its riders flicker for 2.5 s (they can't be hit, everything it was doing stops, its cages fall) under the banner **THE FOUR HORSEMEN -- the cavalry unveils**, then each rider becomes a Horseman where it was: Conquest, War, Famine, Death (`ai/horsemen.py`), **6,000 health each** (as proposed; scaled like every boss). The boss bar becomes four bars under one ("THE FOUR HORSEMEN"). The cavalry still rides them (always riding: they slow but never stop; only the banner and the duel plant them, with a "!"), and the fight is won when the last one falls ("THE FOUR HORSEMEN ARE DEFEATED").
+
+**When one falls, the others take its power**: its kit (moves and passives) joins each survivor's -- "X FALLS - ITS POWER PASSES ON" -- so the last one standing has all four. Each picks its own kit's moves more often than inherited ones.
+
+**The kits**, as drafted in section 6.2 (numbers mine, `config.py` `CROWN`...`SHADE_LIFE`):
+- **Conquest:** **crowning arrows** (an aim line, then 3 gold arrows; a hit crowns you -- a gold crown over your head -- and while crowned your hits do half; a roll knocks it off: "CROWN OFF"); **arrow fans** (passive: 3 arrows every 5 s while it gallops); **banners** (it rides to a spot near you and plants: the banner's burning ground spreads from 2.5 to 7 tiles until it's broken; at most 2 stand -- a third topples the oldest); **victor's lap** (a lap round you at full speed, 2 arrows every 0.8 s aimed inward and ahead: the safe lane is right behind it).
+- **War:** **sweeping blade** (three wide 120-degree slashes, each shown first, each sending a fan of blood rolling on); **blood charge** (a shown line, a charge, a turn -- up to three -- leaving burning blood); **strife** (passive: 3 unveiled angels into the court every 18 s, at most 6 of them about); **duel ring** (it plants its sword; a ring of blood closes round you both; inside, you both deal double damage for 8 s; step out and it stings, and the duel's over -- "DUEL!", "BROKE OUT!").
+- **Famine:** **the scales** (passive, every 8 s: see below); **hunger** (passive: no healing within 8 tiles of it -- a dark ring round it, a struck "+" over you); **weights** (3 black weights marked 1.2 s, crushing where they land and staying as solid iron blocks, breakable); **locust plague** (6 unveiled locusts from its saddlebags, at most 18 about).
+- **Death:** **Hades follows** (passive: a dark maw rides behind it; pools of darkness trail it for 6 s: inside you can't heal and you're pulled toward the middle); **a fourth of the earth** (four quarters round you, one at a time darkened for 2 s, then struck); **reaping** (3 s of a spinning scythe, hitting what it sweeps, a fan of crescents off every half-turn); **the dead rise** (passive: anything slain in the court rises once as a pale shade for 10 s, at most 6 at once; a fallen Horseman rises as a pale rider while any survivor has the power).
+
+**The scales -- a call to check.** Section 6.2 says "whoever has more health, as a share of max, loses some to the other -- keep it hurt and you're safe": the two halves contradict (if the one with more loses, keeping it hurt makes *you* lose). Built as the second half says: **the lighter one (less health as a share) loses 3% of its own max to the other**, who gains just that. Keep Famine's share below yours and it bleeds (and you heal -- unless you're inside its hunger); let it get ahead of you and you bleed. Flip it in `Horseman._weigh` (one comparison) if the first half was meant. (My first try had the winner gain 8% of its own max: Famine out-healed the bot for 20 minutes.)
+
+**The bot benchmark** (rebuilt: a level-1 wizard that can't die, circle-strafing at 8 tiles, firing at adds within 6 tiles first, else the nearest rider/Horseman; held at 60% health so the scales can tip either way; seeds 31/7/12):
+
+| | Cavalry | Horsemen | Both | Damage taken a minute |
+|-|---------|----------|------|-----------------------|
+| Seed 31 | 4:52 | 7:20 | 12:12 | 895 / 1,029 |
+| Seed 7 | 4:55 | 6:59 | 11:54 | 868 / 1,276 |
+| Seed 12 | 4:56 | 7:41 | 12:37 | 780 / 1,540 |
+| More than Life + Death (reference) | | | 7:30 | 727 |
+
+Above the necromancer on both counts, as tier III should be. Longer than my targets (~3 and ~5 min), but by policy no health is cut on bot numbers alone. **What I lowered instead** (first run: 1,086 and ~2,700 damage a minute, the Horsemen never finished): trampling 12 -> 8 every 1.2 s; the carousel's light every 0.7 s; halo damage 14; arrow fans 3 every 5 s; the lap's volleys 2 every 0.8 s; banners capped at 2; strife every 18 s, 6 at most; at most 6 shades, slower and weaker; weights 3 of 22, marked 1.2 s, Famine resting longer between moves; the scales as above. The bot never steps out of a marked area, so weights, quarters and halos hurt it far more than a player.
+
+**Look:** the four (`render/paradise_art.py`): Conquest crowned with a bow on the white horse, War in red armour with a great sword on the red, Famine hooded in black holding the scales on the black, Death a pale skull with a scythe on the pale -- the riders covered in eyes, the horses flayed and bleeding (red mixed into their shading). Hades: a dark maw drawn behind Death. Pale shades and pale riders, Conquest's banner. Tells: `render/horsemen.py`.
+
+**Code:** `ai/horsemen.py` (Horseman and its 16 abilities, ConquestBanner, PaleShade), `ai/cavalry.py` (form 2: the unveiling, riding the four, strife, the dead rising, inheritance; its health the four's), `render/horsemen.py`; the crown and the duel in `systems/combat.strike`, a shot's `on_hit` (`entities/projectile`, `combat._hit_actor`), the roll knocking the crown off (`systems/roll.start`), no healing while starved (`Character.heal`), the HUD's four bars (`ui/hud`), tile `WEIGHT` (213 of 255 map classes), zones `hades`, `blood_fire`. **Tests:** `tests/test_m29_5.py` (22); `test_m29_4`'s whole-quest test now finishes the Horsemen too; `test_m28_5` counts the four Horsemen as the cavalry's (they drop its relics). Full suite 1826 OK (after renaming three numbers that clashed with older ones: `HM_DUEL`, `HM_PLAGUE`, `HM_REAP`). The bench: scratchpad `bench.py` (`BENCH_QUEST`, `BENCH_MIN`, `BENCH_HP`).
+
+**Still to do for M29.5: the relics** -- one per Horseman (section 6.3), drafted with the user. Until then `test_m28_5` exempts the cavalry from "every boss has its relics".

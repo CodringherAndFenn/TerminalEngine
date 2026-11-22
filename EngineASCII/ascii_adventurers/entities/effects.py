@@ -57,6 +57,7 @@ DURATIONS = {
     "unveil": 0.5,          # unveiled: a ring of eyes bursting out
     "feathers": 0.6,        # a serene one dying: a puff of feathers
     "gore": 0.5,            # an unveiled one dying: a burst of blood
+    "quarter_wave": 0.5,    # M29.5: a quarter of the earth struck (angle: which quarter)
 }
 
 

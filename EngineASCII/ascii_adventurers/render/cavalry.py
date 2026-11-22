@@ -43,9 +43,17 @@ def _line(batch, camera, x0, y0, x1, y1, glyph, color, step=0.7) -> None:
 
 def draw_cavalry_rider(text, bank, camera, r: Rider) -> None:
     x, y = camera.world_to_px(r.x, r.y)
-    draw_rider(bank, x, y, "white_knight", "white_horse", RIDER_SCALE, r.facing_left(),
-               gallop_frame(r), r.hurt_flash > 0)
     core = r.part_of
+    rider, mount = "white_knight", "white_horse"
+    if core.form == "unveiling":                          # (M29.5: flickering into a Horseman)
+        from .horsemen import LOOKS
+        from ..ai.horsemen import ORDER
+        from .. import config
+        left = core.unveil_t / config.HORSEMEN_UNVEIL
+        if int(core.time * (5 + 20 * (1 - left))) % 2:
+            rider, mount = LOOKS[ORDER[r.index]]
+    draw_rider(bank, x, y, rider, mount, RIDER_SCALE, r.facing_left(),
+               gallop_frame(r), r.hurt_flash > 0)
     if r.lead and core.hymn is not None:                  # (the lead singer)
         batch = _Batch(text)
         t = core.time

@@ -171,6 +171,11 @@ class QuestFlowTest(unittest.TestCase):
         self.assertEqual(s.quests.guardians, 0)
         q.boss.hp = 1.0
         q.boss.riders[0].take_damage(10, h, 0.0)
+        for _ in range(round((config.HORSEMEN_UNVEIL + 0.2) * 60)):   # (M29.5: it unveils...)
+            s._step(1 / 60)
+        self.assertEqual(q.stage, "fight")
+        for hm in q.boss.horsemen:                                 # (...and they fall too)
+            hm.take_damage(hm.hp + 1, h, 0.0)
         for _ in range(3):
             s._step(1 / 60)
         self.assertEqual(q.stage, "cleared")

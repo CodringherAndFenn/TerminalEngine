@@ -252,6 +252,11 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
     if isinstance(e, MycoPart):                # (drawn with its Mycelium)
         return
     from ..ai.cavalry import Cavalry, Rider
+    from ..ai.horsemen import Horseman
+    if isinstance(e, Horseman):                # M29.5: the Four Horsemen
+        from .horsemen import draw_horseman
+        draw_horseman(text, bank, camera, e)
+        return
     if isinstance(e, Cavalry):                 # M29.4: its tells (its riders draw themselves)
         from .cavalry import draw_cavalry
         draw_cavalry(text, bank, camera, e)

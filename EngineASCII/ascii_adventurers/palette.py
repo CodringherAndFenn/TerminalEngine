@@ -1089,6 +1089,21 @@ FENCE = ((255, 236, 150), (255, 255, 230))                         # fences of l
 HYMN = ((255, 214, 90), (255, 240, 180))                           # the hymn's ring and notes
 WIND = ((200, 220, 255), (255, 255, 255))                          # the four winds
 CALM = (140, 200, 255)                                             # a calm spot
+# M29.5: the Four Horsemen.
+WEIGHT_FG = (90, 90, 100)
+WEIGHT_BG = (24, 24, 30)
+MAP_TILE.update({"weight": (30, 30, 36)})
+WAR_RED = ((230, 40, 40), (255, 120, 90))                          # War's arcs, the duel ring
+WEIGHT_MARK = (220, 220, 230)                                      # where a weight will fall
+QUARTER = ((24, 12, 30), (200, 60, 255))                           # a darkened quarter
+SCYTHE = (210, 220, 200)                                           # Death's scythe
+SCALES = (240, 202, 86)                                            # Famine's scales tipping
+HUNGER = (120, 100, 60)                                            # Famine's hunger, no healing
+HADES = ((60, 20, 70), (140, 40, 160))                             # Hades, the maw
+HADES_ZONE = ((70, 30, 90), (40, 16, 50))                          # its darkness on the ground
+BLOOD_FIRE = ((255, 90, 50), (200, 30, 40))                        # War's burning river of blood
+BANNER_FIRE = ((255, 170, 60), (255, 80, 40))                      # a banner's burning ground
+SHOT_CROWN = ((255, 226, 110), ((230, 190, 80), (170, 130, 50)))  # a crowning arrow
 SHOT_SHRIEK = ((255, 214, 220), ((230, 90, 110), (150, 40, 60)))   # a chorister's shriek
 INCENSE = ((214, 210, 196), (160, 156, 146))                       # a censer's harmless haze
 BLOOD_POOL = ((214, 30, 44), (130, 14, 26))                        # a poured pool, a tear's pool

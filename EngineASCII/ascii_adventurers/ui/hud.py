@@ -53,6 +53,7 @@ class HudInfo:
     time: float              # seconds into the run
     fps: float | None = None     # None: hidden (a setting)
     boss: tuple[str, float] | None = None   # (name, health fraction) during a boss fight
+    boss_parts: list | None = None   # M29.5: [(name, health fraction)] under it (the Horsemen)
     gear: tuple = ()             # (slot letter, level or None, rarity or None) per slot (M28.1)
     loot: int = 0                # found this run
     shield: float = 0.0          # Ward Charm / Aegis: shown in blue after the HP
@@ -82,7 +83,7 @@ def draw_hud(text: TextRenderer, info: HudInfo) -> None:
     cols, rows = d.cols, d.rows
     _draw_status(text, info)
     if info.boss is not None:
-        draw_boss_bar(text, *info.boss)
+        draw_boss_bar(text, *info.boss, parts=info.boss_parts)
     if info.fps is not None:
         s = f"{info.fps:3.0f} FPS"
         text.put(cols - len(s) - 1, rows - 1, s, palette.HUD_LABEL, None)
@@ -171,9 +172,10 @@ def _roll_meter(text: TextRenderer, row: int, ready: int, most: int, cells: int)
         text.put(PANEL_W - 4, row, "RDY", palette.HUD_ROLL_READY, palette.HUD_PANEL)
 
 
-def draw_boss_bar(text: TextRenderer, name: str, frac: float) -> None:
+def draw_boss_bar(text: TextRenderer, name: str, frac: float, parts=None) -> None:
     """A boss's name and health bar, top centre, between the status panel
-    and the minimap."""
+    and the minimap. `parts` (M29.5, the Four Horsemen): (name, fraction)
+    each, a short bar apiece on the row below."""
     from .. import config
     cols = text.display.cols
     room = cols - PANEL_W - (config.MINIMAP_COLS + 2 + config.MINIMAP_MARGIN) - 4
@@ -182,3 +184,12 @@ def draw_boss_bar(text: TextRenderer, name: str, frac: float) -> None:
     label = name.upper()
     text.put(left + (width - len(label)) // 2, 0, label, palette.HUD_BOSS_NAME, None)
     _bar(text, left, 1, width, frac, palette.HUD_BOSS, palette.HUD_BOSS_EMPTY)
+    if parts:
+        each = width // len(parts)
+        for k, (who, f) in enumerate(parts):
+            col = left + k * each
+            tag = who.upper()[:max(1, each - 7)]
+            text.put(col, 2, tag, palette.HUD_BOSS_NAME if f > 0 else palette.HUD_LABEL,
+                     palette.HUD_PANEL)
+            _bar(text, col + len(tag) + 1, 2, max(1, each - len(tag) - 2), f, palette.HUD_BOSS,
+                 palette.HUD_BOSS_EMPTY)

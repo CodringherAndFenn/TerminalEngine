@@ -975,6 +975,12 @@ SEVEN_SEAL = TileType(
 SEVEN_SEAL_BROKEN = TileType(
     "broken seal", ("%,", ",%"), palette.SEAL_WAX_BROKEN, palette.BLOOD_TRICKLE_BG,
 )
+# Famine's weights (M29.5): they crush where they land and stay there,
+# heavy black iron, until broken.
+WEIGHT = TileType(
+    "weight", ("[]",), palette.WEIGHT_FG, palette.WEIGHT_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP * 2, becomes=MARBLE_RUBBLE,
+)
 # What a stain turns each ground into (by tile name; anything else stays).
 STAINS: dict[str, TileType] = {
     "cloud": STAINED_CLOUD, "cloud drift": STAINED_CLOUD, "petals": STAINED_CLOUD,

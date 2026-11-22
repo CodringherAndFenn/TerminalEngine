@@ -103,6 +103,10 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
         mult *= config.SHRINK[2]
     if getattr(source, "shade", 0) > 0:               # (the Phylactery's shade, M28.5c)
         mult *= config.U_PHYLACTERY[2]
+    if getattr(source, "crowned", False):             # (M29.5: Conquest's crown on you)
+        mult *= config.CROWN_MULT
+    if getattr(source, "duel", None) is not None:     # (M29.5: in War's duel ring)
+        mult *= config.HM_DUEL[3]
     if victim.status is not None and victim.status.asleep > 0 \
             and not getattr(source, "lulling", False):
         victim.status.asleep = 0.0                    # (Cradlesong +3: a hit wakes it)
@@ -2147,6 +2151,8 @@ def _hit_actor(p: Projectile, victim: Actor, hx: float, hy: float, world,
                zones: list | None = None, shots: list | None = None) -> list[str]:
     owner = p.owner
     stats = getattr(owner, "stats", None)
+    if p.on_hit is not None:                       # (M29.5: a crowning arrow...)
+        p.on_hit(victim, owner)
     _sunspot(p, hx, hy, victim)
     extra = 0.0
     whole = False                                  # (Prismatic Wand +3: Full spectrum)

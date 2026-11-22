@@ -29,6 +29,11 @@ from .forest import _dots
 
 
 def draw_paradise_tells(batch, camera, e) -> None:
+    from ..ai.horsemen import ConquestBanner
+    if isinstance(e, ConquestBanner):                     # (M29.5: its burning ground)
+        from .horsemen import draw_banner
+        draw_banner(batch, camera, e)
+        return
     if not isinstance(e, Angel):
         return
     x, y = camera.world_to_px(e.x, e.y)

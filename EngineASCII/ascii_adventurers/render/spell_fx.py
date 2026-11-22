@@ -225,6 +225,21 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 rr = z.radius * (0.3 + 0.6 * ((k * 0.43) % 1.0))
                 batch.put_c(x + math.cos(a) * rr * tw, y + math.sin(a) * rr * th,
                             "," if k % 2 else ".", col)
+        elif z.kind == "hades":
+            # M29.5: Hades' darkness trailing Death (it pulls you in).
+            col = palette.HADES_ZONE[0 if z.age < z.life * 0.7 else 1]
+            for k in range(8):
+                a = k * math.tau / 8 - z.age * 1.2
+                for rr in (0.4, 0.85):
+                    batch.put_c(x + math.cos(a) * z.radius * rr * tw,
+                                y + math.sin(a) * z.radius * rr * th, "%" if rr < 0.5 else ":", col)
+        elif z.kind == "blood_fire":
+            # M29.5: War's burning river of blood.
+            for k in range(3):
+                a = k * math.tau / 3 + z.age * 2.0
+                col = palette.BLOOD_FIRE[(int(z.age * 8) + k) % 2]
+                batch.put_c(x + math.cos(a) * z.radius * 0.4 * tw,
+                            y + math.sin(a) * z.radius * 0.4 * th, "^" if k % 2 else "*", col)
         elif z.kind == "incense":
             # M29.3: a censer's harmless haze, drifting up and thinning.
             col = palette.INCENSE[0 if z.age < z.life * 0.5 else 1]

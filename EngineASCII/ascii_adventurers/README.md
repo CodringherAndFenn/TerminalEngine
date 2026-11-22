@@ -843,7 +843,15 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   Serene Cavalry waits -- four white riders on one health bar, always
   riding: formation charges along lanes of light, light lances that cage
   you, the hymn that shields and heals them, the four winds; carousels,
-  hoof rings, halo rain, tramples. (Its second form comes in M29.5.)
+  hoof rings, halo rain, tramples.
+
+- **The Four Horsemen, M29.5** (`design/OCEAN.md` 12): beaten, the cavalry
+  unveils into Conquest, War, Famine and Death, each with its own health
+  and kit -- crowning arrows (half damage until you roll), banners of
+  burning ground, War's duel ring, Famine's scales and hunger, falling
+  weights, Hades' darkness, the quarters of the earth, the reaping scythe,
+  the dead rising. When one falls, the others take its power. (Their
+  relics are still to be drafted.)
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

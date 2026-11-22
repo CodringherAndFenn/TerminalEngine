@@ -187,5 +187,8 @@ class Projectile:
         self.refracted = 0
         self.path: list | None = None
         self.bird = None
+        # M29.5: called with (victim, owner) when it hits someone (Conquest's
+        # crowning arrows).
+        self.on_hit = None
         self.target: tuple[float, float] | None = (
             (x + self.dir_x * spec.max_range, y + self.dir_y * spec.max_range) if spec.lob else None)
