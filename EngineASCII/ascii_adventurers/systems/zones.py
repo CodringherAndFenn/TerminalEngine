@@ -46,6 +46,7 @@ class Zone:
     restore: tuple | None = None      # P11: (tx, ty, tile) put back on the world when it ends
     root: float = 0.0                 # P11: s anyone in it at its end is rooted (a hag's curse)
     heal: float = 0.0                 # P12: x max HP healed each tick, enemies only (pollen)
+    tempt: float = 0.0                # M30.2: temptation each tick to heroes in it (wine)
     # M28.2f: a Witch's Flask pool (Cauldron merges them); it grows `grow`
     # x its `base` radius over its life (Bubbling); wet ground (Downpour).
     flask: bool = False
@@ -114,6 +115,9 @@ def update_zones(zones: list[Zone], actors, effects: list[Effect], dt: float,
                 inflict(a, z.inflicts, z.source, z.stacks)
             if z.slow and hasattr(a, "slowed"):
                 a.slowed(z.slow, z.every * 1.5)
+            if z.tempt and getattr(a, "faction", "") == "player":
+                from .temptation import add
+                add(a, z.tempt)                       # (M30.2: a drunkard's wine puddle)
     for z in zones:
         if z.age < z.life:
             continue

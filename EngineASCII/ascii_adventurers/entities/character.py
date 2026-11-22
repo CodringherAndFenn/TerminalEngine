@@ -331,6 +331,12 @@ class Character(Actor):
         # M25.1: seconds left shrunk by Nettle's dust (faster, half damage,
         # knocked about; a growcap grows you back sooner).
         self.shrunk = 0.0
+        # M30.2: Pandemonium's temptation (0..TEMPT[0]) and seconds left
+        # entranced (drifting to a lure, no attacks; a roll snaps you out);
+        # when this hero last hit something (fighting drains temptation).
+        self.temptation = 0.0
+        self.entranced = 0.0
+        self.struck_at = -99.0
         self.water_walk = False           # M27: Adventurer's Glory -- water is ground
         self.spiral = 0                   # Spiral: how far round its extra shot has turned
         # M28.3f, the feet's legendary tricks: when a hit last readied a

@@ -174,6 +174,8 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
     before = victim.hp
     dealt = victim.take_damage(amount, source, angle)
     _number(effects, victim, dealt, "crit" if crit else "")
+    if dealt > 0:
+        source.struck_at = getattr(source, "time", 0.0)   # (M30.2: fighting drains temptation)
     if crit and dealt > before > 0 and not victim.alive and stats.has("overflow+L"):
         combos.append(("spill", victim, source, dealt - before))   # Brimful Ring (L)
     if dealt > 0 and stats.point_blank:

@@ -58,6 +58,15 @@ DURATIONS = {
     "feathers": 0.6,        # a serene one dying: a puff of feathers
     "gore": 0.5,            # an unveiled one dying: a burst of blood
     "quarter_wave": 0.5,    # M29.5: a quarter of the earth struck (angle: which quarter)
+    # M30.2: Pandemonium's revellers (size: about their radius; a ring: its reach)
+    "frenzy": 0.5,          # a reveller turning: a burst of wine and gold
+    "spill": 0.5,           # a reveller dying: wine and feast spilling
+    "mask_swap": 0.35,      # a masked dancer flashing from one place to another
+    # Rings going out at their speed (ai/pandemonium.Reveller.wave): they last
+    # reach / speed, so the ring drawn is where the hit is.
+    "belly_slam": config.GLUTTON[1] / config.GLUTTON[2],
+    "beat": config.BEAT[1] / config.BEAT[2],
+    "wine_wave": config.TOAST[5] / config.TOAST[6],
 }
 
 

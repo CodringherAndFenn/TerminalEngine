@@ -235,8 +235,11 @@ class TilesTest(unittest.TestCase):
         self.assertIs(tiles.GILDED_STATUE.becomes, tiles.COINS)
         self.assertIs(tiles.COIN_HEAP.becomes, tiles.COINS)
 
-    def test_no_enemies_yet(self):
-        self.assertEqual(config.BIOME_ENEMY_DENSITY.get("pandemonium", 0.0), 0.0)   # (M30.2)
+    def test_its_people_live_at_their_homes(self):
+        # (M30.2: revellers round the tables and bandstands, none rolled at random)
+        self.assertEqual(config.BIOME_ENEMY_DENSITY.get("pandemonium", 0.0), 0.0)
+        from ascii_adventurers.ai.pandemonium import residents
+        self.assertTrue(residents(self.w.layout, self.z))
 
 
 class MapTest(unittest.TestCase):

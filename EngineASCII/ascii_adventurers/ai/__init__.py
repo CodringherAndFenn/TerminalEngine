@@ -71,6 +71,8 @@ from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 from .mimic import Mimic
 from .cavalry import Cavalry
 from .horsemen import ConquestBanner, Horseman, PaleShade
+from .pandemonium import (BandDrummer, Dancer, Drunkard, Glutton, MaskedDancer, Piper,
+                          Ravenous, Toastmaster)
 from .paradise import (BowlBearer, CenserBearer, Cherub, Chorister, Dove, Halo, Lamb,
                        Leviathan, Locust, Martyr, Ophan, Seraph, Trumpeter, Watcher,
                        WeepingSaint, Behemoth, LightPillar)
@@ -237,6 +239,16 @@ KINDS = {
     "death": Horseman,
     "conquest_banner": ConquestBanner,
     "pale_shade": PaleShade,
+    # M30.2: Pandemonium's revellers (in a trance, frenzying as a group:
+    # ai/pandemonium.Reveller)
+    "glutton": Glutton,
+    "drunkard": Drunkard,
+    "toastmaster": Toastmaster,
+    "ravenous": Ravenous,
+    "dancer": Dancer,
+    "masked_dancer": MaskedDancer,
+    "band_drummer": BandDrummer,
+    "piper": Piper,
 }
 
 

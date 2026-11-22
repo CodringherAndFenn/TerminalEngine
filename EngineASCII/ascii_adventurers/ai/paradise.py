@@ -297,7 +297,7 @@ class Angel(PlainsCreature):
             if self.hp >= self.max_hp * low or self.font_wait > 0 or self.espec.speed <= 0 \
                     or not self.drinks:
                 return False
-            self.font = nearest_font(ctx.world, self.x, self.y, reach)
+            self.font = self.find_font(ctx.world, reach)
             self.font_time = 0.0
             if self.font is None:
                 self.font_wait = 2.0
@@ -319,6 +319,11 @@ class Angel(PlainsCreature):
         if not wounded(self):
             self.hp = min(float(self.max_hp), self.hp + self.max_hp * rate * dt)
         return True
+
+    def find_font(self, world, reach: float) -> tuple[float, float] | None:
+        """Where it goes to drink: the nearest blood font within `reach`
+        (Pandemonium's revellers drink at its wine fountains instead)."""
+        return nearest_font(world, self.x, self.y, reach)
 
     def _bleed(self, ctx: AIContext) -> None:
         every, chance, hit_chance, _ = config.STAIN

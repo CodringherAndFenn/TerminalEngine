@@ -132,15 +132,16 @@ class Spawner:
 
     def _residents_in(self, cx: int, cy: int) -> list:
         """A zone's residents in this chunk (M29.3: Paradise's choristers at
-        their choir rings, leviathans in the river), rostered like the rest:
+        their choir rings, leviathans in the river; M30.2: Pandemonium's
+        revellers round its tables and bandstands), rostered like the rest:
         ids (cx, cy, RESIDENT_ID + j)."""
         if self._residents is None:
-            from ..ai.paradise import residents
+            from ..ai import pandemonium, paradise
             self._residents = {}
             layout = getattr(self.world, "layout", None)
             n = config.CHUNK_SIZE
             for z in getattr(layout, "zones", ()):
-                for key, x, y in residents(layout, z):
+                for key, x, y in paradise.residents(layout, z) + pandemonium.residents(layout, z):
                     self._residents.setdefault((math.floor(x) // n, math.floor(y) // n),
                                                []).append((key, x, y))
         return [((cx, cy, RESIDENT_ID + j), key, x, y)

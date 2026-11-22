@@ -34,8 +34,8 @@ def draw_paradise_tells(batch, camera, e) -> None:
         from .horsemen import draw_banner
         draw_banner(batch, camera, e)
         return
-    if not isinstance(e, Angel):
-        return
+    if not isinstance(e, Angel) or getattr(e, "revel", False):
+        return                       # (M30.2: Pandemonium's revellers are render/pandemonium's)
     x, y = camera.world_to_px(e.x, e.y)
     if isinstance(e, Watcher):
         if e.beam is not None:

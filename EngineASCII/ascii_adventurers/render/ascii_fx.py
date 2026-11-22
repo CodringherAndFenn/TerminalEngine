@@ -332,6 +332,33 @@ def _frame(e: Effect) -> list:
         return [(math.cos(q * math.tau / 4 + (k + 0.5) * (math.tau / 4) / 9) * r * config.TILE_PX_W,
                  math.sin(q * math.tau / 4 + (k + 0.5) * (math.tau / 4) / 9) * r * config.TILE_PX_H,
                  "*" if k % 2 else "x", col) for k in range(9)]
+    if e.kind in ("belly_slam", "beat", "wine_wave"):   # (M30.2: rings going out, at their speed)
+        r = e.size * p
+        col = {"belly_slam": palette.REVEL_SLAM, "beat": palette.REVEL_BEAT,
+               "wine_wave": palette.REVEL_WINE}[e.kind][min(1, int(p * 2))]
+        glyph = {"belly_slam": "o", "beat": "=", "wine_wave": "*"}[e.kind]
+        n = max(12, int(r * 5))
+        return [(math.cos(k * math.tau / n) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / n) * r * config.TILE_PX_H, glyph, col) for k in range(n)]
+    if e.kind == "frenzy":                       # (M30.2: a reveller turning)
+        r = (e.size or 1.5) * (0.3 + 0.9 * p)
+        col = palette.REVEL_FRENZY[min(2, int(p * 3))]
+        return [(math.cos(k * math.tau / 12 - p) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / 12 - p) * r * config.TILE_PX_H,
+                 "!" if k % 3 == 0 else "*", col) for k in range(12)]
+    if e.kind == "spill":                        # (M30.2: a reveller dying: wine and feast)
+        f = min(2, int(p * 3))
+        r = (e.size or 1.0) * (0.5 + 1.0 * p)
+        return [(0, 0, "%" if f == 0 else ",", palette.REVEL_SPILL[f])] + [
+            (math.cos(k * math.tau / 10) * r * config.TILE_PX_W,
+             math.sin(k * math.tau / 10) * r * config.TILE_PX_H,
+             "o" if (k + f) % 3 == 0 else ",", palette.REVEL_SPILL[(k + f) % 3]) for k in range(10)]
+    if e.kind == "mask_swap":                    # (M30.2: a flash where a masked dancer was)
+        r = (e.size or 1.0) * (1.0 - 0.7 * p)
+        col = palette.REVEL_MASK[0 if p < 0.5 else 1]
+        return [(0, 0, "@", col)] + [(math.cos(k * math.tau / 8) * r * config.TILE_PX_W,
+                                      math.sin(k * math.tau / 8) * r * config.TILE_PX_H, "+", col)
+                                     for k in range(8)]
     if e.kind == "unveil":                       # (M29.2: a ring of eyes bursting out)
         r = (e.size or 1.5) * (0.3 + 0.9 * p)
         col = palette.UNVEIL[min(2, int(p * 3))]

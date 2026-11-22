@@ -1179,3 +1179,13 @@ MAP_TILE_BIOME.update({"obsidian": "pandemonium", "deep obsidian": "pandemonium"
                        "coins": "pandemonium", "gilded floor": "pandemonium",
                        "hall floor": "pandemonium", "spilled feast": "pandemonium",
                        "ballroom floor": "pandemonium", "vine stakes": "pandemonium"})
+# M30.2: Pandemonium's revellers (effects, tells, the entranced hero).
+REVEL_FRENZY = ((255, 214, 90), (226, 40, 70), (130, 20, 54))    # a group turning
+REVEL_SPILL = ((176, 30, 74), (236, 204, 124), (110, 16, 44))    # a reveller dying
+REVEL_SLAM = ((240, 196, 120), (176, 126, 70))                   # a glutton's belly-slam
+REVEL_BEAT = ((255, 214, 90), (204, 150, 60))                    # a drumbeat's ring
+REVEL_WINE = ((214, 56, 110), (136, 26, 64))                     # a wave of wine, a puddle
+REVEL_MASK = ((255, 255, 255), (206, 176, 226))                  # a masked dancer's flash
+REVEL_SONG = ((255, 196, 228), (206, 120, 176))                  # the piper's song
+REVEL_BOTTLE = (96, 160, 86)                                     # a bottle in the air
+REVEL_TEMPT = ((255, 140, 196), (255, 214, 90))                  # an entranced hero's sparkles

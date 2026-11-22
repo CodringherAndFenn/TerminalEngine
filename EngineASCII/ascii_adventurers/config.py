@@ -1070,6 +1070,54 @@ ENEMIES = {
         max_hp=300, sight=40, biomes=(), speed=8.5,
         damage=14, attack_radius=1.8, windup=0.35, cooldown=1.0, size_px=34, xp=0,
     ),
+    # --- M30.2: Pandemonium's revellers (design/OCEAN.md 14-15; ai/pandemonium.py) -------
+    # They live where they feast, drink, dance and play: residents round the
+    # banquet tables and bandstands (ai/pandemonium.residents), never rolled
+    # at random. In the trance they ignore you (moving at x REVEL[4]); a
+    # group frenzies as one. `speed` and `damage` are frenzied. On top of
+    # these: ZONE_TOUGH.
+    # Feasters and drinkers.
+    "glutton": EnemySpec(
+        name="glutton", kind="glutton", sprite="glutton", scale=4,
+        max_hp=150, sight=16, biomes=(), speed=2.4,
+        damage=18, attack_radius=1.4, windup=0.6, cooldown=3.0, size_px=30, xp=14,
+    ),
+    "drunkard": EnemySpec(
+        name="drunkard", kind="drunkard", sprite="drunkard",
+        max_hp=70, sight=16, biomes=(), speed=3.6,
+        damage=12, windup=0.4, cooldown=2.2, size_px=22, xp=10,
+    ),
+    "toastmaster": EnemySpec(
+        name="toastmaster", kind="toastmaster", sprite="toastmaster", scale=4, elite=True,
+        max_hp=300, sight=18, biomes=(), speed=3.0,
+        damage=16, windup=0.8, cooldown=5.0, size_px=32, xp=35,
+    ),
+    "ravenous": EnemySpec(
+        name="the Ravenous", kind="ravenous", sprite="ravenous",
+        max_hp=45, sight=16, biomes=(), speed=7.2,
+        damage=5, attack_radius=0.8, windup=0.0, cooldown=0.6, size_px=20, xp=8,
+    ),
+    # Dancers and musicians.
+    "dancer": EnemySpec(
+        name="dancer", kind="dancer", sprite="dancer",
+        max_hp=60, sight=16, biomes=(), speed=6.5,
+        damage=11, attack_radius=1.0, windup=0.35, cooldown=0.6, size_px=22, xp=10,
+    ),
+    "masked_dancer": EnemySpec(
+        name="masked dancer", kind="masked_dancer", sprite="masked_dancer",
+        max_hp=65, sight=16, biomes=(), speed=5.0,
+        damage=16, attack_radius=1.2, windup=0.3, cooldown=3.5, size_px=22, xp=12,
+    ),
+    "band_drummer": EnemySpec(
+        name="band drummer", kind="band_drummer", sprite="band_drummer",
+        max_hp=90, sight=16, biomes=(), speed=0.0,
+        damage=14, windup=0.0, cooldown=1.25, size_px=24, xp=10,
+    ),
+    "piper": EnemySpec(
+        name="piper", kind="piper", sprite="piper", scale=4, elite=True,
+        max_hp=280, sight=18, biomes=(), speed=2.6,
+        damage=0, windup=0.6, cooldown=6.0, size_px=30, xp=35,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -1406,7 +1454,77 @@ ZONE_TOUGH = (2.5, 1.5, 4 / 3, 2.0)
 # The landmarks on a zone that keep enemies off (LANDMARK_QUIET): the Gate
 # where you land, the giver's stairway and the boss's court. The fonts,
 # statues, choir rings and the cathedral are the angels' own.
-ZONE_QUIET_MARKS = ("paradise_gate", "paradise_stairway", "paradise_court")
+ZONE_QUIET_MARKS = ("paradise_gate", "paradise_stairway", "paradise_court",
+                    "pandemonium_pier", "pandemonium_hall")
+# --- M30.2: Pandemonium's trance (design/OCEAN.md 14; ai/pandemonium.py) ---------------
+# The revellers live in groups (a table's, a bandstand's, the endless
+# banquet's, the hall of mirrors'). A group frenzies as one -- the user's
+# one-way frenzy -- once a hero comes within REVEL[0] tiles of any of them
+# (x REVEL[1] where the music plays: a bandstand's group, and any within
+# REVEL[2] tiles of a bandstand) or anyone hits one; a bandstand group's
+# frenzy carries to every group within REVEL[2] tiles. The turn is a tell of
+# REVEL[3] s (they freeze, heads snapping round); in the trance they move at
+# x REVEL[4]. (Numbers mine, from OCEAN.md 14.) Frenzied, under FONT[0] of
+# their max HP they go to drink at the wine fountains (FONT, like
+# Paradise's blood fonts).
+REVEL = (6.0, 0.5, 25.0, 0.6, 0.35)
+# Who lives where (mine): REVEL_TABLE[0]-[1] feasters and drinkers at each
+# banquet table (picked by REVEL_FEAST's weights), and a toastmaster at
+# every REVEL_TABLE[2]-th table; at each bandstand its piper, REVEL_BAND[0]
+# drummers, REVEL_BAND[1] pairs of dancers dancing round it and
+# REVEL_BAND[2] masked dancers; REVEL_BANQUET[0] feasters along each side of
+# the endless banquet's table and REVEL_BANQUET[1] toastmasters; in the hall
+# of mirrors REVEL_MIRRORS[0] pairs of dancers and REVEL_MIRRORS[1] masked.
+REVEL_TABLE = (4, 6, 3)
+REVEL_FEAST = {"glutton": 2, "drunkard": 3, "ravenous": 2}
+REVEL_BAND = (2, 2, 1)
+REVEL_BANQUET = (7, 1)
+REVEL_MIRRORS = (3, 2)
+# TEMPTATION (user: the trance reaches you too). Within TEMPT[1] tiles of a
+# banquet table, a bandstand or a wine fountain the meter (0..TEMPT[0])
+# fills -- faster the closer: TEMPT[2] s from empty right next to one,
+# nothing at TEMPT[1] -- and once clear of them it drains in TEMPT[3] s (x
+# TEMPT[4] as fast while you're hitting something). Full, you're entranced
+# for TEMPT[5] s: you drift toward the nearest lure at x TEMPT[6] of your
+# speed and can't attack; a roll snaps you out. (Numbers mine.)
+TEMPT = (100.0, 8.0, 6.0, 3.0, 2.0, 2.0, 0.55)
+# The glutton: belly-slams when a hero is within GLUTTON[0] tiles (a ring
+# GLUTTON[1] tiles out at GLUTTON[2] tiles/s); under GLUTTON[3] of its max
+# HP, passing within GLUTTON[4] tiles of a banquet table, it stops GLUTTON[5]
+# s to gorge, healing GLUTTON[6] x max HP; then not again for GLUTTON[7] s.
+GLUTTON = (3.2, 5.5, 10.0, 0.85, 2.5, 1.2, 0.12, 6.0)
+# The drunkard: weaves up to DRUNKARD[0] tiles to either side every
+# DRUNKARD[1] s, keeping DRUNKARD[2]-[3] tiles away; its bottles fly
+# DRUNKARD[4] s and shatter into a wine puddle DRUNKARD[5] tiles across that
+# lasts DRUNKARD[6] s: it slows to x DRUNKARD[7] and fills DRUNKARD[8]
+# temptation a second.
+DRUNKARD = (1.3, 1.6, 4.0, 8.0, 0.9, 1.4, 6.0, 0.6, 12.0)
+# The toastmaster: keeps TOAST[0]-[1] tiles away; a toast speeds every
+# frenzied reveller within TOAST[2] tiles x TOAST[3] for TOAST[4] s, and a
+# wave of wine rolls out TOAST[5] tiles at TOAST[6] tiles/s, adding TOAST[7]
+# temptation to whoever it hits.
+TOAST = (6.0, 9.0, 10.0, 1.5, 3.0, 7.0, 9.0, 18.0)
+# The Ravenous: latched on, it bites every RAVENOUS[0] s and slows you to x
+# RAVENOUS[1]; at most RAVENOUS[2] on a hero; a roll throws them off
+# RAVENOUS[3] tiles, dazed RAVENOUS[4] s.
+RAVENOUS = (0.6, 0.65, 3, 2.5, 1.2)
+# The (revel) dancer's steps (they repeat): circling you DANCE_STEPS[0]
+# tiles out for DANCE_STEPS[1] s one way, a dash through you (its line shows
+# DANCE_STEPS[2] s, then DANCE_STEPS[3] s at DANCE_STEPS[4] tiles/s),
+# circling back the other way, a dash.
+DANCE_STEPS = (3.2, 1.1, 0.4, 0.45, 12.0)
+# The masked dancer: swaps places with another dancer within MASKED[0]
+# tiles, then a stab (its line shows MASKED[1] s) MASKED[2] tiles long at
+# MASKED[3] tiles/s.
+MASKED = (14.0, 0.35, 3.0, 14.0)
+# A band drummer's beat: every BEAT[0] s a ring BEAT[1] tiles out at BEAT[2]
+# tiles/s (roll through it on the beat).
+BEAT = (1.25, 8.0, 12.0)
+# The piper: keeps PIPER[0]-[1] tiles away; its song (a PIPER[2]-degree
+# cone PIPER[3] tiles long) plays PIPER[4] s, rests PIPER[5] s, and fills
+# PIPER[6] temptation a second; every PIPER[7] s it plays the frenzy on to
+# the nearest group still in the trance within PIPER[8] tiles.
+PIPER = (6.0, 10.0, 60.0, 9.0, 2.5, 2.0, 30.0, 6.0, 25.0)
 CHERUB = (7.0, 2.2, 3, 0.25, 14.0, 4.0, 4.0, 0.5, 5.0, 60.0, 1.5)
                              # serene: keeps this far, plinks every this many s a run of this
                              # many notes, s apart; unveiled: lunges at this speed for up to
@@ -4093,6 +4211,15 @@ BESTIARY = {
     "famine": (5000, "Keep it hurt: its scales take from whoever is healthier. No healing near it."),
     "death": (5000, "Hades follows it: stay out of the dark. Whatever dies in the court rises once."),
     "pale_shade": (1000, "Something slain in the Horsemen's court, risen for a few seconds."),
+    # M30.2: Pandemonium's revellers (a group frenzies as one)
+    "glutton": (2500, "Feasts at the tables. Frenzied, it belly-slams a ring; hurt, it gorges to heal."),
+    "drunkard": (2000, "Weaves where you can't predict it. Its bottles leave wine that slows and tempts."),
+    "toastmaster": (4000, "Its toasts speed up every reveller near it and send a wave of wine. Kill it first."),
+    "ravenous": (1500, "Never full. It latches on and bites; roll to throw it off."),
+    "dancer": (2000, "Its steps repeat: round you, a dash through, round the other way, a dash."),
+    "masked_dancer": (2000, "Swaps places with another dancer in a flash, then stabs."),
+    "band_drummer": (2000, "Never leaves its drums. Every beat sends a ring: roll through it."),
+    "piper": (4000, "Its song tempts you in a cone, and it carries the frenzy to the next group."),
 }
 
 # Achievements (they unlock "A:" cards).

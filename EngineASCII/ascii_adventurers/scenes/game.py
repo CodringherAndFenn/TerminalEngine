@@ -93,6 +93,7 @@ from ..render.magus import draw_seals
 from ..render.mosquito import draw_braziers
 from ..render.characters import draw_body, draw_chest_marks, draw_feet_marks
 from ..render.gear_looks import look_of
+from ..render.pandemonium import draw_entranced
 from ..render.relics import draw_relics
 from ..render.enemies_sprite import draw_enemy
 from ..render.fallen import draw_groves
@@ -103,7 +104,7 @@ from ..render.spell_fx import (draw_gems, draw_ghost_sight, draw_overcast, draw_
 from ..render.sprites import SpriteBank
 from ..render.terrain import TerrainRenderer
 from ..ai.plains import drum_haste, tick_drum
-from ..systems import combat, mount, relics, roll
+from ..systems import combat, mount, relics, roll, temptation
 from ..systems.chests import Chests
 from ..systems.quests import Banner, Quests, free_spot
 from ..systems.spawner import Spawner
@@ -666,6 +667,7 @@ class GameScene(Scene):
             self.rules.tick(p, dt)
             if p.regen > 0 and not self.pacts["famine"] and p.hero.irradiated <= 0:
                 p.hero.heal(p.regen * dt)
+            temptation.step(self, p, inp, dt)       # (M30.2: before the roll: a roll snaps you out)
             mount.step(self, p, inp, dt)
             roll.step(self, p, inp, dt)
             rolling, x0, y0 = p.hero.rolling, p.hero.x, p.hero.y
@@ -686,6 +688,7 @@ class GameScene(Scene):
             frozen = p.hero.encased > 0            # (M24.2: encased in ice: no attacks)
             frozen = frozen or bool(p.hero.mount)  # (P6: nobody attacks from the saddle)
             frozen = frozen or p.hero.petrified > 0  # (P9: stone)
+            frozen = frozen or p.hero.entranced > 0  # (M30.2: entranced at a feast)
             p.hero.trigger = inp.fire                # (Hoverhead Axe +6: Hold it there)
             if weapon.update(self.rules.weapon_dt(p, dt),
                              (inp.fire or weapon.spec.auto) and not frozen):
@@ -1451,6 +1454,8 @@ class GameScene(Scene):
             return ("RAD", hero.rads / config.RADS_FULL, hero.irradiated > 0)
         if hero.chill > 0 or hero.encased > 0:
             return ("CHL", hero.chill / config.CHILL_FULL, hero.encased > 0)
+        if hero.temptation > 0 or hero.entranced > 0:   # (M30.2: Pandemonium's temptation)
+            return ("TMP", hero.temptation / config.TEMPT[0], hero.entranced > 0)
         if hero.shrunk > 0:                   # (M25.1: tiny, until a growcap or this runs out)
             return ("TNY", hero.shrunk / config.SHRINK[0], True)
         wait = mount.meter(hero)              # (P6: the whistle, or the wait after a fall)
@@ -1494,6 +1499,7 @@ class GameScene(Scene):
             if p.alive and x0 - margin <= h.x <= x1 + margin and y0 - margin <= h.y <= y1 + margin \
                     and not h.bats:                    # (M28.5b: a Bat Form roll is bats)
                 draw_body(self.sprites, cam, h)
+        draw_entranced(text, cam, [p.hero for p in self.players if p.alive])   # (M30.2)
         draw_relics(text, self.sprites, cam, [p for p in self.players if p.alive], self.enemies,
                     self.steps)
         draw_bear_riders(self.sprites, cam, self.quests, self.players)

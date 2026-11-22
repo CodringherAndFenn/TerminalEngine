@@ -248,6 +248,17 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 batch.put_c(x + math.cos(a) * z.radius * tw * 0.5,
                             y + math.sin(a) * z.radius * th * 0.3 - z.age * 10,
                             "o" if k % 2 else ".", col)
+        elif z.kind == "wine_puddle":
+            # M30.2: a drunkard's shattered bottle: a puddle of wine (slows,
+            # tempts), glass glinting in it.
+            col = palette.REVEL_WINE[0 if z.age < z.life * 0.75 else 1]
+            for k in range(7):
+                a = k * math.tau / 7 + 0.5
+                for rr in (0.45, 0.9):
+                    batch.put_c(x + math.cos(a) * z.radius * rr * tw,
+                                y + math.sin(a) * z.radius * rr * th,
+                                "o" if (k + int(rr * 2)) % 3 == 0 else ".", col)
+            batch.put_c(x, y, "'", palette.REVEL_BOTTLE)
         elif z.kind == "blood_pool":
             # M29.3: a poured bowl or a fallen tear: a pool of blood, spreading.
             col = palette.BLOOD_POOL[0 if z.age < z.life * 0.75 else 1]

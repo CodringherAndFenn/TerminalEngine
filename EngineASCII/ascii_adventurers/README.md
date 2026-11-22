@@ -865,6 +865,18 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   bandstands, banquet tables, wine fountains and gilded statues. No one
   lives there yet (M30.2). Dev mode: F3 jumps to each zone in turn.
 
+- **Pandemonium's revellers, M30.2** (`design/OCEAN.md` 20): the first
+  eight of its sixteen -- glutton, drunkard, toastmaster (elite), the
+  Ravenous, dancer, masked dancer, band drummer, piper (elite). They live in
+  groups round the banquet tables and bandstands, lost in a trance: come
+  within 6 tiles of one (3 where the music plays) or hit one, and the whole
+  group turns on you, for good; a bandstand's frenzy spreads to the groups
+  round it. Temptation (the TMP meter) fills near tables, bandstands and
+  wine fountains; full, you're entranced for 2 s, drifting toward the feast
+  with no attacks -- roll to snap out. Belly-slams, drumbeats and waves of
+  wine go out as rings (roll through them); the Ravenous latch on until you
+  roll; the dancers' steps repeat; the piper's song tempts in a cone.
+
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

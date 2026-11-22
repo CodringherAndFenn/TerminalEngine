@@ -24,8 +24,8 @@ from ..ai.plains import Bull, Drummer, Hawk, Lancer, PlainsCreature
 from .ascii_fx import _Batch, draw_hp_bar
 from .characters import draw_character
 from .mounts import draw_rider, gallop_frame
-from . import (desert_art, forest_art, mushroom_art, paradise_art, plains_art,  # noqa: F401
-               ruins_art, swamp_art)                     # (they add the pictures to ART)
+from . import (desert_art, forest_art, mushroom_art, pandemonium_art, paradise_art,  # noqa: F401
+               plains_art, ruins_art, swamp_art)         # (they add the pictures to ART)
 
 
 def _frame(e) -> int:
@@ -79,6 +79,7 @@ def draw_plains_tells(text, camera, e) -> None:
     from .swamp import draw_swamp_tells                   # (P11: the swamp's)
     from .mushroom import draw_mushroom_tells             # (P12: the mushroom biome's)
     from .paradise import draw_paradise_tells             # (M29.2: Paradise's)
+    from .pandemonium import draw_pandemonium_tells       # (M30.2: Pandemonium's)
     from .forest import draw_forest_tells                 # (P8: the haunted forest's)
     draw_forest_tells(batch, camera, e)
     draw_desert_tells(batch, camera, e)
@@ -86,6 +87,7 @@ def draw_plains_tells(text, camera, e) -> None:
     draw_swamp_tells(batch, camera, e)
     draw_mushroom_tells(batch, camera, e)
     draw_paradise_tells(batch, camera, e)
+    draw_pandemonium_tells(batch, camera, e)
     batch.flush()
 
 
