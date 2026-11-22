@@ -251,6 +251,15 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
         return
     if isinstance(e, MycoPart):                # (drawn with its Mycelium)
         return
+    from ..ai.cavalry import Cavalry, Rider
+    if isinstance(e, Cavalry):                 # M29.4: its tells (its riders draw themselves)
+        from .cavalry import draw_cavalry
+        draw_cavalry(text, bank, camera, e)
+        return
+    if isinstance(e, Rider):
+        from .cavalry import draw_cavalry_rider
+        draw_cavalry_rider(text, bank, camera, e)
+        return
     if is_plains(e):                           # P7: the plains' new enemies
         draw_plains(text, bank, camera, e)
         return

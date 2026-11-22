@@ -32,7 +32,9 @@ ai -- enemy behaviour.
   paradise.py   Paradise's enemies, all unveiling (serene -> horror): cherub,
                 seraph, ophan, watcher, the Lamb, doves, locusts, halo (M29.2);
                 trumpeter, censer-bearer, bowl-bearer, chorister, weeping
-                saint, martyr, behemoth, leviathan (M29.3)
+                saint, martyr, behemoth, leviathan (M29.3); light pillars
+  cavalry.py    Paradise's boss, form 1 (M29.4): the Serene Cavalry, four
+                riders on one health bar
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -65,9 +67,10 @@ from .plains import (Bull, Chaser, Crow, Drummer, Hawk, Hound, Lancer, Molehill,
                      Scarecrow, Shieldbearer, StrawGolem)
 from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 from .mimic import Mimic
+from .cavalry import Cavalry
 from .paradise import (BowlBearer, CenserBearer, Cherub, Chorister, Dove, Halo, Lamb,
                        Leviathan, Locust, Martyr, Ophan, Seraph, Trumpeter, Watcher,
-                       WeepingSaint, Behemoth)
+                       WeepingSaint, Behemoth, LightPillar)
 
 KINDS = {
     "archer": Archer,
@@ -221,6 +224,9 @@ KINDS = {
     "martyr": Martyr,
     "behemoth": Behemoth,
     "leviathan": Leviathan,
+    # M29.4: Paradise's boss, form 1, and its lances' pillars
+    "cavalry": Cavalry,
+    "light_pillar": LightPillar,
 }
 
 

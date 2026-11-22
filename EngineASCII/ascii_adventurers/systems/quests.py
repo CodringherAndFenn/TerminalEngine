@@ -207,7 +207,8 @@ class Quests:
         """Ring biomes with a boss beaten (one per biome counts; not the
         plains boss)."""
         return len({s.biome for s in self.states.values()
-                    if s.stage == "cleared" and s.spec.kind != "finale"})
+                    if s.stage == "cleared" and s.spec.kind != "finale"
+                    and s.biome not in config.ZONE_PLACES})       # (an ocean zone's isn't one)
 
     @property
     def finale(self) -> QuestState | None:
@@ -238,6 +239,14 @@ class Quests:
                 return s
         return min(fights, key=lambda s: math.hypot(s.lair.cx - hero.x, s.lair.cy - hero.y),
                    default=None)
+
+    def broken_seals(self, biome: str) -> int:
+        """How many of a zone's seals are broken (M29.4: the sky reddens a
+        shade for each): all of them once its boss is awake."""
+        for s in self.states.values():
+            if s.biome == biome and s.spec.kind == "seals":
+                return s.found if s.stage == "hunt" else s.spec.count
+        return 0
 
     def npc_near(self, hero) -> Npc | None:
         best, best_d = None, config.TALK_RADIUS
@@ -301,13 +310,17 @@ class Quests:
         and taken quests' are labelled, so the map stays readable."""
         out = []
         dev = self.dev_quest() if every_target else None
+        found = getattr(self.world, "found_zones", ())
         for s in self.states.values():
+            if s.biome in config.ZONE_PLACES and s.biome not in found:
+                continue                        # (M29.4: an ocean zone's, until it's found)
             giver_done = s.stage == "cleared"
             if s.npc is not None:
                 out.append((s.npc.x, s.npc.y, "giver_done" if giver_done else f"giver_{s.biome}",
                             s.spec.camp_name or s.spec.giver.upper()))
             if s.stage == "hunt" and (s.taken or every_target):
                 label = {"light": "BRAZIER", "collect": "CARGO", "survive": "SEAL",
+                         "seals": "SEAL",
                          "escort": "BEACON", "rescue": "CAPTIVE",
                          "fetch": "PIECE", "cleanse": "SHRINE",
                          "destroy": "CACHE", "fell": "MARKED",
@@ -362,7 +375,7 @@ class Quests:
                 self._tend_braziers(s, players, dt)
             elif s.stage == "hunt" and s.spec.kind == "collect":
                 self._collect(s, players)
-            elif s.stage == "hunt" and s.spec.kind in ("survive", "cleanse", "sever"):
+            elif s.stage == "hunt" and s.spec.kind in ("survive", "cleanse", "sever", "seals"):
                 self._hold_seals(s, players, dt)
             elif s.stage == "hunt" and s.spec.kind == "escort":
                 self._escort(s, players, dt)
@@ -421,6 +434,18 @@ class Quests:
         if s.spec.kind == "hunt":
             for i, (x, y) in enumerate(s.camp.spots):
                 sp.place((QUEST_SID, s.qid, i, 0), s.spec.target, x, y)
+        elif s.spec.kind == "seals":
+            # M29.4: serene angels standing guard round each of the seven seals.
+            n = config.SEVEN_SEAL_GUARDS
+            pick = config.SEVEN_SEAL_GUARD_ANGELS
+            for i, (x, y) in enumerate(s.camp.spots):
+                for k in range(n):
+                    a = (i * 1.3 + k * math.tau / n)
+                    r = config.SEVEN_SEAL_CLEARING + 2.0
+                    key = pick[hash_coords(getattr(self.world, "seed", 0) or 0, 0x5EA7, i, k)
+                               % len(pick)]
+                    sp.place((QUEST_SID, s.qid, i, k + 1), key,
+                             x + math.cos(a) * r, y + math.sin(a) * r * 0.7)
         elif s.spec.kind in ("collect", "fetch", "destroy"):
             n = config.CARGO_GUARDS
             for i, (x, y) in enumerate(s.camp.spots):
@@ -460,6 +485,8 @@ class Quests:
             s.stage = "awake"
             self.banner = Banner("SOMETHING STIRS...",
                                  f"{place_name(s.lair.name)} is marked on your map")
+            if s.lair.props.get("barred"):       # (M29.4: the summit court's bars open)
+                self._open_gate(s)
             self.scene._sounds.append("chime")
         elif s.taken:
             self.scene.effects.append(Effect(
@@ -624,10 +651,17 @@ class Quests:
             a = rng.uniform(0, math.tau)
             r = rng.uniform(lo, hi)
             ex, ey = free_spot(self.world, x + math.cos(a) * r, y + math.sin(a) * r, 11.0)
-            e = sp.wake(s.spec.target, ex, ey, None, random.Random(rng.random()))
+            key = s.spec.target
+            if s.spec.kind == "seals":            # (M29.4: angels, unveiling as they come)
+                key = rng.choice(config.SEVEN_SEAL_ANGELS)
+            e = sp.wake(key, ex, ey, None, random.Random(rng.random()))
             e.alert = True
             self.scene.enemies.append(e)
-            self.scene.effects.append(Effect("eruption", ex, ey))
+            if s.spec.kind == "seals" and hasattr(e, "unveil"):
+                e.unveil()
+                self.scene.effects.append(Effect("unveil", ex, ey, size=1.5))
+            else:
+                self.scene.effects.append(Effect("eruption", ex, ey))
 
     # --- Escort quests (M24.1) ----------------------------------------------------------
 
@@ -954,7 +988,9 @@ class Quests:
         self.scene.enemies.append(boss)
         # A swarm boss (M22) fights with many bodies: they join the enemies.
         self.scene.enemies.extend(getattr(boss, "parts", ()))
-        self.banner = Banner(boss.espec.name.upper(), "guardian of the " + s.biome)
+        self.banner = Banner(boss.espec.name.upper(),
+                             f"on the summit of {s.biome.capitalize()}"
+                             if s.biome in config.ZONE_PLACES else "guardian of the " + s.biome)
         self.scene.effects.append(Effect("explosion", x, y))
         self.scene._sounds.append("boulder")
         self._seal(s)
@@ -982,7 +1018,7 @@ class Quests:
             if any(abs(h.x - (tx + 0.5)) < 1.5 and abs(h.y - (ty + 0.5)) < 1.5 for h in heroes):
                 still.append((tx, ty))
                 continue
-            self.world.set_tile(tx, ty, tiles.THORN_GATE)
+            self.world.set_tile(tx, ty, s.lair.props.get("seal", tiles.THORN_GATE))
         s.pending = still
 
     def _unseal(self, s: QuestState) -> None:
@@ -1015,7 +1051,8 @@ class Quests:
         spec = config.BOSSES[s.spec.boss]
         scene = self.scene
         self.banner = Banner(f"{boss.espec.name.upper()} IS DEFEATED",
-                             f"guardians {self.guardians}/{config.GUARDIANS}" if first
+                             f"{s.biome.capitalize()} falls silent" if s.biome in config.ZONE_PLACES
+                             else f"guardians {self.guardians}/{config.GUARDIANS}" if first
                              else f"the {s.biome}'s guardian already fell: a bonus kill")
         scene._sounds.append("chime")
         guild = scene.app.guild
@@ -1134,7 +1171,7 @@ class Quests:
                 "survive": tiles.SEAL_BROKEN, "escort": tiles.BEACON,
                 "rescue": tiles.SLUSH, "fetch": tiles.CONCRETE,
                 "cleanse": tiles.SHRINE_CLEAN, "destroy": tiles.NUT_SPILL,
-                "fell": tiles.FELLED,
+                "fell": tiles.FELLED, "seals": tiles.SEVEN_SEAL_BROKEN,
                 "sever": SEVER_SPILL.get(s.spec.skin, tiles.NODE_SPILL_RED)}.get(s.spec.kind)
         if s.spec.kind == "fetch":
             s.bear = self.scene.me.index           # (dev: the bear's yours)
@@ -1142,12 +1179,14 @@ class Quests:
             for x, y in s.camp.spots:
                 self.world.set_tile(math.floor(x), math.floor(y), done)
         s.stage = "awake"
+        if s.lair.props.get("barred"):             # (M29.4: the summit court opens)
+            self._open_gate(s)
         sp = self.scene.spawner
         if sp is not None:
             for i in range(len(s.camp.spots)):
-                for k in range(config.CARGO_GUARDS + 1):
+                for k in range(max(config.CARGO_GUARDS, config.SEVEN_SEAL_GUARDS) + 1):
                     sid = (QUEST_SID, s.qid, i, k)
-                    if k and s.spec.kind not in ("collect", "fetch", "destroy", "fell"):
+                    if k and s.spec.kind not in ("collect", "fetch", "destroy", "fell", "seals"):
                         break
                     sp.dead.add(sid)
                     e = sp.awake.pop(sid, None)
@@ -1195,6 +1234,11 @@ def circle_rules(kind: str, skin: str = "") -> dict:
                 "wave": config.SEVER_WAVE, "size": config.SEVER_WAVE_SIZE,
                 "range": config.SEVER_WAVE_RANGE,
                 "done": SEVER_SPILL.get(skin, tiles.NODE_SPILL_RED), "toast": "SEVERED!"}
+    if kind == "seals":                            # (M29.4: Paradise's seven seals)
+        return {"time": config.SEVEN_SEAL_TIME, "heal": config.SEVEN_SEAL_HEAL,
+                "wave": config.SEVEN_SEAL_WAVE, "size": config.SEVEN_SEAL_WAVE_SIZE,
+                "range": config.SEVEN_SEAL_WAVE_RANGE, "done": tiles.SEVEN_SEAL_BROKEN,
+                "toast": "THE SEAL BREAKS!"}
     if kind == "cleanse":
         return {"time": config.CLEANSE_TIME, "heal": config.CLEANSE_HEAL,
                 "wave": config.CLEANSE_WAVE, "size": config.CLEANSE_WAVE_SIZE,
@@ -1211,6 +1255,8 @@ def circle_radius(kind: str, worn: float) -> float:
     [1] as it cleans."""
     if kind == "sever":
         return config.SEVER_RADIUS
+    if kind == "seals":
+        return config.SEVEN_SEAL_RADIUS
     if kind == "cleanse":
         r0, r1 = config.CLEANSE_RADIUS
         return r0 + (r1 - r0) * min(1.0, worn / config.CLEANSE_TIME)

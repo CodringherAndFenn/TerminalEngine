@@ -46,6 +46,9 @@ class TargetsTest(unittest.TestCase):
                 camp = next((m for m in lay.landmarks if m.quest == k and m.kind == "camp"), None)
                 if camp is None:
                     continue
+                if q.biome in config.ZONE_PLACES:
+                    self.assertEqual(len(camp.spots), q.count, (seed, k))   # (M29.4: 7 seals)
+                    continue
                 self.assertEqual(len(camp.spots), q.count * 4, (seed, k))
                 self.assertEqual(spot_count(q), q.count * 4)
                 for x, y in camp.spots:
@@ -72,6 +75,9 @@ class GiverPinTest(unittest.TestCase):
         pins = {(x, y): (k, label) for x, y, k, label in q.pins((s.hero.x, s.hero.y))}
         for st in q.states.values():
             if st.npc is None:                  # (M27: the plains boss has no giver)
+                continue
+            if st.biome in config.ZONE_PLACES:  # (M29.4: an ocean zone's, once it's found)
+                self.assertNotIn((st.npc.x, st.npc.y), pins)
                 continue
             kind, label = pins[(st.npc.x, st.npc.y)]
             self.assertEqual(kind, f"giver_{st.biome}")
@@ -168,7 +174,8 @@ class DevKeysTest(unittest.TestCase):
     def test_dev_big_map_pins_every_target(self):
         m, s = game()
         q = s.quests
-        n = sum(len(q.open_targets(st)) for st in q.states.values())
+        n = sum(len(q.open_targets(st)) for st in q.states.values()
+                if st.biome not in config.ZONE_PLACES)      # (M29.4: a zone's, once found)
         self.assertEqual([k for *_, k, _ in q.pins((s.hero.x, s.hero.y))].count("target"), 0)
         every = [k for *_, k, _ in q.pins((s.hero.x, s.hero.y), every_target=True)]
         self.assertEqual(every.count("target"), n)

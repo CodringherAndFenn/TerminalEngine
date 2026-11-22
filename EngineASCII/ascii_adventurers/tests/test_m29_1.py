@@ -109,7 +109,7 @@ class PlanTest(unittest.TestCase):
         lay = IslandLayout(31)
         p = plan_of(lay, lay.zone("paradise"))
         court = next(m for m in p.marks if m.key == "paradise_court")
-        self.assertEqual(court.kind, "court")
+        self.assertEqual(court.kind, "lair")                 # (M29.4: the quest's lair)
         self.assertGreaterEqual(len(court.gate), config.PARADISE_COURT_GATE)
         gx, gy = p.facing
         for tx, ty in court.gate:

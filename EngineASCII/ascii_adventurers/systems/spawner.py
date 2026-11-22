@@ -303,7 +303,9 @@ class Spawner:
         if self.hp_mult != 1.0 and hasattr(e, "toughen"):
             e.toughen(self.hp_mult)
         e.damage_mult *= (1 + self.damage_bonus) * self.damage_mult
-        if self._on_zone(x, y) and hasattr(e, "toughen"):    # (M29.2: endgame tough)
+        if self._on_zone(x, y) and hasattr(e, "toughen") \
+                and not getattr(e, "boss", False):           # (M29.2: endgame tough; a boss
+                                                             # has its own numbers)
             e.toughen(config.ZONE_TOUGH[0])
             e.damage_mult *= config.ZONE_TOUGH[1]
             e.zone_tough = True

@@ -14,6 +14,7 @@ mane, n/N an ox's hide, i/I pale wings.
 from __future__ import annotations
 
 from .characters import ART
+from .mounts import MOUNTS, Mount
 from .plains_art import _pad
 
 PARADISE_ART = {
@@ -538,7 +539,60 @@ PARADISE_ART = {
         "RzRrRzRrRzRrRz",
         ".rRzRrRzRrRzR",
     ],
+    # --- The quest and the boss (M29.4) ----------------------------------------------
+    "fallen_angel": [                # the giver: one wing nailed down, the halo broken
+        "...YY.Y",
+        "..Y.....Y",
+        "....kkkk",
+        "...kHHHHk",
+        "...kssksk",
+        "c..kssssk..ww",
+        "Cc.kkssk..kwwk",
+        "CCckcccckkwwwk",
+        ".CkcCccCckwmwk",
+        ".kccCcccckmmk",
+        "..kcccCcck.m",
+        "..kcCcccck..m",
+        ".kcccccCcck..m",
+        ".kkkkkkkkkk..m",
+    ],
+    "light_pillar": [                # a lance stuck in the marble, burning white
+        "....kZZk",
+        "....ZwwZ",
+        "...ZwZZwZ",
+        "....wZZw",
+        "....ZwwZ",
+        "....wZZw",
+        "....ZwwZ",
+        "....wZZw",
+        "....ZwwZ",
+        "....wZZw",
+        "...yZwwZy",
+        "..yyyyyyyy",
+    ],
+    "white_knight": [                # a rider of the Serene Cavalry (on a white horse)
+        "...yyyyy",
+        "..Z.....Z...y",
+        "...yyyyy...yZ",
+        "...kkkkk...y",
+        "..kmwwwmk..y",
+        "..kwkkkwk..y",
+        "..kmwwwmk..y",
+        ".kkkwmmmwkky",
+        "kwwkwwwwkwwk",
+        "kwykwwwwkywk",
+        "kwwkwwwwkwwk",
+        ".kkwmwmwmkk",
+        "..kwk..kwk",
+        "..kmk..kmk",
+        "..kkk..kkk",
+    ],
 }
 
 for _name, _rows in PARADISE_ART.items():
     ART[_name] = _pad(_rows)
+
+# The Serene Cavalry's white horses: the pony's shape, a gold mane and tail.
+_WHITE = str.maketrans({"p": "y", "P": "Y"})
+MOUNTS["white_horse"] = Mount(tuple(tuple(row.translate(_WHITE) for row in frame)
+                                    for frame in MOUNTS["pony"].frames), MOUNTS["pony"].seat)

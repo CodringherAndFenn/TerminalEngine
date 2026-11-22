@@ -222,9 +222,12 @@ def build_landmarks(layout) -> list[Landmark]:
     are placed first (they're the hardest to fit), then the camps, then the
     spots; nothing overlaps."""
     out: list[Landmark] = []
-    quests = list(config.QUESTS.items())
+    # (an ocean zone's quest has its camp, lair and spots in the zone's own
+    # plan, M29.4: below)
+    quests = [(k, q) for k, q in config.QUESTS.items() if q.biome not in config.OCEAN_ZONES
+              and q.biome not in config.ZONE_PLACES]
     rngs = {key: random.Random(hash_coords(layout.seed, 0x1A4D, i + 1))
-            for i, (key, _) in enumerate(quests)}
+            for i, key in enumerate(config.QUESTS) if any(key == k for k, _ in quests)}
     marks: dict[str, dict[str, Landmark | None]] = {}
     # (the plains boss's necropolis first: it has a fixed place, the centre)
     order = sorted(quests, key=lambda kq: kq[1].kind != "finale")

@@ -187,6 +187,14 @@ class Plan:
                                   for _ in range(config.PARADISE_FONTS)) if s]
         self.statues = [s for s in (self._site(rng, 7, 7, avoid)
                                     for _ in range(config.PARADISE_STATUES)) if s]
+        # The seven seals (M29.4), each in its clearing, spread over the island.
+        self.seals: list[tuple[int, int]] = []
+        c = config.SEVEN_SEAL_CLEARING
+        for _ in range(7):
+            at = self._site(rng, c, c, avoid, apart=(self.seals, config.SEVEN_SEAL_GAP))
+            if at is not None:
+                self.seals.append(at)
+        self.quest = next((k for k, q in config.QUESTS.items() if q.biome == zone.key), "")
 
         # Spur roads from the main road to the cathedral's door, the
         # stairway's foot and each choir ring.
@@ -212,10 +220,11 @@ class Plan:
     # --- Placement ---------------------------------------------------------------------
 
     def _site(self, rng: random.Random, hw: float, hh: float, avoid,
-              tries: int = 600) -> tuple[int, int] | None:
+              tries: int = 600, apart=None) -> tuple[int, int] | None:
         """A random centre for a (2hw x 2hh) footprint: on the island with
         4 tiles to spare, clear of the court and its terraces, of the main
-        road and the river, and PARADISE_SITE_GAP from every spot taken."""
+        road and the river, and PARADISE_SITE_GAP from every spot taken
+        (`apart`: (points, d) -- and at least d from each of those)."""
         z = self.zone
         cx, cy, a, b = self.court
         t = config.PARADISE_TERRACES[-1] + 8
@@ -236,6 +245,9 @@ class Plan:
                 continue
             if _point_dist(x, y, avoid) < reach:
                 continue
+            if apart is not None and any(math.hypot(x - px, y - py) < apart[1]
+                                         for px, py in apart[0]):
+                continue                     # (the seals keep well apart)
             self._placed.append((x, y, hw, hh))
             return x, y
         return None
@@ -295,6 +307,7 @@ class Plan:
         out += [self._choir(x, y) for x, y in self.choirs]
         out += [self._font(x, y) for x, y in self.fonts]
         out += [self._weeping(x, y, rng) for x, y in self.statues]
+        out += [self._seal(x, y) for x, y in self.seals]
         return [m for m in out if m is not None]
 
     def _court(self):
@@ -358,9 +371,12 @@ class Plan:
             p = (math.floor(sx + (ex - sx) * k / steps), math.floor(sy + (ey - sy) * k / steps))
             if cells.get(p) in (tiles.MARBLE_FLOOR, tiles.GOLD_INLAY):
                 cells[p] = tiles.BLOOD_RIVER
-        return self._mark("paradise_court", "court", "The Summit Court", cells, cx, cy,
+        # (the quest's lair, M29.4: its bars open when the seventh seal
+        # breaks, close behind you for the fight, open when it's won)
+        return self._mark("paradise_court", "lair", "The Summit Court", cells, cx, cy,
                           gate=gate_tiles, radii=(a, b), floor=tiles.MARBLE_FLOOR,
-                          props={"throne": (tx, ty)})
+                          props={"throne": (tx, ty), "seal": tiles.GATE_BARS, "barred": True},
+                          quest=self.quest, spots=[(cx, cy)])
 
     def _gate(self, rng: random.Random):
         """The Gate on the shore facing the main island. Local frame: i
@@ -479,8 +495,11 @@ class Plan:
                     at(i, j, tiles.CLOUD_DRIFT)
         at(-4, -2, tiles.CHAIN_POST)
         npc = (sx + ux * -3 + ox * -2 + 0.5, sy + uy * -3 + oy * -2 + 0.5)
-        return self._mark("paradise_stairway", "zone", "The Stairway to Nowhere", cells,
-                          sx + 0.5, sy + 0.5, npc=npc)
+        # (the quest's camp, M29.4: the fallen angel is chained here; its
+        # spots are the seven seals)
+        return self._mark("paradise_stairway", "camp", "The Stairway to Nowhere", cells,
+                          sx + 0.5, sy + 0.5, npc=npc, quest=self.quest,
+                          spots=[(x + 0.5, y + 0.5) for x, y in self.seals])
 
     def _choir(self, x: int, y: int):
         cells: dict = {}
@@ -525,6 +544,22 @@ class Plan:
             if p not in cells:
                 cells[p] = tiles.BLOOD_TRICKLE
         return self._mark("paradise_statue", "zone", "Weeping Statue", cells, x + 0.5, y + 0.5)
+
+    def _seal(self, x: int, y: int):
+        """A seal's clearing (M29.4): a marble disc, a gold ring at
+        SEVEN_SEAL_RADIUS (stand inside it), the seal in the middle."""
+        cells: dict = {}
+        c = config.SEVEN_SEAL_CLEARING
+        ring = config.SEVEN_SEAL_RADIUS
+        for j in range(-c, c + 1):
+            for i in range(-c, c + 1):
+                d = math.hypot(i, j)
+                if d <= c + 0.3:
+                    cells[(x + i, y + j)] = (tiles.GOLD_INLAY if abs(d - ring) < 0.5
+                                             else tiles.MARBLE_FLOOR)
+        cells[(x, y)] = tiles.SEVEN_SEAL
+        return self._mark("paradise_seal", "spot", "A Seal", cells, x + 0.5, y + 0.5,
+                          quest=self.quest)
 
     # --- Per chunk ------------------------------------------------------------------------
 

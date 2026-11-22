@@ -967,6 +967,14 @@ STAINED_FLOOR = TileType(
 STAINED_STEP = TileType(
     "stained step", ("_,", ",_"), palette.STAINED_ROAD_FG, palette.STAINED_STEP_BG,
 )
+# The seven seals (M29.4): a great seal of red wax stamped in gold, in the
+# middle of its clearing; broken, it lies cracked open.
+SEVEN_SEAL = TileType(
+    "seal", ("@@",), palette.GOLD, palette.SEAL_WAX,
+)
+SEVEN_SEAL_BROKEN = TileType(
+    "broken seal", ("%,", ",%"), palette.SEAL_WAX_BROKEN, palette.BLOOD_TRICKLE_BG,
+)
 # What a stain turns each ground into (by tile name; anything else stays).
 STAINS: dict[str, TileType] = {
     "cloud": STAINED_CLOUD, "cloud drift": STAINED_CLOUD, "petals": STAINED_CLOUD,

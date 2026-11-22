@@ -1513,3 +1513,29 @@ def residents(layout, zone) -> list[tuple[str, float, float]]:
         x, y = line.point(line.length * (k + 0.5) / n)
         out.append(("leviathan", x, y))
     return out
+
+
+class LightPillar(PlainsCreature):
+    """A Serene Cavalry lance stuck in the marble (M29.4): a pillar of light
+    that stands CAV_LANCES[3] s, then fades; fences of light join it to the
+    next pillar of its cage (ai/cavalry.Cavalry). Break it to open the
+    cage. It never moves or attacks."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.life = config.CAV_LANCES[3]
+        self.facing = 0.0
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        self._moved = 0.0
+        self.life -= dt
+        if self.life <= 0:
+            self.hp = 0.0
+            self.last_hit_by = None                  # (it faded: nobody's kill)
+
+    def facing_left(self) -> bool:
+        return False
+
+    def on_death(self, ctx: AIContext) -> None:
+        ctx.effects.append(Effect("unveil" if self.last_hit_by is not None else "feathers",
+                                  self.x, self.y, size=1.0))

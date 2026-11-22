@@ -333,7 +333,8 @@ class QuestFlowTest(unittest.TestCase):
         self.assertFalse(st.taken)
         # ...hidden but for the givers (P2: always pinned, round, biome colour).
         self.assertEqual({k for _, _, k, _ in q.pins()},
-                         {f"giver_{x.biome}" for x in q.states.values() if x.npc is not None})
+                         {f"giver_{x.biome}" for x in q.states.values() if x.npc is not None
+                          and x.biome not in config.ZONE_PLACES})   # (M29.4: a zone's, once found)
         self.assertEqual(len(q.log()), 1)                   # (only the main quest)
         # Talk: E queues it, the next step delivers it.
         teleport(s, st.npc.x, st.npc.y)

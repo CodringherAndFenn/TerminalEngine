@@ -835,6 +835,16 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   hits from the front; the leviathan (elite) lives in the river of blood,
   surging along it to spit at you.
 
+- **The seven seals and the Serene Cavalry, M29.4** (`design/OCEAN.md` 11):
+  Paradise's quest. The fallen angel, chained at the foot of the stairway
+  to nowhere, sends you to break seven seals across the island: stand in a
+  seal's ring while angels come at you, unveiling. Each broken seal turns
+  the sky a shade redder; the seventh opens the summit court, where the
+  Serene Cavalry waits -- four white riders on one health bar, always
+  riding: formation charges along lanes of light, light lances that cage
+  you, the hymn that shields and heals them, the four winds; carousels,
+  hoof rings, halo rain, tramples. (Its second form comes in M29.5.)
+
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

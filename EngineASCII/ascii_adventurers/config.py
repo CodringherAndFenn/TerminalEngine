@@ -1031,6 +1031,17 @@ ENEMIES = {
         max_hp=380, sight=20, biomes=(), speed=11.0,
         damage=16, windup=0.4, cooldown=1.6, size_px=36, xp=40,
     ),
+    # M29.4: Paradise's boss, form 1 (OCEAN.md 6.1): one cavalry of four
+    # riders sharing this health (ai/bosses.Cavalry); its light lances'
+    # pillars (break one to open a cage).
+    "cavalry": EnemySpec(
+        name="the Serene Cavalry", kind="cavalry", max_hp=12000, sight=400,
+        biomes=(), size_px=60, xp=1500,
+    ),
+    "light_pillar": EnemySpec(
+        name="pillar of light", kind="light_pillar", sprite="light_pillar", scale=3,
+        max_hp=100, sight=1, biomes=(), speed=0.0, damage=0, size_px=20, xp=0,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -4014,6 +4025,9 @@ BESTIARY = {
     "behemoth": (4000, "Unveiled, it charges through columns. Its bone plates shrug off hits from "
                        "the front."),
     "leviathan": (4000, "Lives in the river of blood. Unveiled, it surges along it and spits at you."),
+    # M29.4
+    "cavalry": (10000, "Four white riders, one life. Read the lanes; split them when they sing; "
+                       "break a pillar to open the cage."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -4037,6 +4051,7 @@ ACHIEVEMENTS = {
     "mycelium_inkcap": "defeat Mycelium (the shaggy ink cap)",
     "mycelium_puffball": "defeat Mycelium (the giant puffball)",
     "necromancer": "defeat More than Death",
+    "cavalry": "break the seven seals and defeat the Serene Cavalry",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -4360,6 +4375,65 @@ PARADISE_SHOTS = {
                         look="shriek", sound="orb"),
     "spit": ShellSpec(speed=9.0, damage=9, max_range=18.0, damages_terrain=False,
                       look="blood", sound="fizzle"),
+}
+
+# M29.4: the quest (OCEAN.md 5). The seven seals: each in a clearing of
+# marble (SEVEN_SEAL_CLEARING tiles across, half) spread over the island at
+# least SEVEN_SEAL_GAP tiles apart; stand within SEVEN_SEAL_RADIUS of one for
+# SEVEN_SEAL_TIME s in all to break it (user: ~8 s); with nobody there it
+# mends at x SEVEN_SEAL_HEAL. Every SEVEN_SEAL_WAVE s of it, a wave of
+# SEVEN_SEAL_WAVE_SIZE angels (SEVEN_SEAL_ANGELS) comes at you from
+# SEVEN_SEAL_WAVE_RANGE tiles out, unveiling as they come; SEVEN_SEAL_GUARDS
+# serene ones stand round each seal from the start.
+SEVEN_SEAL_CLEARING = 6
+SEVEN_SEAL_GAP = 60
+SEVEN_SEAL_RADIUS = 3.5
+SEVEN_SEAL_TIME = 8.0
+SEVEN_SEAL_HEAL = 0.5
+SEVEN_SEAL_WAVE = 2.7
+SEVEN_SEAL_WAVE_SIZE = (2, 3)
+SEVEN_SEAL_WAVE_RANGE = (9.0, 13.0)
+SEVEN_SEAL_ANGELS = ("cherub", "lamb", "halo", "ophan", "censer_bearer", "dove", "dove")
+SEVEN_SEAL_GUARDS = 3
+SEVEN_SEAL_GUARD_ANGELS = ("cherub", "lamb", "watcher", "martyr", "bowl_bearer")
+# Each broken seal turns the sky a shade redder (user; mine: the whole view
+# over Paradise is multiplied by this colour, a step per seal).
+SKY_TINT_STEP = (0, 7, 9)          # off green and blue per seal (of 255)
+
+# M29.4: the Serene Cavalry (OCEAN.md 6.1; ai/bosses.Cavalry). Four riders
+# on one health bar, always riding: they gallop round you (a circle, a
+# figure-eight, crossing lanes; a new pattern every CAV_RIDE[3] s) at
+# CAV_RIDE[0] tiles/s, slowed to x CAV_RIDE[1] in a move but never stopped;
+# the ride's middle follows the target at CAV_RIDE[2] tiles/s. A rider that
+# runs into a hero tramples it (CAV_GALLOP: damage, push, at most every s).
+# Damages are per hit at level 1 (x the enemy damage scaling, BOSS_DMG_MULT).
+CAV_RIDE = (11.0, 0.6, 4.0, 7.0, (15.0, 9.0))   # speed, x in a move, middle's speed,
+                                                # s per pattern, the ride's radii (x, y)
+CAV_HIT_RADIUS = 1.4               # tiles: a rider and its horse
+CAV_GALLOP = (12, 1.5, 0.8)        # trampled: damage, push tiles, s apart
+CAV_FORMATION = (1.3, 24.0, 30.0, 4.0, 22, 2.0)   # lanes shown s, charge speed, lane length,
+                                                  # lanes apart, damage, push
+CAV_LANCES = (0.8, 7.0, 5.0, 12.0, 14, 0.5, 1.2)  # in the air s, the cage's half-width and
+                                                  # half-height round you, s a pillar stands,
+                                                  # a fence's sting, s apart, push back tiles
+CAV_HYMN = (7.0, 0.3, 0.003, 6.0, 0.015, 4.0, 2.5)  # s, x damage taken while together, x max
+                                                    # HP healed a s, "together" within this of
+                                                    # the middle; the lead singer's chord breaks
+                                                    # after this x max HP; a hero this close
+                                                    # pulls a rider away; s it's thrown out
+CAV_WINDS = (4, 1.4, 0.5, 5.0, 2, 1.6, (13.0, 8.0))  # gusts, s each, s shown before, push
+                                                     # tiles/s, calm spots, their radius, the
+                                                     # riders' corners round you
+CAV_CAROUSEL = (3.2, 14.0, 4.0, 0.45)   # s, radius from, to, s between each rider's shots
+CAV_HOOFS = (4.0, 0.9, 10)              # s, s between rings, shots a ring
+CAV_HALOS = (1.0, 8, 1.6, 2, 0.6, 18)   # marked s, halos a volley, their radius, volleys,
+                                        # s between, damage
+CAV_TRAMPLE = (0.8, 24.0, 26.0, 24, 2.5)  # line shown s, speed, length, damage, push
+CAV_SHOTS = {
+    "light": ShellSpec(speed=8.0, damage=9, max_range=22.0, damages_terrain=False,
+                       look="light", sound="orb"),
+    "hoof": ShellSpec(speed=5.5, damage=8, max_range=14.0, damages_terrain=False,
+                      look="light", sound="orb"),
 }
 
 # Start: the tile nearest the centre (searched every SPAWN_SEARCH_STEP
@@ -4801,6 +4875,39 @@ QUESTS = {
         camp="none", lair="necropolis", target="risen_dead", count=5, boss="necromancer",
         goal="Guardians {n}/{count}", camp_name="", lair_name="THE NECROPOLIS",
         kind="finale", lines=(),
+    ),
+    # M29.4: Paradise's quest (design/OCEAN.md 5), a "seals" quest: the seven
+    # seals lie in guarded clearings across the island (world/paradise.Plan);
+    # stand at one SEVEN_SEAL_TIME s while angels come at you, unveiling.
+    # Its camp is the stairway to nowhere (the fallen angel chained at its
+    # foot), its lair the summit court, sealed with golden bars until the
+    # seventh seal breaks. Its lines are mine.
+    "seven_seals": QuestSpec(
+        title="Break the Seven Seals", biome="paradise", giver="fallen angel",
+        giver_sprite="fallen_angel", camp="zone", lair="zone", target="cherub", count=7,
+        boss="cavalry", goal="Seals broken {n}/{count}",
+        camp_name="THE FALLEN ANGEL", lair_name="THE SUMMIT COURT", kind="seals",
+        skin="paradise",
+        lines=(
+            ("offer", ("Another one up the stairs. Look at me.",
+                       "Yes. A wing nailed to a post. Their mercy.",
+                       "I asked what the white was for. Once.",
+                       "Seven seals lie across this island.",
+                       "Stand at each until it breaks. It takes a while.",
+                       "They'll come for you. Pretty, then not.",
+                       "Every seal you break, the sky shows its colour.",
+                       "Seven, and the throne has to answer.")),
+            ("progress", ("{left} seals still hold.",
+                          "Stand in the ring. Step out and it mends.")),
+            ("done", ("Seven. Now you see the sky as it is.",
+                      "The court at the summit is open.",
+                      "Four riders, white as a lie.",
+                      "When they sing together, pull them apart.",
+                      "And when they plant their lances... run.")),
+            ("fight", ("The riders are out! The summit! Go!",)),
+            ("cleared", ("The white came off them, didn't it.",
+                         "Leave me the post. I'm used to it.")),
+        ),
     ),
 }
 # Developer / test: the quest key the dev keys (F6 to its giver, F7 finish
@@ -5338,6 +5445,25 @@ BOSSES = {
             BossPhase(0.33, (("spears", 3), ("skulls", 2), ("hands", 2), ("reap", 2)), rest=0.5),
         ),
         loot=0, achievement="necromancer", pages=(),
+    ),
+    # M29.4: Paradise's boss, form 1 (OCEAN.md 6.1; ai/bosses.Cavalry). Four
+    # phases, a signature added in each: the formation charge, then the
+    # light lances, the hymn, the four winds. Its moves: carousel, hoof
+    # rings, halo rain, trample. (Form 2, the Four Horsemen: M29.5.)
+    "cavalry": BossSpec(
+        name="The Serene Cavalry",
+        phases=(
+            BossPhase(1.0, (("formation", 3), ("carousel", 2), ("hoofs", 2), ("halos", 2),
+                            ("trample", 2)), rest=1.0),
+            BossPhase(0.75, (("formation", 2), ("lances", 3), ("carousel", 2), ("hoofs", 2),
+                             ("halos", 2), ("trample", 2)), rest=0.9),
+            BossPhase(0.5, (("formation", 2), ("lances", 2), ("hymn", 2), ("carousel", 2),
+                            ("hoofs", 1), ("halos", 2), ("trample", 2)), rest=0.8),
+            BossPhase(0.25, (("formation", 2), ("lances", 2), ("hymn", 2), ("winds", 3),
+                             ("carousel", 2), ("hoofs", 1), ("halos", 2), ("trample", 2)),
+                      rest=0.7),
+        ),
+        loot=10000, achievement="cavalry", pages=("cavalry",),
     ),
 }
 BOSS_KEYS = tuple(BOSSES)         # (M28.5: a stable order for the relic drop's seed)

@@ -418,6 +418,9 @@ class GameScene(Scene):
         h.prev_pos = (h.x, h.y)
         self.me.camera.center_on(h.x, h.y)
         self._stream_world(budget_ms=None)
+        layout = getattr(self.world, "layout", None)
+        if layout is not None and layout.zone_at(h.x, h.y, 60) is not None:
+            h.water_walk = True                    # (M29.4: out on a zone -- and back)
 
     def _zones_near(self, p: Player, biome: str | None) -> None:
         """The ocean zones (M29.1): one shows on the maps once a player has
@@ -1422,6 +1425,22 @@ class GameScene(Scene):
             self._draw(text)
         self._last_draw_ms = (time.perf_counter() - started) * 1000
 
+    def _sky(self, d, cam) -> None:
+        """M29.4: over an ocean zone with seals broken, the whole view tints
+        toward red, SKY_TINT_STEP a seal (each broken seal turns the sky a
+        shade redder)."""
+        zone_at = getattr(getattr(self.world, "layout", None), "zone_at", None)
+        if zone_at is None:
+            return
+        x, y = cam.canvas_to_world(cam.view_w / 2, cam.view_h / 2)
+        z = zone_at(x, y, config.PARADISE_CLOUD_BANK + 40)
+        n = self.quests.broken_seals(z.key) if z is not None else 0
+        if n <= 0:
+            return
+        r, g, b = (max(0, 255 - k * n) for k in config.SKY_TINT_STEP)
+        d.canvas.fill((r, g, b), pygame.Rect(0, 0, round(cam.view_w), round(cam.view_h)),
+                      special_flags=pygame.BLEND_RGB_MULT)
+
     @staticmethod
     def _meter(hero) -> tuple | None:
         """The HUD's extra meter row while a boss has one on you (M24.1 rads,
@@ -1494,6 +1513,7 @@ class GameScene(Scene):
         draw_projectiles(text, cam, self.projectiles)
         draw_chest_marks(text, cam, me, self.projectiles, self.steps)    # (M28.2d)
         draw_effects(text, cam, self.world, air)
+        self._sky(d, cam)                                 # (M29.4: Paradise reddening)
         others = [(p.hero.x, p.hero.y, p.color) for p in self.players if p is not me and p.alive]
         pins = self.quests.pins((me.hero.x, me.hero.y)) + self._blood_pins(me) + self._drop_pins() \
             + self.chests.pins()

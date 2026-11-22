@@ -1080,6 +1080,15 @@ GAZE = ((255, 236, 150), (255, 70, 60))                            # the watcher
 SLICK = ((200, 30, 44), (120, 16, 28))                             # an ophan's blood
 DRINK = (236, 54, 66)                                              # drinking at a font
 PLAGUE = ((255, 170, 60), (236, 50, 60))                           # a trumpeter's plague circle
+SEAL_WAX = (150, 20, 32)                                           # M29.4: the seven seals
+SEAL_WAX_BROKEN = (220, 60, 70)
+MAP_TILE.update({"seal": (255, 80, 90), "broken seal": (140, 40, 50)})
+PIN_GIVER["paradise"] = ((255, 236, 200), (120, 20, 30))           # white on blood
+LANE = ((255, 244, 200), (255, 255, 255))                          # the cavalry's lanes of light
+FENCE = ((255, 236, 150), (255, 255, 230))                         # fences of light
+HYMN = ((255, 214, 90), (255, 240, 180))                           # the hymn's ring and notes
+WIND = ((200, 220, 255), (255, 255, 255))                          # the four winds
+CALM = (140, 200, 255)                                             # a calm spot
 SHOT_SHRIEK = ((255, 214, 220), ((230, 90, 110), (150, 40, 60)))   # a chorister's shriek
 INCENSE = ((214, 210, 196), (160, 156, 146))                       # a censer's harmless haze
 BLOOD_POOL = ((214, 30, 44), (130, 14, 26))                        # a poured pool, a tear's pool

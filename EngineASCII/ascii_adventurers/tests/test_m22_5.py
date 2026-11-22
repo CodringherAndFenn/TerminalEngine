@@ -73,7 +73,8 @@ class HiddenQuestTest(unittest.TestCase):
         self.assertTrue(all(st.stage == "hunt" and not st.taken for st in q.states.values()))
         # Lairs are found; givers are pinned from the start (P2).
         self.assertTrue(all(k.startswith("giver_") for _, _, k, _ in q.pins()))
-        self.assertEqual(len(q.pins()), sum(1 for st in q.states.values() if st.npc is not None))
+        self.assertEqual(len(q.pins()), sum(1 for st in q.states.values() if st.npc is not None
+                                            and st.biome not in config.ZONE_PLACES))
         self.assertEqual([label for label, _, _ in q.log()], ["GLORY"])
         # Hunt quests' targets are out already, without anyone talking.
         for key in ("bad_trip", "leech_doctor"):
