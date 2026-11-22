@@ -450,7 +450,7 @@ class GameScene(Scene):
         layout = getattr(self.world, "layout", None)
         if layout is None or not layout.zones or not self.me.alive:
             return
-        from ..world.paradise import plan_of
+        from ..world.zones import plan_of
         h = self.hero
         here = layout.zone_at(h.x, h.y)
         keys = [z.key for z in layout.zones]

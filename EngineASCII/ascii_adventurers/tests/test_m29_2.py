@@ -30,7 +30,7 @@ def paradise_map(w=60, h=30, walls=()):
     rows = [["."] * w for _ in range(h)]
     for x, y in walls:
         rows[y][x] = "#"
-    m = TestMap(["".join(r) for r in rows], legend={".": tiles.CLOUD, "#": tiles.COLUMN})
+    m = TestMap(["".join(r) for r in rows], legend={".": tiles.CLOUD, "#": tiles.MARBLE_COLUMN})
     m.fonts = []
     return m
 

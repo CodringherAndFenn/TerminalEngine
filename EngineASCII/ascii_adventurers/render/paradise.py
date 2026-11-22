@@ -44,11 +44,11 @@ def draw_paradise_tells(batch, camera, e) -> None:
             flick = int(e.clock * 30) % 2
             for k in range(1, n + 1):
                 px, py = camera.world_to_px(x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n)
-                batch.put_c(px, py, "*" if (k + flick) % 2 else "=", palette.GAZE[1])
+                batch.put_c(px, py, "*" if (k + flick) % 2 else "=", palette.WATCHER_GAZE[1])
         elif e.unveiled and e.windup > 0 and e.aim_end is not None:
             x1, y1 = e.aim_end
             _dots(batch, camera, e.x, e.y, e.aim, math.hypot(x1 - e.x, y1 - e.y),
-                  palette.GAZE[0 if e.windup > config.WATCHER[4] or int(e.clock * 16) % 2 else 1])
+                  palette.WATCHER_GAZE[0 if e.windup > config.WATCHER[4] or int(e.clock * 16) % 2 else 1])
     if isinstance(e, Ophan) and e.rolling == "aim":
         _dots(batch, camera, e.x, e.y, e.aim, config.OPHAN[2] * 0.6, palette.PLAINS_TELL[1])
     if isinstance(e, Lamb) and e.charging == "scrape":

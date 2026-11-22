@@ -854,6 +854,17 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   relics: the Crown of Conquest, the Ring of Blood, the Black Scales and
   the Pale Rider's Cloak.
 
+- **Pandemonium, M30.1** (`design/OCEAN.md` 19): the second ocean zone's
+  island, far south, hidden on the maps until you come near ("where the
+  feast never ends"). Black obsidian veined with gold, sinking in gold-leaf
+  terraces to the palace at the bottom of a pit, ringed by a lake of wine;
+  coin heaps, braziers, crimson banners, lanterns along gilded avenues, a
+  beach of gold coins and a wine-dark sea. You arrive at the gilded pier;
+  the endless banquet hall, the hall of mirrors, the wine press among its
+  vineyards (the river of wine runs from it down into the lake), seven
+  bandstands, banquet tables, wine fountains and gilded statues. No one
+  lives there yet (M30.2). Dev mode: F3 jumps to each zone in turn.
+
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

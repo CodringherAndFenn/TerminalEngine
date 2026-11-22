@@ -281,7 +281,6 @@ BOAR_EYE = (255, 80, 60)
 DAZE = (255, 230, 120)              # stars over a dazed boar
 SCRAPE_DUST = ((170, 150, 110), (120, 105, 80))
 DEVIL = ((220, 195, 140), (175, 150, 100), (120, 100, 70))   # dust devil: light, mid, dark
-SHOT_SAND = ((235, 210, 150), ((190, 165, 115), (140, 120, 85)))
 
 # --- M14: cards 2.0 ----------------------------------------------------------------------
 # Damage numbers by tone: crits, and status damage over time (bright -> faded).
@@ -381,7 +380,6 @@ SHOT_EMBER = ((255, 190, 80), ((255, 120, 40), (170, 70, 30)))
 SHOT_BONE = ((235, 230, 210), ((180, 175, 160), (120, 115, 105)))
 TOAST = (255, 235, 140)
 TOAST_DIM = (180, 160, 90)
-RUNE = ((190, 140, 255), (120, 90, 190))
 WOLF = ((190, 220, 255), (110, 150, 210))     # spirit wolf: body, dim
 POOL = ((120, 200, 70), (70, 130, 45))
 CLOUD = ((170, 175, 195), (110, 115, 135))
@@ -482,7 +480,7 @@ BEAR_DOWN = (150, 130, 110)                     # Mr. Buttons sat down ("zz")
 # M28.5c: the forest's, Mycelium's and the necromancer's relics.
 CLEAVER = ((225, 225, 235), (200, 60, 80))      # the blade, its red
 TRIPWIRE = (200, 190, 150)
-ROOTS = ((150, 110, 60), (90, 150, 70))         # roots, leaves (Rootbound, Heartwood)
+ROOTBOUND = ((150, 110, 60), (90, 150, 70))         # roots, leaves (Rootbound, Heartwood)
 CANDLE = ((255, 230, 140), (255, 140, 40), (120, 90, 50))   # flame, glow, the light's edge
 INK = (70, 70, 110)                             # the Inkwell's blot, the Wig's binding
 TRIPPED = (255, 100, 200)                       # a Fly Agaric trip's "?"
@@ -790,7 +788,7 @@ PIN_BEAR = ((210, 150, 90), (60, 40, 20))
 # Fragile (render/fragile.py).
 SUN = ((255, 240, 160), (230, 200, 110))
 FRAGILE_TELL = ((255, 70, 110), (170, 40, 70))
-GAZE = ((255, 60, 90), (150, 30, 50))
+FRAGILE_GAZE = ((255, 60, 90), (150, 30, 50))
 MIST = ((190, 180, 220), (130, 120, 160))
 BAT_COL = ((70, 50, 90), (130, 100, 160))
 BEAT_COL = ((255, 120, 180), (110, 60, 90))
@@ -1019,16 +1017,16 @@ GOLD = (240, 202, 86)
 GOLD_DARK = (170, 130, 40)
 PEARL = (236, 232, 222)
 PEARL_BG = (176, 172, 164)
-COLUMN_FG = (242, 242, 250)
+MARBLE_COLUMN_FG = (242, 242, 250)
 FALLEN_COLUMN_FG = (214, 214, 226)
 MARBLE_RUBBLE_FG = (170, 170, 184)
 BLOSSOM_FG = (252, 226, 236)
 BLOSSOM_BG = (122, 100, 118)
 PETALS_FG = (238, 186, 208)
-STATUE_FG = (236, 236, 244)
-STATUE_BG = (98, 98, 112)
-BLOOD_FG = (206, 30, 42)
-BLOOD_BG = (92, 8, 16)
+CHOIR_STATUE_FG = (236, 236, 244)
+CHOIR_STATUE_BG = (98, 98, 112)
+PARADISE_BLOOD_FG = (206, 30, 42)
+PARADISE_BLOOD_BG = (92, 8, 16)
 BLOOD_TRICKLE_FG = (220, 36, 48)
 BLOOD_TRICKLE_BG = (96, 30, 40)
 FONT_RIM_FG = (226, 226, 236)
@@ -1076,7 +1074,7 @@ SHOT_LIGHT = ((255, 250, 214), ((240, 214, 130), (180, 160, 100)))  # rings and 
 UNVEIL = ((255, 255, 255), (236, 60, 70), (140, 20, 32))           # the unveiling's burst
 FEATHERS = ((246, 246, 252), (196, 198, 214))                      # a serene one dying
 GORE = ((230, 40, 52), (150, 20, 30), (90, 10, 18))                # an unveiled one dying
-GAZE = ((255, 236, 150), (255, 70, 60))                            # the watcher: aim, beam
+WATCHER_GAZE = ((255, 236, 150), (255, 70, 60))                            # the watcher: aim, beam
 SLICK = ((200, 30, 44), (120, 16, 28))                             # an ophan's blood
 DRINK = (236, 54, 66)                                              # drinking at a font
 PLAGUE = ((255, 170, 60), (236, 50, 60))                           # a trumpeter's plague circle
@@ -1107,3 +1105,77 @@ SHOT_CROWN = ((255, 226, 110), ((230, 190, 80), (170, 130, 50)))  # a crowning a
 SHOT_SHRIEK = ((255, 214, 220), ((230, 90, 110), (150, 40, 60)))   # a chorister's shriek
 INCENSE = ((214, 210, 196), (160, 156, 146))                       # a censer's harmless haze
 BLOOD_POOL = ((214, 30, 44), (130, 14, 26))                        # a poured pool, a tear's pool
+
+# --- Pandemonium (M30.1, design/OCEAN.md 13): black obsidian and gold ---------------------
+# The dark mirror of Paradise's white and red: polished black ground veined
+# with gold, gold-leaf terraces, crimson velvet, wine. Dark enough for shots
+# to read on; the gold is in the glyphs.
+OBSIDIAN_BG = (18, 14, 20)
+OBSIDIAN_FG = (78, 68, 88)
+OBSIDIAN_DEEP_BG = (11, 8, 13)          # the pit's floor (below PANDEMONIUM_DEEP)
+OBSIDIAN_DEEP_FG = (60, 50, 70)
+GOLD_VEIN_FG = (214, 166, 58)
+COIN_FG = (230, 186, 76)
+COIN_HEAP_BG = (92, 66, 22)
+COIN_BEACH_FG = (186, 148, 62)
+COIN_BEACH_BG = (56, 42, 18)
+PAND_BRAZIER_FG = (255, 150, 50)
+PAND_BRAZIER_BG = (70, 30, 14)
+LANTERN_FG = (255, 206, 120)
+CRIMSON = (196, 30, 52)
+PAND_VELVET_BG = (96, 12, 30)
+GILT_ROAD_FG = (250, 216, 124)
+GILT_ROAD_BG = (100, 76, 30)
+GILT_FLOOR_FG = (206, 164, 74)
+GILT_FLOOR_BG = (66, 50, 22)
+TERRACE_FG = (236, 194, 92)
+TERRACE_BG = (58, 44, 20)
+WINE_FG = (156, 32, 72)
+WINE_BG = (56, 8, 26)
+WINE_FOUNTAIN_FG = (204, 48, 96)
+WINE_FOUNTAIN_BG = (74, 10, 34)
+WINE_SEA_FG = (146, 38, 76)          # (the ocean's dither, in wine)
+WINE_SEA_BG = (40, 10, 26)
+PALACE_WALL_FG = (42, 34, 48)           # black marble...
+PALACE_WALL_BG = (150, 112, 40)         # ...trimmed in gold
+HALL_FLOOR_FG = (124, 96, 42)
+HALL_FLOOR_BG = (22, 18, 26)
+TABLE_FG = (240, 204, 124)              # the feast on it
+TABLE_BG = (98, 56, 26)                 # the wood
+SPILLED_FG = (204, 96, 84)
+STATUE_GOLD = (248, 210, 98)
+STAGE_FG = (214, 172, 82)
+STAGE_BG = (92, 30, 44)
+PIER_FG = (210, 168, 74)
+BARGE_FG = (176, 132, 46)               # a gilded hull...
+BARGE_BG = (92, 14, 32)                 # ...crimson below
+PIER_BG = (96, 70, 30)
+PAND_MIRROR_FG = (226, 208, 224)
+MIRROR_BG = (92, 72, 94)
+BALLROOM_FG = (126, 104, 136)
+BALLROOM_BG = (26, 20, 32)
+PAND_CHANDELIER_FG = (255, 232, 150)
+VINE_FG = (130, 40, 100)                # grapes...
+VINE_BG = (36, 52, 24)                  # ...on dark leaves
+STAKE_FG = (124, 94, 62)
+PRESS_FG = (126, 88, 42)
+PRESS_BG = (70, 40, 20)
+
+MAP_BIOME["pandemonium"] = (70, 56, 38)
+MAP_TILE.update({
+    "gold vein": (150, 116, 44), "coin heap": (210, 170, 70), "coin beach": (176, 138, 56),
+    "brazier": (255, 150, 50), "crimson banner": (190, 30, 50), "lantern": (255, 206, 120),
+    "gilded avenue": (220, 186, 100), "gold stairs": (236, 194, 92),
+    "gilded bridge": (220, 186, 100), "gold-leaf terrace": (200, 160, 70),
+    "wine": (130, 24, 60), "wine fountain": (170, 40, 80), "wine sea": (70, 18, 40),
+    "palace wall": (60, 50, 66), "gilded gate": (240, 202, 86), "host's seat": (190, 30, 50),
+    "fountain rim": (220, 180, 80), "banquet table": (200, 150, 80), "crimson carpet": (130, 20, 40),
+    "gilded statue": (248, 210, 98), "bandstand": (150, 50, 60), "instrument": (230, 190, 90),
+    "gilded pier": (200, 160, 70), "barge": (160, 30, 50), "arch": (240, 202, 86),
+    "mirror": (210, 190, 210), "chandelier": (255, 232, 150), "vines": (90, 40, 70),
+    "wine press": (126, 88, 42), "vat": (126, 88, 42),
+})
+MAP_TILE_BIOME.update({"obsidian": "pandemonium", "deep obsidian": "pandemonium",
+                       "coins": "pandemonium", "gilded floor": "pandemonium",
+                       "hall floor": "pandemonium", "spilled feast": "pandemonium",
+                       "ballroom floor": "pandemonium", "vine stakes": "pandemonium"})

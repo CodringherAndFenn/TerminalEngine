@@ -42,7 +42,7 @@ class PlacementTest(unittest.TestCase):
 
     def test_the_other_places_stay_open_sea(self):
         lay = IslandLayout(31)
-        for place in ("E", "S", "W"):
+        for place in ("E", "W"):              # (M30.1: Pandemonium is south)
             x, y = lay.cardinal_sites()[place]
             self.assertTrue(lay.all_ocean(x - 200, y - 200, x + 200, y + 200), place)
             self.assertIsNone(lay.zone_at(x, y, 300))

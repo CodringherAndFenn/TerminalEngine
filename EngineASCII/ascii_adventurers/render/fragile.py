@@ -108,7 +108,7 @@ def draw_fragile(text, bank: SpriteBank, camera: Camera, boss) -> None:
         for k in range(7):
             a = a0 + cone * (k / 6 - 0.5)
             _dotted(batch, camera, boss.x, boss.y, boss.x + math.cos(a) * reach,
-                    boss.y + math.sin(a) * reach, palette.GAZE[blink], step=1.4)
+                    boss.y + math.sin(a) * reach, palette.FRAGILE_GAZE[blink], step=1.4)
     elif kind in ("swoop", "charge"):
         _dotted(batch, camera, *tell[1:5], palette.FRAGILE_TELL[blink],
                 mark=">" if kind == "charge" else None)
@@ -129,7 +129,7 @@ def draw_fragile(text, bank: SpriteBank, camera: Camera, boss) -> None:
             a = a0 + cone * (_hash01(k, 3) - 0.5)
             d = reach * ((_hash01(k, 4) - boss.time * 1.2) % 1.0)
             px, py = camera.world_to_px(boss.x + math.cos(a) * d, boss.y + math.sin(a) * d)
-            batch.put_c(px, py, "<" if math.cos(a) > 0 else ">", palette.GAZE[k % 2])
+            batch.put_c(px, py, "<" if math.cos(a) > 0 else ">", palette.FRAGILE_GAZE[k % 2])
     batch.flush()
 
     if boss.parasol is not None:

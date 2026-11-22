@@ -35,7 +35,8 @@ class IslandTest(unittest.TestCase):
         r = lay.max_land_radius + 1
         for a in range(0, 360, 15):
             x, y = math.cos(math.radians(a)) * r, math.sin(math.radians(a)) * r
-            self.assertEqual(lay.biome_at(x, y).name, "ocean")
+            if lay.zone_at(x, y) is None:       # (M30.1: an ocean zone may lie this close)
+                self.assertEqual(lay.biome_at(x, y).name, "ocean")
 
 
 class TargetsTest(unittest.TestCase):

@@ -160,18 +160,18 @@ class IslandLayout:
         ny = min(max(0.0, y0), y1)
         if math.hypot(nx, ny) <= self.max_land_radius:
             return False
-        # (M29: nor near an ocean zone, its cloud bank included.)
+        # (M29: nor near an ocean zone, its shore band included.)
         return self.zone_near_rect(x0, y0, x1, y1) is None
 
     # --- The ocean zones (M29) -----------------------------------------------------------
 
     def zone_near_rect(self, x0: float, y0: float, x1: float, y1: float):
-        """The zone whose island (or the cloud bank off its shore) may reach
+        """The zone whose island (or its shore band out at sea) may reach
         into rect [x0, x1] x [y0, y1], or None."""
         for z in self.zones:
             nx = min(max(z.cx, x0), x1)
             ny = min(max(z.cy, y0), y1)
-            if math.hypot(nx - z.cx, ny - z.cy) <= z.max_radius + config.PARADISE_CLOUD_BANK + 2:
+            if math.hypot(nx - z.cx, ny - z.cy) <= z.max_radius + z.shore_band + 2:
                 return z
         return None
 
@@ -189,7 +189,7 @@ class IslandLayout:
         r = self.max_land_radius
         for z in self.zones:
             if z.key in found:
-                r = max(r, math.hypot(z.cx, z.cy) + z.max_radius + config.PARADISE_CLOUD_BANK)
+                r = max(r, math.hypot(z.cx, z.cy) + z.max_radius + z.shore_band)
         return r
 
     # --- The start -----------------------------------------------------------------------

@@ -361,7 +361,7 @@ class Plan:
             ang = (k + 0.5) * _TAU / 8
             px, py = cx + math.cos(ang) * a * 0.55, cy + math.sin(ang) * b * 0.55
             for dx, dy in ((0, 0), (1, 0)):
-                cells[(math.floor(px) + dx, math.floor(py) + dy)] = tiles.COLUMN
+                cells[(math.floor(px) + dx, math.floor(py) + dy)] = tiles.MARBLE_COLUMN
         # The throne at the far side, steps before it.
         tx, ty = cx - gx * b * 0.78, cy - gy * b * 0.78
         vx, vy = -gy, gx                                  # along the throne
@@ -369,7 +369,7 @@ class Plan:
         for s in range(-4, 5):
             for d in range(0, 3):
                 p = (math.floor(tx + vx * s - gx * d), math.floor(ty + vy * s - gy * d))
-                cells[p] = tiles.THRONE
+                cells[p] = tiles.GOLD_THRONE
                 throne.append(p)
             cells[(math.floor(tx + vx * s + gx * 1), math.floor(ty + vy * s + gy * 1))] = tiles.STEP
         # The channel: the river's start, from the throne's foot to the wall
@@ -463,7 +463,7 @@ class Plan:
                 elif r < 0.36:
                     cells[(x0 + i, y0 + j)] = tiles.MARBLE_RUBBLE
                 else:
-                    cells[(x0 + i, y0 + j)] = tiles.COLUMN
+                    cells[(x0 + i, y0 + j)] = tiles.MARBLE_COLUMN
         for i in range(w - 6, w - 2):                       # the altar, and steps before it
             for j in (mid - 1, mid):
                 cells[(x0 + i, y0 + j)] = tiles.ALTAR
@@ -519,7 +519,7 @@ class Plan:
                     cells[(x + i, y + j)] = tiles.MARBLE_FLOOR
         for k in range(8):
             ang = k * _TAU / 8
-            cells[(x + round(math.cos(ang) * 6), y + round(math.sin(ang) * 6))] = tiles.STATUE
+            cells[(x + round(math.cos(ang) * 6), y + round(math.sin(ang) * 6))] = tiles.CHOIR_STATUE
         for i, j in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)):
             cells[(x + i, y + j)] = tiles.GOLD_INLAY
         return self._mark("paradise_choir", "zone", "Choir Ring", cells, x + 0.5, y + 0.5)
@@ -614,8 +614,8 @@ class Plan:
                 ids[edge] = T(tiles.CLOUD_DRIFT)
 
 
-def plan_of(layout, zone) -> Plan:
-    """The zone's plan (built on first use, kept on the zone)."""
-    if zone.plan is None:
-        zone.plan = Plan(layout, zone)
-    return zone.plan
+def plan_of(layout, zone):
+    """The zone's plan (built on first use, kept on the zone): see
+    world/zones.plan_of, which picks each zone's own."""
+    from .zones import plan_of as zone_plan
+    return zone_plan(layout, zone)

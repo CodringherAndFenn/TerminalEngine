@@ -66,9 +66,13 @@ _TILES = (
     tiles.LOG_LEFT, tiles.LOG_MID, tiles.LOG_RIGHT,
     *tiles.CROWN.values(),
     # Paradise (M29.1, world/paradise.py)
-    tiles.CLOUD, tiles.CLOUD_DRIFT, tiles.BLOSSOM, tiles.COLUMN, tiles.FALLEN_COLUMN,
+    tiles.CLOUD, tiles.CLOUD_DRIFT, tiles.BLOSSOM, tiles.MARBLE_COLUMN, tiles.FALLEN_COLUMN,
     tiles.MARBLE_ROAD, tiles.GOLD_POST, tiles.STEP, tiles.BLOOD_RIVER, tiles.MARBLE_BRIDGE,
     tiles.CLOUD_BANK,
+    # Pandemonium (M30.1, world/pandemonium.py)
+    tiles.OBSIDIAN, tiles.OBSIDIAN_DEEP, tiles.GOLD_VEIN, tiles.COINS, tiles.COIN_HEAP,
+    tiles.FIRE_BRAZIER, tiles.VELVET_BANNER, tiles.COIN_BEACH, tiles.GILT_ROAD, tiles.GOLD_STAIRS,
+    tiles.LANTERN, tiles.GILT_BRIDGE, tiles.TERRACE_EDGE, tiles.WINE, tiles.WINE_SEA,
 )
 _IDX = {t: i for i, t in enumerate(_TILES)}
 _T = _IDX.__getitem__
@@ -147,8 +151,24 @@ def _paradise(detail, r1, r2):
         [(detail < 1.0 - config.PARADISE_TREE_MIN) & (r1 < config.PARADISE_TREE_CHANCE),
          r1 > 1.0 - config.PARADISE_COLUMN_CHANCE, r2 < config.PARADISE_FALLEN_CHANCE,
          detail > config.PARADISE_DRIFT_MIN],
-        [_T(tiles.BLOSSOM), _T(tiles.COLUMN), _T(tiles.FALLEN_COLUMN), _T(tiles.CLOUD_DRIFT)],
+        [_T(tiles.BLOSSOM), _T(tiles.MARBLE_COLUMN), _T(tiles.FALLEN_COLUMN), _T(tiles.CLOUD_DRIFT)],
         _T(tiles.CLOUD))
+
+
+def _pandemonium(detail, r1, r2):
+    """Pandemonium's ground (M30.1): black obsidian, thin gold veins where
+    the detail field crosses its middle, coin heaps in clumps with loose
+    coins round them, lone braziers and crimson banners. Its avenues,
+    lanterns, terraces, river, lake, coin beach and wine-dark sea are its
+    plan's (world/pandemonium.Plan.paint)."""
+    return np.select(
+        [r1 > 1.0 - config.PANDEMONIUM_BRAZIER_CHANCE, r2 < config.PANDEMONIUM_BANNER_CHANCE,
+         (detail > config.PANDEMONIUM_HEAP_MIN) & (r1 < config.PANDEMONIUM_HEAP_CHANCE),
+         (detail > config.PANDEMONIUM_COINS_MIN) & (r2 < 0.35),
+         np.abs(detail - 0.5) < config.PANDEMONIUM_VEIN],
+        [_T(tiles.FIRE_BRAZIER), _T(tiles.VELVET_BANNER), _T(tiles.COIN_HEAP), _T(tiles.COINS),
+         _T(tiles.GOLD_VEIN)],
+        _T(tiles.OBSIDIAN))
 
 
 _FEATURES = {
@@ -160,6 +180,7 @@ _FEATURES = {
     biomes.MUSHROOM.id: _mushroom,
     biomes.OCEAN.id: _ocean,
     biomes.PARADISE.id: _paradise,
+    biomes.PANDEMONIUM.id: _pandemonium,
 }
 # Lakes form in plains, forest and mushroom land (swamps have bogs, deserts
 # and ruins stay dry).
@@ -195,7 +216,7 @@ def build_chunk(layout: IslandLayout, cx: int, cy: int) -> Generator[None, None,
     ids[lakes] = _T(tiles.WATER)
     zone = layout.zone_near_rect(x0, y0, x0 + n, y0 + n)
     if zone is not None:                    # (M29.1: an ocean zone's own plan)
-        from .paradise import plan_of
+        from .zones import plan_of
         plan_of(layout, zone).paint(x0, y0, xs, ys, ids, biome_ids, r1, _T)
         yield
     lights: tuple = ()

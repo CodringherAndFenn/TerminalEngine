@@ -4368,11 +4368,11 @@ CARDINAL_REGION_DISTANCE = 1.35
 
 # --- The ocean zones (M29, design/OCEAN.md) --------------------------------------
 # Four islands out in the ocean, one due N/E/S/W, reached by water walking
-# (Adventurer's Glory). Fixed places (user): Paradise north, Hell south,
+# (Adventurer's Glory). Fixed places (user): Paradise north, Pandemonium (hell) south,
 # the Past west, the Future east. Only the zones listed in OCEAN_ZONES are
 # built; the others' places stay open sea.
-ZONE_PLACES = {"paradise": "N", "hell": "S", "past": "W", "future": "E"}
-OCEAN_ZONES = ("paradise",)
+ZONE_PLACES = {"paradise": "N", "pandemonium": "S", "past": "W", "future": "E"}
+OCEAN_ZONES = ("paradise", "pandemonium")
 # Each zone is one island ZONE_RADIUS tiles across (half: about 40 s to
 # cross), its coast wandering by up to ZONE_COAST_AMPLITUDE of that (fBm,
 # ZONE_COAST_SCALE tiles across). Its centre is put far enough out that its
@@ -4388,7 +4388,8 @@ ZONE_FAN = 0.45
 # its shore (user: "hidden until found"); then its outline and name show.
 ZONE_FOUND_RANGE = 120
 # The banner the first time a player sets foot on a zone: its name, and this.
-ZONE_ARRIVAL = {"paradise": "where the angels sing"}
+ZONE_ARRIVAL = {"paradise": "where the angels sing",
+                "pandemonium": "where the feast never ends"}
 
 # Paradise (M29.1, OCEAN.md 3). Its land: soft cloud ground, puffier drifts
 # where the detail field is above PARADISE_DRIFT_MIN, blossom trees in
@@ -4420,6 +4421,51 @@ PARADISE_CHOIRS = 5
 PARADISE_FONTS = 10
 PARADISE_STATUES = 14
 PARADISE_SITE_GAP = 14
+
+# Pandemonium (M30.1, OCEAN.md 13): black obsidian veined with gold. Its
+# ground: gold veins where the detail field is within PANDEMONIUM_VEIN of
+# its middle (thin wandering lines), coin heaps in clumps (detail above
+# PANDEMONIUM_HEAP_MIN, that share of tiles) with loose coins round them,
+# lone braziers and crimson banners (chances per tile).
+PANDEMONIUM_VEIN = 0.012
+PANDEMONIUM_HEAP_MIN = 0.74
+PANDEMONIUM_HEAP_CHANCE = 0.3
+PANDEMONIUM_COINS_MIN = 0.69
+PANDEMONIUM_BRAZIER_CHANCE = 0.003
+PANDEMONIUM_BANNER_CHANCE = 0.002
+# The sea round it turns wine-dark this many tiles out, and the land's
+# last PANDEMONIUM_BEACH tiles are a beach of gold coins.
+PANDEMONIUM_WINE_SEA = 22
+PANDEMONIUM_BEACH = 4
+# The palace's great hall (the boss's arena, sealed until the seventh
+# bandstand falls silent, M30.4): an oval of these radii at the bottom of
+# the pit, walled, its gate facing the pier; the wine lake round it this
+# many tiles wide; gold-leaf terrace edges stepping up out of the pit this
+# many tiles out from the wall (the ground is darker below
+# PANDEMONIUM_DEEP, the pit's floor).
+PANDEMONIUM_HALL_RADII = (76, 50)
+PANDEMONIUM_HALL_GATE = 7
+PANDEMONIUM_LAKE = 14
+PANDEMONIUM_TERRACES = (22, 48, 80, 118, 160)
+PANDEMONIUM_DEEP = 48
+# Gilded avenues (half-width) lit by lanterns every PANDEMONIUM_LANTERN_EVERY
+# tiles; the avenue from the pier meanders by up to PANDEMONIUM_ROAD_SWAY;
+# the ring avenue runs just outside this terrace (index into the above).
+PANDEMONIUM_ROAD_W = 1.6
+PANDEMONIUM_LANTERN_EVERY = 9
+PANDEMONIUM_ROAD_SWAY = 20
+PANDEMONIUM_RING_TERRACE = 2
+# The river of wine (half-width): from the wine press down into the lake.
+PANDEMONIUM_RIVER_W = 2.4
+PANDEMONIUM_RIVER_SWAY = 22
+# How many of each, and the spacing (tiles between footprints). The seven
+# bandstands keep PANDEMONIUM_BANDSTAND_GAP apart (like the seven seals).
+PANDEMONIUM_TABLES = 22
+PANDEMONIUM_FOUNTAINS = 10
+PANDEMONIUM_STATUES = 16
+PANDEMONIUM_BANDSTANDS = 7
+PANDEMONIUM_BANDSTAND_GAP = 60
+PANDEMONIUM_SITE_GAP = 12
 # The angels' shots (M29.2, ai/paradise.py): serene, slow notes, rings and
 # orbs of light; unveiled, the seraph's spirals of blood and fire.
 PARADISE_SHOTS = {

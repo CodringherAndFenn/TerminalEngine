@@ -2,13 +2,14 @@
 world/explored.py -- what the player has seen, for the minimap and big map.
 
 Every chunk that gets generated near the player counts as explored. Its tiles
-are stored as one byte each: a "map class", the index of the tile type in
+are stored as two bytes each: a "map class", the index of the tile type in
 MAP_TILES (the map colors each class by tile type -- ground, trees, water,
 walls...). Chunks stay remembered after they unload, and destroyed tiles
 update their class, so the map shows the island as you left it. Cost: about
-1 KB per chunk, so even thousands of explored chunks are a few MB.
+2 KB per chunk, so even thousands of explored chunks are a few MB. (One
+byte each until M30.1: the ocean zones' tiles outgrew 255 classes.)
 
-Storage: one growing (capacity, n, n) uint8 array plus a sorted array of
+Storage: one growing (capacity, n, n) uint16 array plus a sorted array of
 packed chunk keys. Looking up any set of tiles is then a handful of numpy
 operations (binary search for the chunk, then index into it), whatever the
 number of chunks or points -- the whole-island big map samples thousands of
@@ -28,7 +29,9 @@ MAP_TILES: tuple[TileType, ...] = tuple(
     v for v in vars(tiles).values() if isinstance(v, TileType)
 ) + tuple(tiles.CROWN.values())       # (a haunted tree's crown pieces, M21)
 _CLASS = {t: i for i, t in enumerate(MAP_TILES)}
-UNSEEN = 255
+_DTYPE = np.uint16
+UNSEEN = int(np.iinfo(_DTYPE).max)
+assert len(MAP_TILES) < UNSEEN, "more tile types than map classes"
 
 _OFF = 1 << 20      # chunk coords are shifted positive before packing
 
@@ -44,7 +47,7 @@ class ExploredMap:
         self._n = n
         self._shift = n.bit_length() - 1
         self._slot: dict[tuple[int, int], int] = {}
-        self._data = np.empty((64, n, n), dtype=np.uint8)
+        self._data = np.empty((64, n, n), dtype=_DTYPE)
         self._sorted_keys = np.empty(0, dtype=np.int64)
         self._sorted_slots = np.empty(0, dtype=np.int64)
         self._index_dirty = False
@@ -65,7 +68,7 @@ class ExploredMap:
                 self._data = np.concatenate([self._data, np.empty_like(self._data)])
             self._slot[(cx, cy)] = slot
             self._index_dirty = True
-        classes = np.fromiter((_CLASS[t] for t in chunk_tiles), dtype=np.uint8,
+        classes = np.fromiter((_CLASS[t] for t in chunk_tiles), dtype=_DTYPE,
                               count=self._n * self._n)
         self._data[slot] = classes.reshape(self._n, self._n)
         self.version += 1
@@ -88,7 +91,7 @@ class ExploredMap:
         UNSEEN where the chunk was never explored."""
         txs, tys = np.broadcast_arrays(np.asarray(txs, dtype=np.int64),
                                        np.asarray(tys, dtype=np.int64))
-        out = np.full(txs.shape, UNSEEN, dtype=np.uint8)
+        out = np.full(txs.shape, UNSEEN, dtype=_DTYPE)
         if not self._slot:
             return out
         if self._index_dirty:

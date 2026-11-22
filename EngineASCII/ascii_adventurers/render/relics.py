@@ -151,11 +151,11 @@ def _draw_5c(batch, camera: Camera, h, st, steps: int) -> None:
             batch.put_c(x, y, "+" if k in (0, n) else ".", palette.TRIPWIRE)
     if st.has("rootbound_boots") and h.roots > 0:
         x, y = camera.world_to_px(h.x, h.y + h.hit_radius)
-        batch.put_c(x, y + 4, "vVv" if h.still_t >= 0.5 else "v v", palette.ROOTS[0])
+        batch.put_c(x, y + 4, "vVv" if h.still_t >= 0.5 else "v v", palette.ROOTBOUND[0])
     if h.near_tree and st.has("heartwood_ring") and h.hp < h.max_hp:
         a = steps * 0.04
         x, y = camera.world_to_px(h.x + math.cos(a) * 0.8, h.y - 0.6 + math.sin(a) * 0.3)
-        batch.put_c(x, y, "*", palette.ROOTS[1])
+        batch.put_c(x, y, "*", palette.ROOTBOUND[1])
     if h.shade > 0:
         for k in range(8):
             a = k * math.tau / 8 + steps * 0.05

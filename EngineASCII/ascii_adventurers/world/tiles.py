@@ -829,10 +829,10 @@ BLOSSOM = TileType(
 MARBLE_RUBBLE = TileType(
     "marble rubble", (".:", ":.", ";.", ".;"), palette.MARBLE_RUBBLE_FG, palette.CLOUD_BG,
 )
-COLUMN = TileType(
+MARBLE_COLUMN = TileType(
     # A standing column: a white shaft in the middle of the tile. The
     # Behemoth breaks them (M29.3); so can you.
-    "marble column", ("▐▌",), palette.COLUMN_FG, palette.CLOUD_BG,
+    "marble column", ("▐▌",), palette.MARBLE_COLUMN_FG, palette.CLOUD_BG,
     solid=True, blocks_shots=True, hp=config.WALL_HP,
     wear=(("▐▒", "▒▌"),),
     becomes=MARBLE_RUBBLE,
@@ -857,7 +857,7 @@ STEP = TileType(
 )
 BLOOD_RIVER = TileType(
     # Watery: only water walkers cross it (heroes here always are).
-    "blood river", ("░ ", " ░", "  ", "▒░", "  "), palette.BLOOD_FG, palette.BLOOD_BG,
+    "blood river", ("░ ", " ░", "  ", "▒░", "  "), palette.PARADISE_BLOOD_FG, palette.PARADISE_BLOOD_BG,
     solid=True,
 )
 MARBLE_BRIDGE = TileType(
@@ -888,7 +888,7 @@ GATE_BARS = TileType(
     "golden bars", ("||",), palette.GOLD, palette.MARBLE_FLOOR_BG,
     solid=True,
 )
-THRONE = TileType(
+GOLD_THRONE = TileType(
     "throne", ("██", "▓▓"), palette.GOLD, palette.PEARL_BG,
     solid=True, blocks_shots=True,
 )
@@ -896,14 +896,14 @@ ALTAR = TileType(
     "altar", ("##",), palette.GOLD, palette.PEARL_BG,
     solid=True, blocks_shots=True,
 )
-STATUE = TileType(
+CHOIR_STATUE = TileType(
     # A choir ring's singing statue.
-    "statue", ("&&",), palette.STATUE_FG, palette.STATUE_BG,
+    "statue", ("&&",), palette.CHOIR_STATUE_FG, palette.CHOIR_STATUE_BG,
     solid=True, blocks_shots=True,
 )
 WEEPING_STATUE = TileType(
     # A saint crying red tears; its blood trickles away over the marble.
-    "weeping statue", ("&,", ",&"), palette.STATUE_FG, palette.BLOOD_BG,
+    "weeping statue", ("&,", ",&"), palette.CHOIR_STATUE_FG, palette.PARADISE_BLOOD_BG,
     solid=True, blocks_shots=True,
 )
 BLOOD_TRICKLE = TileType(
@@ -911,7 +911,7 @@ BLOOD_TRICKLE = TileType(
 )
 BLOOD_FONT = TileType(
     # A marble basin's blood: unveiled angels drink here to heal (M29.2).
-    "blood font", ("▒▒", "▓▒", "▒▓"), palette.BLOOD_FG, palette.BLOOD_BG,
+    "blood font", ("▒▒", "▓▒", "▒▓"), palette.PARADISE_BLOOD_FG, palette.PARADISE_BLOOD_BG,
     solid=True,
 )
 FONT_RIM = TileType(
@@ -927,7 +927,7 @@ STAIR_END = TileType(
     "white stair", ("=-", "-=", "- "), palette.STAIR_FG, palette.CLOUD_BG,
 )
 BALUSTRADE = TileType(
-    "balustrade", ("::",), palette.STATUE_FG, palette.CLOUD_BG,
+    "balustrade", ("::",), palette.CHOIR_STATUE_FG, palette.CLOUD_BG,
     solid=True,
 )
 CHAIN_POST = TileType(
@@ -987,3 +987,176 @@ STAINS: dict[str, TileType] = {
     "marble rubble": STAINED_CLOUD, "stained cloud": SOAKED_CLOUD,
     "marble road": STAINED_ROAD, "marble floor": STAINED_FLOOR, "marble step": STAINED_STEP,
 }
+
+
+# --- Pandemonium (M30.1, design/OCEAN.md 13) ------------------------------------------
+# Black obsidian veined with gold: gold-leaf terraces stepping down into a
+# pit, crimson velvet, braziers and lanterns, a beach of gold coins sliding
+# into a wine-dark sea. Wine runs from the press down into a lake round the
+# palace. (Ground stays dark so shots read on it; the gold is in the glyphs.)
+OBSIDIAN = TileType(
+    "obsidian", ("  ", "  ", "  ", ". ", " '", "  "), palette.OBSIDIAN_FG, palette.OBSIDIAN_BG,
+)
+OBSIDIAN_DEEP = TileType(
+    # The pit's floor, round the lake: the same stone, darker down there.
+    "deep obsidian", ("  ", "  ", ". ", "  ", " ."), palette.OBSIDIAN_DEEP_FG, palette.OBSIDIAN_DEEP_BG,
+)
+GOLD_VEIN = TileType(
+    "gold vein", ("─ ", " ─", "─.", ".─", "──"), palette.GOLD_VEIN_FG, palette.OBSIDIAN_BG,
+)
+COINS = TileType(
+    # Loose coins: round the heaps, and what a broken heap or statue leaves.
+    "coins", ("o ", " o", ".o", "o.", " ."), palette.COIN_FG, palette.OBSIDIAN_BG,
+)
+COIN_HEAP = TileType(
+    # A heap of gold: low cover, like the forest's logs.
+    "coin heap", ("▄▄", "▄o", "o▄"), palette.COIN_FG, palette.COIN_HEAP_BG,
+    solid=True, blocks_shots=True, hp=config.LOG_HP,
+    wear=(("o.", ".o"),),
+    becomes=COINS,
+)
+COIN_BEACH = TileType(
+    "coin beach", (". ", " .", "o ", "  ", ".o", " o"), palette.COIN_BEACH_FG, palette.COIN_BEACH_BG,
+)
+FIRE_BRAZIER = TileType(
+    # A burning brazier on a stand: it stops you, not shots.
+    "brazier", ("()",), palette.PAND_BRAZIER_FG, palette.PAND_BRAZIER_BG,
+    solid=True,
+)
+VELVET_BANNER = TileType(
+    "crimson banner", ("|>",), palette.CRIMSON, palette.OBSIDIAN_BG,
+    solid=True,
+)
+LANTERN = TileType(
+    # The avenues' lanterns (Paradise's gold posts): they stop you, not shots.
+    "lantern", ("i ", " i"), palette.LANTERN_FG, palette.OBSIDIAN_BG,
+    solid=True,
+)
+GILT_ROAD = TileType(
+    "gilded avenue", ("  ", ". ", " .", "_.", "  "), palette.GILT_ROAD_FG, palette.GILT_ROAD_BG,
+)
+GOLD_STAIRS = TileType(
+    # Where an avenue goes down a terrace.
+    "gold stairs", ("__",), palette.GILT_ROAD_FG, palette.TERRACE_BG,
+)
+GILT_BRIDGE = TileType(
+    "gilded bridge", ("==",), palette.GILT_ROAD_FG, palette.WINE_BG,
+)
+TERRACE_EDGE = TileType(
+    # A gold-leaf terrace's edge: the island steps down into the pit.
+    "gold-leaf terrace", ("__", "_.", "._"), palette.TERRACE_FG, palette.TERRACE_BG,
+)
+WINE = TileType(
+    # The river, the lake round the palace, a vat's insides. Watery: only
+    # water walkers cross it (heroes out here always are).
+    "wine", ("░ ", " ░", "  ", "▒░", "  "), palette.WINE_FG, palette.WINE_BG,
+    solid=True,
+)
+WINE_FOUNTAIN = TileType(
+    "wine fountain", ("▒▒", "░▒", "▒░"), palette.WINE_FOUNTAIN_FG, palette.WINE_FOUNTAIN_BG,
+    solid=True,
+)
+WINE_SEA = TileType(
+    # The sea round Pandemonium, wine-dark near the shore: watery.
+    # (The ocean's own dither, wine-dark, so the sea seems to darken into wine.)
+    "wine sea", ("░ ", " ░", "  ", "  ", "▒░"), palette.WINE_SEA_FG, palette.WINE_SEA_BG,
+    solid=True,
+)
+PALACE_WALL = TileType(
+    "palace wall", ("██", "▓█", "█▓"), palette.PALACE_WALL_FG, palette.PALACE_WALL_BG,
+    solid=True, blocks_shots=True,
+)
+PALACE_GATE = TileType(
+    # The great hall's gilded gate: sealed until the seventh bandstand falls
+    # silent (M30.4). It stops you, not shots.
+    "gilded gate", ("||",), palette.GOLD, palette.HALL_FLOOR_BG,
+    solid=True,
+)
+HALL_FLOOR = TileType(
+    # (polished black stone with a glint of gold here and there: calm, so
+    # the fight on it reads)
+    "hall floor", ("  ", "  ", ". ", " .", "  ", "' "), palette.HALL_FLOOR_FG, palette.HALL_FLOOR_BG,
+)
+HOST_SEAT = TileType(
+    "host's seat", ("██", "▓▓"), palette.CRIMSON, palette.PALACE_WALL_BG,
+    solid=True, blocks_shots=True,
+)
+FOUNTAIN_RIM = TileType(
+    "fountain rim", ("▓▓", "██"), palette.GOLD, palette.COIN_HEAP_BG,
+    solid=True,
+)
+GILT_FLOOR = TileType(
+    "gilded floor", ("  ", ". ", " .", "  "), palette.GILT_FLOOR_FG, palette.GILT_FLOOR_BG,
+)
+CARPET = TileType(
+    "crimson carpet", ("  ", ". ", " .", "  "), palette.CRIMSON, palette.PAND_VELVET_BG,
+)
+SPILLED_FEAST = TileType(
+    # A banquet table knocked over: food and drink across the carpet.
+    "spilled feast", (", ", ".%", "%.", " ,"), palette.SPILLED_FG, palette.PAND_VELVET_BG,
+)
+BANQUET_TABLE = TileType(
+    # Heaped with food. It stops you, not shots; knock it over and the
+    # feast spills.
+    "banquet table", ("oo", "%o", "o%", "@o", "o@"), palette.TABLE_FG, palette.TABLE_BG,
+    solid=True, hp=config.LOG_HP,
+    wear=(("o.", ".o", "%."),),
+    becomes=SPILLED_FEAST,
+)
+GILDED_STATUE = TileType(
+    # A reveller cast in gold, admiring itself (some are revellers frozen
+    # mid-pose, M30.3). Broken, it's loose coins.
+    "gilded statue", ("▐▌",), palette.STATUE_GOLD, palette.GILT_FLOOR_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP,
+    wear=(("▐▒", "▒▌"),),
+    becomes=COINS,
+)
+BANDSTAND = TileType(
+    "bandstand", ("__", "  ", "_ "), palette.STAGE_FG, palette.STAGE_BG,
+)
+INSTRUMENT = TileType(
+    # The bandstands' drums and harps (smashed to silence them, M30.4).
+    "instrument", ("()", "[]", "|)"), palette.GOLD, palette.STAGE_BG,
+    solid=True, hp=config.LOG_HP,
+    becomes=BANDSTAND,
+)
+PIER_DECK = TileType(
+    # The gilded pier's planks, out over the wine-dark sea.
+    "gilded pier", ("──", "─ ", " ─"), palette.PIER_FG, palette.PIER_BG,
+)
+BARGE = TileType(
+    "barge", ("██", "▓█", "█▓"), palette.BARGE_FG, palette.BARGE_BG,
+    solid=True, blocks_shots=True,
+)
+WELCOME_ARCH = TileType(
+    "arch", ("██",), palette.GOLD, palette.GOLD_DARK,
+    solid=True, blocks_shots=True,
+)
+HALL_MIRROR = TileType(
+    "mirror", ("▐▌", "▌▐", "██"), palette.PAND_MIRROR_FG, palette.MIRROR_BG,
+    solid=True, blocks_shots=True,
+)
+BALLROOM_FLOOR = TileType(
+    "ballroom floor", ("  ", "░ ", "  ", " ░", "  "), palette.BALLROOM_FG, palette.BALLROOM_BG,
+)
+CHANDELIER = TileType(
+    # Overhead: it lights the floor under it (walkable).
+    "chandelier", ("**",), palette.PAND_CHANDELIER_FG, palette.BALLROOM_BG,
+)
+VINE_STAKES = TileType(
+    "vine stakes", ("| ", " |", ". "), palette.STAKE_FG, palette.OBSIDIAN_BG,
+)
+VINES = TileType(
+    # A row of grapevines on the press's terraced vineyards: low cover.
+    "vines", ("%%", "%&", "&%"), palette.VINE_FG, palette.VINE_BG,
+    solid=True, hp=config.TREE_HP,
+    becomes=VINE_STAKES,
+)
+WINE_PRESS = TileType(
+    "wine press", ("##", "▓▓"), palette.PRESS_FG, palette.PRESS_BG,
+    solid=True, blocks_shots=True,
+)
+VAT = TileType(
+    "vat", ("▓▓", "██"), palette.PRESS_FG, palette.PRESS_BG,
+    solid=True,
+)
