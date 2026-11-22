@@ -14,6 +14,7 @@ from ascii_adventurers.world import biomes, tiles
 from ascii_adventurers.world.chunked import ChunkedWorld
 from ascii_adventurers.world.explored import MAP_TILES, UNSEEN, ExploredMap
 from ascii_adventurers.ui import maps
+from ascii_adventurers.tests import timed
 
 HALF = (43.0, 13.5)   # ultrawide view half-size, tiles
 
@@ -139,6 +140,7 @@ class BigMapTest(DisplayCase):
 
 
 class MinimapTest(DisplayCase):
+    @timed
     def test_only_recomputed_when_needed_and_cheap(self):
         w = explored_world()
         mm = maps.Minimap()

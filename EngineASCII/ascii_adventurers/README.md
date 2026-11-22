@@ -1013,10 +1013,26 @@ Colors are in `palette.py`.
 ## Tests
 
 ```sh
-ascii_adventurers/.venv/bin/python -m unittest discover -s ascii_adventurers/tests -t .
+ascii_adventurers/.venv/bin/python -m ascii_adventurers.tests.parallel
 ```
 
-(Run from `EngineASCII/`. The tests need no display.)
+(Run from `EngineASCII/`. The tests need no display.) This runs the test
+modules on every core at once (`-j N` for N workers; module names such as
+`test_m29_5` to run only those; `--durations 10` to list the slowest
+tests). CI runs it the same way. The plain one-process run still works,
+and is the way to run a single test:
+
+```sh
+ascii_adventurers/.venv/bin/python -m unittest discover -s ascii_adventurers/tests -t .
+ascii_adventurers/.venv/bin/python -m unittest ascii_adventurers.tests.test_m29_5.UnveilingTest
+```
+
+Building an island's landmarks takes seconds, so the tests build each seed
+once per process and give every world its own copy (`tests/islands.py`).
+A test that checks two builds of one seed agree builds them inside
+`with fresh_islands():`. A test that measures wall-clock time gets
+`@timed` (from `ascii_adventurers.tests`), and the parallel run saves it for
+the end, when it runs alone.
 
 ## Layout
 

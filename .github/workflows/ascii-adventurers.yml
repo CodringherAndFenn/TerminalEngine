@@ -59,8 +59,10 @@ jobs:
           python3 ascii_adventurers/packaging/release_python.py
           echo "PY=ascii_adventurers/.release/venv/bin/python" >> "$GITHUB_ENV"
 
+      # On every core (the runners have 4), slowest modules first; the
+      # slowest tests are listed at the end to spot new slow ones.
       - name: Tests
-        run: $PY -m unittest discover -s ascii_adventurers/tests -t .
+        run: $PY -m ascii_adventurers.tests.parallel --durations 10
 
       - name: Build
         run: $PY ascii_adventurers/packaging/build.py

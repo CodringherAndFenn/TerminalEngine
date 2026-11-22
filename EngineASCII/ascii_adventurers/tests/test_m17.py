@@ -18,6 +18,7 @@ from ascii_adventurers.entities.projectile import Projectile
 from ascii_adventurers.systems import combat, patterns
 from ascii_adventurers.systems.quests import QUEST_SID, Quests, quest_id
 from ascii_adventurers.systems.spawner import Spawner
+from ascii_adventurers.tests.islands import fresh_islands
 from ascii_adventurers.tests.test_weapons import Dummy, hero, open_map
 from ascii_adventurers.world import landmarks, tiles
 from ascii_adventurers.world.chunked import ChunkedWorld
@@ -90,8 +91,9 @@ class LandmarkTest(unittest.TestCase):
         self.assertGreater(len(lair.gate), 0)
 
     def test_placement_is_the_same_every_time(self):
-        a = ChunkedWorld(77).layout.landmarks
-        b = ChunkedWorld(77).layout.landmarks
+        with fresh_islands():                    # (two real builds, not cached copies)
+            a = ChunkedWorld(77).layout.landmarks
+            b = ChunkedWorld(77).layout.landmarks
         self.assertEqual([(m.key, m.x0, m.y0, m.spots, m.gate) for m in a],
                          [(m.key, m.x0, m.y0, m.spots, m.gate) for m in b])
 

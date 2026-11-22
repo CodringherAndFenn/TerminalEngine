@@ -17,7 +17,8 @@ from ascii_adventurers.players import cards
 from ascii_adventurers.tests.gear_helpers import offerable, use_cards
 from ascii_adventurers.systems import combat
 from ascii_adventurers.tests.test_m14 import carded
-from ascii_adventurers.tests.test_m16 import SpellRev2Test, fly
+from ascii_adventurers.tests import test_m16  # (not its TestCase: unittest would run it here too)
+from ascii_adventurers.tests.test_m16 import fly
 from ascii_adventurers.tests.test_weapons import Dummy, open_map
 
 
@@ -96,7 +97,7 @@ class DartCardTest(unittest.TestCase):
         self.assertEqual(behind.hp, 5000)
 
 class ChainLightningTest(unittest.TestCase):
-    run_spell = SpellRev2Test.run_spell
+    run_spell = test_m16.SpellRev2Test.run_spell
 
     def test_spell_jumps(self):
         h = carded("wizard")

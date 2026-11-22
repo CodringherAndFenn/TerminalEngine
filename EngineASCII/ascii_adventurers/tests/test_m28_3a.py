@@ -15,7 +15,7 @@ from ascii_adventurers.engine_ext import gamepads
 from ascii_adventurers.players import gear
 from ascii_adventurers.players.gear import Offer, Piece
 from ascii_adventurers.systems import combat
-from ascii_adventurers.tests.test_m28_1 import DrawTest, wearing
+from ascii_adventurers.tests.test_m28_1 import Fits, wearing
 from ascii_adventurers.tests.test_m28_2a import foe, wear
 from ascii_adventurers.tests.test_m16 import game
 from ascii_adventurers.ui import frame, gear_picker, gear_screen, gear_stats
@@ -129,7 +129,7 @@ class StatsPageTest(unittest.TestCase):
             self.assertEqual(gamepads.BUTTON_KEYS[gamepads.BUTTON_Y], pygame.K_i)
 
 
-class FitTest(DrawTest):
+class FitTest(Fits, unittest.TestCase):
     def test_stats_page_fits_every_screen(self):
         from ascii_adventurers.players.progress import Progress
         m, s = game("wizard")

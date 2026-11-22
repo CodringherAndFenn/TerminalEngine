@@ -271,3 +271,28 @@ build* → *Run workflow*. Download the builds from the finished run's
 
 **Revert.** Delete `.github/workflows/ascii-adventurers.yml` (and the
 `.github/` folder if it's empty).
+
+---
+
+## 2026-11-22 — CI runs the tests on every core (outside the engine)
+
+**What / why.** The Tests step of `.github/workflows/ascii-adventurers.yml`
+now runs `ascii_adventurers/tests/parallel.py` instead of
+`unittest discover`. The suite had grown to about 23 minutes on the Linux
+runner and 33 on Windows, which was nearly the whole run (setup, build and
+smoke together take under a minute). The new runner spreads the test
+modules over one process per core (the runners have 4) and lists the
+slowest tests at the end. It goes with a test-only island cache
+(`tests/islands.py`), which removed most of the time. Both are inside
+`ascii_adventurers/`. Asked for by the user ("make the tests and the
+runners more efficient").
+
+**Files touched.** `.github/workflows/ascii-adventurers.yml` (the Tests
+step). Nothing in `narrative_engine/` changed.
+
+**Usage.** Nothing changes: push to `main` as before. Locally:
+`ascii_adventurers/.venv/bin/python -m ascii_adventurers.tests.parallel`.
+
+**Revert.** Set the Tests step's `run:` back to
+`$PY -m unittest discover -s ascii_adventurers/tests -t .` (that still
+works, in one process).

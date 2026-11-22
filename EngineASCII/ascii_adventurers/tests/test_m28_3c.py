@@ -16,7 +16,7 @@ from ascii_adventurers.players.gear import Offer
 from ascii_adventurers.systems import combat, spells, statuses
 from ascii_adventurers.systems.zones import update_zones
 from ascii_adventurers.tests.test_m16 import game
-from ascii_adventurers.tests.test_m28_1 import DrawTest
+from ascii_adventurers.tests.test_m28_1 import Fits
 from ascii_adventurers.tests.test_m28_2a import foe, wear
 from ascii_adventurers.tests.test_m28_2c import DT, _Case
 from ascii_adventurers.ui import gear_picker
@@ -99,7 +99,7 @@ class FrameworkTest(unittest.TestCase):
         self.assertNotIn("SPILLOVER", text)
 
 
-class FitTest(DrawTest):
+class FitTest(Fits, unittest.TestCase):
     def test_legendary_cards_fit_every_screen(self):
         from ascii_adventurers.players.progress import Progress
         prog = Progress(picks=1)

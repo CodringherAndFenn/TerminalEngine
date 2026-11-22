@@ -13,6 +13,8 @@ from ascii_adventurers.world.layout import IslandLayout
 from ascii_adventurers.world.noise import lattice, value_noise_at, value_noise_grid
 from ascii_adventurers.world.rng import hash_unit
 from ascii_adventurers.world.tiles import Damage
+from ascii_adventurers.tests import timed
+from ascii_adventurers.tests.islands import island
 
 N = config.CHUNK_SIZE
 
@@ -57,9 +59,11 @@ class NoiseTest(unittest.TestCase):
 
 class DeterminismTest(unittest.TestCase):
     def test_same_seed_same_chunk_regardless_of_order(self):
+        # (a layout of its own for every chunk; copies of one build, as two
+        # builds of a seed agreeing is test_m17's placement test)
         keys = [(0, 0), (3, -2), (-5, 7), (1, 1)]
-        a = {k: finish(build_chunk(IslandLayout(123), *k)) for k in keys}
-        b = {k: finish(build_chunk(IslandLayout(123), *k)) for k in reversed(keys)}
+        a = {k: finish(build_chunk(island(123), *k)) for k in keys}
+        b = {k: finish(build_chunk(island(123), *k)) for k in reversed(keys)}
         for k in keys:
             self.assertEqual(a[k].tiles, b[k].tiles, k)
             self.assertEqual(a[k].glyphs, b[k].glyphs, k)
@@ -344,6 +348,7 @@ class StreamingTest(unittest.TestCase):
             w.update(100.0 + (i % 2) * 6, 0.0, 32, 13, budget_ms=1e9)
         self.assertTrue(before <= set(w._chunks))
 
+    @timed
     def test_budget_is_respected(self):
         w = ChunkedWorld(8)
         worst = 0.0
@@ -383,20 +388,25 @@ class StreamingTest(unittest.TestCase):
 
 
 class PerformanceTest(unittest.TestCase):
+    @timed
     def test_chunk_build_steps_are_small(self):
         # Chunks from the plains, the ring, the coast and the open sea.
+        # The first pass only warms up (lazy imports, numpy's first calls:
+        # alone in a fresh process they made one step ~7 ms); the second is
+        # timed.
         lay = IslandLayout(99)
-        worst = 0.0
-        for frac in (0.0, 0.1, 0.5, 0.9, 1.0, 1.1, 1.5):
-            r = lay.radius * frac / N
-            gen = build_chunk(lay, round(r * 0.6), round(r * 0.8))
-            try:
-                while True:
-                    t = time.perf_counter()
-                    next(gen)
-                    worst = max(worst, time.perf_counter() - t)
-            except StopIteration:
-                pass
+        for timing in (False, True):
+            worst = 0.0
+            for frac in (0.0, 0.1, 0.5, 0.9, 1.0, 1.1, 1.5):
+                r = lay.radius * frac / N
+                gen = build_chunk(lay, round(r * 0.6), round(r * 0.8))
+                try:
+                    while True:
+                        t = time.perf_counter()
+                        next(gen)
+                        worst = max(worst, time.perf_counter() - t)
+                except StopIteration:
+                    pass
         # Each resumable step must be small enough to fit in the frame budget.
         self.assertLess(worst * 1000, config.CHUNK_BUILD_BUDGET_MS)
 

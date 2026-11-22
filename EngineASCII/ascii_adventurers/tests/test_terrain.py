@@ -14,6 +14,7 @@ from ascii_adventurers.engine_ext.camera import Camera
 from ascii_adventurers.render.terrain import TerrainRenderer
 from ascii_adventurers.world.chunked import ChunkedWorld
 from ascii_adventurers.world.tiles import Damage
+from ascii_adventurers.tests import timed
 
 
 def reference_draw(text, world, camera):
@@ -121,6 +122,7 @@ class TerrainCacheTest(unittest.TestCase):
             self.terrain.draw(w, self.camera)
         self.assertEqual(w.sync_builds, before)
 
+    @timed
     def test_steady_frame_is_fast(self):
         self.camera.center_on(*self.world.spawn_point())
         self.terrain.draw(self.world, self.camera)

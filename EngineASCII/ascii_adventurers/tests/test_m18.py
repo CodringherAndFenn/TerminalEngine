@@ -20,7 +20,8 @@ from ascii_adventurers.players.stats import HeroStats
 from ascii_adventurers.systems import combat, roll
 from ascii_adventurers.systems.zones import update_zones
 from ascii_adventurers.tests.test_m14 import carded
-from ascii_adventurers.tests.test_m16 import SpellRev2Test, game, key, take
+from ascii_adventurers.tests import test_m16  # (not its TestCase: unittest would run it here too)
+from ascii_adventurers.tests.test_m16 import game, key, take
 from ascii_adventurers.tests.test_weapons import Dummy, open_map
 
 DT = 1 / 60
@@ -278,7 +279,7 @@ class LingeringGateTest(unittest.TestCase):
 
 
 class SpellLevelTest(unittest.TestCase):
-    run_spell = SpellRev2Test.run_spell
+    run_spell = test_m16.SpellRev2Test.run_spell
 
     def test_no_lasts_longer_levels_left(self):
         for k, s in config.SPELLS.items():

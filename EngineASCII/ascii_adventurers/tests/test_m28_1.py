@@ -485,7 +485,11 @@ class InGameTest(unittest.TestCase):
         self.assertEqual(s.stats.gear, ["Wyrmseeker Staff +3"])
 
 
-class DrawTest(unittest.TestCase):
+class Fits:
+    """fits(): draws an overlay on every screen width and checks it stays
+    on screen. A mixin, so other modules can use it without unittest
+    running DrawTest's own tests again there."""
+
     def fits(self, overlay_for, rows=30):
         from engine import Display
         for cols in (80, 115, 128, 172):
@@ -507,6 +511,8 @@ class DrawTest(unittest.TestCase):
             self.assertLess(max(r for _, r, _ in calls), rows, cols)
             yield " ".join(s for _, _, s in calls)
 
+
+class DrawTest(Fits, unittest.TestCase):
     def test_picker_fits_every_screen(self):
         from ascii_adventurers.players.progress import Progress
         prog = Progress(picks=3)
