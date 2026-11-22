@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Ocean Zones
 
-Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE.** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) BEING DRAFTED from 2026-11-22 (section 13 on).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -11,7 +11,7 @@ Four islands out in the ocean, reached by **water walking** (Adventurer's Glory,
 | Place | Zone | The idea (user's words, condensed) |
 |-------|------|-----------------------------------|
 | **North** | **Paradise** (heaven) | A white, heaven-like island with a twist: "biblically accurate" horror angels and Bible-inspired monsters that look pretty at first and turn into extremely bloody monsters. Blood is a big theme; **white and red** are the colours. **M29.** |
-| **South** | Hell | Hell twisted toward excess: the humans there aren't tortured, all their pleasures are indulged (the opposite of the torturous heaven), but the trance makes them mad, so they're still aggressive. **Revellers in groups:** they feast, drink and dance lost in the trance, ignore you until you come close or hit one, then the whole group frenzies. Kept to feasts, wine, music, dance, gold and vanity, with our own names. Drafted later |
+| **South** | **Pandemonium** (hell) | Hell twisted toward excess: the humans there aren't tortured, all their pleasures are indulged (the opposite of the torturous heaven), but the trance makes them mad, so they're still aggressive. **Revellers in groups:** they feast, drink and dance lost in the trance, ignore you until you come close or hit one, then the whole group frenzies. Kept to feasts, wine, music, dance, gold and vanity, with our own names. **M30** (section 13 on). |
 | **West** | The Past | To draft (ask what "the past" means) |
 | **East** | The Future | To draft (ask what "the future" means) |
 
@@ -255,3 +255,121 @@ Above the necromancer on both counts, as tier III should be. Longer than my targ
 On the gear (16 letters at most) they're "Conquest's Crown" and "Pale Rider Cloak", like the Crown of Black Ice's "Black Ice Crown". The power that grows is the crown's time, the ring's time, the scales' share and the shades' time. Looks (M28.6): the crown gold with a red stone, the cloak pale. Affixes: Crown -- brutal, keen eye, lingering; Ring -- sharpened, vampiric, brutal; Scales -- second wind, potency, lucky charm; Cloak -- thick hide, iron skin, second wind. Code: `systems/relics.py` (`_blood_ring`, `_black_scales`, `_pale_shades`, `on_kill`), `combat._relic_on_hit` and `combat.strike` (the crown; the Ring of Blood's duel shares War's: x2 both ways), config `U_CONQUEST`, `U_BLOOD_RING`, `U_SCALES`, `U_PALE`. 42 boss uniques now.
 
 **M29 (Paradise) is complete. NEXT: M30, Hell** (the south zone; the Slaanesh-like revellers in groups, drafted with the user first).
+
+---
+
+## 13. Pandemonium (south): the land (user, M30 round 1, 2026-11-22)
+
+**Name: PANDEMONIUM** (Milton's capital of Hell, *Paradise Lost*: public domain; it pairs with Paradise). **(mine)** The arrival banner: "where the feast never ends".
+
+**Look: black and gold.** Polished black obsidian ground veined with gold, gold-leaf terraces, crimson velvet awnings and banners, braziers and lanterns everywhere. **The shore is a beach of gold coins** sliding into a dark, wine-red sea (instead of Paradise's cloud bank). The dark mirror of Paradise's white and red; it stays clear of the mushroom biome's purple and the desert's sandy gold.
+
+**The excess on the land (all four)** -- the counterpart of Paradise's blood:
+- **Wine fountains and a river of wine:** gilded fountains of wine; frenzied revellers run to them to drink and heal, so you fight them away from the fountains (**(mine)** like Paradise's fonts: under 40% HP, a fountain within 30 tiles). A **river of wine** runs from the wine press down the terraces into a wine lake round the palace (round 2).
+- **Banquet tables:** long tables heaped with food all over the island, each with a group of revellers feasting at it -- that's where the groups are. Tables you knock over spill food and drink.
+- **Gold and vanity statues:** heaps of coins, and gilded statues of the revellers admiring their own faces. Some statues are revellers frozen mid-pose, who wake with their group.
+- **Music that carries:** bandstands of endless players. The music feeds the trance: near a stage, revellers notice you later, but once a group there frenzies, the song carries the frenzy to the groups nearby.
+
+**Landmarks (all four):**
+- **The gilded pier:** on the shore facing the main island, a long golden jetty with pleasure barges moored, lanterns and a welcome arch: where you arrive (Paradise's Gate).
+- **The endless banquet hall:** a roofless hall with one table running its whole length and revellers along both sides, a feast that never ends.
+- **The hall of mirrors:** a ballroom of mirrors and chandeliers where dancers whirl forever; the mirrors show the dancers (and you) many times over.
+- **The wine press:** terraced vineyards round a giant press and its vats; the river of wine starts here.
+
+**The shape (round 2): terraces down into a pit.** Paradise climbs; Pandemonium sinks. Gold-leaf terraces step down to **the boss's palace at the bottom of the pit**. The river of wine starts at the wine press near the rim and runs down the terraces into **a wine lake round the palace**.
+
+## 14. Pandemonium: the trance (user, M30 round 2)
+
+**Who lives there:** mostly **human revellers in groups** (feasters, drinkers, dancers, musicians, the vain), plus **demon hosts** who serve them (cupbearers, carvers, a master of revels). The hosts are **never in the trance**: always alert, they guard the groups. **(mine)** 16 enemies, like Paradise.
+
+**The frenzy is one-way.** A group in its trance feasts, drinks and dances and ignores you until you come close or hit one of them. Then **the whole group turns at once** after a short tell (they freeze, heads snap toward you, **(mine)** ~0.6 s) and **stays frenzied until it dies**: faster, harder hits, chasing you. The skill is choosing which group to wake, and where (away from the fountains and bandstands). **(mine)** "Close" = 6 tiles from any member (Paradise's unveiling is 5); near a bandstand it's half that, and a frenzy at a bandstand spreads to every group within 25 tiles of it (section 13's music).
+
+**Temptation: the trance reaches you too.** Standing near feasts, bandstands or fountains fills a **TMP meter** on the HUD (like the Fallout King's rads and the Snow King's chill). **Full, you're entranced for ~2 s**: you drift toward the nearest table or stage and can't attack; **a roll snaps you out**. Fighting and moving on drain it. **(mine)** Fills within 8 tiles of a table, bandstand or fountain (faster the closer, ~6 s from empty when right next to one); drains in ~3 s once you're clear, and twice as fast while you're hitting something.
+
+## 15. Pandemonium: the enemies (all 16 picked, M30 round 3)
+
+Revellers are in the trance until their group frenzies (section 14); the demon hosts are always alert.
+
+| Group | Enemy | In the trance | Frenzied |
+|-------|-------|---------------|----------|
+| Feasters and drinkers | **Glutton** | stuffing itself at the table | lumbers after you, belly-slams a shockwave ring; stops to gorge at any table it passes and heals |
+| | **Drunkard** | swaying with a goblet | staggers in a weaving, hard-to-predict walk; hurls bottles that shatter into wine puddles (slow you, fill your temptation) |
+| | **Toastmaster** (elite) | on its feet, goblet raised | calls toasts: each gives every frenzied reveller nearby a burst of speed and splashes a wave of wine outward. Kill it first |
+| | **The Ravenous** | gaunt guests who eat and are never full | sprint in and latch onto you, biting and slowing you until a roll shakes them off |
+| Dancers and musicians | **Dancer** | twirling in pairs | whirls along curving dance-step paths, slashing with ribbon blades; the steps repeat, so the pattern can be read |
+| | **Masked Dancer** | a masquerade guest | swaps places with other dancers in a flash (you lose track of who's who), then stabs from where it lands |
+| | **Drummer** | drumming on a bandstand | every beat sends a shockwave ring out on a steady rhythm; roll through on the beat |
+| | **Piper** (elite) | leads the bandstand's tune | its song fills your temptation fast in a cone, and every few seconds it plays the frenzy on to the next group in range. Silence it or the whole quarter wakes |
+| The vain and the greedy | **The Vain** | admiring itself in a hand mirror | flashes the mirror: a blinding cone (marked first) that also turns your shots back at you |
+| | **Gilded Reveller** | looks exactly like a vanity statue | wakes with its group in a gold shell that soaks hits until it cracks off; slow, heavy slams |
+| | **Hoarder** | sitting on a coin heap, counting | throws fistfuls of coins in shotgun spreads; the coins stay on the floor and trip you (a short stumble) |
+| | **The Beloved** (elite) | the centre of its group's admiration | its admirers orbit it as a living shield and take its hits; while it lives its group is faster. Break the ring to reach it |
+| Demon hosts (always alert) | **Cupbearer** | -- | carries wine jugs round the groups: refills frenzied revellers (heals them), throws wine at you that fills your temptation. A priority target |
+| | **Carver** | -- | a butcher-chef demon: lunging cleaves; spinning cleavers thrown out that curve back to it |
+| | **Bouncer** | -- | a huge doorman demon guarding a group: shoulder charges along a shown line; if it catches you it throws you toward the nearest group (waking it) |
+| | **Master of Revels** (elite) | -- | rings a hand bell: every group within range frenzies at once; calls fireworks onto marked circles. Its bell also ends your temptation trance (an opening) |
+
+## 16. Pandemonium: the quest (user, M30 round 4)
+
+**Silence the seven bandstands.** Seven bandstands carry the music that holds the trance (**(mine)** out from the start, every one counts, quest taken or not, like the seven seals). **Smash each one's instruments: stand at it ~8 s** while its group, and any group the song reaches, frenzies at you (**(mine)** the seals' survive-circle code: leave the circle and the smashing pauses). **Each silenced stage thins the music:** the island gets quieter and **your temptation fills slower** (**(mine)** 10% slower per silenced stage). **The seventh silence wakes the host of the feast in a rage.**
+
+**The giver: the sober man.** The only reveller who ever woke up: haggard and starving in the middle of plenty (the food turns to ash in his mouth), hiding under the gilded pier. He wants it to end, and he's the only one who tells you what the feast really is: the mirror of Paradise's fallen angel.
+
+## 17. Pandemonium: the boss -- THE HOST OF THE FEAST (user, M30 round 5)
+
+**Who:** a vast demon prince, gracious and smiling, who throws the endless party. Every attack is hospitality: courses served, wine poured, toasts, dances. Under the charm is a hunger that eats the guests.
+
+**Arena: a hall that changes.** The palace's great hall at the bottom of the pit turns into a new room each phase: **the banquet** (a long table down the middle), **the ballroom** (a dance floor that lights up in steps, mirrors on the walls), then **the vault** (heaps of shifting gold). The wine lake rings it all. Sealed until the seventh silence.
+
+**Two forms** (like the Horsemen and the necromancer), each a full kit: **the gracious host**, then at 0 **the hunger**: the mask cracks, the table collapses, and he becomes a devouring thing that eats the feast and the guests to grow.
+
+**Movement: he dances.** Always moving: he waltzes round the hall the whole fight, and his moves are dance figures (spins, glides, a partner he sweeps along). Only a few moves plant him, with a clear tell.
+
+### 17.1 Form 1: the gracious host (user, M30 round 6)
+
+**Phases = rooms:** the banquet, the ballroom, the vault (**(mine)** 100-67-33-0%: the hall changes at each threshold). One signature comes with each room and keeps going in the rooms after it; **Toasts** (the fourth pick) plays in every room.
+
+**Signatures (all four):**
+1. **Courses served** (from the banquet): he sends dishes sliding down the table and across the floor, each a hazard read by its look: **soup** (a spreading scald pool), **the roast** (bursts into a ring of bones), **jellies** (bouncing blobs), **the cake tower** (topples along a line). In the later rooms demon waiters bring them in.
+2. **The dance floor** (from the ballroom): the tiles light a step pattern a beat ahead; when the beat lands, every unlit tile burns. Follow the steps while he waltzes across the floor.
+3. **The vault's gold** (the vault): heaps of gold slide across the floor like walls closing lanes; coins pour from the ceiling onto marked circles. He tosses you gold too: **catch a coin for a burst of damage, but each one fills your temptation.**
+4. **Toasts** (every room): he raises his glass and the hall toasts: a wave of wine floods out from him (roll through it), and every guest in the hall frenzies.
+
+**Moves (all four dance figures):** **grand spin** (a long spinning glide, a ring of cutlery flung each turn), **the beckoning** (he bows and beckons: you're pulled toward him for a second -- walk or roll against it -- then a sweeping slash in a cone), **carving set** (carving knives fanned in arcs that cross; the gaps are where they cross), **chandeliers** (dropped onto marked spots, leaving broken glass that cuts for a few seconds).
+
+**His charm pulls:** within ~6 tiles of him your **temptation fills**. Full, you're **swept into his dance for ~2 s**: you drift toward him and he gets a free hit unless you roll out. Fight from range or keep stepping out.
+
+**Guests in each room:** a group at the room's edges, in the trance -- **feasters** in the banquet, **dancers** in the ballroom, **hoarders** in the vault. They wake if you go near them, or when his toast frenzies the hall. **(mine)** Each room's group leaves with the room (the hall changes), and a new one sits down.
+
+### 17.2 Form 2: the hunger (user, M30 round 7)
+
+At 0 the mask cracks, the table collapses, and he becomes a devouring thing that eats the feast and the guests to grow.
+
+**Arena: the hall falls into the wine.** At the change the floor breaks up into **islands of table, floor and gold in the wine lake**. He moves through the wine freely; you wade it slowly, so you fight from island to island.
+
+**Signatures (all four), one added per phase** (**(mine)** four phases, 100-75-50-25-0%, as with the Serene Cavalry):
+1. **Devour:** he eats whatever he reaches -- guests, dishes, his own servants. Each meal heals him and makes him **bigger and stronger** (a growth count shows on his bar). Kill the guests and clear the food before he gets there.
+2. **The maw:** he opens his maw and inhales: a strong pull across a cone (shown first). Caught, you're swallowed: heavy damage, then spat out across the hall.
+3. **Teeth in the floor:** the broken hall grows mouths: rows of teeth burst up and snap shut along lines he marks first; the lines cross and change.
+4. **Spilled feast:** he heaves up half-eaten feast in long arcs; it lands as rotting pools that slow and burn, and spreads the guests' frenzy to anything near.
+
+**Moves (all four):** **lunge bite** (a fast lunge along a marked line, ending in a bite), **tongue lash** (a long tongue grabs you and drags you toward his mouth unless you roll free), **belly quake** (shockwave rings rolling out across the hall), **bone scraps** (the bones of his meals flung in fans; they stay on the floor as clutter you trip over).
+
+**The charm breaks:** no temptation from him in the second form; the danger is his hunger and growth. (His spilled feast can still fill it.)
+
+### 17.3 Numbers (mine, to tune with the bot and then in play)
+
+- Tier III, like the Horsemen (the cavalry 12,000, each Horseman 6,000). **Proposed:** the gracious host **12,000**; the hunger **14,000**, growing with every meal (**(mine)** each meal +3% of his max back and +5% size and damage, up to 10 meals). All scaled like every boss. Policy: no HP cut below these on bot numbers alone.
+- Target length (bot): the gracious host ~3 min, the hunger ~5 min.
+- Relics: like every boss, uniques drafted with the user once he's built (GEAR.md 21.1); **(mine)** one per pleasure he plays on is the obvious set (feast, wine, dance, gold).
+
+## 18. M30 build plan (mine; each step: tests, a headless screenshot, a report, a stop)
+
+| Step | Content |
+|------|---------|
+| M30.1 | **Pandemonium's land:** the south zone (Paradise's framework), black obsidian and gold, gold-leaf terraces stepping down into the pit, the coin beach and the wine-red sea, the river of wine and the wine lake, the fountains, banquet tables (where the groups sit), coin heaps and vanity statues, the seven bandstands, the four landmarks (gilded pier, endless banquet hall, hall of mirrors, wine press), the palace hall (sealed shell), the HUD name and banner |
+| M30.2 | **The trance + the first 8 enemies:** groups in the trance, the one-way frenzy and its tell, bandstands spreading it, the temptation meter (TMP, the entrancement, a roll breaks it), fountains healing, endgame toughness; Glutton, Drunkard, Toastmaster, the Ravenous, Dancer, Masked Dancer, Drummer, Piper |
+| M30.3 | **The other 8:** the Vain, Gilded Reveller, Hoarder, the Beloved, Cupbearer, Carver, Bouncer, Master of Revels |
+| M30.4 | **The quest + form 1:** silencing the bandstands (the island quieting, temptation slower), the sober man, waking and sealing the hall; the gracious host (three rooms, four signatures, four moves, his charm, the guests) |
+| M30.5 | **Form 2:** the hunger (the hall in the wine, devour and growth, the maw, teeth in the floor, spilled feast, four moves), the bot benchmark; then the relics drafted with the user |
+
