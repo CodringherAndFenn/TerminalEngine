@@ -265,7 +265,7 @@ class DefinedOnceTest(unittest.TestCase):
     colours had done the same."""
 
     def names(self, rel):
-        with open(os.path.join(_HERE, rel)) as src:
+        with open(os.path.join(_HERE, rel), encoding="utf-8") as src:   # (Windows: not cp1252)
             return [line.split("=")[0].strip() for line in src
                     if line[:1].isupper() and " = " in line and not line.startswith(" ")]
 
