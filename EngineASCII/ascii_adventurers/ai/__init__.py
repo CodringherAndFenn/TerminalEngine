@@ -37,6 +37,10 @@ ai -- enemy behaviour.
                 riders on one health bar -- unveiling into form 2 (M29.5)
   horsemen.py   form 2 (M29.5): the Four Horsemen, each its own health and
                 kit, the fallen's passing to the others
+  pandemonium.py  Pandemonium's revellers and demon hosts (M30.2-M30.3): the
+                trance, its groups, the music
+  feast.py      Pandemonium's boss, form 1 (M30.4): the Host of the Feast,
+                a dancing host in a hall that changes room each phase
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -70,6 +74,7 @@ from .plains import (Bull, Chaser, Crow, Drummer, Hawk, Hound, Lancer, Molehill,
 from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 from .mimic import Mimic
 from .cavalry import Cavalry
+from .feast import FeastHost
 from .horsemen import ConquestBanner, Horseman, PaleShade
 from .pandemonium import (BandDrummer, Beloved, Bouncer, Carver, Cupbearer, Dancer, Drunkard,
                           GildedReveller, Glutton, Hoarder, MaskedDancer, MasterOfRevels, Piper,
@@ -232,6 +237,7 @@ KINDS = {
     "leviathan": Leviathan,
     # M29.4: Paradise's boss, form 1, and its lances' pillars
     "cavalry": Cavalry,
+    "host_of_feast": FeastHost,
     "light_pillar": LightPillar,
     # M29.5: form 2, the Four Horsemen; Conquest's banner; the dead risen
     "conquest": Horseman,

@@ -888,6 +888,19 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   you at the nearest feast), the master of revels (elite: its bell wakes
   every group near it -- and snaps you out of a trance).
 
+- **Pandemonium's quest and boss, M30.4** (`design/OCEAN.md` 22): the
+  sober man beside the gilded pier asks you to silence the seven
+  bandstands -- stand on a stage while its band and every group its song
+  reaches come for you. Each silenced stage goes dark and the island's pull
+  weakens (temptation 10% slower each). The seventh wakes **the Host of the
+  Feast** in his palace: a smiling demon prince who never stops dancing
+  round you, whose charm sweeps you into his dance, in a hall that changes
+  room each phase -- the banquet (courses served: soup, roast, jellies, the
+  cake tower), the ballroom (a dance floor whose unlit squares burn on the
+  beat), the vault (sliding heaps of gold; catch a tossed coin for power,
+  and temptation). Toasts in every room; grand spins, the beckoning,
+  carving sets and chandeliers. Form 2 is M30.5.
+
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

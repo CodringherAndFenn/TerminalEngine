@@ -248,6 +248,21 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 batch.put_c(x + math.cos(a) * z.radius * tw * 0.5,
                             y + math.sin(a) * z.radius * th * 0.3 - z.age * 10,
                             "o" if k % 2 else ".", col)
+        elif z.kind == "scald":
+            # M30.4: the Host's soup, spreading in a scalding pool.
+            for k in range(6):
+                a = k * math.tau / 6 + z.age * 0.6
+                col = palette.FEAST_SCALD[(int(z.age * 5) + k) % 2]
+                batch.put_c(x + math.cos(a) * z.radius * 0.75 * tw,
+                            y + math.sin(a) * z.radius * 0.75 * th, "~" if k % 2 else "o", col)
+            batch.put_c(x, y, "~", palette.FEAST_SCALD[0])
+        elif z.kind == "broken_glass":
+            # M30.4: a fallen chandelier's broken glass (it cuts).
+            col = palette.FEAST_GLASS[0 if z.age < z.life * 0.7 else 1]
+            for k in range(5):
+                a = k * 2.4 + 0.3
+                batch.put_c(x + math.cos(a) * z.radius * 0.6 * tw,
+                            y + math.sin(a) * z.radius * 0.6 * th, "'" if k % 2 else ",", col)
         elif z.kind == "loose_coins":
             # M30.3: a hoarder's coins lying where they landed (they trip you).
             col = palette.REVEL_GOLD[0 if z.age < z.life * 0.75 else 1]

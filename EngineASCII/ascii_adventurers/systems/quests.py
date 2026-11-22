@@ -244,7 +244,7 @@ class Quests:
         """How many of a zone's seals are broken (M29.4: the sky reddens a
         shade for each): all of them once its boss is awake."""
         for s in self.states.values():
-            if s.biome == biome and s.spec.kind == "seals":
+            if s.biome == biome and s.spec.kind in ("seals", "bandstands"):
                 return s.found if s.stage == "hunt" else s.spec.count
         return 0
 
@@ -320,7 +320,7 @@ class Quests:
                             s.spec.camp_name or s.spec.giver.upper()))
             if s.stage == "hunt" and (s.taken or every_target):
                 label = {"light": "BRAZIER", "collect": "CARGO", "survive": "SEAL",
-                         "seals": "SEAL",
+                         "seals": "SEAL", "bandstands": "BAND",
                          "escort": "BEACON", "rescue": "CAPTIVE",
                          "fetch": "PIECE", "cleanse": "SHRINE",
                          "destroy": "CACHE", "fell": "MARKED",
@@ -375,7 +375,8 @@ class Quests:
                 self._tend_braziers(s, players, dt)
             elif s.stage == "hunt" and s.spec.kind == "collect":
                 self._collect(s, players)
-            elif s.stage == "hunt" and s.spec.kind in ("survive", "cleanse", "sever", "seals"):
+            elif s.stage == "hunt" and s.spec.kind in ("survive", "cleanse", "sever", "seals",
+                                                       "bandstands"):
                 self._hold_seals(s, players, dt)
             elif s.stage == "hunt" and s.spec.kind == "escort":
                 self._escort(s, players, dt)
@@ -483,8 +484,13 @@ class Quests:
         s.found += 1
         if s.found >= s.spec.count:
             s.stage = "awake"
-            self.banner = Banner("SOMETHING STIRS...",
-                                 f"{place_name(s.lair.name)} is marked on your map")
+            if s.spec.kind == "bandstands":          # (M30.4: he wakes in a rage)
+                self.banner = Banner("THE MUSIC STOPS",
+                                     f"the Host of the Feast wakes in a rage -- "
+                                     f"{place_name(s.lair.name)} is open")
+            else:
+                self.banner = Banner("SOMETHING STIRS...",
+                                     f"{place_name(s.lair.name)} is marked on your map")
             if s.lair.props.get("barred"):       # (M29.4: the summit court's bars open)
                 self._open_gate(s)
             self.scene._sounds.append("chime")
@@ -629,7 +635,9 @@ class Quests:
             if worn >= full:
                 s.lit.add(i)
                 s.heat.pop(i, None)
-                if hasattr(self.world, "set_tile"):
+                if s.spec.kind == "bandstands":
+                    self._smash_band(i, x, y)
+                elif hasattr(self.world, "set_tile"):
                     self.world.set_tile(math.floor(x), math.floor(y), rules["done"])
                 self.scene.effects.append(Effect("nova", x, y, size=reach))
                 self.scene.effects.append(Effect("toast", x, y - 2, label=rules["toast"]))
@@ -637,9 +645,37 @@ class Quests:
                 if s.stage != "hunt":
                     return
 
+    def _smash_band(self, i: int, x: float, y: float) -> None:
+        """M30.4: bandstand i silenced -- its drums and harps in pieces, its
+        lanterns out, and it plays no more (ai/pandemonium.silence)."""
+        from ..ai import pandemonium
+        pandemonium.silence(self.world, i)
+        self.scene._sounds.append("break")
+        if not hasattr(self.world, "set_tile"):
+            return
+        tx, ty = math.floor(x), math.floor(y)
+        for j in range(-9, 10):
+            for k in range(-9, 10):
+                t = self.world.tile_at(tx + k, ty + j)
+                if t is tiles.INSTRUMENT:
+                    self.world.set_tile(tx + k, ty + j, tiles.SMASHED_INSTRUMENT)
+                elif t is tiles.LANTERN and math.hypot(k, j) <= 8.5:
+                    self.world.set_tile(tx + k, ty + j, tiles.LANTERN_OUT)
+
     def _rise(self, s: QuestState, i: int, wave: int, x: float, y: float) -> None:
         """A wave of the quest's enemies rising out of the sand round a star
-        circle (dice from the seed, the spot and the wave)."""
+        circle (dice from the seed, the spot and the wave). A bandstand
+        (M30.4) instead wakes its group as you start, the song carrying the
+        frenzy one last time (ai/pandemonium.frenzy)."""
+        if s.spec.kind == "bandstands":
+            if wave == 0:
+                from ..ai import pandemonium
+                woke = pandemonium.frenzy(self.world, ("band", i))
+                pandemonium.falter(self.world, i)      # (its song falters: no more tempting)
+                self.scene.effects.append(Effect("toast", x, y - 3, label="THE BAND TURNS ON YOU!"))
+                if len(woke) > 1:
+                    self.scene._sounds.append("hex")
+            return
         sp = self.scene.spawner
         if sp is None:
             return
@@ -988,9 +1024,10 @@ class Quests:
         self.scene.enemies.append(boss)
         # A swarm boss (M22) fights with many bodies: they join the enemies.
         self.scene.enemies.extend(getattr(boss, "parts", ()))
+        where = {"pandemonium": "at the bottom of Pandemonium"}.get(
+            s.biome, f"on the summit of {s.biome.capitalize()}")      # (M30.4: a pit)
         self.banner = Banner(boss.espec.name.upper(),
-                             f"on the summit of {s.biome.capitalize()}"
-                             if s.biome in config.ZONE_PLACES else "guardian of the " + s.biome)
+                             where if s.biome in config.ZONE_PLACES else "guardian of the " + s.biome)
         self.scene.effects.append(Effect("explosion", x, y))
         self.scene._sounds.append("boulder")
         self._seal(s)
@@ -1174,6 +1211,9 @@ class Quests:
                 "cleanse": tiles.SHRINE_CLEAN, "destroy": tiles.NUT_SPILL,
                 "fell": tiles.FELLED, "seals": tiles.SEVEN_SEAL_BROKEN,
                 "sever": SEVER_SPILL.get(s.spec.skin, tiles.NODE_SPILL_RED)}.get(s.spec.kind)
+        if s.spec.kind == "bandstands":            # (M30.4: every band silenced)
+            for i, (x, y) in enumerate(s.camp.spots):
+                self._smash_band(i, x, y)
         if s.spec.kind == "fetch":
             s.bear = self.scene.me.index           # (dev: the bear's yours)
         if done is not None and hasattr(self.world, "set_tile"):
@@ -1235,6 +1275,10 @@ def circle_rules(kind: str, skin: str = "") -> dict:
                 "wave": config.SEVER_WAVE, "size": config.SEVER_WAVE_SIZE,
                 "range": config.SEVER_WAVE_RANGE,
                 "done": SEVER_SPILL.get(skin, tiles.NODE_SPILL_RED), "toast": "SEVERED!"}
+    if kind == "bandstands":                       # (M30.4: smashing; it doesn't mend)
+        return {"time": config.BANDSTAND_TIME, "heal": 0.0, "wave": config.BANDSTAND_TIME * 2,
+                "size": (0, 0), "range": (0.0, 0.0), "done": tiles.SMASHED_INSTRUMENT,
+                "toast": "SILENCED!"}
     if kind == "seals":                            # (M29.4: Paradise's seven seals)
         return {"time": config.SEVEN_SEAL_TIME, "heal": config.SEVEN_SEAL_HEAL,
                 "wave": config.SEVEN_SEAL_WAVE, "size": config.SEVEN_SEAL_WAVE_SIZE,
@@ -1258,6 +1302,8 @@ def circle_radius(kind: str, worn: float) -> float:
         return config.SEVER_RADIUS
     if kind == "seals":
         return config.SEVEN_SEAL_RADIUS
+    if kind == "bandstands":
+        return config.BANDSTAND_RADIUS
     if kind == "cleanse":
         r0, r1 = config.CLEANSE_RADIUS
         return r0 + (r1 - r0) * min(1.0, worn / config.CLEANSE_TIME)

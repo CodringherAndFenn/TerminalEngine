@@ -117,7 +117,7 @@ class PlanTest(unittest.TestCase):
     def test_the_hall_is_sealed_and_faces_the_pier(self):
         _, _, p = pand()
         hall = next(m for m in p.marks if m.key == "pandemonium_hall")
-        self.assertEqual(hall.kind, "court")                # (M30.4: the quest's lair)
+        self.assertEqual(hall.kind, "lair")                 # (M30.4: the quest's lair)
         self.assertGreaterEqual(len(hall.gate), config.PANDEMONIUM_HALL_GATE)
         gx, gy = p.facing
         for tx, ty in hall.gate:

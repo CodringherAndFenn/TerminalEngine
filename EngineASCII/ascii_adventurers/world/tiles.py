@@ -1115,10 +1115,35 @@ BANDSTAND = TileType(
     "bandstand", ("__", "  ", "_ "), palette.STAGE_FG, palette.STAGE_BG,
 )
 INSTRUMENT = TileType(
-    # The bandstands' drums and harps (smashed to silence them, M30.4).
+    # The bandstands' drums and harps. Only the quest smashes them (M30.4:
+    # stand on the stage), so they can't be shot or hacked away.
     "instrument", ("()", "[]", "|)"), palette.GOLD, palette.STAGE_BG,
-    solid=True, hp=config.LOG_HP,
-    becomes=BANDSTAND,
+    solid=True,
+)
+SMASHED_INSTRUMENT = TileType(
+    # M30.4: a silenced bandstand's drums and harps, in pieces.
+    "smashed instrument", ("/.", ".\\", "x,", ",x"), palette.SMASHED_FG, palette.STAGE_BG,
+)
+LANTERN_OUT = TileType(
+    # M30.4: a silenced bandstand's lanterns, gone dark.
+    "dark lantern", ("i ", " i"), palette.LANTERN_OUT_FG, palette.OBSIDIAN_BG,
+    solid=True,
+)
+HOST_TABLE = TileType(
+    # M30.4: the banquet room's long table down the middle of the palace hall
+    # (the Host's dishes slide along it). It stops you, not shots, and it
+    # doesn't break: the hall itself changes.
+    "the host's table", ("oo", "%o", "o%", "@o", "o@", "&o"), palette.TABLE_FG, palette.TABLE_BG,
+    solid=True,
+)
+DANCE_FLOOR = TileType(
+    # M30.4: the ballroom's floor (its steps light up: ai/feast.py).
+    "dance floor", ("  ", "  ", ". ", " ."), palette.DANCE_FLOOR_FG, palette.DANCE_FLOOR_BG,
+)
+MIRROR_PANEL = TileType(
+    # M30.4: the ballroom's mirrors at the foot of the hall's wall. Floor,
+    # not wall: the room changes under whoever stands there.
+    "mirror panel", ("||", "|/", "/|"), palette.REVEL_MIRROR[1], palette.HALL_FLOOR_BG,
 )
 PIER_DECK = TileType(
     # The gilded pier's planks, out over the wine-dark sea.

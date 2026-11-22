@@ -279,13 +279,14 @@ class Plan:
             for d in range(0, 2):
                 cells[(math.floor(sx + vx * s - gx * d), math.floor(sy + vy * s - gy * d))] = tiles.HOST_SEAT
             cells[(math.floor(sx + vx * s + gx), math.floor(sy + vy * s + gy))] = tiles.GILT_FLOOR
-        # (kind "court" until M30.4 makes it the quest's lair, as Paradise's
-        # court was: its gate opens when the seventh bandstand falls silent,
-        # closes behind you for the fight)
-        return self._mark("pandemonium_hall", "court", "The Palace", cells, cx, cy,
+        # (the quest's lair, M30.4: its gate opens when the seventh bandstand
+        # falls silent, closes behind you for the fight, opens when it's won;
+        # the Host of the Feast rises from his seat, ai/feast.py)
+        return self._mark("pandemonium_hall", "lair", "The Palace", cells, cx, cy,
                           gate=gate_tiles, radii=(a, b), floor=tiles.HALL_FLOOR,
-                          props={"seat": (sx, sy), "seal": tiles.PALACE_GATE, "barred": True},
-                          quest=self.quest, spots=[(cx, cy)])
+                          props={"seat": (sx, sy), "seal": tiles.PALACE_GATE, "barred": True,
+                                 "facing": (gx, gy)},
+                          quest=self.quest, spots=[(sx + gx * 4.0, sy + gy * 4.0)])
 
     def _pier(self, rng: random.Random):
         """The gilded pier. Local frame: i along the shore, j out to sea (0:
@@ -323,7 +324,12 @@ class Plan:
                     if (j in (j0, j1 - 1)) and k != 5:
                         continue                            # (tapered ends)
                     at(side * k, j, tiles.BARGE)
-        return self._mark("pandemonium_pier", "zone", "The Gilded Pier", cells, gcx + 0.5, gcy + 0.5)
+        # (the quest's camp, M30.4: the sober man hides beside the jetty's
+        # root, under the pier; its spots are the seven bandstands)
+        npc = (gcx + ux * -2 + vx * 2 + 0.5, gcy + uy * -2 + vy * 2 + 0.5)
+        return self._mark("pandemonium_pier", "camp", "The Gilded Pier", cells, gcx + 0.5, gcy + 0.5,
+                          npc=npc, quest=self.quest,
+                          spots=[(x + 0.5, y + 0.5) for x, y in self.bandstands])
 
     def _press(self, rng: random.Random):
         """The wine press among its terraced vineyards (the river of wine

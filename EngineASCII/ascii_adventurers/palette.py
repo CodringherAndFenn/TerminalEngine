@@ -1196,3 +1196,25 @@ REVEL_GLITTER = ((255, 236, 150), ((255, 180, 220), (200, 150, 90)))   # the Bel
 REVEL_CLEAVER = (214, 220, 226)                                  # a carver's cleaver
 REVEL_BELL = ((255, 214, 90), (255, 244, 190))                   # the master's bell
 REVEL_FIREWORK = ((255, 90, 120), (120, 220, 255), (255, 214, 90))   # fireworks
+# M30.4: the quest's silenced bandstands, and the Host of the Feast's hall.
+SMASHED_FG = (150, 120, 62)                                      # drums and harps in pieces
+LANTERN_OUT_FG = (70, 56, 46)                                    # a silenced stage's lanterns
+DANCE_FLOOR_FG = (96, 70, 104)
+DANCE_FLOOR_BG = (34, 22, 40)
+FEAST_STEP = ((255, 226, 140), (150, 112, 70))                   # a lit square: now, next beat
+FEAST_BURN = ((255, 120, 60), (255, 200, 90))                    # the unlit squares burning
+FEAST_FLOOR = ((96, 74, 26), (30, 24, 10), (70, 10, 4))        # light added: lit, next, about to burn
+FEAST_DISH = {"soup": (236, 150, 60), "roast": (176, 98, 52), "jelly": (120, 230, 150),
+              "cake": (255, 214, 230)}
+FEAST_SCALD = ((236, 150, 60), (190, 96, 36))                    # the soup's pool
+FEAST_WAITER = (196, 40, 52)                                     # a demon waiter bringing a dish
+FEAST_GOLD = ((255, 222, 96), (196, 150, 40))                    # sliding heaps, poured coins
+FEAST_COIN = ((255, 244, 160), (255, 206, 60))                   # a coin tossed to you
+FEAST_GLASS = ((220, 240, 255), (150, 190, 220))                 # chandeliers, broken glass
+FEAST_CHARM = ((255, 150, 200), (190, 90, 150))                  # his charm's reach
+FEAST_CUTLERY = ((220, 226, 232), ((170, 176, 186), (120, 126, 136)))   # the spin's cutlery, carving knives
+FEAST_GILT = (255, 226, 110)                                     # a hero gilded by a caught coin
+PIN_GIVER["pandemonium"] = ((255, 214, 90), (70, 10, 26))         # gold on wine
+MAP_TILE.update({"smashed instrument": (130, 100, 60), "dark lantern": (70, 56, 46),
+                 "the host's table": (200, 150, 80), "mirror panel": (210, 190, 210)})
+MAP_TILE_BIOME.update({"dance floor": "pandemonium"})

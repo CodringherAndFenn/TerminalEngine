@@ -94,6 +94,7 @@ from ..render.mosquito import draw_braziers
 from ..render.characters import draw_body, draw_chest_marks, draw_feet_marks
 from ..render.gear_looks import look_of
 from ..render.pandemonium import draw_entranced
+from ..render.feast import draw_feast_marks
 from ..render.relics import draw_relics
 from ..render.enemies_sprite import draw_enemy
 from ..render.fallen import draw_groves
@@ -1174,6 +1175,10 @@ class GameScene(Scene):
                     # A ghost (M28.3j: Ghostwood Staff (L)) is gone: no kill.
                     self.effects.append(Effect("fizzle", e.x, e.y))
                     continue
+                if getattr(e, "left", False):
+                    # A guest leaving with the Host's room (M30.4): no kill.
+                    self.effects.append(Effect("unveil", e.x, e.y, size=1.5))
+                    continue
                 if getattr(e, "part_of", None) is not None:
                     # One leech of a swarm boss: the swarm itself is the
                     # kill (XP, loot, the quest) once its last leech dies.
@@ -1503,6 +1508,7 @@ class GameScene(Scene):
                     and not h.bats:                    # (M28.5b: a Bat Form roll is bats)
                 draw_body(self.sprites, cam, h)
         draw_entranced(text, cam, [p.hero for p in self.players if p.alive])   # (M30.2)
+        draw_feast_marks(text, cam, [p.hero for p in self.players if p.alive])   # (M30.4)
         draw_relics(text, self.sprites, cam, [p for p in self.players if p.alive], self.enemies,
                     self.steps)
         draw_bear_riders(self.sprites, cam, self.quests, self.players)

@@ -141,7 +141,9 @@ def lures(world) -> list[tuple[float, float]]:
     bandstands, the wine fountains, and every few tiles along the endless
     banquet's table."""
     def make():
-        out = [(x, y) for x, y, kind in sites(world).values() if kind in ("table", "band")]
+        quiet = silenced(world) | faltering(world)
+        out = [(x, y) for h, (x, y, kind) in sites(world).items()
+               if kind == "table" or (kind == "band" and h[1] not in quiet)]
         out += fountains(world)
         for x, y, kind in sites(world).values():
             if kind == "banquet":
@@ -152,6 +154,37 @@ def lures(world) -> list[tuple[float, float]]:
 
 def _revels(world) -> dict:
     return _cached(world, "revels", dict)
+
+
+def silenced(world) -> set:
+    """The bandstands (their index i: home ("band", i)) the quest has
+    silenced (M30.4)."""
+    return _cached(world, "silenced", set)
+
+
+def faltering(world) -> set:
+    """The bandstands someone has started smashing (M30.4): their song
+    falters, so they no longer tempt."""
+    return _cached(world, "faltering", set)
+
+
+def falter(world, i: int) -> None:
+    faltering(world).add(i)
+    try:
+        world.lures = None                    # (worked out again without it)
+    except AttributeError:
+        pass
+
+
+def silence(world, i: int) -> None:
+    """Bandstand i plays no more (M30.4): no lure, no song carrying the
+    frenzy, no music doubling how close you may come."""
+    silenced(world).add(i)
+    for name in ("lures", "revel_reach"):     # (worked out again without it)
+        try:
+            setattr(world, name, None)
+        except AttributeError:
+            pass
 
 
 def frenzied(world, home) -> bool:
@@ -167,7 +200,7 @@ def frenzy(world, home) -> list:
     g[home] = True
     woke = [home]
     here = sites(world).get(home)
-    if here is not None and here[2] == "band":
+    if here is not None and here[2] == "band" and home[1] not in silenced(world):
         for other, (x, y, _) in sites(world).items():
             if other not in g and math.hypot(x - here[0], y - here[1]) <= config.REVEL[2]:
                 g[other] = True
@@ -181,7 +214,8 @@ def wake_reach(world, home) -> float:
     def make():
         out = {}
         s = sites(world)
-        bands = [(x, y) for x, y, kind in s.values() if kind == "band"]
+        quiet = silenced(world)
+        bands = [(x, y) for h, (x, y, kind) in s.items() if kind == "band" and h[1] not in quiet]
         for h, (x, y, kind) in s.items():
             music = any(math.hypot(x - bx, y - by) <= config.REVEL[2] for bx, by in bands)
             out[h] = config.REVEL[0] * (config.REVEL[1] if music else 1.0)

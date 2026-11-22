@@ -1161,6 +1161,11 @@ ENEMIES = {
         elite=True, max_hp=320, sight=18, biomes=(), speed=2.8,
         damage=16, windup=1.0, cooldown=4.0, size_px=30, xp=40,
     ),
+    # M30.4: Pandemonium's boss, form 1 (OCEAN.md 17.1; ai/feast.FeastHost).
+    "host_of_feast": EnemySpec(
+        name="the Host of the Feast", kind="host_of_feast", sprite="host_of_feast", scale=6,
+        max_hp=12000, sight=400, biomes=(), size_px=64, xp=1500,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -4324,6 +4329,9 @@ BESTIARY = {
     "carver": (2500, "Never in the trance. Lunging cleaves; its cleavers fly out and come back."),
     "bouncer": (3000, "Never in the trance. Charges along a shown line and throws you at the nearest feast."),
     "master_of_revels": (5000, "Its bell wakes every group near it -- and snaps you out of a trance."),
+    # M30.4
+    "host_of_feast": (10000, "Never stops dancing. Don't stay close: his charm sweeps you into his "
+                             "dance. Follow the lit steps; a caught coin is power, and temptation."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -4348,6 +4356,7 @@ ACHIEVEMENTS = {
     "mycelium_puffball": "defeat Mycelium (the giant puffball)",
     "necromancer": "defeat More than Death",
     "cavalry": "break the seven seals and defeat the Four Horsemen",
+    "host_of_feast": "silence the seven bandstands and defeat the Host of the Feast",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -4746,6 +4755,91 @@ SEVEN_SEAL_GUARD_ANGELS = ("cherub", "lamb", "watcher", "martyr", "bowl_bearer")
 # Each broken seal turns the sky a shade redder (user; mine: the whole view
 # over Paradise is multiplied by this colour, a step per seal).
 SKY_TINT_STEP = (0, 7, 9)          # off green and blue per seal (of 255)
+
+# M30.4: Pandemonium's quest (OCEAN.md 16). Silence the seven bandstands:
+# stand within BANDSTAND_RADIUS of a stage's instruments for BANDSTAND_TIME s
+# in all to smash them (user: ~8 s); step off and the smashing pauses (the
+# seals' survive circle; mine: it doesn't mend). The moment you start, its
+# group frenzies and the song carries the frenzy one last time (REVEL[2]).
+# A silenced stage plays no more: it carries no frenzy, doesn't double how
+# close you may come, doesn't tempt, and its lanterns go out; and for each
+# silenced stage your temptation fills SILENCE_TEMPT slower (user: the island
+# quieter, temptation slower; mine: 10% each).
+BANDSTAND_RADIUS = 3.5
+BANDSTAND_TIME = 8.0
+SILENCE_TEMPT = 0.10
+
+# M30.4: THE HOST OF THE FEAST, form 1: the gracious host (OCEAN.md 17.1;
+# ai/feast.py). The hall is a new room each phase (100-67-33%): the banquet,
+# the ballroom, the vault. He dances the whole fight: a waltz round his
+# partner (HOST_WALTZ: speed, the round's radii (x, y), a turn's radius,
+# turns a s, s before he reverses, how fast the round's middle follows his
+# partner -- faster, tiles/s per tile, while he's far: the hall is 152 x 100
+# tiles); only the toast and the beckoning plant him. Damages per hit at
+# level 1 (x the enemy damage scaling, BOSS_DMG_MULT). Numbers mine.
+HOST_HIT_RADIUS = 2.2
+HOST_WALTZ = (5.5, (13.0, 8.0), 1.2, 0.7, 9.0, 3.0, 0.6)
+# His charm (user: ~6 tiles): within HOST_CHARM[0] your temptation fills
+# (full in HOST_CHARM[1] s right beside him); full, you're swept into his
+# dance (TEMPT[5] s): drifting at him, and if you reach him before you roll
+# out he spins you away with a free hit (HOST_CHARM[2] damage, HOST_CHARM[3]
+# tiles away).
+HOST_CHARM = (6.0, 3.0, 30, 4.0)
+# Courses served (the banquet's signature): HOST_COURSES[0] dishes a serving,
+# HOST_COURSES[1] s apart, sliding at [2] tiles/s for at most [3] s (or to
+# where you were), [4] damage if one runs into you; in the later rooms
+# demon waiters bring them in from [5] tiles out. Soup: a scald pool
+# (radius from, x grown over its life, life, s between ticks, damage);
+# roast: a ring of bones; jellies: blobs hopping at you (blobs, hops each,
+# s a hop, tiles a hop, landing radius, damage); the cake tower topples along
+# a line (length, s shown, half-width, damage).
+HOST_COURSES = (3, 0.55, 11.0, 2.2, 8, 16.0)
+HOST_SOUP = (1.2, 2.0, 6.0, 0.4, 6)
+HOST_ROAST = 12
+HOST_JELLY = (3, 3, 0.75, 3.0, 1.3, 12)
+HOST_CAKE = (9.0, 0.8, 1.2, 22)
+# The dance floor (the ballroom's): HOST_DANCE[0] beats, [1] s each; squares
+# of [2] tiles, the floor [3] x the hall across; each beat's step pattern
+# shows a beat ahead, and when it lands every unlit square burns ([4]).
+HOST_DANCE = (6, 1.25, 4, (0.8, 0.72), 18)
+# The vault's gold: heaps sliding in like walls from both sides of you,
+# closing your lane (heaps a slide, length, speed, half-thickness, damage on
+# contact, tiles out they start), coins pouring onto
+# marked circles (circles, s shown, radius, damage), and gold tossed to you
+# (coins, s they lie there, s of the gilding, x your damage, temptation each).
+HOST_WALLS = (2, 11.0, 4.0, 1.0, 10, 14.0)
+HOST_POUR = (6, 1.0, 1.6, 16)
+HOST_TOSS = (3, 6.0, 5.0, 1.5, 25.0)
+# Toasts (every room): planted, the glass raised HOST_TOAST[0] s, then a wave
+# of wine floods out ([1] tiles at [2] tiles/s; [3] damage, [4] temptation:
+# roll through it) and every guest in the hall frenzies.
+HOST_TOAST = (1.0, 32.0, 10.0, 14, 15.0)
+# The four dance figures. Grand spin: a spinning glide (s, speed, s a turn,
+# cutlery a turn). The beckoning: a bow (s), the pull (s, reach, tiles/s;
+# walk or roll against it), then a sweeping slash (reach, half-angle deg,
+# damage). Carving set: fans that curve across each other (volleys, knives a
+# fan, fan's degrees, curve rad a tile, s between). Chandeliers: dropped on
+# marked spots (drops, s shown, radius, damage), leaving broken glass that
+# cuts (radius, s, s between ticks, damage).
+HOST_SPIN = (3.0, 9.0, 0.45, 10)
+HOST_BECKON = (0.7, 1.1, 14.0, 4.5, 5.5, 70.0, 30)
+HOST_CARVING = (2, 7, 80.0, 0.07, 0.6)
+HOST_CHANDELIERS = (6, 1.2, 1.8, 26, 1.6, 4.0, 0.5, 6)
+# The guests: a group at each room's edges in the trance (feasters in the
+# banquet, dancers in the ballroom, hoarders in the vault; user). They wake
+# if you go near, or when his toast frenzies the hall; each room's group
+# leaves with the room and a new one sits down (mine).
+HOST_GUESTS = (("glutton", "glutton", "drunkard", "drunkard", "ravenous", "ravenous"),
+               ("dancer", "dancer", "dancer", "dancer", "masked_dancer", "masked_dancer"),
+               ("hoarder", "hoarder", "hoarder", "hoarder", "gilded_reveller"))
+FEAST_SHOTS = {
+    "cutlery": ShellSpec(speed=7.5, damage=9, max_range=20.0, damages_terrain=False,
+                         look="cutlery", sound="axe"),
+    "bone": ShellSpec(speed=7.0, damage=8, max_range=12.0, damages_terrain=False,
+                      look="bone", sound="axe"),
+    "carving": ShellSpec(speed=8.0, damage=12, max_range=24.0, damages_terrain=False,
+                         look="carving", sound="swing"),
+}
 
 # M29.4: the Serene Cavalry (OCEAN.md 6.1; ai/bosses.Cavalry). Four riders
 # on one health bar, always riding: they gallop round you (a circle, a
@@ -5318,6 +5412,35 @@ QUESTS = {
             ("fight", ("The riders are out! The summit! Go!",)),
             ("cleared", ("The white came off them, didn't it.",
                          "Leave me the post. I'm used to it.")),
+        ),
+    ),
+    # M30.4: Pandemonium's (OCEAN.md 16). The sober man hides under the
+    # gilded pier (the camp; its spots are the seven bandstands); the palace
+    # is the lair. His lines are mine (the doc gives his character).
+    "silence_bandstands": QuestSpec(
+        title="Silence the Seven Bands", biome="pandemonium", giver="sober man",
+        giver_sprite="sober_man", camp="zone", lair="zone", target="piper", count=7,
+        boss="host_of_feast", goal="Bands silenced {n}/{count}",
+        camp_name="THE SOBER MAN", lair_name="THE PALACE", kind="bandstands",
+        skin="pandemonium",
+        lines=(
+            ("offer", ("Don't offer me anything. It all turns to ash.",
+                       "I woke up. Nobody else ever has.",
+                       "Seven bands play out there. The music holds them.",
+                       "Stand on a stage and smash the instruments.",
+                       "It takes a while. They'll all come for you.",
+                       "Every band you silence, the pull gets weaker.",
+                       "Silence all seven and he'll have to come out.")),
+            ("progress", ("{left} bands still play.",
+                          "Stay on the stage. Step off and it stops.")),
+            ("done", ("Listen. Nothing. I'd forgotten what that was.",
+                      "He's awake, and he's angry. The palace is open.",
+                      "He'll smile. He'll pour for you. Don't drink.",
+                      "There's a white island up north. Paradise.",
+                      "This is its mirror. Same hunger. Better wine.")),
+            ("fight", ("He's dancing. Go. Don't let him lead.",)),
+            ("cleared", ("Bread. It tastes of bread.",
+                         "I'll sit here a while. Thank you.")),
         ),
     ),
 }
@@ -5903,6 +6026,25 @@ BOSSES = {
         phases=(BossPhase(1.0, (("quarter", 1), ("reap", 2)), rest=1.4),
                 BossPhase(0.5, (("quarter", 1), ("reap", 2)), rest=1.1)),
         loot=0, achievement="cavalry", pages=(),
+    ),
+    # M30.4: Pandemonium's boss, form 1 (OCEAN.md 17.1; ai/feast.FeastHost).
+    # Three phases, three rooms (100-67-33%): the banquet (courses served),
+    # the ballroom (+ the dance floor), the vault (+ the vault's gold); toasts
+    # in every room. His dance figures: grand spin, the beckoning, the
+    # carving set, chandeliers.
+    "host_of_feast": BossSpec(
+        name="The Host of the Feast",
+        phases=(
+            BossPhase(1.0, (("courses", 3), ("toast", 2), ("spin", 2), ("beckon", 2),
+                            ("carving", 2), ("chandeliers", 2)), rest=1.0),
+            BossPhase(0.67, (("dance", 3), ("courses", 2), ("toast", 2), ("spin", 2),
+                             ("beckon", 2), ("carving", 2), ("chandeliers", 2)), rest=0.9),
+            BossPhase(0.33, (("gold", 3), ("dance", 2), ("courses", 2), ("toast", 2),
+                             ("spin", 2), ("beckon", 2), ("carving", 2), ("chandeliers", 2)),
+                      rest=0.8),
+        ),
+        loot=10000, achievement="host_of_feast",
+        pages=("host_of_feast",),
     ),
 }
 BOSS_KEYS = tuple(BOSSES)         # (M28.5: a stable order for the relic drop's seed)

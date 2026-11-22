@@ -296,12 +296,13 @@ def draw_seals(text, camera: Camera, quests, time: float) -> None:
         if s.spec.kind in ("destroy", "fell") and s.stage == "hunt":
             _caches(batch, camera, quests, s, (x0, y0, x1, y1))
             continue
-        if s.spec.kind not in ("survive", "escort", "rescue", "cleanse", "sever", "seals") \
-                or s.stage != "hunt":
+        if s.spec.kind not in ("survive", "escort", "rescue", "cleanse", "sever", "seals",
+                               "bandstands") or s.stage != "hunt":
             continue
         full = {"survive": config.SEAL_TIME, "escort": config.ESCORT_SETUP,
                 "rescue": config.RESCUE_THAW, "cleanse": config.CLEANSE_TIME,
-                "sever": config.SEVER_TIME, "seals": config.SEVEN_SEAL_TIME}[s.spec.kind]
+                "sever": config.SEVER_TIME, "seals": config.SEVEN_SEAL_TIME,
+                "bandstands": config.BANDSTAND_TIME}[s.spec.kind]
         for i, (sx, sy) in enumerate(s.camp.spots):
             if i in s.lit or not (x0 - 6 <= sx <= x1 + 6 and y0 - 8 <= sy <= y1 + 6):
                 continue
@@ -315,6 +316,9 @@ def draw_seals(text, camera: Camera, quests, time: float) -> None:
             elif s.spec.kind == "seals":              # (M29.4: one of the seven seals)
                 _px_ring(batch, camera, sx, sy, config.SEVEN_SEAL_RADIUS, 22, "*",
                          palette.SEAL_WAX_BROKEN if blink else palette.GOLD, time)
+            elif s.spec.kind == "bandstands":         # (M30.4: a stage being smashed)
+                _px_ring(batch, camera, sx, sy, config.BANDSTAND_RADIUS, 22, "x" if blink else "+",
+                         palette.SMASHED_FG if blink else palette.GOLD, time)
             elif s.spec.kind == "sever":              # (M26: a node being dug out)
                 _px_ring(batch, camera, sx, sy, config.SEVER_RADIUS, 20, "*",
                          palette.MYC_NODE_FG if blink else palette.MYCELIUM_FG, time)

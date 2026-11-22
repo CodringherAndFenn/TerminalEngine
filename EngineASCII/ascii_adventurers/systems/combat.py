@@ -105,6 +105,8 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
         mult *= config.U_PHYLACTERY[2]
     if getattr(source, "crowned", False):             # (M29.5: Conquest's crown on you)
         mult *= config.CROWN_MULT
+    if getattr(source, "time", 0.0) < getattr(source, "gilt_until", -1.0):
+        mult *= config.HOST_TOSS[3]                   # (M30.4: a caught coin's gilding)
     if getattr(source, "duel", None) is not None:     # (M29.5: in a duel ring, War's or
         mult *= config.HM_DUEL[3]                     # the Ring of Blood's: you hit twice as
     if source is not None and getattr(victim, "duel", None) is source:   # hard -- and so

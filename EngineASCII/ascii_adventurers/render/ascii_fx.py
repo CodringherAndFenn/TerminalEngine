@@ -173,6 +173,8 @@ SHOT_LOOKS = {
     "lyre": (NOTE, ("'", "."), palette.SHOT_LYRE),
     "light": ("o", ("'", "."), palette.SHOT_LIGHT),
     "revel_glitter": ("*", ("+", ":"), palette.REVEL_GLITTER),   # M30.3: the Beloved's
+    "cutlery": ("Y", ("-", " "), palette.FEAST_CUTLERY),        # M30.4: the Host's spin
+    "carving": ("/", ("'", " "), palette.FEAST_CUTLERY),        # M30.4: his carving set
     "shriek": ("o", (":", "."), palette.SHOT_SHRIEK),     # M29.3: a chorister's rings
     "crown": (None, (None, None), palette.SHOT_CROWN),    # M29.5: Conquest's (an arrow)
 }
@@ -332,13 +334,15 @@ def _frame(e: Effect) -> list:
         return [(math.cos(q * math.tau / 4 + (k + 0.5) * (math.tau / 4) / 9) * r * config.TILE_PX_W,
                  math.sin(q * math.tau / 4 + (k + 0.5) * (math.tau / 4) / 9) * r * config.TILE_PX_H,
                  "*" if k % 2 else "x", col) for k in range(9)]
-    if e.kind in ("belly_slam", "beat", "wine_wave", "gold_slam", "bell"):   # (M30.2-3: rings)
+    if e.kind in ("belly_slam", "beat", "wine_wave", "gold_slam", "bell", "host_toast",
+                  "room_change"):                # (M30.2-4: rings)
         r = e.size * p
         col = {"belly_slam": palette.REVEL_SLAM, "beat": palette.REVEL_BEAT,
                "wine_wave": palette.REVEL_WINE, "gold_slam": palette.REVEL_GOLD,
-               "bell": palette.REVEL_BELL}[e.kind][min(1, int(p * 2))]
+               "bell": palette.REVEL_BELL, "host_toast": palette.REVEL_WINE,
+               "room_change": palette.FEAST_GOLD}[e.kind][min(1, int(p * 2))]
         glyph = {"belly_slam": "o", "beat": "=", "wine_wave": "*", "gold_slam": "#",
-                 "bell": "o"}[e.kind]
+                 "bell": "o", "host_toast": "~", "room_change": "*"}[e.kind]
         n = max(12, int(r * 5))
         return [(math.cos(k * math.tau / n) * r * config.TILE_PX_W,
                  math.sin(k * math.tau / n) * r * config.TILE_PX_H, glyph, col) for k in range(n)]
@@ -371,6 +375,19 @@ def _frame(e: Effect) -> list:
         return [(math.cos(k * math.tau / 9) * r * config.TILE_PX_W,
                  math.sin(k * math.tau / 9) * r * config.TILE_PX_H,
                  "/" if k % 2 else "\\", col) for k in range(9)]
+    if e.kind in ("jelly_splat", "chandelier_crash", "coin_burst"):   # (M30.4: bursts)
+        r = (e.size or 1.0) * (0.4 + 0.8 * p)
+        col, glyphs = {"jelly_splat": (palette.FEAST_DISH["jelly"], "o."),
+                       "chandelier_crash": (palette.FEAST_GLASS[0 if p < 0.5 else 1], "*'"),
+                       "coin_burst": (palette.FEAST_GOLD[0 if p < 0.5 else 1], "o$")}[e.kind]
+        return [(math.cos(k * math.tau / 10 + p) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / 10 + p) * r * config.TILE_PX_H, glyphs[k % 2], col)
+                for k in range(10)]
+    if e.kind == "cake_fall":                    # (M30.4: the cake tower toppling)
+        n = 12
+        col = palette.FEAST_DISH["cake"]
+        return [((e.x2 - e.x) * k / n * config.TILE_PX_W, (e.y2 - e.y) * k / n * config.TILE_PX_H,
+                 "#" if (k + int(p * 6)) % 2 else "%", col) for k in range(n + 1)]
     if e.kind == "fireworks":                    # (M30.3: a firework bursting)
         r = (e.size or 1.0) * (0.3 + 0.9 * p)
         return [(math.cos(k * math.tau / 10) * r * config.TILE_PX_W,

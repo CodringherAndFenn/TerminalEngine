@@ -73,6 +73,13 @@ DURATIONS = {
     "gold_slam": config.GILDED[2] / config.GILDED[3],   # its slam's ring
     "bell": 0.9,            # the master of revels' bell (size: its reach)
     "fireworks": 0.5,       # a firework bursting (size: its radius)
+    # M30.4: the Host of the Feast (ai/feast.py).
+    "host_toast": config.HOST_TOAST[1] / config.HOST_TOAST[2],   # his toast's wave of wine
+    "room_change": 0.8,     # the hall becoming a new room (size: the hall's radius)
+    "jelly_splat": 0.4,     # a jelly's last landing
+    "cake_fall": 0.45,      # the cake tower toppling along its line (x2, y2: its far end)
+    "chandelier_crash": 0.5,   # a chandelier shattering on the floor
+    "coin_burst": 0.4,      # poured coins striking the floor
 }
 
 
