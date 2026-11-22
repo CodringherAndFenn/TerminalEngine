@@ -50,7 +50,7 @@ class SmokeRunTest(unittest.TestCase):
                    ASCII_ADVENTURERS_SAVE_DIR=str(GAME / ".cache" / "smoke-save"))
         out = subprocess.run([sys.executable, str(GAME / "run.py"), "--smoke", "1.5", "--ghosts", "1"],
                              env=env, capture_output=True, text=True, timeout=120)
-        self.assertEqual(out.returncode, 0, out.stderr[-2000:])
+        self.assertEqual(out.returncode, 0, out.stdout[-2000:] + out.stderr[-2000:])
         self.assertIn("smoke ok", out.stdout)
         self.assertFalse((GAME / ".cache" / "smoke-save").exists())   # saved nothing
 

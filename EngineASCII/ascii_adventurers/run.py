@@ -148,13 +148,26 @@ def smoke(args: argparse.Namespace) -> int:
     manager.app = App(audio, settings, Records(), persist=False,
                       ghosts=max(0, min(3, args.ghosts)))
     scene = GameScene()
-    pygame.time.set_timer(pygame.QUIT, int(args.smoke * 1000), loops=1)
+    enter = scene.on_enter
+    loaded = []
+
+    def enter_then_start_the_clock() -> None:
+        # The clock starts once the world is built, so SECONDS is time
+        # played however slow loading is (a busy CI runner can take longer
+        # than a short smoke run just to build the world).
+        enter()
+        loaded.append(time.perf_counter() - started)
+        pygame.time.set_timer(pygame.QUIT, int(args.smoke * 1000), loops=1)
+
+    scene.on_enter = enter_then_start_the_clock
     started = time.perf_counter()
     manager.run(scene)
     wall = time.perf_counter() - started
-    print(f"smoke ok: {scene.steps} steps ({scene.steps / config.SIM_HZ:.1f} s of game) "
-          f"in {wall:.1f} s, {len(scene.players)} player(s), {len(scene.enemies)} enemies "
-          f"awake, {getattr(scene.world, 'loaded_chunks', 0)} chunks loaded")
+    print(f"smoke {'ok' if scene.steps > 0 else 'FAILED'}: {scene.steps} steps "
+          f"({scene.steps / config.SIM_HZ:.1f} s of game) in {wall:.1f} s "
+          f"({loaded[0] if loaded else 0.0:.1f} s loading), {len(scene.players)} player(s), "
+          f"{len(scene.enemies)} enemies awake, "
+          f"{getattr(scene.world, 'loaded_chunks', 0)} chunks loaded")
     return 0 if scene.steps > 0 else 1
 
 

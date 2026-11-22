@@ -947,8 +947,8 @@ ascii_adventurers/dist/AsciiAdventurers/AsciiAdventurers --smoke 8   # quick che
 
 This makes `ascii_adventurers/dist/AsciiAdventurers/`, a folder (~90 MB)
 with the game, the Python runtime and everything it needs. Players install
-nothing. `--smoke N` starts a run, plays N seconds and quits with a report.
-It never touches save files.
+nothing. `--smoke N` starts a run, plays N seconds (counted once the world
+has loaded) and quits with a report. It never touches save files.
 
 - **Saves:** a packaged game saves to the player's data folder
   (`%APPDATA%\AsciiAdventurers` on Windows, `~/.local/share/AsciiAdventurers`
