@@ -295,13 +295,10 @@ class Horseman(Boss):
                 continue
             if d > h.hit_radius and abs(_wrap(math.atan2(h.y - self.y, h.x - self.x) - angle)) > half:
                 continue
-            combat.strike(h, damage * self._duel_mult(h), self, angle, self.ctx.effects)
+            combat.strike(h, damage, self, angle, self.ctx.effects)   # (a duel: x2 in strike)
         self.ctx.effects.append(Effect("slash", self.x + math.cos(angle) * 1.5,
                                        self.y + math.sin(angle) * 1.5, angle))
         self.ctx.events.append(combat.HIT)
-
-    def _duel_mult(self, h) -> float:
-        return config.HM_DUEL[3] if self.duelist is h and getattr(h, "duel", None) is self else 1.0
 
     def m_sweep(self):
         tell, slashes, reach, arc, damage, wave_n = config.SWEEP

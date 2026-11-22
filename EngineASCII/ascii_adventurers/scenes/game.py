@@ -117,7 +117,7 @@ from ..ui.frame import center, dim_canvas
 from ..ui.gear_picker import GearPicker
 from ..ui.gear_screen import GearScreen
 from ..ui.hud import HudInfo, draw_hud
-from ..render.horsemen import draw_horsemen_marks
+from ..render.horsemen import draw_horsemen_marks, draw_pale_allies
 from ..ui.maps import BigMap, Minimap
 from ..ui.quest_log import draw_quest_log
 from ..ui.overlays import GameOverPanel, PauseMenu, VictoryPanel
@@ -1514,7 +1514,8 @@ class GameScene(Scene):
         draw_projectiles(text, cam, self.projectiles)
         draw_chest_marks(text, cam, me, self.projectiles, self.steps)    # (M28.2d)
         draw_effects(text, cam, self.world, air)
-        draw_horsemen_marks(text, cam, [p.hero for p in self.players])   # (M29.5)
+        draw_pale_allies(self.sprites, cam, [p.hero for p in self.players if p.alive])
+        draw_horsemen_marks(text, cam, [p.hero for p in self.players], self.enemies)   # (M29.5)
         self._sky(d, cam)                                 # (M29.4: Paradise reddening)
         others = [(p.hero.x, p.hero.y, p.color) for p in self.players if p is not me and p.alive]
         pins = self.quests.pins((me.hero.x, me.hero.y)) + self._blood_pins(me) + self._drop_pins() \

@@ -105,8 +105,14 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
         mult *= config.U_PHYLACTERY[2]
     if getattr(source, "crowned", False):             # (M29.5: Conquest's crown on you)
         mult *= config.CROWN_MULT
-    if getattr(source, "duel", None) is not None:     # (M29.5: in War's duel ring)
-        mult *= config.HM_DUEL[3]
+    if getattr(source, "duel", None) is not None:     # (M29.5: in a duel ring, War's or
+        mult *= config.HM_DUEL[3]                     # the Ring of Blood's: you hit twice as
+    if source is not None and getattr(victim, "duel", None) is source:   # hard -- and so
+        mult *= config.HM_DUEL[3]                     # does your duellist)
+    crowned_by = getattr(source, "crowned_by", None)
+    if crowned_by is not None and crowned_by.time < getattr(source, "crown_until", -1.0):
+        mult *= config.U_CONQUEST[2 if getattr(source, "boss", False) else 1]   # (Crown of
+                                                      # Conquest, M29.5: it's crowned)
     if victim.status is not None and victim.status.asleep > 0 \
             and not getattr(source, "lulling", False):
         victim.status.asleep = 0.0                    # (Cradlesong +3: a hit wakes it)
@@ -242,6 +248,12 @@ def _relic_on_hit(victim, source, stats, pet: bool) -> None:
     if not pet and (stats.has("fly_agaric_cap") or stats.has("lawyers_wig")):
         from .relics import on_hit                 # (M28.5c: the trip, the scrawls)
         on_hit(victim, source, stats)
+    if not pet and stats.has("crown_of_conquest"):  # (M29.5: the crown goes on)
+        crowns = victim.__dict__.setdefault("crowned_at", {})
+        if source.time - crowns.get(id(source), -1e9) >= config.U_CONQUEST[0]:
+            crowns[id(source)] = source.time
+            victim.crowned_by = source
+            victim.crown_until = source.time + stats.uniques.get("crown_of_conquest", 4.0)
 
 
 def _ring_on_hit(victim, source, stats, dealt: float, on_hit: bool) -> None:

@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Ocean Zones
 
-Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT but for its relics (2026-11-22, section 12).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE.** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -118,7 +118,7 @@ At 0 the cavalry unveils into **the Four Horsemen**, each with **its own health 
 | M29.2 | **The unveiling + the first 8 enemies:** the shared serene/unveiled framework (tells, blood trails **and the stains they leave, kept on the ground**, fonts healing), endgame toughness; Cherub, Seraph, Ophan, Watcher, the Lamb, Doves, Locusts, Halo. **Built, section 9** |
 | M29.3 | **The other 8 enemies:** Trumpeter, Censer-bearer, Bowl-bearer, Chorister, Weeping Saint, Martyr, Behemoth, Leviathan. **Built, section 10** |
 | M29.4 | **The quest + form 1:** the seven seals (**and the sky reddening, seal by seal**), the fallen angel, waking and sealing the court; the serene cavalry (4 phases, 4 signatures, 4 moves), always riding. **Built, section 11** |
-| M29.5 | **Form 2:** the Four Horsemen (16 abilities), inheritance, the bot benchmark; then the 4 relics drafted with the user. **Built but for the relics, section 12** |
+| M29.5 | **Form 2:** the Four Horsemen (16 abilities), inheritance, the bot benchmark; then the 4 relics drafted with the user. **Built, section 12** |
 
 ## 8. Built: M29.1 (2026-11-21) -- the zone framework and Paradise's land
 
@@ -214,7 +214,7 @@ On the same unveiling as section 9 (`ai/paradise.Angel`). **(mine)** Where secti
 
 **Code:** `ai/cavalry.py` (Cavalry, Rider), `ai/paradise.LightPillar`, `render/cavalry.py`, art (`fallen_angel`, `white_knight`, `light_pillar`, the `white_horse` mount) in `render/paradise_art.py`; `world/paradise` (seals, the camp and lair), `world/landmarks` (zones' quests skipped), tiles `SEVEN_SEAL`, `SEVEN_SEAL_BROKEN` (212 of 255 map classes); `systems/quests` (kind "seals", guards, waves, the barred lair, pins, guardians, `broken_seals`); `systems/spawner` (bosses keep their own numbers); `scenes/game._sky`; `render/magus.draw_seals`. **Tests:** `tests/test_m29_4.py` (23); `test_m29_1` (the court is the quest's lair now); `test_m17`, `test_p2`, `test_m22_5`, `test_m27` (a zone's quest: pinned once found, exactly seven spots, not a guardian); `test_m28_5` (the cavalry's relics come with M29.5). Full suite 1805 OK after those.
 
-## 12. Built: M29.5 (2026-11-22) -- the Four Horsemen (the relics still to draft)
+## 12. Built: M29.5 (2026-11-22) -- the Four Horsemen and their relics
 
 **The unveiling** (`ai/cavalry.py`): at 0 the Serene Cavalry doesn't fall. Its riders flicker for 2.5 s (they can't be hit, everything it was doing stops, its cages fall) under the banner **THE FOUR HORSEMEN -- the cavalry unveils**, then each rider becomes a Horseman where it was: Conquest, War, Famine, Death (`ai/horsemen.py`), **6,000 health each** (as proposed; scaled like every boss). The boss bar becomes four bars under one ("THE FOUR HORSEMEN"). The cavalry still rides them (always riding: they slow but never stop; only the banner and the duel plant them, with a "!"), and the fight is won when the last one falls ("THE FOUR HORSEMEN ARE DEFEATED").
 
@@ -243,4 +243,15 @@ Above the necromancer on both counts, as tier III should be. Longer than my targ
 
 **Code:** `ai/horsemen.py` (Horseman and its 16 abilities, ConquestBanner, PaleShade), `ai/cavalry.py` (form 2: the unveiling, riding the four, strife, the dead rising, inheritance; its health the four's), `render/horsemen.py`; the crown and the duel in `systems/combat.strike`, a shot's `on_hit` (`entities/projectile`, `combat._hit_actor`), the roll knocking the crown off (`systems/roll.start`), no healing while starved (`Character.heal`), the HUD's four bars (`ui/hud`), tile `WEIGHT` (213 of 255 map classes), zones `hades`, `blood_fire`. **Tests:** `tests/test_m29_5.py` (22); `test_m29_4`'s whole-quest test now finishes the Horsemen too; `test_m28_5` counts the four Horsemen as the cavalry's (they drop its relics). Full suite 1826 OK (after renaming three numbers that clashed with older ones: `HM_DUEL`, `HM_PLAGUE`, `HM_REAP`). The bench: scratchpad `bench.py` (`BENCH_QUEST`, `BENCH_MIN`, `BENCH_HP`).
 
-**Still to do for M29.5: the relics** -- one per Horseman (section 6.3), drafted with the user. Until then `test_m28_5` exempts the cavalry from "every boss has its relics".
+**The relics** (drafted with the user, 2026-11-22: the recommended one of three for each Horseman; GEAR.md 21.1's rules -- legendary only, the power +10% a level, one dropped once a run per player when the Horsemen fall):
+
+| Horseman | Relic | Slot | Power (at +0) |
+|----------|-------|------|---------------|
+| Conquest | **Crown of Conquest** | head | your hits crown enemies: a crowned enemy deals half damage for 4 s (bosses 25% less), once per enemy every 8 s (a gold crown shows over it) |
+| War | **Ring of Blood** | ring | every 20 s, a ring of blood closes round you and the nearest elite or boss (within 10 tiles) for 6 s: inside it you both deal double damage (step out and it's over) |
+| Famine | **The Black Scales** | trinket | every 8 s, weighs you against the nearest enemy (within 10 tiles): whichever has less health as a share of max loses 3% of its max to the other (a boss 0.5%) |
+| Death | **Pale Rider's Cloak** | chest | enemies you kill rise once as pale shades that fight for you (15 a bite) for 6 s, at most 3 at a time |
+
+On the gear (16 letters at most) they're "Conquest's Crown" and "Pale Rider Cloak", like the Crown of Black Ice's "Black Ice Crown". The power that grows is the crown's time, the ring's time, the scales' share and the shades' time. Looks (M28.6): the crown gold with a red stone, the cloak pale. Affixes: Crown -- brutal, keen eye, lingering; Ring -- sharpened, vampiric, brutal; Scales -- second wind, potency, lucky charm; Cloak -- thick hide, iron skin, second wind. Code: `systems/relics.py` (`_blood_ring`, `_black_scales`, `_pale_shades`, `on_kill`), `combat._relic_on_hit` and `combat.strike` (the crown; the Ring of Blood's duel shares War's: x2 both ways), config `U_CONQUEST`, `U_BLOOD_RING`, `U_SCALES`, `U_PALE`. 42 boss uniques now.
+
+**M29 (Paradise) is complete. NEXT: M30, Hell** (the south zone; the Slaanesh-like revellers in groups, drafted with the user first).

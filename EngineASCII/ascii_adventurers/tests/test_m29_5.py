@@ -16,6 +16,9 @@ from ascii_adventurers.systems import combat
 from ascii_adventurers.systems.zones import update_zones
 from ascii_adventurers.tests.test_m29_2 import arena, run
 from ascii_adventurers.tests.test_m29_4 import cavalry
+from ascii_adventurers.tests.test_m28_5 import _Relic, mover
+from ascii_adventurers.systems import relics
+from types import SimpleNamespace
 from ascii_adventurers.world import tiles
 
 
@@ -166,7 +169,10 @@ class WarTest(unittest.TestCase):
         force(h, a, "duel", config.HM_DUEL[0] + 0.1)
         self.assertIs(a.hero.duel, h)
         self.assertTrue(h.planted)
-        self.assertEqual(h._duel_mult(a.hero), config.HM_DUEL[3])
+        hp = a.hero.hp
+        dealt = combat.strike(a.hero, 10, h, 0.0, [])         # (it hits you twice as hard...)
+        self.assertAlmostEqual(dealt, 10 * config.HM_DUEL[3])
+        a.hero.hp = hp
         hp = a.hero.hp
         cx, cy, r, _ = h.ring
         a.hero.x = cx + r + 2.0
@@ -297,6 +303,83 @@ def _ctx(a):
     return AIContext(a.world, [a.hero], a.actors(), a.projectiles, a.effects, zones=a.zones)
 
 
+class RelicsTest(_Relic):
+    """The Four Horsemen's relics (user's picks, 2026-11-22): one each."""
+
+    def test_four_relics_one_per_horseman_in_four_slots(self):
+        keys = config.BOSS_UNIQUES["cavalry"]
+        self.assertEqual(set(keys), {"crown_of_conquest", "ring_of_blood", "black_scales",
+                                     "pale_riders_cloak"})
+        self.assertEqual(sorted(config.GEAR[k].slot for k in keys),
+                         ["chest", "head", "ring", "trinket"])
+        for k in keys:
+            self.assertEqual(config.CARDS[k].rarity, "legendary")
+            self.assertEqual(config.CARDS[k].unlock, "U:cavalry")
+
+    def test_crown_of_conquest_crowns_what_you_hit(self):
+        s, h = self.setup("crown_of_conquest")
+        d = mover(24.5, 20.5)
+        self.place(d)
+        combat.strike(d, 10, h, 0.0, s.effects)
+        self.assertIs(d.crowned_by, h)
+        self.assertAlmostEqual(d.crown_until, h.time + 4.0)
+        hp = h.hp
+        dealt = combat.strike(h, 20, d, math.pi, s.effects)
+        self.assertAlmostEqual(dealt, 20 * config.U_CONQUEST[1])
+        h.hp = hp
+        h.time += 2.0
+        combat.strike(d, 10, h, 0.0, s.effects)            # (once every 8 s: not renewed)
+        self.assertAlmostEqual(d.crown_until, h.time - 2.0 + 4.0)
+        h.time += 3.0                                      # (worn off)
+        self.assertAlmostEqual(combat.strike(h, 20, d, math.pi, s.effects), 20)
+
+    def test_ring_of_blood_duels_an_elite(self):
+        s, h = self.setup("ring_of_blood")
+        d = mover(26.5, 20.5)
+        d.espec = SimpleNamespace(speed=3.0, elite=True, xp=1, name="elite")
+        self.place(d)
+        h.blood_ring_t = 0.0
+        self.go(0.05)
+        self.assertIsNotNone(h.blood_ring)
+        self.assertIs(h.duel, d)
+        other = mover(30.5, 25.5)
+        self.assertAlmostEqual(combat.strike(other, 10, h, 0.0, s.effects, can_crit=False)
+                               / 10, config.HM_DUEL[3] * h.stats.damage_mult
+                               * (1 + h.stats.damage), places=3)
+        h.x = h.blood_ring["x"] + h.blood_ring["r"] + 2.0  # (stepping out ends it)
+        self.go(0.05)
+        self.assertIsNone(h.blood_ring)
+        self.assertIsNone(h.duel)
+
+    def test_the_black_scales_take_from_the_lighter(self):
+        s, h = self.setup("black_scales")
+        d = mover(24.5, 20.5, hp=1000)
+        self.place(d)
+        d.hp = 100.0                                        # (it: 10%, you: full)
+        h.scales_t = 0.0
+        self.go(0.05)
+        self.assertAlmostEqual(d.hp, 100.0 - 1000 * 0.03, places=3)
+        d.hp = 1000.0
+        h.hp = h.max_hp * 0.3                               # (now you're the lighter)
+        hp = h.hp
+        h.scales_t = 0.0
+        self.go(0.05)
+        self.assertLess(h.hp, hp)
+        self.assertEqual(d.hp, 1000.0)                      # (capped at its max)
+
+    def test_pale_riders_cloak_raises_your_kills(self):
+        s, h = self.setup("pale_riders_cloak")
+        target = mover(26.5, 20.5, hp=1000)
+        self.place(target)
+        for k in range(5):
+            relics.on_kill(s, s.me, mover(22.5, 20.5 + k * 0.2))
+        self.assertEqual(len(h.pale), config.U_PALE[0])
+        self.go(2.0)
+        self.assertLess(target.hp, 1000)
+        self.go(5.0)
+        self.assertEqual(h.pale, [])
+
+
 class GameTest(unittest.TestCase):
     def test_the_whole_fight_to_the_last_horseman(self):
         from ascii_adventurers.tests.test_m16 import game
@@ -337,6 +420,8 @@ class GameTest(unittest.TestCase):
             s._step(1 / 60)
         self.assertEqual(q.stage, "cleared")
         self.assertTrue(all(isinstance(x, Horseman) for x in b.horsemen))
+        dropped = [d for d in s.drops if d.piece.key in config.BOSS_UNIQUES["cavalry"]]
+        self.assertEqual(len(dropped), 1)                   # (one of the four relics)
 
 
 if __name__ == "__main__":

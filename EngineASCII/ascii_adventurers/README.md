@@ -850,8 +850,9 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   and kit -- crowning arrows (half damage until you roll), banners of
   burning ground, War's duel ring, Famine's scales and hunger, falling
   weights, Hades' darkness, the quarters of the earth, the reaping scythe,
-  the dead rising. When one falls, the others take its power. (Their
-  relics are still to be drafted.)
+  the dead rising. When one falls, the others take its power. Their
+  relics: the Crown of Conquest, the Ring of Blood, the Black Scales and
+  the Pale Rider's Cloak.
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

@@ -27,6 +27,12 @@ M28.5c (the forest, Mycelium, the necromancer):
   Spore Wind Band           a gust that pushes and lengthens statuses
   Phylactery                a shade's 10 s after a fall (RunRules.revive)
   Lich's Gaze               the enemy kept under the aim is marked
+M29.5 (the Four Horsemen's):
+  Ring of Blood             a duel ring round you and an elite or boss (x2 both ways)
+  The Black Scales          the lighter of you and the nearest enemy gives to the other
+  Pale Rider's Cloak        your kills rise as pale shades that bite for you (on_kill)
+  (Crown of Conquest: a hit crowns the enemy -- combat._relic_on_hit -- and a
+  crowned enemy deals less: combat.strike)
 And per hit (combat._relic_on_hit): the Fly Agaric Cap's trip (wander) and
 the Lawyer's Wig's scrawls (bound); the scene moves wandering enemies and
 holds bound ones (wander, after flee; `Statuses.bound`).
@@ -139,6 +145,16 @@ def tick(scene, p, dt: float) -> None:
         _candlelight(scene, hero, dt)
     if hero.shade > 0:
         _shade(scene, p, dt)
+    # (M29.5: the Four Horsemen's)
+    if st.has("ring_of_blood") or hero.blood_ring is not None:
+        _blood_ring(scene, hero, st, dt)
+    if st.has("black_scales"):
+        _black_scales(scene, hero, st, dt)
+    if hero.weighed is not None:
+        foe, lost, left = hero.weighed
+        hero.weighed = (foe, lost, left - dt) if left > dt else None
+    if hero.pale:
+        _pale_shades(scene, hero, dt)
 
 
 # --- The dung ball ---------------------------------------------------------------------
@@ -462,6 +478,12 @@ def on_kill(scene, p, enemy) -> None:
         mine = [q for q in scene.zones if q.kind == "candle" and q.source is hero]
         for old in mine[:max(0, len(mine) - most)]:
             old.age = old.life
+    if st.has("pale_riders_cloak") and not getattr(enemy, "boss", False) \
+            and getattr(enemy, "kind_key", "") != "pale_shade" \
+            and len(hero.pale) < config.U_PALE[0]:     # (M29.5: it rises for you)
+        hero.pale.append({"x": enemy.x, "y": enemy.y, "facing": 0.0, "walked": 0.0,
+                          "life": st.uniques.get("pale_riders_cloak", 6.0), "bite": 0.0})
+        scene.effects.append(Effect("unveil", enemy.x, enemy.y, size=1.0))
     if hero.shade > 0:
         hero.shade_kills += 1
         if hero.shade_kills >= config.U_PHYLACTERY[1]:
@@ -786,3 +808,92 @@ def puff(scene, hero) -> None:
             strike(e, dmg, hero, None, scene.effects, (config.STATUSES["poison"].tag,), on_hit=False)
             if e.alive:
                 inflict(e, "poison", hero)
+
+
+# === M29.5: the Four Horsemen's relics ====================================================
+
+def _blood_ring(scene, hero, st, dt: float) -> None:
+    """Ring of Blood: every U_BLOOD_RING[0] s, a ring of blood round you and
+    the nearest elite or boss (within U_BLOOD_RING[1]): for its power in s
+    you're in a duel with it -- both of you deal double damage
+    (combat.strike) -- until it ends, it dies, or you step out."""
+    every, reach, radius = config.U_BLOOD_RING
+    r = hero.blood_ring
+    if r is not None:
+        r["left"] -= dt
+        foe = r["foe"]
+        out = math.hypot(hero.x - r["x"], hero.y - r["y"]) > r["r"]
+        if r["left"] <= 0 or not foe.alive or out or not st.has("ring_of_blood"):
+            if hero.duel is foe:
+                hero.duel = None
+            hero.blood_ring = None
+            hero.blood_ring_t = every
+        return
+    hero.blood_ring_t -= dt
+    if hero.blood_ring_t > 0:
+        return
+    foes = [e for e in _foes(scene) if (e.espec.elite or getattr(e, "boss", False))
+            and math.hypot(e.x - hero.x, e.y - hero.y) <= reach]
+    if not foes:
+        hero.blood_ring_t = 1.0
+        return
+    foe = min(foes, key=lambda e: math.hypot(e.x - hero.x, e.y - hero.y))
+    d = math.hypot(foe.x - hero.x, foe.y - hero.y)
+    hero.blood_ring = {"x": (hero.x + foe.x) / 2, "y": (hero.y + foe.y) / 2,
+                       "r": max(radius, d / 2 + 2.0), "foe": foe,
+                       "left": st.uniques.get("ring_of_blood", 6.0)}
+    hero.duel = foe
+    scene.effects.append(Effect("toast", hero.x, hero.y - 2, label="RING OF BLOOD!"))
+
+
+def _black_scales(scene, hero, st, dt: float) -> None:
+    """The Black Scales: every U_SCALES[0] s, you against the nearest enemy
+    (within U_SCALES[1]): whichever has less health as a share of its max
+    loses the power x its own max to the other (a boss x U_SCALES[2] of
+    that)."""
+    every, reach, boss_x = config.U_SCALES
+    hero.scales_t -= dt
+    if hero.scales_t > 0:
+        return
+    hero.scales_t = every
+    near = [e for e in _foes(scene) if math.hypot(e.x - hero.x, e.y - hero.y) <= reach]
+    if not near or hero.max_hp <= 0:
+        return
+    foe = min(near, key=lambda e: math.hypot(e.x - hero.x, e.y - hero.y))
+    share = st.uniques.get("black_scales", 0.03)
+    mine, theirs = hero.hp / hero.max_hp, foe.hp / foe.max_hp if foe.max_hp else 0.0
+    if theirs < mine:
+        cut = share * (boss_x if getattr(foe, "boss", False) else 1.0)
+        lost = foe.take_damage(foe.max_hp * cut, hero, None)
+        hero.heal(lost)
+        scene.effects.append(Effect("toast", foe.x, foe.y - 2, label="FOUND WANTING!"))
+    else:
+        lost = hero.take_damage(hero.max_hp * share, foe, None)
+        foe.hp = min(float(foe.max_hp), foe.hp + lost)
+        scene.effects.append(Effect("toast", hero.x, hero.y - 2, label="WEIGHED!"))
+    hero.weighed = (foe, theirs >= mine, 1.2)
+
+
+def _pale_shades(scene, hero, dt: float) -> None:
+    """Pale Rider's Cloak: your risen shades go for the nearest enemy and
+    bite it (U_PALE: damage, every s), till their time is up."""
+    most, bite, speed, every = config.U_PALE
+    foes = _foes(scene)
+    for s in hero.pale:
+        s["life"] -= dt
+        s["bite"] -= dt
+        t = min(foes, key=lambda e: math.hypot(e.x - s["x"], e.y - s["y"]), default=None)
+        if t is None:
+            continue
+        dx, dy = t.x - s["x"], t.y - s["y"]
+        d = math.hypot(dx, dy)
+        if d > 1.1 + t.hit_radius:
+            step = min(d, speed * dt)
+            s["x"] += dx / d * step
+            s["y"] += dy / d * step
+            s["walked"] += step
+            s["facing"] = math.atan2(dy, dx)
+        elif s["bite"] <= 0:
+            s["bite"] = every
+            strike(t, bite, hero, math.atan2(dy, dx), scene.effects, pet=True)
+    hero.pale = [s for s in hero.pale if s["life"] > 0]

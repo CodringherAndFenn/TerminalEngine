@@ -108,10 +108,18 @@ def draw_banner(batch, camera, b: ConquestBanner) -> None:
           b.clock * 0.4)
 
 
-def draw_horsemen_marks(text, camera, heroes) -> None:
+def draw_horsemen_marks(text, camera, heroes, enemies=()) -> None:
     """On the heroes: a crown while crowned (half damage), a struck "+"
-    while healing is blocked (hunger, Hades), the duel."""
+    while healing is blocked (hunger, Hades), the duel; their relics' (the
+    Ring of Blood's ring, the Black Scales tipping). On enemies: a crown
+    while a Crown of Conquest's holds."""
     batch = _Batch(text)
+    for e in enemies:
+        by = getattr(e, "crowned_by", None)
+        if by is not None and e.alive and by.time < getattr(e, "crown_until", -1.0):
+            x, y = camera.world_to_px(e.x, e.y)
+            batch.put_c(x - 6, y - 50, "w", palette.GOLD)
+            batch.put_c(x + 6, y - 50, "w", palette.GOLD)
     for h in heroes:
         if not h.alive:
             continue
@@ -124,4 +132,25 @@ def draw_horsemen_marks(text, camera, heroes) -> None:
             batch.put_c(x + 16, y - 40, "/", palette.WAR_RED[0])
         if getattr(h, "duel", None) is not None:
             batch.put_c(x - 16, y - 40, "x", palette.WAR_RED[0])
+        ring = getattr(h, "blood_ring", None)
+        if ring is not None:
+            _ring(batch, camera, ring["x"], ring["y"], ring["r"], 32, "o", palette.WAR_RED[0],
+                  getattr(h, "time", 0.0) * 0.3)
+        weighed = getattr(h, "weighed", None)
+        if weighed is not None:
+            _, lost, _ = weighed
+            batch.put_c(x - 10, y - 62, "\\" if lost else "/", palette.SCALES)
+            batch.put_c(x, y - 64, "T", palette.SCALES)
+            batch.put_c(x + 10, y - 62, "/" if lost else "\\", palette.SCALES)
     batch.flush()
+
+
+def draw_pale_allies(bank, camera, heroes) -> None:
+    """The Pale Rider's Cloak's shades, fighting for their hero."""
+    from .characters import draw_character
+    from .. import config
+    for h in heroes:
+        for s in getattr(h, "pale", ()):
+            x, y = camera.world_to_px(s["x"], s["y"])
+            frame = int(s["walked"] * config.WALK_STEPS_PER_TILE) % 4
+            draw_character(bank, x, y, "pale_shade", 2, math.cos(s["facing"]) < 0, frame, False)

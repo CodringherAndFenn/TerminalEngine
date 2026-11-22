@@ -176,6 +176,14 @@ class Character(Actor):
         self.crowned = False
         self.duel = None
         self.starved_until = -1.0
+        # ...and their relics: the Ring of Blood's ring ({x, y, r, foe, left})
+        # and s to the next; s to the Black Scales' next weighing, and the
+        # last one (foe, you lost, s shown); the Pale Rider's Cloak's shades.
+        self.blood_ring: dict | None = None
+        self.blood_ring_t = config.U_BLOOD_RING[0] * 0.5
+        self.scales_t = config.U_SCALES[0]
+        self.weighed: tuple | None = None
+        self.pale: list[dict] = []
         self.last_crit = False
         self.bestiary: set[str] = set()
         self.idle = 0.0                   # seconds since the last attack (Capacitor)

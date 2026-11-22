@@ -2406,6 +2406,28 @@ CARDS = {
         "tiles) burn 8 a second, and you heal 3 a second standing in it",
         (("corpse_candle", "flag", 1), ("corpse_candle", "power", 8.0)),
         rarity="legendary", max_stacks=1, unlock="U:necromancer", code="U38"),
+    # M29.5: the Four Horsemen's (the Serene Cavalry's) relics, one per Horseman
+    # (user's picks, 2026-11-22).
+    "crown_of_conquest": CardSpec(
+        "Crown of Conquest", "your hits crown enemies: a crowned enemy deals half damage for 4 s "
+        "(bosses 25% less), once per enemy every 8 s",
+        (("crown_of_conquest", "flag", 1), ("crown_of_conquest", "power", 4.0)),
+        rarity="legendary", max_stacks=1, unlock="U:cavalry", code="U39"),
+    "ring_of_blood": CardSpec(
+        "Ring of Blood", "every 20 s, a ring of blood closes round you and the nearest elite or "
+        "boss for 6 s: inside it you both deal double damage",
+        (("ring_of_blood", "flag", 1), ("ring_of_blood", "power", 6.0)),
+        rarity="legendary", max_stacks=1, unlock="U:cavalry", code="U40"),
+    "black_scales": CardSpec(
+        "The Black Scales", "every 8 s, weighs you against the nearest enemy: whichever has less "
+        "health (as a share of max) loses 3% of its max HP to the other (bosses 0.5%)",
+        (("black_scales", "flag", 1), ("black_scales", "power", 0.03)),
+        rarity="legendary", max_stacks=1, unlock="U:cavalry", code="U41"),
+    "pale_riders_cloak": CardSpec(
+        "Pale Rider's Cloak", "enemies you kill rise once as pale shades that fight for you for "
+        "6 s (at most 3 at a time)",
+        (("pale_riders_cloak", "flag", 1), ("pale_riders_cloak", "power", 6.0)),
+        rarity="legendary", max_stacks=1, unlock="U:cavalry", code="U42"),
     "retaliation": CardSpec("Retaliation", "when hit: a shockwave deals 30 and pushes (3 s)",
                             (("retaliation", "flag", 1),), rarity="uncommon", max_stacks=1,
                             code="R03"),
@@ -3693,6 +3715,15 @@ GEAR = {
                            affixes=("brutal", "keen_eye", "long_reach")),
     "corpse_candle": GearSpec("Corpse Candle", "trinket", unique="necromancer",
                               affixes=("elementalist", "second_wind", "broad_strokes")),
+    # (M29.5: the Four Horsemen's, dropped by the cavalry -- Paradise's boss)
+    "crown_of_conquest": GearSpec("Conquest's Crown", "head", unique="cavalry",
+                                  affixes=("brutal", "keen_eye", "lingering")),
+    "ring_of_blood": GearSpec("Ring of Blood", "ring", unique="cavalry",
+                              affixes=("sharpened", "vampiric", "brutal")),
+    "black_scales": GearSpec("The Black Scales", "trinket", unique="cavalry",
+                             affixes=("second_wind", "potency", "lucky_charm")),
+    "pale_riders_cloak": GearSpec("Pale Rider Cloak", "chest", unique="cavalry",
+                                  affixes=("thick_hide", "iron_skin", "second_wind")),
 }
 # Each boss's relics, in a fixed order (the drop picks by index).
 BOSS_UNIQUES: dict = {}
@@ -4524,6 +4555,15 @@ HM_REAP = (3.0, 7.0, 4.2, 22, 0.5, 3)  # s, the scythe's spin rad/s, reach, dama
                                     # same hero again, crescents thrown each half-turn
 SHADE_LIFE = 10.0                  # (passive, the dead rise) a pale shade lasts this long...
 SHADES_MOST = 6                    # ...and no more than this many are up at once
+# Their relics (M29.5; the powers grow +10% a level, GEAR.md 21.1).
+U_CONQUEST = (8.0, 0.5, 0.75)      # Crown of Conquest: s before the same enemy again; a crowned
+                                   # enemy deals x this (a boss x this)
+U_BLOOD_RING = (20.0, 10.0, 5.0)   # Ring of Blood: every s, at an elite or boss within this far,
+                                   # the ring's radius (at least)
+U_SCALES = (8.0, 10.0, 0.5 / 3)    # The Black Scales: every s, the nearest enemy within this far;
+                                   # a boss weighs x this of the power
+U_PALE = (3, 15, 6.0, 0.8)         # Pale Rider's Cloak: shades at most, their bite, speed, s
+                                   # between bites
 
 # Start: the tile nearest the centre (searched every SPAWN_SEARCH_STEP
 # tiles) that isn't in a lake and has dry land connecting it to at least

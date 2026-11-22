@@ -61,6 +61,7 @@ HEAD_LOOKS: dict[str, tuple] = {
     "fly_agaric_cap": ("cap", "r", "R", "w", "w"),    # Fly Agaric Cap: white spots
     "lawyers_wig": ("wig", "w", "m", "d"),            # Lawyer's Wig: white curls
     "lichs_gaze": ("lich", "c", "C", "o"),            # Lich's Gaze: a dark cowl, glowing eyes
+    "crown_of_conquest": ("crown", "y", "Y", "r"),    # Crown of Conquest: gold, a red stone
 }
 
 # Chest: key -> (light, dark), the body's colours.
@@ -82,6 +83,7 @@ CHEST_LOOKS: dict[str, tuple[str, str]] = {
     "scarab_carapace": ("q", "Q"),   # (Khepri) shell sheen
     "lead_apron": ("x", "X"),        # (the Fallout King) lead
     "hermits_furs": ("d", "D"),      # (the Frost Hermit) grey furs
+    "pale_riders_cloak": ("i", "I"), # (the Four Horsemen) pale
 }
 
 # Main hand: key -> (light, dark), the weapon's accent.
