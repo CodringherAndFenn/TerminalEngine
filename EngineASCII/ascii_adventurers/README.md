@@ -899,7 +899,18 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   cake tower), the ballroom (a dance floor whose unlit squares burn on the
   beat), the vault (sliding heaps of gold; catch a tossed coin for power,
   and temptation). Toasts in every room; grand spins, the beckoning,
-  carving sets and chandeliers. Form 2 is M30.5.
+  carving sets and chandeliers.
+
+- **The hunger, the Host's second form, M30.5** (`design/OCEAN.md` 23): at
+  nothing his mask cracks and the hall falls into the wine -- islands of
+  broken table, floor and gold in spilt wine you wade at half speed. He
+  eats what he reaches (his guests, the scattered feast, the demon waiters
+  bringing him more), each meal healing him and making him bigger and
+  stronger, up to ten: kick the scraps into the wine and kill the guests
+  first. His maw inhales you and spits you across the hall, teeth snap up
+  along marked lines, spilled feast rots into pools that slow, burn and
+  frenzy; lunge bites, a tongue that drags you in unless you roll free,
+  belly quakes, and bone scraps that litter the floor.
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

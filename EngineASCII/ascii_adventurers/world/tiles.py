@@ -1145,6 +1145,15 @@ MIRROR_PANEL = TileType(
     # not wall: the room changes under whoever stands there.
     "mirror panel", ("||", "|/", "/|"), palette.REVEL_MIRROR[1], palette.HALL_FLOOR_BG,
 )
+HALL_WINE = TileType(
+    # M30.5: the hall fallen into the wine (the hunger, ai/hunger.py): shallow,
+    # so you can wade it -- slowly. Walkable, unlike the lake round the palace.
+    "spilt wine", ("░ ", " ░", "  ", "▒░", "  "), palette.WINE_FG, palette.WINE_BG,
+)
+TABLE_WRECK = TileType(
+    # M30.5: an island of the collapsed banquet table, its planks in the wine.
+    "broken table", ("==", "=-", "-=", "%=", "=%"), palette.TABLE_FG, palette.TABLE_BG,
+)
 PIER_DECK = TileType(
     # The gilded pier's planks, out over the wine-dark sea.
     "gilded pier", ("──", "─ ", " ─"), palette.PIER_FG, palette.PIER_BG,

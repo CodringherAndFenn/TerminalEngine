@@ -160,7 +160,12 @@ class QuestFlowTest(unittest.TestCase):
         for _ in range(60):
             s._step(1 / 60)
         self.assertTrue(all(s.world.tile_at(tx, ty) is tiles.PALACE_GATE for tx, ty in L.gate))
-        b.take_damage(b.hp + 1, h, 0.0)
+        b.take_damage(b.hp + 1, h, 0.0)                    # (M30.5: the mask cracks...)
+        for _ in range(round((config.HUNGER_CRACK + 0.1) * 60)):
+            s._step(1 / 60)
+        self.assertEqual((q.stage, b.form), ("fight", 2))
+        self.assertIsNone(s.world.charmer)
+        b.take_damage(b.hp + 1, h, 0.0)                    # (...and the hunger falls)
         for _ in range(3):
             s._step(1 / 60)
         self.assertEqual(q.stage, "cleared")

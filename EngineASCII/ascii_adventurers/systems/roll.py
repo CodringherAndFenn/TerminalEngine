@@ -153,6 +153,8 @@ def step(scene, p, inp, dt: float) -> None:
     hero.amps = [a for a in hero.amps if a[2] > 0]
     if hero.waves:
         _waves(scene, p, dt)                     # (Stompers (L): Ground wave)
+    if getattr(hero, "swallowed", None) is not None:   # (M30.5: inside the hunger: no room to roll)
+        return
     if getattr(hero, "encased", 0) > 0:       # (M24.2: frozen solid -- a roll breaks the ice)
         if inp.roll:
             hero.encase_breaks += 1

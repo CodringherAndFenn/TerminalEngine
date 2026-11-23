@@ -80,6 +80,8 @@ DURATIONS = {
     "cake_fall": 0.45,      # the cake tower toppling along its line (x2, y2: its far end)
     "chandelier_crash": 0.5,   # a chandelier shattering on the floor
     "coin_burst": 0.4,      # poured coins striking the floor
+    # M30.5: the hunger (ai/hunger.py): his belly quake's rings (as far as they roll)
+    "belly_quake": config.HUNGER_QUAKE[4] / config.HUNGER_QUAKE[3],
 }
 
 

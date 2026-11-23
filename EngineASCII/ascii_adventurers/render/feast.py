@@ -11,6 +11,14 @@ spinning) and everything his hospitality puts on the floor:
   * marked circles: chandeliers ("*", glass), pouring coins ("$");
   * heaps of gold sliding across, coins tossed to you (catch them);
   * the beckoning's cone and pull, the carving set's aim.
+
+Form 2, the hunger (M30.5, ai/hunger.py): him (growing with every meal),
+the scraps of the feast on the islands, his maw's cone (the air rushing in
+while he inhales), the lunge's line, the tongue, the teeth marked along
+their lines and snapping, gobbets of spilled feast in the air (and where
+they'll land), someone struggling inside him. His belly quake's rings are an
+effect ("belly_quake"); the rotting pools and bone clutter are zones
+(render/spell_fx.py).
 """
 
 from __future__ import annotations
@@ -74,6 +82,66 @@ def _floor(text, camera, h: FeastHost, view) -> None:
             canvas.fill(col, (round(px) + 2, round(py) + 2, w, hh), special_flags=pygame.BLEND_ADD)
 
 
+_SCRAP = {"soup": "u", "roast": "@", "jelly": "o", "cake": "A"}
+
+
+def _draw_hunger(batch, camera, h: FeastHost, t: float, blink: int) -> None:
+    """What form 2 puts out (see the module's docstring)."""
+    for x, y, kind in h.scraps:                       # (the feast lying about)
+        px, py = camera.world_to_px(x, y)
+        batch.put_c(px, py, "_", palette.FEAST_GOLD[1])
+        batch.put_c(px, py - 8, _SCRAP[kind], palette.FEAST_DISH[kind])
+    if h.maw is not None:                             # (the cone; inhaling, the air rushing in)
+        m = h.maw
+        col = palette.HUNGER_MAW[0 if m["on"] or blink else 1]
+        for k in range(11):
+            b = m["a"] - m["half"] + 2 * m["half"] * k / 10
+            px, py = camera.world_to_px(h.x + math.cos(b) * m["reach"], h.y + math.sin(b) * m["reach"])
+            batch.put_c(px, py, ")" if math.cos(b) >= 0 else "(", col)
+        for k in range(2):
+            b = m["a"] + (k * 2 - 1) * m["half"]
+            _line(batch, camera, h.x + math.cos(b) * h.hit_radius, h.y + math.sin(b) * h.hit_radius,
+                  h.x + math.cos(b) * m["reach"], h.y + math.sin(b) * m["reach"], ".", col, 1.6)
+        if m["on"]:
+            for k in range(9):
+                b = m["a"] - m["half"] * 0.85 + 1.7 * m["half"] * k / 8
+                f = 1.0 - (t * 1.8 + k * 0.37) % 1.0
+                r = h.hit_radius + (m["reach"] - h.hit_radius) * f
+                px, py = camera.world_to_px(h.x + math.cos(b) * r, h.y + math.sin(b) * r)
+                batch.put_c(px, py, "~", palette.HUNGER_MAW[1])
+    if h.lunge is not None:                           # (where he'll lunge, and bite)
+        x0, y0, x1, y1 = h.lunge
+        _line(batch, camera, x0, y0, x1, y1, "-", palette.PLAINS_TELL[blink], 1.0)
+        _ring(batch, camera, x1, y1, config.HUNGER_LUNGE[4], 12, "v", palette.PLAINS_TELL[0], t)
+    if h.tongue is not None:
+        tg = h.tongue
+        if tg["aiming"]:
+            for k in range(1, 9):
+                r = h.hit_radius + k * config.HUNGER_TONGUE[2] / 8
+                px, py = camera.world_to_px(h.x + math.cos(tg["a"]) * r, h.y + math.sin(tg["a"]) * r)
+                batch.put_c(px, py, ".", palette.PLAINS_TELL[1])
+        else:
+            x, y = h.tongue_tip()
+            _line(batch, camera, h.x, h.y, x, y, "=", palette.HUNGER_TONGUE[0], 0.7)
+            px, py = camera.world_to_px(x, y)
+            batch.put_c(px, py, "@", palette.HUNGER_TONGUE[1])
+    for th in h.teeth:                                # (marked, then snapping shut)
+        n = max(2, int(math.hypot(th[2] - th[0], th[3] - th[1]) / 1.2))
+        snapped = th[4] <= 0
+        col = palette.HUNGER_TEETH[0 if snapped or (blink and th[4] < 0.4) else 1]
+        for k in range(n + 1):
+            px, py = camera.world_to_px(th[0] + (th[2] - th[0]) * k / n, th[1] + (th[3] - th[1]) * k / n)
+            batch.put_c(px, py, ("W" if k % 2 else "M") if snapped else "v", col)
+    for g in h.globs:                                 # (spilled feast: where, and in the air)
+        _ring(batch, camera, g[2], g[3], config.HUNGER_SPILL[2], 10, ".", palette.HUNGER_ROT[blink], t)
+        f = 1.0 - g[4] / g[5]
+        px, py = camera.world_to_px(g[0] + (g[2] - g[0]) * f, g[1] + (g[3] - g[1]) * f)
+        batch.put_c(px, py - math.sin(f * math.pi) * 70, "&", palette.HUNGER_ROT[0])
+    if h.swallowed:                                   # (someone struggling inside)
+        px, py = camera.world_to_px(h.x, h.y)
+        batch.put_c(px + math.sin(t * 30) * 4, py - 6, "!", palette.HUNGER_GULP)
+
+
 def draw_feast_host(text, bank, camera, h: FeastHost) -> None:
     t = h.time
     blink = int(t * 8) % 2
@@ -83,7 +151,10 @@ def draw_feast_host(text, bank, camera, h: FeastHost) -> None:
     if h.floor is not None:
         _floor(text, camera, h, view)
     batch = _Batch(text)
-    _ring(batch, camera, h.x, h.y, config.HOST_CHARM[0], 30, ".", palette.FEAST_CHARM[1], t * 0.25)
+    if h.form == 2:
+        _draw_hunger(batch, camera, h, t, blink)
+    elif h.form == 1:
+        _ring(batch, camera, h.x, h.y, config.HOST_CHARM[0], 30, ".", palette.FEAST_CHARM[1], t * 0.25)
     for w in h.walls:                                 # (heaps of gold, sliding)
         _line(batch, camera, w[0], w[1], w[2], w[3], "#" if blink else "$", palette.FEAST_GOLD[0], 0.6)
     for x, y, r, left, kind in h.marks:               # (chandeliers, pouring coins)
@@ -134,13 +205,21 @@ def draw_feast_host(text, bank, camera, h: FeastHost) -> None:
             batch.put_c(px, py, ".", palette.PLAINS_TELL[1])
     batch.flush()
     x, y = camera.world_to_px(h.x, h.y)
-    sprite = {"toast": "host_of_feast_toast", "bow": "host_of_feast_bow",
-              "spin": "host_of_feast_spin"}.get(h.pose, "host_of_feast")
+    scale = SCALE
+    if h.form == 2:                                   # (bigger with every meal)
+        scale = round(SCALE * h.growth())
+        chewing = h.chew_t > 0 and int(t * 7) % 2 == 0
+        sprite = "host_hunger_maw" if h.pose == "maw" or chewing else "host_hunger"
+    elif h.form == "cracking":                        # (the mask cracking, flickering)
+        sprite = "host_of_feast_crack" if int(t * 10) % 3 else "host_of_feast"
+    else:
+        sprite = {"toast": "host_of_feast_toast", "bow": "host_of_feast_bow",
+                  "spin": "host_of_feast_spin"}.get(h.pose, "host_of_feast")
     left = math.cos(h.facing) < 0 if h.pose != "spin" else int(h.spin) % 2 == 0
-    draw_character(bank, x, y, sprite, SCALE, left, int(h.walked * 1.2) % 2, h.hurt_flash > 0)
+    draw_character(bank, x, y, sprite, scale, left, int(h.walked * 1.2) % 2, h.hurt_flash > 0)
     if h.tell is not None and h.planted and blink:
         batch = _Batch(text)
-        batch.put_c(x, y - SCALE * 10, "!", palette.PLAINS_TELL[0])
+        batch.put_c(x, y - scale * 10, "!", palette.PLAINS_TELL[0])
         batch.flush()
 
 

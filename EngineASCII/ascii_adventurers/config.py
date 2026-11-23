@@ -1166,6 +1166,11 @@ ENEMIES = {
         name="the Host of the Feast", kind="host_of_feast", sprite="host_of_feast", scale=6,
         max_hp=12000, sight=400, biomes=(), size_px=64, xp=1500,
     ),
+    # M30.5: form 2's demon waiters, bringing him a course (ai/hunger.Waiter).
+    "feast_waiter": EnemySpec(
+        name="demon waiter", kind="feast_waiter", sprite="feast_waiter",
+        max_hp=60, sight=1, biomes=(), speed=3.2, damage=0, size_px=22, xp=4,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -4330,8 +4335,10 @@ BESTIARY = {
     "bouncer": (3000, "Never in the trance. Charges along a shown line and throws you at the nearest feast."),
     "master_of_revels": (5000, "Its bell wakes every group near it -- and snaps you out of a trance."),
     # M30.4
-    "host_of_feast": (10000, "Never stops dancing. Don't stay close: his charm sweeps you into his "
-                             "dance. Follow the lit steps; a caught coin is power, and temptation."),
+    "host_of_feast": (10000, "Never stops dancing; his charm sweeps you into his dance. Then the mask "
+                             "cracks: clear the food and kill his guests before he eats them and grows."),
+    # M30.5
+    "feast_waiter": (1500, "The Host's servant, bringing him a course. Kill it before he eats it."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -4832,6 +4839,68 @@ HOST_CHANDELIERS = (6, 1.2, 1.8, 26, 1.6, 4.0, 0.5, 6)
 HOST_GUESTS = (("glutton", "glutton", "drunkard", "drunkard", "ravenous", "ravenous"),
                ("dancer", "dancer", "dancer", "dancer", "masked_dancer", "masked_dancer"),
                ("hoarder", "hoarder", "hoarder", "hoarder", "gilded_reveller"))
+
+# M30.5: form 2, THE HUNGER (OCEAN.md 17.2; ai/hunger.py). At 0 the mask
+# cracks (HUNGER_CRACK s: he can't be hit while the hall falls into the wine
+# round him) and he's back with x HUNGER_HP his health (17.3: 14,000 of the
+# gracious host's 12,000): four phases (100-75-50-25%), a signature added in
+# each -- devour, the maw, teeth in the floor, spilled feast. No charm (user).
+# Damages at level 1, x the enemy scaling and his growth. Numbers mine.
+HUNGER_CRACK = 3.0
+HUNGER_HP = 14000 / 12000
+HUNGER_HIT_RADIUS = 2.6
+# The hall falls into the wine (user): islands of table, floor and gold
+# (centres HUNGER_ISLANDS[0] tiles apart, jittered up to [1], radii [2]) in
+# spilt wine that heroes wade at x [3] (user: slowly); he moves through it
+# freely.
+HUNGER_ISLANDS = (12.0, 3.0, (3.5, 5.5), 0.5)
+# He prowls round his prey (tiles/s, about [1] tiles off, turning about now
+# and then) -- unless a meal is within [2] tiles: then he goes for it at [3].
+HUNGER_PROWL = (4.5, 6.0, 12.0, 5.5)
+# Devour (user): whatever he reaches (within [0] of his body) he eats -- his
+# guests, the feast's scraps, his own waiters -- and stops to chew it for [4]
+# s (mine: time to clear the next one). Each meal heals [1] of his max and
+# makes him [2] bigger and stronger, up to [3] meals (17.3); past those he
+# still eats, but gains nothing.
+HUNGER_DEVOUR = (1.0, 0.03, 0.05, 10, 1.2)
+# What there is to eat (mine): HUNGER_FEAST[0] scraps of the collapsed table
+# scattered on the islands 6 to [1] tiles from him; HUNGER_GUESTS in pairs
+# on the islands [2] tiles out, feasting (in the trance); and every [3] s
+# [4] demon waiters bring him a course from [5] tiles out. Walk into a scrap
+# or shoot it and it's knocked into the wine.
+HUNGER_FEAST = (8, 22.0, (10.0, 20.0), 18.0, 2, 18.0)
+HUNGER_GUESTS = ("glutton", "glutton", "ravenous", "ravenous", "drunkard", "drunkard")
+# The maw (phase 2 on): a cone shown [0] s, then he inhales for [1] s,
+# pulling everything in the cone ([2] tiles, [3] degrees either side) at
+# [4] tiles/s. Reach his mouth and you're swallowed: [5] bites of [6] over
+# [7] s, then spat out [8] tiles across the hall (in HUNGER_SPAT s).
+HUNGER_MAW = (1.0, 1.6, 14.0, 32.0, 6.0, 3, 15, 1.2, 13.0)
+HUNGER_SPAT = 0.5
+# Teeth in the floor (phase 3 on): [0] waves of [1] lines crossing near you
+# ([2] tiles long; one right through you), each shown [3] s, then snapping
+# shut ([4] damage within [5] tiles of a line); waves [6] s apart.
+HUNGER_TEETH = (3, 3, 22.0, 1.1, 26, 1.0, 0.9)
+# Spilled feast (phase 4): [0] gobbets heaved in arcs onto marked spots (one
+# on you; [1] s in the air), landing as rotting pools ([2] radius, [3] s)
+# that slow (x [4]), burn ([5] every [6] s), fill your temptation ([7] a
+# tick) and frenzy the guests within [8] tiles of them.
+HUNGER_SPILL = (5, 1.1, 2.4, 8.0, 0.6, 6, 0.5, 3.0, 4.0)
+# Lunge bite: a marked line ([0] s, at most [2] tiles), a lunge along it at
+# [1] tiles/s (hurting [5] whoever's within [3] of his way), ending in a
+# bite ([4] tiles round his mouth, [6] damage).
+HUNGER_LUNGE = (0.7, 28.0, 18.0, 1.4, 3.0, 14, 34)
+# Tongue lash: aimed ([0] s), it shoots out at [1] tiles/s up to [2] tiles;
+# what it catches (within [5]) is dragged back at [3] tiles/s and bitten
+# ([4]) -- unless a roll pulls you free. A meal it catches, he eats.
+HUNGER_TONGUE = (0.6, 30.0, 16.0, 9.0, 30, 0.8)
+# Belly quake: planted [0] s, then [1] shockwave rings [2] s apart rolling
+# out at [3] tiles/s to [4] tiles ([5] damage; roll through them).
+HUNGER_QUAKE = (0.9, 3, 0.6, 9.0, 26.0, 16)
+# Bone scraps: [0] fans of [1] bones ([2] degrees), [3] s apart; where a bone
+# comes down it lies as clutter you trip over ([4] radius, [5] s, x [6]
+# speed), at most HUNGER_CLUTTER of them about.
+HUNGER_BONES = (3, 7, 70.0, 0.5, 0.9, 10.0, 0.65)
+HUNGER_CLUTTER = 40
 FEAST_SHOTS = {
     "cutlery": ShellSpec(speed=7.5, damage=9, max_range=20.0, damages_terrain=False,
                          look="cutlery", sound="axe"),
@@ -4839,6 +4908,8 @@ FEAST_SHOTS = {
                       look="bone", sound="axe"),
     "carving": ShellSpec(speed=8.0, damage=12, max_range=24.0, damages_terrain=False,
                          look="carving", sound="swing"),
+    "scrap": ShellSpec(speed=9.0, damage=10, max_range=13.0, damages_terrain=False,
+                       look="bone", sound="axe"),        # (M30.5: the hunger's bone scraps)
 }
 
 # M29.4: the Serene Cavalry (OCEAN.md 6.1; ai/bosses.Cavalry). Four riders
@@ -6031,20 +6102,38 @@ BOSSES = {
     # Three phases, three rooms (100-67-33%): the banquet (courses served),
     # the ballroom (+ the dance floor), the vault (+ the vault's gold); toasts
     # in every room. His dance figures: grand spin, the beckoning, the
-    # carving set, chandeliers.
+    # carving set, chandeliers. (M30.5: rests cut by 0.2 after the bot
+    # benchmark: ~500 damage a minute was under the necromancer's.)
     "host_of_feast": BossSpec(
         name="The Host of the Feast",
         phases=(
             BossPhase(1.0, (("courses", 3), ("toast", 2), ("spin", 2), ("beckon", 2),
-                            ("carving", 2), ("chandeliers", 2)), rest=1.0),
+                            ("carving", 2), ("chandeliers", 2)), rest=0.8),
             BossPhase(0.67, (("dance", 3), ("courses", 2), ("toast", 2), ("spin", 2),
-                             ("beckon", 2), ("carving", 2), ("chandeliers", 2)), rest=0.9),
+                             ("beckon", 2), ("carving", 2), ("chandeliers", 2)), rest=0.7),
             BossPhase(0.33, (("gold", 3), ("dance", 2), ("courses", 2), ("toast", 2),
                              ("spin", 2), ("beckon", 2), ("carving", 2), ("chandeliers", 2)),
-                      rest=0.8),
+                      rest=0.6),
         ),
         loot=10000, achievement="host_of_feast",
-        pages=("host_of_feast",),
+        pages=("host_of_feast", "feast_waiter"),
+    ),
+    # M30.5: form 2, the hunger (OCEAN.md 17.2; ai/hunger.py). Four phases, a
+    # signature added in each: devour (all the form: not a move), then the
+    # maw, teeth in the floor, spilled feast. His moves: lunge bite, tongue
+    # lash, belly quake, bone scraps. The reward and pages are form 1's.
+    "host_hunger": BossSpec(
+        name="The Hunger",
+        phases=(
+            BossPhase(1.0, (("lunge", 3), ("tongue", 2), ("quake", 2), ("bones", 2)), rest=1.0),
+            BossPhase(0.75, (("maw", 3), ("lunge", 2), ("tongue", 2), ("quake", 2), ("bones", 2)),
+                      rest=0.9),
+            BossPhase(0.5, (("teeth", 3), ("maw", 2), ("lunge", 2), ("tongue", 2), ("quake", 2),
+                            ("bones", 2)), rest=0.8),
+            BossPhase(0.25, (("spill", 3), ("teeth", 2), ("maw", 2), ("lunge", 2), ("tongue", 2),
+                             ("quake", 2), ("bones", 2)), rest=0.7),
+        ),
+        loot=0, achievement="host_of_feast", pages=(),
     ),
 }
 BOSS_KEYS = tuple(BOSSES)         # (M28.5: a stable order for the relic drop's seed)

@@ -1218,3 +1218,12 @@ PIN_GIVER["pandemonium"] = ((255, 214, 90), (70, 10, 26))         # gold on wine
 MAP_TILE.update({"smashed instrument": (130, 100, 60), "dark lantern": (70, 56, 46),
                  "the host's table": (200, 150, 80), "mirror panel": (210, 190, 210)})
 MAP_TILE_BIOME.update({"dance floor": "pandemonium"})
+# M30.5: the Host's second form, the hunger (ai/hunger.py, render/feast.py).
+MAP_TILE.update({"spilt wine": (130, 24, 60), "broken table": (200, 150, 80)})
+HUNGER_MAW = ((255, 90, 110), (150, 30, 50))                      # his maw's cone; the air rushing in
+HUNGER_TONGUE = ((236, 110, 150), (170, 60, 100))                 # the tongue, its tip
+HUNGER_TEETH = ((246, 240, 224), (150, 120, 110))                 # snapping; marked, before
+HUNGER_ROT = ((150, 160, 50), (96, 104, 34))                      # a rotting pool, gobbets in the air
+HUNGER_BONE = ((214, 206, 186), (150, 142, 124))                  # bone clutter on the floor
+HUNGER_QUAKE = ((214, 160, 96), (150, 100, 60))                   # belly quake rings
+HUNGER_GULP = (255, 120, 120)                                     # someone struggling inside him

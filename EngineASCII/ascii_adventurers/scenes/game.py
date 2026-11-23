@@ -693,6 +693,7 @@ class GameScene(Scene):
             frozen = frozen or bool(p.hero.mount)  # (P6: nobody attacks from the saddle)
             frozen = frozen or p.hero.petrified > 0  # (P9: stone)
             frozen = frozen or p.hero.entranced > 0  # (M30.2: entranced at a feast)
+            frozen = frozen or getattr(p.hero, "swallowed", None) is not None   # (M30.5: inside him)
             p.hero.trigger = inp.fire                # (Hoverhead Axe +6: Hold it there)
             if weapon.update(self.rules.weapon_dt(p, dt),
                              (inp.fire or weapon.spec.auto) and not frozen):
@@ -1505,7 +1506,7 @@ class GameScene(Scene):
         for p in self.players:
             h = p.hero
             if p.alive and x0 - margin <= h.x <= x1 + margin and y0 - margin <= h.y <= y1 + margin \
-                    and not h.bats:                    # (M28.5b: a Bat Form roll is bats)
+                    and not h.bats and h.swallowed is None:   # (M28.5b: bats; M30.5: swallowed)
                 draw_body(self.sprites, cam, h)
         draw_entranced(text, cam, [p.hero for p in self.players if p.alive])   # (M30.2)
         draw_feast_marks(text, cam, [p.hero for p in self.players if p.alive])   # (M30.4)

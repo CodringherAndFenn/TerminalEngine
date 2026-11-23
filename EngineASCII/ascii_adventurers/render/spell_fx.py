@@ -263,6 +263,21 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 a = k * 2.4 + 0.3
                 batch.put_c(x + math.cos(a) * z.radius * 0.6 * tw,
                             y + math.sin(a) * z.radius * 0.6 * th, "'" if k % 2 else ",", col)
+        elif z.kind == "rot":
+            # M30.5: the hunger's spilled feast, rotting (it slows, burns, tempts).
+            for k in range(8):
+                a = k * math.tau / 8 + z.age * 0.4
+                col = palette.HUNGER_ROT[(int(z.age * 3) + k) % 2]
+                for rr in (0.4, 0.85):
+                    batch.put_c(x + math.cos(a) * z.radius * rr * tw,
+                                y + math.sin(a) * z.radius * rr * th,
+                                "%" if (k + int(rr * 2)) % 3 == 0 else ",", col)
+            batch.put_c(x, y, "&", palette.HUNGER_ROT[0])
+        elif z.kind == "bone_clutter":
+            # M30.5: a bone scrap lying where it came down (you trip over it).
+            col = palette.HUNGER_BONE[0 if z.age < z.life * 0.75 else 1]
+            batch.put_c(x - 4, y, "x", col)
+            batch.put_c(x + 5, y + 3, ",", col)
         elif z.kind == "loose_coins":
             # M30.3: a hoarder's coins lying where they landed (they trip you).
             col = palette.REVEL_GOLD[0 if z.age < z.life * 0.75 else 1]

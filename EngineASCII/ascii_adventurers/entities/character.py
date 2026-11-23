@@ -340,6 +340,7 @@ class Character(Actor):
         self.dazzled = 0.0                # M30.3: s dazzled by the Vain's mirror (aim wavers)
         self.swept = None                 # M30.4: whose dance an entranced hero is swept into
         self.gilt_until = -1.0            # M30.4: gilded by a caught coin until (hero.time)
+        self.swallowed = None             # M30.5: inside the hunger (ai/hunger.py): hidden, held
         self.water_walk = False           # M27: Adventurer's Glory -- water is ground
         self.spiral = 0                   # Spiral: how far round its extra shot has turned
         # M28.3f, the feet's legendary tricks: when a hit last readied a

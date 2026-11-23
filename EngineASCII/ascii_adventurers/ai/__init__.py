@@ -41,6 +41,8 @@ ai -- enemy behaviour.
                 trance, its groups, the music
   feast.py      Pandemonium's boss, form 1 (M30.4): the Host of the Feast,
                 a dancing host in a hall that changes room each phase
+  hunger.py     form 2 (M30.5): the hunger, devouring the feast to grow in
+                a hall fallen into the wine; his demon waiters
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -75,6 +77,7 @@ from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 from .mimic import Mimic
 from .cavalry import Cavalry
 from .feast import FeastHost
+from .hunger import Waiter
 from .horsemen import ConquestBanner, Horseman, PaleShade
 from .pandemonium import (BandDrummer, Beloved, Bouncer, Carver, Cupbearer, Dancer, Drunkard,
                           GildedReveller, Glutton, Hoarder, MaskedDancer, MasterOfRevels, Piper,
@@ -238,6 +241,7 @@ KINDS = {
     # M29.4: Paradise's boss, form 1, and its lances' pillars
     "cavalry": Cavalry,
     "host_of_feast": FeastHost,
+    "feast_waiter": Waiter,                # M30.5: the hunger's demon waiters
     "light_pillar": LightPillar,
     # M29.5: form 2, the Four Horsemen; Conquest's banner; the dead risen
     "conquest": Horseman,

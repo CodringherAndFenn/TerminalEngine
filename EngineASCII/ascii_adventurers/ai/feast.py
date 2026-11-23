@@ -40,7 +40,8 @@ revellers, home ("room", k)): feasters, then dancers, then hoarders. They
 wake if you go near, or at his toast; each room's group leaves with the room
 (mine) and a new one sits down.
 
-Form 2, the hunger, is M30.5. Drawn by render/feast.py.
+Form 2, the hunger (M30.5), is ai/hunger.HungerForm, a mix-in: at 0 the
+mask cracks. Drawn by render/feast.py.
 """
 
 from __future__ import annotations
@@ -57,6 +58,7 @@ from ..world import tiles
 from . import pandemonium as pand
 from .bosses import Boss
 from .creatures import _numbered_hit
+from .hunger import HungerForm
 
 _TAU = math.tau
 ROOMS = ("THE BANQUET", "THE BALLROOM", "THE VAULT")
@@ -82,12 +84,15 @@ def _in_cone(x0, y0, aim, half, reach, x, y) -> bool:
     return abs(off) <= half
 
 
-class FeastHost(Boss):
-    """The Host of the Feast, form 1 (see the module's docstring)."""
+class FeastHost(HungerForm, Boss):
+    """The Host of the Feast: form 1 here, form 2 (the hunger) in
+    ai/hunger.py (see the modules' docstrings)."""
 
     def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
                  spawn_id=None) -> None:
+        self.form = 1                     # 1 the gracious host, "cracking", 2 the hunger (M30.5)
         super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.HOST_HIT_RADIUS)
+        self._init_hunger()
         self.shots = config.FEAST_SHOTS
         self.room = -1                    # 0 the banquet, 1 the ballroom, 2 the vault
         self.hall: tuple | None = None    # (cx, cy, a, b, gx, gy)
@@ -228,8 +233,8 @@ class FeastHost(Boss):
 
     def charm_at(self, h) -> float:
         """How strongly his charm pulls at hero h (0 out of reach .. 1 at
-        his side): systems/temptation.py."""
-        if not self.alive or not h.alive or not self.in_arena(h):
+        his side): systems/temptation.py. The hunger has no charm."""
+        if self.form != 1 or not self.alive or not h.alive or not self.in_arena(h):
             return 0.0
         reach = config.HOST_CHARM[0]
         d = math.hypot(h.x - self.x, h.y - self.y)
@@ -238,7 +243,9 @@ class FeastHost(Boss):
         return min(1.0, max(0.0, 1.0 - (d - self.hit_radius) / (reach - self.hit_radius)))
 
     def on_phase(self, phase: int, ctx) -> None:
-        if phase != self.room:
+        if self.form != 1:
+            self._hunger_phase(phase, ctx)
+        elif phase != self.room:
             self._enter_room(min(phase, len(ROOMS) - 1))
 
     def _settle(self) -> None:
@@ -248,6 +255,7 @@ class FeastHost(Boss):
         self.cone = None
         self.carve = None
         self.floor = None
+        self._settle_hunger()
 
     def _start(self, name: str) -> None:
         self._settle()
@@ -259,6 +267,9 @@ class FeastHost(Boss):
 
     def think(self, ctx, dt: float) -> None:
         self.ctx = ctx
+        if self.form != 1:
+            self._hunger_think(ctx, dt)
+            return
         if self.room < 0:
             self._enter_room(0)
         try:
@@ -347,6 +358,7 @@ class FeastHost(Boss):
                 h.entranced = 0.0
         self.dishes, self.jellies, self.cakes, self.marks = [], [], [], []
         self.walls, self.coins, self.waves, self.floor = [], [], [], None
+        self._hunger_gone(ctx)
 
     # --- Signature 1: courses served ----------------------------------------------------
 

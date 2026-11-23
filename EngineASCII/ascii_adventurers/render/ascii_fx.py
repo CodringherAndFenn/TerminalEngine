@@ -335,14 +335,15 @@ def _frame(e: Effect) -> list:
                  math.sin(q * math.tau / 4 + (k + 0.5) * (math.tau / 4) / 9) * r * config.TILE_PX_H,
                  "*" if k % 2 else "x", col) for k in range(9)]
     if e.kind in ("belly_slam", "beat", "wine_wave", "gold_slam", "bell", "host_toast",
-                  "room_change"):                # (M30.2-4: rings)
+                  "room_change", "belly_quake"):   # (M30.2-5: rings)
         r = e.size * p
         col = {"belly_slam": palette.REVEL_SLAM, "beat": palette.REVEL_BEAT,
                "wine_wave": palette.REVEL_WINE, "gold_slam": palette.REVEL_GOLD,
                "bell": palette.REVEL_BELL, "host_toast": palette.REVEL_WINE,
-               "room_change": palette.FEAST_GOLD}[e.kind][min(1, int(p * 2))]
+               "room_change": palette.FEAST_GOLD,
+               "belly_quake": palette.HUNGER_QUAKE}[e.kind][min(1, int(p * 2))]
         glyph = {"belly_slam": "o", "beat": "=", "wine_wave": "*", "gold_slam": "#",
-                 "bell": "o", "host_toast": "~", "room_change": "*"}[e.kind]
+                 "bell": "o", "host_toast": "~", "room_change": "*", "belly_quake": "~"}[e.kind]
         n = max(12, int(r * 5))
         return [(math.cos(k * math.tau / n) * r * config.TILE_PX_W,
                  math.sin(k * math.tau / n) * r * config.TILE_PX_H, glyph, col) for k in range(n)]
