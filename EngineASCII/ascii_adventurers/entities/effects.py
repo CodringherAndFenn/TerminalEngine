@@ -82,6 +82,7 @@ DURATIONS = {
     "coin_burst": 0.4,      # poured coins striking the floor
     # M30.5: the hunger (ai/hunger.py): his belly quake's rings (as far as they roll)
     "belly_quake": config.HUNGER_QUAKE[4] / config.HUNGER_QUAKE[3],
+    "goblet_wave": config.U_GOBLET[1] / config.U_GOBLET[2],   # (the Host's Goblet's toast)
 }
 
 

@@ -61,9 +61,10 @@ class CardDataTest(unittest.TestCase):
         # + 11 dodge roll cards (M18), + 5 patterns and 4 hero cards (M19)
         # + 6 wizard cards (M20), - Arcane Mastery and Weapons Master (M28.1)
         # + the 38 boss relics (M28.5, "U" codes), + the Four Horsemen's 4 (M29.5)
-        self.assertEqual(len(codes), 167)
-        self.assertEqual(len(set(codes)), 167)
-        self.assertEqual(sum(c.startswith("U") for c in codes), 42)
+        # + the Host of the Feast's 4 (M30.5)
+        self.assertEqual(len(codes), 171)
+        self.assertEqual(len(set(codes)), 171)
+        self.assertEqual(sum(c.startswith("U") for c in codes), 46)
         for prefix, n in (("G", 21), ("T", 12), ("S", 12), ("C", 8), ("X", 6), ("R", 6),
                           ("E", 3), ("K", 6), ("V", 6), ("M", 5)):
             self.assertEqual(sum(c.startswith(prefix) for c in codes), n, prefix)

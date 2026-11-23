@@ -83,6 +83,7 @@ def _floor(text, camera, h: FeastHost, view) -> None:
 
 
 _SCRAP = {"soup": "u", "roast": "@", "jelly": "o", "cake": "A"}
+_SCRAP_KINDS = ("roast", "cake", "jelly", "soup")
 
 
 def _draw_hunger(batch, camera, h: FeastHost, t: float, blink: int) -> None:
@@ -225,11 +226,25 @@ def draw_feast_host(text, bank, camera, h: FeastHost) -> None:
 
 def draw_feast_marks(text, camera, heroes) -> None:
     """On the heroes: a whirl round one swept into the Host's dance, a gold
-    "$" over one gilded by a caught coin."""
+    "$" over one gilded by a caught coin (his or the Gilded Ring's). And the
+    Host's relics' things on the floor (M30.5): the Glutton's Bib's scraps,
+    the Gilded Ring's coins."""
     batch = _Batch(text)
     for h in heroes:
         if not h.alive:
             continue
+        t = getattr(h, "time", 0.0)
+        for k, (sx, sy, left) in enumerate(getattr(h, "bib_scraps", ())):
+            if left > 2.0 or int(t * 8) % 2:
+                px, py = camera.world_to_px(sx, sy)
+                kind = _SCRAP_KINDS[k % len(_SCRAP_KINDS)]
+                batch.put_c(px, py, "_", palette.FEAST_GOLD[1])
+                batch.put_c(px, py - 8, _SCRAP[kind], palette.FEAST_DISH[kind])
+        for cx, cy, left in getattr(h, "ring_coins", ()):
+            if left > 1.5 or int(t * 8) % 2:
+                px, py = camera.world_to_px(cx, cy)
+                batch.put_c(px, py - abs(math.sin(t * 6 + cx)) * 6, "$",
+                            palette.FEAST_COIN[int(t * 8) % 2])
         x, y = camera.world_to_px(h.x, h.y)
         if getattr(h, "swept", None) is not None and h.entranced > 0:
             a = h.time * 6.0
@@ -237,6 +252,19 @@ def draw_feast_marks(text, camera, heroes) -> None:
                 b = a + k * math.tau / 3
                 batch.put_c(x + math.cos(b) * 16, y - 20 + math.sin(b) * 8, "~",
                             palette.FEAST_CHARM[0])
-        if getattr(h, "time", 0.0) < getattr(h, "gilt_until", -1.0):
+        if t < getattr(h, "gilt_until", -1.0) or t < getattr(h, "ring_gilt_until", -1.0):
             batch.put_c(x, y - 44, "$", palette.FEAST_GILT)
+    batch.flush()
+
+
+def draw_drunk(text, camera, enemies) -> None:
+    """Enemies drunk on the Host's Goblet's wine (M30.5): a reeling "~" over them."""
+    batch = _Batch(text)
+    for e in enemies:
+        s = e.status
+        if s is None or s.drunk <= 0 or not e.alive:
+            continue
+        x, y = camera.world_to_px(e.x, e.y)
+        sway = math.sin(s.drunk * 9.0) * 6
+        batch.put_c(x + sway, y - e.hit_radius * config.TILE_PX_H - 10, "~", palette.REVEL_WINE[0])
     batch.flush()

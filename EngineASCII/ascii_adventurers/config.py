@@ -214,6 +214,11 @@ WEAPONS = {
                         look="acorn", sound="fizzle", lob=True, blast_radius=1.5),
     ),
     # M28.5b: the Spittoon's glob (a hero's relic; ricochets off walls).
+    "dancing_cutlery": WeaponSpec(     # (M30.5: the Dancing Shoes' spin)
+        name="cutlery", fire_interval=1.0,
+        shell=ShellSpec(speed=12.0, damage=10, max_range=9.0, damages_terrain=False,
+                        look="cutlery", sound="axe"),
+    ),
     "spittoon_glob": WeaponSpec(
         name="glob", fire_interval=4.0,
         shell=ShellSpec(speed=13.0, damage=20, max_range=26.0, damages_terrain=False,
@@ -2651,6 +2656,28 @@ CARDS = {
         "6 s (at most 3 at a time)",
         (("pale_riders_cloak", "flag", 1), ("pale_riders_cloak", "power", 6.0)),
         rarity="legendary", max_stacks=1, unlock="U:cavalry", code="U42"),
+    # M30.5: the Host of the Feast's relics, one per pleasure he plays on
+    # (user's picks, 2026-11-23).
+    "gluttons_bib": CardSpec(
+        "Glutton's Bib", "your kills leave a scrap of the feast for 8 s: walk over it to eat it -- "
+        "heal 3% of your max HP and +5% damage for 10 s (up to 5 at once)",
+        (("gluttons_bib", "flag", 1), ("gluttons_bib", "power", 0.05)),
+        rarity="legendary", max_stacks=1, unlock="U:host_of_feast", code="U43"),
+    "hosts_goblet": CardSpec(
+        "The Host's Goblet", "every 12 s you raise a toast: a wave of wine floods 8 tiles out (20 "
+        "damage, a push) and the enemies it touches are drunk for 3 s: slowed 40%, missing 30% "
+        "of their attacks", (("hosts_goblet", "flag", 1), ("hosts_goblet", "power", 20.0)),
+        rarity="legendary", max_stacks=1, unlock="U:host_of_feast", code="U44"),
+    "dancing_shoes": CardSpec(
+        "Dancing Shoes", "your roll is a grand spin: as it ends it flings a ring of 8 pieces of "
+        "cutlery (10 damage each) all round you",
+        (("dancing_shoes", "flag", 1), ("dancing_shoes", "power", 10.0)),
+        rarity="legendary", max_stacks=1, unlock="U:host_of_feast", code="U45"),
+    "gilded_ring": CardSpec(
+        "Gilded Ring", "hitting an elite or a boss tosses a coin out (every 6 s at most): catch it "
+        "to be gilded, +25% damage for 4 s",
+        (("gilded_ring", "flag", 1), ("gilded_ring", "power", 0.25)),
+        rarity="legendary", max_stacks=1, unlock="U:host_of_feast", code="U46"),
     "retaliation": CardSpec("Retaliation", "when hit: a shockwave deals 30 and pushes (3 s)",
                             (("retaliation", "flag", 1),), rarity="uncommon", max_stacks=1,
                             code="R03"),
@@ -3947,6 +3974,15 @@ GEAR = {
                              affixes=("second_wind", "potency", "lucky_charm")),
     "pale_riders_cloak": GearSpec("Pale Rider Cloak", "chest", unique="cavalry",
                                   affixes=("thick_hide", "iron_skin", "second_wind")),
+    # (M30.5: the Host of the Feast's -- Pandemonium's boss -- one per pleasure)
+    "gluttons_bib": GearSpec("Glutton's Bib", "chest", unique="host_of_feast",
+                             affixes=("thick_hide", "second_wind", "magnet")),
+    "hosts_goblet": GearSpec("Host's Goblet", "trinket", unique="host_of_feast",
+                             affixes=("broad_strokes", "lingering", "potency")),
+    "dancing_shoes": GearSpec("Dancing Shoes", "feet", unique="host_of_feast",
+                              affixes=("swift_boots", "extra_roll", "quick_recovery")),
+    "gilded_ring": GearSpec("Gilded Ring", "ring", unique="host_of_feast",
+                            affixes=("brutal", "keen_eye", "prospector")),
 }
 # Each boss's relics, in a fixed order (the drop picks by index).
 BOSS_UNIQUES: dict = {}
@@ -5011,6 +5047,16 @@ U_SCALES = (8.0, 10.0, 0.5 / 3)    # The Black Scales: every s, the nearest enem
                                    # a boss weighs x this of the power
 U_PALE = (3, 15, 6.0, 0.8)         # Pale Rider's Cloak: shades at most, their bite, speed, s
                                    # between bites
+# M30.5: the Host of the Feast's relics (the powers grow +10% a level).
+U_BIB = (0.03, 10.0, 5, 8.0, 0.9, 12)   # Glutton's Bib: heal (x max HP) a scrap; s a stack lasts;
+                                        # stacks at most; s a scrap lies; reach to eat it; at most
+                                        # this many lying
+U_GOBLET = (12.0, 8.0, 16.0, 3.0, 0.6, 0.3, 1.0)   # The Host's Goblet: every s (when an enemy is
+                                        # within reach); reach; tiles/s; s drunk (bosses half);
+                                        # x a drunk enemy's clock; its miss chance; push
+U_SHOES = 8                             # Dancing Shoes: pieces of cutlery a spin
+U_GILDED = (6.0, 4.0, 6.0, 0.9, (2.0, 4.0))   # Gilded Ring: s between coins; s gilded; s a coin
+                                        # lies; reach to catch it; how far it's tossed
 
 # Start: the tile nearest the centre (searched every SPAWN_SEARCH_STEP
 # tiles) that isn't in a lake and has dry land connecting it to at least

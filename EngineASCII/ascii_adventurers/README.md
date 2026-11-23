@@ -910,7 +910,11 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   first. His maw inhales you and spits you across the hall, teeth snap up
   along marked lines, spilled feast rots into pools that slow, burn and
   frenzy; lunge bites, a tongue that drags you in unless you roll free,
-  belly quakes, and bone scraps that litter the floor.
+  belly quakes, and bone scraps that litter the floor. Beaten, he drops
+  one of four relics: the Glutton's Bib (eat your kills' scraps for health
+  and damage), the Host's Goblet (a toast that leaves enemies drunk), the
+  Dancing Shoes (a roll ends in a ring of cutlery), the Gilded Ring (catch
+  the coins your hits on elites toss out, for a burst of damage).
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

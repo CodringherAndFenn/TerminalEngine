@@ -184,6 +184,18 @@ class Character(Actor):
         self.scales_t = config.U_SCALES[0]
         self.weighed: tuple | None = None
         self.pale: list[dict] = []
+        # M30.5: the Host of the Feast's relics: the Glutton's Bib's scraps
+        # ([x, y, s left]) and its stacks (each the hero.time it runs out);
+        # the Host's Goblet's s to the next toast and its waves ([x, y, r,
+        # hit]); the Gilded Ring's coins lying about ([x, y, s left]), when
+        # it last tossed one, and gilded until (hero.time).
+        self.bib_scraps: list = []
+        self.feasted: list[float] = []
+        self.goblet_t = config.U_GOBLET[0] * 0.5
+        self.goblet_waves: list = []
+        self.ring_coins: list = []
+        self.coin_t = -1e9
+        self.ring_gilt_until = -1.0
         self.last_crit = False
         self.bestiary: set[str] = set()
         self.idle = 0.0                   # seconds since the last attack (Capacitor)
@@ -438,6 +450,9 @@ class Character(Actor):
         st = self.stats
         if self.roll_t > 0 or self.untouchable > 0:     # i-frames (Hairsbreadth +9 too)
             return 0.0
+        drunk = getattr(getattr(source, "status", None), "drunk", 0.0)
+        if st is not None and drunk > 0 and self.rng.random() < config.U_GOBLET[5]:
+            return 0.0                                  # (M30.5: the Host's Goblet: it reels, misses)
         if st is not None and source is not None and getattr(source, "disarmed", 0) > 0:
             source.disarmed = 0.0                       # (Fencer's Boots +3: it fizzles)
             return 0.0

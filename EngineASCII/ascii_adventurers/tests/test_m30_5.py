@@ -18,7 +18,10 @@ from ascii_adventurers.entities.projectile import Projectile
 from ascii_adventurers.render import plains  # noqa: F401  (adds the pictures to ART)
 from ascii_adventurers.render.characters import ART
 from ascii_adventurers.systems.zones import update_zones
+from ascii_adventurers.systems import combat, relics
+from ascii_adventurers.tests.test_m28_5 import BASE, _Relic, mover
 from ascii_adventurers.tests.test_p7 import Arena, enemy
+from types import SimpleNamespace
 from ascii_adventurers.world import tiles
 from ascii_adventurers.world.test_map import TestMap
 
@@ -342,6 +345,125 @@ class MovesTest(unittest.TestCase):
         a.hero.x, a.hero.y = z.x, z.y
         run(a, 0.3)
         self.assertLessEqual(a.hero.slow_mult, config.HUNGER_BONES[6])
+
+
+class RelicsTest(_Relic):
+    """The Host of the Feast's relics (user's picks, 2026-11-23): one per
+    pleasure he plays on -- feast, wine, dance, gold."""
+
+    def test_four_relics_in_four_slots(self):
+        keys = config.BOSS_UNIQUES["host_of_feast"]
+        self.assertEqual(set(keys), {"gluttons_bib", "hosts_goblet", "dancing_shoes",
+                                     "gilded_ring"})
+        self.assertEqual(sorted(config.GEAR[k].slot for k in keys),
+                         ["chest", "feet", "ring", "trinket"])
+        for k in keys:
+            self.assertEqual(config.CARDS[k].rarity, "legendary")
+            self.assertEqual(config.CARDS[k].unlock, "U:host_of_feast")
+            self.assertLessEqual(len(config.GEAR[k].name), 16)
+
+    def test_gluttons_bib_eat_your_kills_scraps(self):
+        s, h = self.setup("gluttons_bib")
+        relics.on_kill(s, s.me, mover(22.5, 20.5))
+        self.assertEqual(len(h.bib_scraps), 1)
+        other = mover(30.5, 25.5)
+        base = combat.strike(other, 10, h, 0.0, s.effects, can_crit=False)
+        h.hp = h.max_hp * 0.5
+        h.x = 22.5
+        self.go(0.05)
+        self.assertEqual(h.bib_scraps, [])
+        self.assertAlmostEqual(h.hp, h.max_hp * (0.5 + config.U_BIB[0]), delta=1.0)
+        self.assertEqual(len(h.feasted), 1)
+        fed = combat.strike(other, 10, h, 0.0, s.effects, can_crit=False)
+        self.assertAlmostEqual(fed / base, 1 + h.stats.uniques["gluttons_bib"], places=3)
+        h.time += config.U_BIB[1] + 0.1
+        self.go(0.05)
+        self.assertEqual(h.feasted, [])                      # (worn off)
+        for k in range(8):                                   # (five at most)
+            relics.on_kill(s, s.me, mover(h.x, h.y))
+            self.go(0.02)
+        self.assertEqual(len(h.feasted), config.U_BIB[2])
+
+    def test_a_scrap_left_lying_goes_off(self):
+        s, h = self.setup("gluttons_bib")
+        relics.on_kill(s, s.me, mover(30.5, 20.5))
+        self.go(config.U_BIB[3] + 0.1)
+        self.assertEqual(h.bib_scraps, [])
+
+    def test_the_hosts_goblet_toasts_and_makes_them_drunk(self):
+        s, h = self.setup("hosts_goblet")
+        d = mover(25.5, 20.5)
+        far = mover(40.5, 20.5)
+        self.place(d, far)
+        h.goblet_t = 0.0
+        self.go(0.6)
+        self.assertLess(d.hp, BASE)
+        self.assertGreater(d.x, 25.5)                        # (pushed out)
+        self.assertGreater(d.status.drunk, 0.0)
+        self.assertEqual(far.hp, BASE)                       # (beyond the wave)
+        self.assertAlmostEqual(d.status.time_scale, config.U_GOBLET[4])
+        self.assertIn("goblet_wave", [e.kind for e in s.effects])
+        h.rng.random = lambda: 0.1                           # (it reels: a miss)
+        hp = h.hp
+        self.assertEqual(h.take_damage(20, d, math.pi), 0.0)
+        h.rng.random = lambda: 0.99
+        self.assertGreater(h.take_damage(20, d, math.pi), 0.0)
+        self.assertLess(h.hp, hp)
+
+    def test_the_goblet_waits_for_someone_to_toast(self):
+        s, h = self.setup("hosts_goblet")
+        h.goblet_t = 0.0
+        self.go(0.1)
+        self.assertEqual(h.goblet_waves, [])
+        self.assertGreater(h.goblet_t, 0.5)                  # (nobody near: soon again)
+        self.place(mover(24.5, 20.5))
+        self.go(1.2)
+        self.assertEqual([e.kind for e in s.effects].count("goblet_wave"), 1)
+        self.assertGreater(h.goblet_t, config.U_GOBLET[0] - 1.0)
+
+    def test_dancing_shoes_end_a_roll_in_a_ring_of_cutlery(self):
+        s, h = self.setup("dancing_shoes")
+        self.roll(1.0, 0.0, seconds=config.ROLL_TIME + 0.05)
+        mine = [q for q in s.projectiles if q.owner is h and q.spec.look == "cutlery"]
+        self.assertEqual(len(mine), config.U_SHOES)
+
+    def test_the_gilded_ring_tosses_coins_from_elites(self):
+        s, h = self.setup("gilded_ring")
+        d = mover(26.5, 20.5)
+        plain = mover(24.5, 24.5)
+        self.place(d, plain)
+        combat.strike(plain, 10, h, 0.0, s.effects)
+        self.assertEqual(h.ring_coins, [])                   # (not an elite)
+        d.espec = SimpleNamespace(speed=3.0, elite=True, xp=1, name="elite")
+        combat.strike(d, 10, h, 0.0, s.effects)
+        combat.strike(d, 10, h, 0.0, s.effects)
+        self.assertEqual(len(h.ring_coins), 1)               # (one every 6 s)
+        base = combat.strike(plain, 10, h, 0.0, s.effects, can_crit=False)
+        h.x, h.y = h.ring_coins[0][0], h.ring_coins[0][1]
+        self.go(0.05)
+        self.assertEqual(h.ring_coins, [])
+        gilt = combat.strike(plain, 10, h, 0.0, s.effects, can_crit=False)
+        self.assertAlmostEqual(gilt / base, 1.25, places=3)
+        h.time += config.U_GILDED[1] + 0.1
+        self.assertAlmostEqual(combat.strike(plain, 10, h, 0.0, s.effects, can_crit=False), base)
+
+    def test_their_things_draw(self):
+        s, h = self.setup("hosts_goblet")
+        d = mover(24.5, 20.5)
+        self.place(d)
+        h.goblet_t = 0.0
+        self.go(0.45)
+        h.bib_scraps = [[22.5, 21.5, 5.0], [23.5, 19.5, 1.0]]
+        h.ring_coins = [[21.5, 22.5, 4.0]]
+        h.ring_gilt_until = h.time + 2.0
+        s.me.camera.center_on(h.x, h.y)
+        s.me.minimap = None                                  # (a test map has no explored layer)
+        s.draw(s.manager.text)
+        self.assertGreater(d.status.drunk, 0.0)
+
+    def test_the_host_drops_one_of_them(self):
+        self.assertIn("host_of_feast", config.BOSS_UNIQUES)
+        self.assertNotIn("host_hunger", config.BOSS_UNIQUES)     # (his second form is him)
 
 
 class GameTest(unittest.TestCase):

@@ -84,6 +84,7 @@ CHEST_LOOKS: dict[str, tuple[str, str]] = {
     "lead_apron": ("x", "X"),        # (the Fallout King) lead
     "hermits_furs": ("d", "D"),      # (the Frost Hermit) grey furs
     "pale_riders_cloak": ("i", "I"), # (the Four Horsemen) pale
+    "gluttons_bib": ("w", "R"),      # (the Host of the Feast) a white bib, wine-stained
 }
 
 # Main hand: key -> (light, dark), the weapon's accent.

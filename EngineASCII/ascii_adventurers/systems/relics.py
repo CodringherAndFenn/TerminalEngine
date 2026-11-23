@@ -33,6 +33,14 @@ M29.5 (the Four Horsemen's):
   Pale Rider's Cloak        your kills rise as pale shades that bite for you (on_kill)
   (Crown of Conquest: a hit crowns the enemy -- combat._relic_on_hit -- and a
   crowned enemy deals less: combat.strike)
+M30.5 (the Host of the Feast's):
+  Glutton's Bib             your kills leave scraps; eat one for health and a
+                            stack of damage (on_kill; the stacks in combat.strike)
+  The Host's Goblet         a toast: a wave of wine that makes enemies drunk
+                            (Statuses.drunk: slow, and misses in Character.take_damage)
+  Dancing Shoes             a roll ends in a ring of cutlery (roll._ended)
+  Gilded Ring               hits on elites and bosses toss out coins; catch one
+                            to be gilded (combat._relic_on_hit, combat.strike)
 And per hit (combat._relic_on_hit): the Fly Agaric Cap's trip (wander) and
 the Lawyer's Wig's scrawls (bound); the scene moves wandering enemies and
 holds bound ones (wander, after flee; `Statuses.bound`).
@@ -155,6 +163,13 @@ def tick(scene, p, dt: float) -> None:
         hero.weighed = (foe, lost, left - dt) if left > dt else None
     if hero.pale:
         _pale_shades(scene, hero, dt)
+    # (M30.5: the Host of the Feast's)
+    if hero.bib_scraps or hero.feasted:
+        _bib(scene, hero, dt)
+    if st.has("hosts_goblet") or hero.goblet_waves:
+        _goblet(scene, hero, st, dt)
+    if hero.ring_coins:
+        _gilded(scene, hero, dt)
 
 
 # --- The dung ball ---------------------------------------------------------------------
@@ -484,6 +499,9 @@ def on_kill(scene, p, enemy) -> None:
         hero.pale.append({"x": enemy.x, "y": enemy.y, "facing": 0.0, "walked": 0.0,
                           "life": st.uniques.get("pale_riders_cloak", 6.0), "bite": 0.0})
         scene.effects.append(Effect("unveil", enemy.x, enemy.y, size=1.0))
+    if st.has("gluttons_bib") and not getattr(enemy, "boss", False):   # (M30.5: a scrap)
+        hero.bib_scraps = (hero.bib_scraps + [[enemy.x, enemy.y, config.U_BIB[3]]])[
+            -config.U_BIB[5]:]
     if hero.shade > 0:
         hero.shade_kills += 1
         if hero.shade_kills >= config.U_PHYLACTERY[1]:
@@ -897,3 +915,104 @@ def _pale_shades(scene, hero, dt: float) -> None:
             s["bite"] = every
             strike(t, bite, hero, math.atan2(dy, dx), scene.effects, pet=True)
     hero.pale = [s for s in hero.pale if s["life"] > 0]
+
+
+# === M30.5: the Host of the Feast's relics ================================================
+
+def _bib(scene, hero, dt: float) -> None:
+    """Glutton's Bib: eat a scrap your kill left (walk over it): heal
+    U_BIB[0] of your max HP and a stack of damage for U_BIB[1] s (at most
+    U_BIB[2]; combat.strike counts them)."""
+    heal, last, most, _, reach, _ = config.U_BIB
+    hero.feasted = [t for t in hero.feasted if t > hero.time]
+    keep = []
+    for s in hero.bib_scraps:
+        s[2] -= dt
+        if hero.alive and math.hypot(hero.x - s[0], hero.y - s[1]) <= reach + hero.hit_radius:
+            hero.heal(hero.max_hp * heal)
+            hero.feasted = sorted(hero.feasted + [hero.time + last])[-most:]
+            scene.effects.append(Effect("spill", s[0], s[1], size=0.8))
+            scene.effects.append(Effect("toast", hero.x, hero.y - 2,
+                                        label=f"FEASTED x{len(hero.feasted)}"))
+            continue
+        if s[2] > 0:
+            keep.append(s)
+    hero.bib_scraps = keep
+
+
+def _goblet(scene, hero, st, dt: float) -> None:
+    """The Host's Goblet: every U_GOBLET[0] s (with an enemy in reach), a
+    toast: a wave of wine rolls out at U_GOBLET[2] tiles/s to U_GOBLET[1],
+    the power's damage and a push to each enemy it reaches, who's then drunk
+    (U_GOBLET[3] s, half for a boss: Statuses.drunk)."""
+    every, reach, speed, drunk, _, _, shove = config.U_GOBLET
+    foes = _foes(scene)
+    for w in hero.goblet_waves:
+        w[2] += speed * dt
+        for e in foes:
+            if id(e) in w[3] or math.hypot(e.x - w[0], e.y - w[1]) - e.hit_radius > w[2]:
+                continue
+            w[3].add(id(e))
+            a = math.atan2(e.y - w[1], e.x - w[0])
+            strike(e, st.uniques.get("hosts_goblet", 20.0), hero, a, scene.effects, on_hit=False)
+            if e.alive:
+                push(e, scene.world, math.cos(a) * shove, math.sin(a) * shove)
+                s = statuses_of(e)
+                s.drunk = max(s.drunk, drunk * (0.5 if getattr(e, "boss", False) else 1.0))
+    hero.goblet_waves = [w for w in hero.goblet_waves if w[2] < reach]
+    if not st.has("hosts_goblet"):
+        return
+    hero.goblet_t -= dt
+    if hero.goblet_t > 0:
+        return
+    if not any(math.hypot(e.x - hero.x, e.y - hero.y) <= reach for e in foes):
+        hero.goblet_t = 1.0                             # (nobody to toast: soon again)
+        return
+    hero.goblet_t = every
+    hero.goblet_waves.append([hero.x, hero.y, 0.0, set()])
+    scene.effects.append(Effect("goblet_wave", hero.x, hero.y, size=reach))
+    scene.effects.append(Effect("toast", hero.x, hero.y - 2, label="A TOAST!"))
+
+
+def spin_out(scene, hero) -> None:
+    """Dancing Shoes: the roll ends in a grand spin: U_SHOES pieces of
+    cutlery flung all round, the power's damage each."""
+    shell = config.WEAPONS["dancing_cutlery"].shell
+    dmg = hero.stats.uniques.get("dancing_shoes", 10.0)
+    n = config.U_SHOES
+    turn = hero.heading if hero.heading is not None else hero.aim_angle
+    for k in range(n):
+        a = turn + k * math.tau / n
+        scene.projectiles.append(Projectile(hero.x + math.cos(a) * 0.6, hero.y + math.sin(a) * 0.6,
+                                            a, shell, owner=hero, damage=dmg))
+    scene.effects.append(Effect("swing", hero.x, hero.y, angle=turn, size=1.6, value=360))
+
+
+def toss_coin(hero, victim) -> None:
+    """Gilded Ring: a hit on an elite or a boss tosses a coin out toward
+    you (at most every U_GILDED[0] s), to lie U_GILDED[2] s."""
+    every, _, life, _, (lo, hi) = config.U_GILDED
+    if hero.time - hero.coin_t < every:
+        return
+    hero.coin_t = hero.time
+    a = math.atan2(hero.y - victim.y, hero.x - victim.x) + hero.rng.uniform(-0.9, 0.9)
+    r = victim.hit_radius + hero.rng.uniform(lo, hi)
+    hero.ring_coins.append([victim.x + math.cos(a) * r, victim.y + math.sin(a) * r, life])
+
+
+def _gilded(scene, hero, dt: float) -> None:
+    """Gilded Ring: walk over a coin to catch it: gilded for U_GILDED[1] s
+    (+the power's damage: combat.strike)."""
+    _, gilt, _, reach, _ = config.U_GILDED
+    keep = []
+    for c in hero.ring_coins:
+        c[2] -= dt
+        if hero.alive and math.hypot(hero.x - c[0], hero.y - c[1]) <= reach + hero.hit_radius:
+            hero.ring_gilt_until = hero.time + gilt
+            scene.effects.append(Effect("toast", hero.x, hero.y - 2, label="GILDED!"))
+            scene._sounds.append("chime")
+            continue
+        if c[2] > 0:
+            keep.append(c)
+    hero.ring_coins = keep
+

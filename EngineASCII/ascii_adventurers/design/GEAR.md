@@ -2163,6 +2163,10 @@ All 38 relics are built: every boss (the necromancer's two forms count as one) d
 
 Paradise's boss (the Serene Cavalry, then the Four Horsemen) drops one of four, one per Horseman, picked by the user from three proposals each: **Crown of Conquest** (head), **Ring of Blood** (ring), **The Black Scales** (trinket), **Pale Rider's Cloak** (chest). Powers and code: OCEAN.md section 12. 42 uniques now (U39-U42).
 
+### 21.8 M30.5: the Host of the Feast's relics (2026-11-23)
+
+Pandemonium's boss (the Host of the Feast, then the hunger) drops one of four, one per pleasure he plays on, picked by the user from three proposals each: **Glutton's Bib** (chest), **The Host's Goblet** (trinket), **Dancing Shoes** (feet), **Gilded Ring** (ring). Powers and code: OCEAN.md section 23.1. 46 uniques now (U43-U46).
+
 ## 22. Built: M28.6 (2026-11-21) -- gear on the heroes
 
 The heroes are 14 x 18 letter sprites (`render/characters.ART`), not painted figures as section 9 assumed, so the docs said nothing about how each piece looks. **User picks (2026-11-21):** the head = **shape + colour**; the chest = **body colour**; the main hand = **accent colour**; extras: **the hero on the gear screen** and **a legendary glint**.

@@ -201,6 +201,8 @@ def _ended(scene, p) -> None:
     hero.bats = False                                                 # (M28.5b: Bat Form)
     if st.has("tripwire_boots"):
         relics.lay_wire(hero)                                         # (M28.5c: a wire)
+    if st.has("dancing_shoes"):
+        relics.spin_out(scene, hero)                                  # (M30.5: a grand spin)
     if st.has("frogskin_boots"):                                      # (M28.5a: the splash)
         r, shove = config.U_FROGSKIN
         scene.effects.append(Effect("nova", hero.x, hero.y, size=r))

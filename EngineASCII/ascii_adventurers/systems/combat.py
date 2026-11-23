@@ -107,6 +107,13 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
         mult *= config.CROWN_MULT
     if getattr(source, "time", 0.0) < getattr(source, "gilt_until", -1.0):
         mult *= config.HOST_TOSS[3]                   # (M30.4: a caught coin's gilding)
+    if getattr(source, "time", 0.0) < getattr(source, "ring_gilt_until", -1.0):
+        mult *= 1 + source.stats.uniques.get("gilded_ring", 0.25)   # (M30.5: the Gilded Ring)
+    fed = getattr(source, "feasted", None)
+    if fed:                                           # (M30.5: the Glutton's Bib's stacks)
+        n = sum(1 for t in fed if t > source.time)
+        if n and source.stats is not None:
+            mult *= 1 + source.stats.uniques.get("gluttons_bib", 0.05) * n
     if getattr(source, "duel", None) is not None:     # (M29.5: in a duel ring, War's or
         mult *= config.HM_DUEL[3]                     # the Ring of Blood's: you hit twice as
     if source is not None and getattr(victim, "duel", None) is source:   # hard -- and so
@@ -258,6 +265,10 @@ def _relic_on_hit(victim, source, stats, pet: bool) -> None:
             crowns[id(source)] = source.time
             victim.crowned_by = source
             victim.crown_until = source.time + stats.uniques.get("crown_of_conquest", 4.0)
+    if not pet and stats.has("gilded_ring") and (getattr(victim, "boss", False) or getattr(
+            getattr(victim, "espec", None), "elite", False)):
+        from .relics import toss_coin              # (M30.5: a coin tossed out)
+        toss_coin(source, victim)
 
 
 def _ring_on_hit(victim, source, stats, dealt: float, on_hit: bool) -> None:
