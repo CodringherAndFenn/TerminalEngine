@@ -263,7 +263,13 @@ class IslandWorldTest(unittest.TestCase):
     def test_sea_chunks_are_water(self):
         w = ChunkedWorld(8)
         far = int(w.layout.max_land_radius) + 100
-        for tx, ty in ((far, 0), (-far, 0), (0, far), (far, far)):
+        # (M31.1: not where an ocean zone's island is -- for this seed
+        # Pangaea's beach reaches the point due west)
+        pts = [(tx, ty) for tx, ty in ((far, 0), (-far, 0), (0, far), (far, far), (-far, far),
+                                       (far, -far), (-far, -far))
+               if w.layout.zone_at(tx, ty, 40) is None]
+        self.assertGreaterEqual(len(pts), 5)
+        for tx, ty in pts:
             self.assertIs(w.tile_at(tx, ty), tiles.WATER)
             self.assertTrue(w.tile_at(tx, ty).solid)
             self.assertIs(w.biome_at(tx, ty), biomes.OCEAN)

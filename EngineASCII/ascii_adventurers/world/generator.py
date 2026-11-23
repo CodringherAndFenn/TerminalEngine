@@ -73,6 +73,12 @@ _TILES = (
     tiles.OBSIDIAN, tiles.OBSIDIAN_DEEP, tiles.GOLD_VEIN, tiles.COINS, tiles.COIN_HEAP,
     tiles.FIRE_BRAZIER, tiles.VELVET_BANNER, tiles.COIN_BEACH, tiles.GILT_ROAD, tiles.GOLD_STAIRS,
     tiles.LANTERN, tiles.GILT_BRIDGE, tiles.TERRACE_EDGE, tiles.WINE, tiles.WINE_SEA,
+    # Pangaea (M31.1, world/pangaea.py)
+    tiles.FERN_MEADOW, tiles.TALL_FERNS, tiles.JUNGLE_FLOOR, tiles.TALL_JUNGLE_FERNS,
+    tiles.GIANT_FERN, tiles.CYCAD, tiles.JUNGLE_TREE, tiles.ASH, tiles.CINDERS, tiles.HORSETAILS,
+    tiles.SCALE_TREE, tiles.HOT_SPRING, tiles.BASALT, tiles.BASALT_BOULDER, tiles.LAVA,
+    tiles.LAVA_CRUST, tiles.LAVA_CROSSING, tiles.TAR, tiles.GAME_TRAIL, tiles.BLACK_SAND,
+    tiles.STEAMING_SEA, tiles.AMBER,
 )
 _IDX = {t: i for i, t in enumerate(_TILES)}
 _T = _IDX.__getitem__
@@ -171,6 +177,15 @@ def _pandemonium(detail, r1, r2):
         _T(tiles.OBSIDIAN))
 
 
+def _pangaea(detail, r1, r2):
+    """Pangaea's ground (M31.1): plain jungle floor here. Its rings of ages
+    each grow their own (the shore's meadows, the middle's jungle, the
+    heart's ash and horsetails), so the plan paints all of it
+    (world/pangaea.Plan.paint), with the lava, tar, pools, trails and the
+    black-sand beach."""
+    return np.full(detail.shape, _T(tiles.JUNGLE_FLOOR))
+
+
 _FEATURES = {
     biomes.PLAINS.id: _plains,
     biomes.FOREST.id: _forest,
@@ -181,6 +196,7 @@ _FEATURES = {
     biomes.OCEAN.id: _ocean,
     biomes.PARADISE.id: _paradise,
     biomes.PANDEMONIUM.id: _pandemonium,
+    biomes.PANGAEA.id: _pangaea,
 }
 # Lakes form in plains, forest and mushroom land (swamps have bogs, deserts
 # and ruins stay dry).

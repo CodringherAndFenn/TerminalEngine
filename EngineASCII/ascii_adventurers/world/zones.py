@@ -11,7 +11,7 @@ when its distance from the zone's centre is under the coast radius there.
 That's all the layout needs (world/layout.IslandLayout._classify paints
 the zone's biome there); what grows on it is the zone's own plan
 (plan_of: world/paradise.py for Paradise, world/pandemonium.py for
-Pandemonium).
+Pandemonium, world/pangaea.py for Pangaea).
 
 Placement: each zone's centre lies on its compass line, far enough out that
 its near shore is at least ZONE_GAP tiles past the main island's farthest
@@ -36,7 +36,7 @@ from . import biomes
 from .noise import fbm
 
 _DIRS = {"N": (0.0, -1.0), "E": (1.0, 0.0), "S": (0.0, 1.0), "W": (-1.0, 0.0)}
-_SALTS = {"paradise": 601, "pandemonium": 607, "past": 613, "future": 617}
+_SALTS = {"paradise": 601, "pandemonium": 607, "pangaea": 613, "future": 617}
 
 
 @dataclass
@@ -61,9 +61,11 @@ class Zone:
     @property
     def shore_band(self) -> int:
         """How far out to sea its shore's own look reaches (Paradise's cloud
-        bank, Pandemonium's wine-dark sea)."""
+        bank, Pandemonium's wine-dark sea, the steam where Pangaea's lava
+        meets the sea)."""
         return {"paradise": config.PARADISE_CLOUD_BANK,
-                "pandemonium": config.PANDEMONIUM_WINE_SEA}.get(self.key, 0)
+                "pandemonium": config.PANDEMONIUM_WINE_SEA,
+                "pangaea": config.PANGAEA_STEAM}.get(self.key, 0)
 
     @property
     def max_radius(self) -> float:
@@ -112,6 +114,8 @@ def plan_of(layout, zone):
     if zone.plan is None:
         if zone.key == "pandemonium":
             from .pandemonium import Plan
+        elif zone.key == "pangaea":
+            from .pangaea import Plan
         else:
             from .paradise import Plan
         zone.plan = Plan(layout, zone)

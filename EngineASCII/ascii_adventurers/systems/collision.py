@@ -141,7 +141,8 @@ def move_hull(
 # and ponds of every kind.
 WATERY = {"water", "bog", "pond", "blood pool", "stagnant water", "oasis", "frozen pond",
           "blood river", "blood font", "cloud bank",      # (M29.1: Paradise)
-          "wine", "wine fountain", "wine sea"}             # (M30.1: Pandemonium)
+          "wine", "wine fountain", "wine sea",            # (M30.1: Pandemonium)
+          "hot spring", "steaming sea"}                   # (M31.1: Pangaea; never its lava)             # (M30.1: Pandemonium)
 
 
 class WaterWalk:

@@ -1513,7 +1513,8 @@ ZONE_TOUGH = (2.5, 1.5, 4 / 3, 2.0)
 # where you land, the giver's stairway and the boss's court. The fonts,
 # statues, choir rings and the cathedral are the angels' own.
 ZONE_QUIET_MARKS = ("paradise_gate", "paradise_stairway", "paradise_court",
-                    "pandemonium_pier", "pandemonium_hall")
+                    "pandemonium_pier", "pandemonium_hall",
+                    "pangaea_skeleton", "pangaea_caves", "pangaea_caldera")
 # --- M30.2: Pandemonium's trance (design/OCEAN.md 14; ai/pandemonium.py) ---------------
 # The revellers live in groups (a table's, a bandstand's, the endless
 # banquet's, the hall of mirrors'). A group frenzies as one -- the user's
@@ -4652,10 +4653,10 @@ CARDINAL_REGION_DISTANCE = 1.35
 # --- The ocean zones (M29, design/OCEAN.md) --------------------------------------
 # Four islands out in the ocean, one due N/E/S/W, reached by water walking
 # (Adventurer's Glory). Fixed places (user): Paradise north, Pandemonium (hell) south,
-# the Past west, the Future east. Only the zones listed in OCEAN_ZONES are
+# Pangaea (the past: deep time, M31) west, the Future east. Only the zones listed in OCEAN_ZONES are
 # built; the others' places stay open sea.
-ZONE_PLACES = {"paradise": "N", "pandemonium": "S", "past": "W", "future": "E"}
-OCEAN_ZONES = ("paradise", "pandemonium")
+ZONE_PLACES = {"paradise": "N", "pandemonium": "S", "pangaea": "W", "future": "E"}
+OCEAN_ZONES = ("paradise", "pandemonium", "pangaea")
 # Each zone is one island ZONE_RADIUS tiles across (half: about 40 s to
 # cross), its coast wandering by up to ZONE_COAST_AMPLITUDE of that (fBm,
 # ZONE_COAST_SCALE tiles across). Its centre is put far enough out that its
@@ -4672,7 +4673,8 @@ ZONE_FAN = 0.45
 ZONE_FOUND_RANGE = 120
 # The banner the first time a player sets foot on a zone: its name, and this.
 ZONE_ARRIVAL = {"paradise": "where the angels sing",
-                "pandemonium": "where the feast never ends"}
+                "pandemonium": "where the feast never ends",
+                "pangaea": "where the world began"}
 
 # Paradise (M29.1, OCEAN.md 3). Its land: soft cloud ground, puffier drifts
 # where the detail field is above PARADISE_DRIFT_MIN, blossom trees in
@@ -4749,6 +4751,92 @@ PANDEMONIUM_STATUES = 16
 PANDEMONIUM_BANDSTANDS = 7
 PANDEMONIUM_BANDSTAND_GAP = 60
 PANDEMONIUM_SITE_GAP = 12
+
+# Pangaea (M31.1, OCEAN.md 24): deep time, jungle and fire. RINGS OF AGES
+# (user): walking inland goes back in time. A tile's depth is its distance
+# from the centre over the coast's there (0 at the centre, 1 at the shore),
+# wobbled by up to PANGAEA_RING_WOBBLE (fBm, PANGAEA_RING_SCALE tiles
+# across); under PANGAEA_RINGS[0] it's the heart (the oldest age: ash,
+# horsetails and scale trees round steaming pools, under the volcano),
+# under [1] the middle (the dinosaurs' jungle), past it the shore ring (the
+# great mammals' fern meadows). Each ring's name comes up the first time a
+# player walks into it (PANGAEA_AGES: title, subtitle; the shore's is the
+# island's arrival banner).
+PANGAEA_RINGS = (0.36, 0.68)
+PANGAEA_RING_WOBBLE = 0.035
+PANGAEA_RING_SCALE = 90
+PANGAEA_AGES = (("THE FIRST AGE", "where the oldest things still crawl"),
+                ("THE AGE OF GIANTS", "the dinosaurs' jungle"),
+                ("THE AGE OF BEASTS", "the great mammals' meadows"))
+# Its ground, ring by ring (the detail field: PANGAEA_DETAIL_SCALE tiles
+# across). Shore: fern meadow, tall ferns where the detail field is above
+# [0], jungle trees in clumps above [1] (that share of tiles [2]), lone
+# cycads [3] and rocks [4]. Middle: jungle floor, tall ferns above [0],
+# giant ferns above [1] ([2] of them), jungle trees above [3] ([4]), lone
+# cycads [5]. Heart: ash, horsetail groves above [0], scale trees above
+# [1] ([2]); cinders and basalt boulders ([3] of tiles) on the volcano's
+# cone. Amber outcrops: where a small-scale field is above PANGAEA_AMBER[0]
+# in the heart and the middle ring, [1] of those tiles (clusters of a few).
+PANGAEA_DETAIL_SCALE = 26
+PANGAEA_SHORE = (0.62, 0.73, 0.35, 0.004, 0.003)
+PANGAEA_MIDDLE = (0.55, 0.60, 0.32, 0.68, 0.30, 0.008)
+PANGAEA_HEART = (0.60, 0.70, 0.22, 0.02)
+PANGAEA_AMBER = (0.87, 0.55, 7)
+# The land's last PANGAEA_BEACH tiles are a black-sand beach.
+PANGAEA_BEACH = 5
+# The caldera (the Ancestor's arena, sealed by a curtain of fire until the
+# seventh great beast falls, M31.4): an oval of these radii at the centre,
+# inside the volcano's rim (PANGAEA_RIM tiles thick) with its gate (the
+# curtain, this wide) facing the main island; lava lakes inside (how many,
+# their radius range); the cone's cinder slopes PANGAEA_CONE tiles out past
+# the rim.
+PANGAEA_CALDERA_RADII = (70, 52)
+PANGAEA_RIM = 4
+PANGAEA_CALDERA_GATE = 7
+PANGAEA_CALDERA_LAKES = (4, (4.0, 7.0))
+PANGAEA_CONE = 26
+# Lava rivers: PANGAEA_LAVA_RIVERS run down from vents on the cone (the
+# first all the way to the sea, the others ending in fields of cooled
+# basalt in the middle ring), meandering by PANGAEA_LAVA_SWAY; molten
+# (impassable; shots fly over it) out to PANGAEA_LAVA_W[0] tiles from its
+# line, a burning crust out to [1]. Where a trail crosses it, a crossing of
+# cooled rock. The sea steams within PANGAEA_STEAM tiles of its mouth.
+PANGAEA_LAVA_RIVERS = 3
+PANGAEA_LAVA_SWAY = 34
+PANGAEA_LAVA_W = (1.9, 3.1)
+PANGAEA_BASALT_FIELD = (9.0, 14.0)
+PANGAEA_STEAM = 14
+# Game trails (half-width, beaten earth): from the sea-beast skeleton to the
+# caldera's curtain (meandering by PANGAEA_TRAIL_SWAY), a ring trail at
+# depth PANGAEA_RING_TRAIL, spurs to the landmarks.
+PANGAEA_TRAIL_W = 1.4
+PANGAEA_TRAIL_SWAY = 24
+PANGAEA_RING_TRAIL = 0.52
+# How many of each, and the spacing (tiles between footprints): nests and
+# bones (giant ribcages and skulls, cover), tar pits (some with a beast
+# half-sunk in them: PANGAEA_TAR_BONES of them), steaming pools.
+PANGAEA_NESTS = 10
+PANGAEA_BONES = 14
+PANGAEA_TAR_PITS = 14
+PANGAEA_TAR_BONES = 0.4
+PANGAEA_POOLS = 10
+PANGAEA_SITE_GAP = 12
+# The land's dangers (systems/pangaea.py; numbers mine). A hero standing on
+# the lava's crust burns: PANGAEA_CRUST[0] damage every [1] s (an enemy
+# too, not a boss). Tar: a hero sinks in, slowed from x TAR[0] when they
+# step in to x [1] after [2] s in it (a roll carries you out at full
+# length); an enemy in it runs at x [3] (its whole clock).
+PANGAEA_CRUST = (7.0, 0.25)
+TAR = (0.55, 0.22, 1.6, 0.45)
+# Lava bombs: the volcano lobs a volley at a hero in the heart every
+# LAVA_BOMB_EVERY[0] s (in the middle ring [1]; never on the shore ring or in
+# the caldera), give or take [2]. A volley (LAVA_BOMB) is [0] bombs -- one
+# where the hero stands, the rest [1] tiles round -- marked [2] s before
+# they land: each a blast of radius [3] for [4], leaving a splash of burning
+# rock (radius [5], [6] s, [7] every 0.5 s). Damage scales like an enemy's
+# (the players' level, the difficulty, the zone's toughness).
+LAVA_BOMB_EVERY = (9.0, 16.0, 3.0)
+LAVA_BOMB = (3, (3.0, 7.0), 1.8, 2.2, 22.0, 1.5, 4.0, 4.0)
 # The angels' shots (M29.2, ai/paradise.py): serene, slow notes, rings and
 # orbs of light; unveiled, the seraph's spirals of blood and fire.
 # The Beloved's glitter (M30.3, ai/pandemonium.py).

@@ -36,7 +36,7 @@ class PlacementTest(unittest.TestCase):
     def test_pandemonium_is_due_south_a_minute_off_the_coast(self):
         for seed in SEEDS:
             lay, z, _ = pand(seed)
-            self.assertEqual([q.key for q in lay.zones], ["paradise", "pandemonium"])
+            self.assertEqual([q.key for q in lay.zones][:2], ["paradise", "pandemonium"])
             self.assertEqual((z.place, z.cx), ("S", 0))
             self.assertGreater(z.cy, lay.max_land_radius)
             zones, lay.zones = lay.zones, ()      # (measured as placed: before any zone)
@@ -50,7 +50,7 @@ class PlacementTest(unittest.TestCase):
         # (A zone far out at sea: the ring biomes' landmarks are the same as
         # without it; only the zones' own marks come after them.)
         lay = IslandLayout(31)
-        main = [m for m in lay.landmarks if m.biome not in ("paradise", "pandemonium")]
+        main = [m for m in lay.landmarks if m.biome not in config.OCEAN_ZONES]
         self.assertTrue(main)
         self.assertTrue(all(math.hypot(m.cx, m.cy) < lay.max_land_radius for m in main))
 

@@ -916,6 +916,22 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   Dancing Shoes (a roll ends in a ring of cutlery), the Gilded Ring (catch
   the coins your hits on elites toss out, for a burst of damage).
 
+- **Pangaea, M31.1** (`design/OCEAN.md` 30): the third ocean zone's island,
+  far west, hidden until you come near ("where the world began"): deep
+  time, jungle and fire. Walking inland goes back in time through the
+  rings of ages -- the great mammals' fern meadows on the shore, the
+  dinosaurs' jungle in the middle, ash, horsetails and steaming pools at
+  the heart -- each ring's name coming up the first time you walk into it.
+  A volcano stands at the centre, the caldera inside its rim sealed by a
+  curtain of fire; lava rivers run down from it (nobody walks the molten
+  middle, its crust burns you; trails cross on cooled rock), one all the
+  way into a steaming sea, and in the heart and the middle the volcano
+  lobs lava bombs at you onto marked spots. Tar pits drag you down, amber
+  outcrops hold things long frozen, giant bones are cover, nests hold
+  eggs. You arrive through the ribs of a beached sea-beast; the painted
+  caves, the great nest on its crag and the impact crater round its black
+  stone wait inland. No one lives there yet (M31.2).
+
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

@@ -105,6 +105,9 @@ class Statuses:
         # M30.5: s left drunk (The Host's Goblet): its clock runs slow and it
         # misses some of its attacks (Character.take_damage).
         self.drunk = 0.0
+        # M31.1: s left stuck in Pangaea's tar (systems/pangaea.py): its
+        # clock runs at x TAR[3].
+        self.tarred = 0.0
 
     def stacks(self, name: str) -> int:
         s = self.active.get(name)
@@ -117,7 +120,8 @@ class Statuses:
     def empty(self) -> bool:
         return (not self.active and self.frozen <= 0 and self.dazed <= 0 and self.rooted <= 0
                 and self.asleep <= 0 and self.scared <= 0 and not self.cooldowns
-                and not self.shocks and self.wander <= 0 and self.bound <= 0 and self.drunk <= 0)
+                and not self.shocks and self.wander <= 0 and self.bound <= 0 and self.drunk <= 0
+                and self.tarred <= 0)
 
     @property
     def vulnerability(self) -> float:
@@ -145,7 +149,8 @@ class Statuses:
             return 0.0
         chill = self.stacks("chill")
         drunk = config.U_GOBLET[4] if self.drunk > 0 else 1.0   # (M30.5: the Host's Goblet)
-        return max(0.1, (1 - config.STATUSES["chill"].slow * chill) * drunk)
+        tar = config.TAR[3] if self.tarred > 0 else 1.0           # (M31.1: Pangaea's tar)
+        return max(0.1, (1 - config.STATUSES["chill"].slow * chill) * drunk * tar)
 
     def daze(self, seconds: float) -> None:
         """Dazed: the actor's clock stops for a moment (it can't move or act)."""
@@ -183,6 +188,7 @@ class Statuses:
         self.wander = max(0.0, self.wander - dt)
         self.bound = max(0.0, self.bound - dt)
         self.drunk = max(0.0, self.drunk - dt)
+        self.tarred = max(0.0, self.tarred - dt)
         for k in list(self.cooldowns):
             self.cooldowns[k] -= dt
             if self.cooldowns[k] <= 0:

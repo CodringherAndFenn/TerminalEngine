@@ -1227,3 +1227,108 @@ HUNGER_ROT = ((150, 160, 50), (96, 104, 34))                      # a rotting po
 HUNGER_BONE = ((214, 206, 186), (150, 142, 124))                  # bone clutter on the floor
 HUNGER_QUAKE = ((214, 160, 96), (150, 100, 60))                   # belly quake rings
 HUNGER_GULP = (255, 120, 120)                                     # someone struggling inside him
+
+# --- Pangaea (M31.1, design/OCEAN.md 24): deep time, jungle and fire -------------------
+# Deep greens on dark volcanic soil, black basalt, glowing orange lava, grey
+# ash; the black-sand beach. The rings of ages each have their own ground
+# (fern meadow, jungle floor, ash), dark enough for shots to read on.
+MEADOW_FG = (112, 140, 62)
+MEADOW_BG = (30, 42, 20)
+FERNS_FG = (110, 170, 64)
+JUNGLE_FG = (64, 104, 48)
+JUNGLE_BG = (12, 26, 14)
+TRAMPLED_FG = (90, 110, 52)
+GIANT_FERN_FG = (120, 206, 84)
+GIANT_FERN_BG = (22, 64, 22)
+CYCAD_FG = (150, 170, 70)
+JUNGLE_TREE_FG = (64, 176, 128)
+JUNGLE_TREE_BG = (6, 48, 40)
+ASH_FG = (112, 108, 104)
+ASH_BG = (34, 32, 32)
+CINDER_FG = (176, 86, 44)               # embers in it
+CINDER_BG = (30, 24, 24)
+HORSETAIL_FG = (128, 160, 84)
+SCALE_TREE_FG = (186, 160, 96)
+SCALE_TREE_BG = (60, 50, 30)
+SPRING_FG = (200, 226, 222)             # steam...
+SPRING_BG = (24, 80, 84)                # ...on hot teal water
+BASALT_FG = (70, 68, 72)
+BASALT_BG = (20, 19, 22)
+BOULDER_FG = (60, 58, 64)
+BOULDER_BG = (34, 32, 38)
+LAVA_FG = (255, 170, 40)
+LAVA_BG = (176, 40, 8)
+CRUST_FG = (255, 110, 30)
+CRUST_BG = (60, 16, 8)
+CROSSING_FG = (110, 100, 96)
+TAR_FG = (70, 64, 74)
+TAR_BG = (6, 5, 8)
+TRAIL_FG = (120, 96, 62)
+TRAIL_BG = (40, 30, 20)
+BLACK_SAND_FG = (96, 92, 96)
+BLACK_SAND_BG = (16, 15, 18)
+STEAM_FG = (214, 224, 230)
+STEAM_BG = (36, 56, 72)
+GIANT_BONE_FG = (226, 216, 186)
+GIANT_BONE_BG = (92, 84, 66)
+SPINE_BG = (14, 22, 14)                 # the spine's shadow across the ground
+TWIG_FG = (130, 100, 64)
+NEST_FG = (150, 112, 70)
+NEST_BG = (44, 32, 20)
+EGG_FG = (232, 222, 190)
+EGG_SHADE = (150, 140, 110)
+AMBER_FG = (255, 186, 50)
+AMBER_BG = (150, 82, 10)
+CAVE_ROCK_FG = (96, 82, 70)
+CAVE_ROCK_BG = (52, 44, 38)
+PAINT_FG = (200, 80, 44)                # red ochre on the stone
+CAVE_WALL_BG = (110, 90, 70)
+CAVE_FLOOR_FG = (90, 76, 62)
+CAVE_FLOOR_BG = (28, 22, 18)
+FIRE_PIT_FG = (255, 150, 50)
+FIRE_PIT_BG = (60, 26, 12)
+CRAG_FG = (78, 74, 70)
+CRAG_BG = (46, 42, 40)
+CRAG_TOP_FG = (96, 90, 84)
+CRAG_TOP_BG = (36, 34, 32)
+CRATER_FG = (120, 104, 90)
+CRATER_BG = (34, 28, 26)
+GLASS_FG = (90, 140, 120)               # a greenish sheen on melted rock
+GLASS_BG = (14, 22, 22)
+STAR_STONE_FG = (24, 18, 30)
+STAR_STONE_BG = (70, 50, 96)            # a violet glint round it
+CALDERA_FG = (150, 54, 30)              # red in the cracks
+CALDERA_BG = (22, 16, 16)
+RIM_FG = (40, 34, 34)
+RIM_BG = (110, 36, 16)
+CURTAIN_FG = (255, 214, 80)
+CURTAIN_BG = (200, 60, 10)
+# Lava bombs (systems/pangaea.py, render/pangaea.py): the mark, the bomb in
+# the air, its burst, the splash of burning rock it leaves.
+LAVA_MARK = ((255, 226, 130), (255, 120, 40))      # flashing as it comes; marked
+LAVA_BOMB_FG = (255, 200, 80)
+LAVA_BURST = ((255, 200, 80), (230, 80, 20))
+LAVA_SPLASH = ((255, 120, 30), (170, 50, 16))
+TAR_SINK = (120, 110, 130)              # bubbles round a hero sinking in tar
+
+MAP_BIOME["pangaea"] = (40, 64, 34)
+MAP_TILE.update({
+    "giant fern": (60, 130, 56), "cycad": (120, 140, 60), "jungle tree": (36, 96, 44),
+    "horsetails": (96, 120, 64), "scale tree": (84, 104, 56), "hot spring": (40, 120, 124),
+    "basalt boulder": (60, 58, 64), "lava": (240, 110, 30), "lava crust": (170, 60, 20),
+    "cooled crossing": (110, 100, 96), "tar": (14, 12, 16), "game trail": (110, 88, 58),
+    "black sand": (60, 58, 62), "steaming sea": (90, 110, 124), "giant bone": (226, 216, 186),
+    "spine": (200, 190, 160), "nest": (150, 112, 70), "egg": (232, 222, 190),
+    "giant egg": (232, 222, 190), "amber": (240, 160, 40), "cave rock": (96, 82, 70),
+    "painted wall": (200, 80, 44), "fire pit": (255, 150, 50), "crag": (78, 74, 70),
+    "crater rim": (110, 96, 84), "impact glass": (50, 90, 80), "black stone": (90, 60, 120),
+    "caldera rim": (110, 36, 16), "curtain of fire": (255, 170, 50), "cinders": (70, 48, 40),
+})
+# (each ring of ages its own ground colour on the maps, so the rings show)
+MAP_TILE.update({"fern meadow": (54, 86, 40), "tall ferns": (70, 112, 50), "jungle floor": (24, 48, 26),
+                 "jungle ferns": (44, 84, 38), "ash": (66, 64, 62), "basalt": (40, 38, 44),
+                 "caldera floor": (46, 26, 24)})
+MAP_TILE_BIOME.update({"trampled ferns": "pangaea", "ashy splinters": "pangaea", "twigs": "pangaea",
+                       "eggshell": "pangaea", "amber shards": "pangaea", "cave floor": "pangaea",
+                       "crag top": "pangaea"})
+PIN_GIVER["pangaea"] = ((255, 186, 50), (60, 26, 12))             # amber on embers

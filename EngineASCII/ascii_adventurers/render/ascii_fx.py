@@ -378,11 +378,12 @@ def _frame(e: Effect) -> list:
         return [(math.cos(k * math.tau / 9) * r * config.TILE_PX_W,
                  math.sin(k * math.tau / 9) * r * config.TILE_PX_H,
                  "/" if k % 2 else "\\", col) for k in range(9)]
-    if e.kind in ("jelly_splat", "chandelier_crash", "coin_burst"):   # (M30.4: bursts)
+    if e.kind in ("jelly_splat", "chandelier_crash", "coin_burst", "lava_burst"):   # (M30.4: bursts)
         r = (e.size or 1.0) * (0.4 + 0.8 * p)
         col, glyphs = {"jelly_splat": (palette.FEAST_DISH["jelly"], "o."),
                        "chandelier_crash": (palette.FEAST_GLASS[0 if p < 0.5 else 1], "*'"),
-                       "coin_burst": (palette.FEAST_GOLD[0 if p < 0.5 else 1], "o$")}[e.kind]
+                       "coin_burst": (palette.FEAST_GOLD[0 if p < 0.5 else 1], "o$"),
+                       "lava_burst": (palette.LAVA_BURST[0 if p < 0.4 else 1], "*.")}[e.kind]
         return [(math.cos(k * math.tau / 10 + p) * r * config.TILE_PX_W,
                  math.sin(k * math.tau / 10 + p) * r * config.TILE_PX_H, glyphs[k % 2], col)
                 for k in range(10)]

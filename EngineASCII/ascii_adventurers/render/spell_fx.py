@@ -273,6 +273,15 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                                 y + math.sin(a) * z.radius * rr * th,
                                 "%" if (k + int(rr * 2)) % 3 == 0 else ",", col)
             batch.put_c(x, y, "&", palette.HUNGER_ROT[0])
+        elif z.kind == "lava_splash":
+            # M31.1: where a lava bomb came down, burning rock cooling.
+            hot = z.age < z.life * 0.6
+            for k in range(6):
+                a = k * math.tau / 6 + 0.4
+                col = palette.LAVA_SPLASH[0 if hot and (int(z.age * 6) + k) % 3 else 1]
+                batch.put_c(x + math.cos(a) * z.radius * 0.7 * tw,
+                            y + math.sin(a) * z.radius * 0.7 * th, "*" if k % 2 else ".", col)
+            batch.put_c(x, y, "*" if hot else ".", palette.LAVA_SPLASH[0 if hot else 1])
         elif z.kind == "bone_clutter":
             # M30.5: a bone scrap lying where it came down (you trip over it).
             col = palette.HUNGER_BONE[0 if z.age < z.life * 0.75 else 1]

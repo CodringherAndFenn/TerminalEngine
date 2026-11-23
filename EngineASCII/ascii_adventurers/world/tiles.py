@@ -1194,3 +1194,215 @@ VAT = TileType(
     "vat", ("▓▓", "██"), palette.PRESS_FG, palette.PRESS_BG,
     solid=True,
 )
+
+
+# --- Pangaea (M31.1, design/OCEAN.md 24): deep time, jungle and fire ------------------
+# Rings of ages: the great mammals' fern meadows on the shore ring, the
+# dinosaurs' jungle in the middle, ash, horsetails and steaming pools at the
+# heart under the volcano. Lava runs down from the cone (molten: nobody
+# crosses; its crust burns), tar pits hold what steps in, amber holds what
+# it caught long ago. A black-sand beach, steaming where the lava meets the
+# sea. (Ground stays dark so shots read on it.)
+FERN_MEADOW = TileType(
+    "fern meadow", ("  ", ", ", " ,", "  ", "' ", " '"), palette.MEADOW_FG, palette.MEADOW_BG,
+)
+TALL_FERNS = TileType(
+    # Walkable (the sabre-tooth stalks in them, M31.2): only a look.
+    "tall ferns", ('"v', 'v"', '""', "v,"), palette.FERNS_FG, palette.MEADOW_BG,
+)
+JUNGLE_FLOOR = TileType(
+    "jungle floor", ("  ", ". ", " ,", "  ", ", "), palette.JUNGLE_FG, palette.JUNGLE_BG,
+)
+TALL_JUNGLE_FERNS = TileType(
+    "jungle ferns", ('"v', 'v"', '""', ",v"), palette.FERNS_FG, palette.JUNGLE_BG,
+)
+TRAMPLED_FERNS = TileType(
+    # What a broken fern or cycad leaves.
+    "trampled ferns", (",.", ".,", "_,", ",_"), palette.TRAMPLED_FG, palette.JUNGLE_BG,
+)
+GIANT_FERN = TileType(
+    # The jungle's cover: it stops you and shots, and breaks.
+    "giant fern", ("YY", "Yv", "vY"), palette.GIANT_FERN_FG, palette.GIANT_FERN_BG,
+    solid=True, blocks_shots=True, hp=config.TREE_HP,
+    wear=(("Y,", ",Y", "v."),),
+    becomes=TRAMPLED_FERNS,
+)
+CYCAD = TileType(
+    "cycad", ("T ", " T", "T,"), palette.CYCAD_FG, palette.JUNGLE_BG,
+    solid=True, blocks_shots=True, hp=config.TREE_HP,
+    wear=(("t,", ",t"),),
+    becomes=TRAMPLED_FERNS,
+)
+JUNGLE_SPLINTERS = TileType(
+    "splinters", ("_,", ",_", "._", "_."), palette.SPLINTER_FG, palette.JUNGLE_BG,
+)
+JUNGLE_TREE = TileType(
+    "jungle tree", ("&&", "&%", "%&", "@&"), palette.JUNGLE_TREE_FG, palette.JUNGLE_TREE_BG,
+    solid=True, blocks_shots=True, hp=config.TREE_HP,
+    wear=(("&,", ",&", "%."),),
+    becomes=JUNGLE_SPLINTERS,
+)
+ASH = TileType(
+    # The heart's ground: the oldest age, under the volcano's fall of ash.
+    "ash", ("  ", ". ", " .", "  ", "' ", "  "), palette.ASH_FG, palette.ASH_BG,
+)
+CINDERS = TileType(
+    # The volcano's cone: ash and cinders, embers in it.
+    "cinders", (". ", " :", ":.", "' ", " .", ".'"), palette.CINDER_FG, palette.CINDER_BG,
+)
+HORSETAILS = TileType(
+    # Groves of giant horsetails round the pools: walkable, a look.
+    "horsetails", ("||", "|:", ":|", "!|"), palette.HORSETAIL_FG, palette.ASH_BG,
+)
+ASH_DEBRIS = TileType(
+    "ashy splinters", ("_.", "._", ",."), palette.SPLINTER_FG, palette.ASH_BG,
+)
+SCALE_TREE = TileType(
+    # The first forests' trees, scaled like a lizard's skin.
+    "scale tree", ("#|", "|#", "##"), palette.SCALE_TREE_FG, palette.SCALE_TREE_BG,
+    solid=True, blocks_shots=True, hp=config.TREE_HP,
+    wear=(("#.", ".#"),),
+    becomes=ASH_DEBRIS,
+)
+HOT_SPRING = TileType(
+    # The heart's steaming pools (the sea scorpion's, M31.3). Watery: only
+    # water walkers cross them (heroes out here always are).
+    "hot spring", ("░ ", " ░", "▒░", "░▒", "  "), palette.SPRING_FG, palette.SPRING_BG,
+    solid=True,
+)
+BASALT = TileType(
+    # Cooled lava: where a river ends, its crossings, the caldera's islands.
+    "basalt", ("  ", ". ", " _", "_ ", "  "), palette.BASALT_FG, palette.BASALT_BG,
+)
+BASALT_BOULDER = TileType(
+    "basalt boulder", ("▓▓", "▓▒", "▒▓"), palette.BOULDER_FG, palette.BOULDER_BG,
+    solid=True, blocks_shots=True,
+)
+LAVA = TileType(
+    # Molten: nobody walks it, water walkers neither (it isn't watery); shots
+    # fly over it.
+    "lava", ("▒▓", "▓▒", "░▓", "▓░", "▒▒"), palette.LAVA_FG, palette.LAVA_BG,
+    solid=True,
+)
+LAVA_CRUST = TileType(
+    # A lava river's edge: you can walk it, and it burns (systems/pangaea.py).
+    "lava crust", (".:", ":.", "*.", ".*", ": "), palette.CRUST_FG, palette.CRUST_BG,
+)
+LAVA_CROSSING = TileType(
+    # Where a trail crosses the lava: a causeway of cooled rock.
+    "cooled crossing", ("==", "=_", "_="), palette.CROSSING_FG, palette.BASALT_BG,
+)
+TAR = TileType(
+    # A tar pit: it slows you badly and holds you (systems/pangaea.py).
+    "tar", ("  ", "o ", " .", "  ", ". ", " o"), palette.TAR_FG, palette.TAR_BG,
+)
+GAME_TRAIL = TileType(
+    # Beaten earth: the beasts' trails (Paradise's roads, Pandemonium's avenues).
+    "game trail", ("  ", ". ", " .", ",.", "  "), palette.TRAIL_FG, palette.TRAIL_BG,
+)
+BLACK_SAND = TileType(
+    "black sand", (". ", " .", "  ", ".'", " :"), palette.BLACK_SAND_FG, palette.BLACK_SAND_BG,
+)
+STEAMING_SEA = TileType(
+    # The sea where a lava river runs into it: watery, steaming.
+    "steaming sea", ("░ ", " ░", "▒░", "░▒", "  "), palette.STEAM_FG, palette.STEAM_BG,
+    solid=True,
+)
+GIANT_BONE = TileType(
+    # A giant beast's ribs, skull or tusks: cover that never breaks.
+    "giant bone", ("()", "((", "))", "=="), palette.GIANT_BONE_FG, palette.GIANT_BONE_BG,
+    solid=True, blocks_shots=True,
+)
+SPINE = TileType(
+    # The sea-beast's spine, overhead: you walk under it through its ribs.
+    "spine", ("o=", "=o", "oo"), palette.GIANT_BONE_FG, palette.SPINE_BG,
+)
+TWIGS = TileType(
+    "twigs", (",'", "',", "/,", ",\\"), palette.TWIG_FG, palette.JUNGLE_BG,
+)
+NEST = TileType(
+    # A nest's ring of branches and bones: low cover (it stops you, not shots).
+    "nest", ("##", "#/", "\\#", "#x"), palette.NEST_FG, palette.NEST_BG,
+    solid=True, hp=config.LOG_HP,
+    becomes=TWIGS,
+)
+EGGSHELL = TileType(
+    "eggshell", ("c ", " c", ".c", "c."), palette.EGG_FG, palette.NEST_BG,
+)
+EGG = TileType(
+    # Break the eggs and the parent comes (M31.3).
+    "egg", ("()", "0 ", " 0"), palette.EGG_FG, palette.NEST_BG,
+    solid=True, hp=config.STUMP_HP,
+    becomes=EGGSHELL,
+)
+GIANT_EGG = TileType(
+    # The great nest's eggs, the size of a man.
+    "giant egg", ("██", "▓█", "█▓"), palette.EGG_FG, palette.EGG_SHADE,
+    solid=True, blocks_shots=True, hp=config.WALL_HP,
+    wear=(("▓▒", "▒▓"),),
+    becomes=EGGSHELL,
+)
+AMBER_SHARDS = TileType(
+    "amber shards", ("'.", ".'", ",'", "' "), palette.AMBER_FG, palette.ASH_BG,
+)
+AMBER = TileType(
+    # Golden amber with things frozen inside (M31.3: breaking it frees what's
+    # in it). It stops you and shots.
+    "amber", ("▓▓", "▒▓", "▓%", "%▓", "▓▒"), palette.AMBER_FG, palette.AMBER_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP,
+    wear=(("▒░", "░▒"),),
+    becomes=AMBER_SHARDS,
+)
+CAVE_ROCK = TileType(
+    "cave rock", ("▓▓", "▓▒", "▒▓", "██"), palette.CAVE_ROCK_FG, palette.CAVE_ROCK_BG,
+    solid=True, blocks_shots=True,
+)
+PAINTED_WALL = TileType(
+    # The painted caves' walls: hunts of the island's beasts in ochre.
+    "painted wall", ("mm", "m>", "<m", "/\\", "h ", " h", ">>"), palette.PAINT_FG, palette.CAVE_WALL_BG,
+    solid=True, blocks_shots=True,
+)
+CAVE_FLOOR = TileType(
+    "cave floor", ("  ", ". ", " .", "  "), palette.CAVE_FLOOR_FG, palette.CAVE_FLOOR_BG,
+)
+FIRE_PIT = TileType(
+    # The hunters' fire: it stops you, not shots.
+    "fire pit", ("()", "**", "^^"), palette.FIRE_PIT_FG, palette.FIRE_PIT_BG,
+    solid=True,
+)
+CRAG = TileType(
+    # The great nest's crag: sheer rock.
+    "crag", ("██", "▓█", "█▓", "▓▓"), palette.CRAG_FG, palette.CRAG_BG,
+    solid=True, blocks_shots=True,
+)
+CRAG_TOP = TileType(
+    "crag top", ("  ", ". ", " .", "  "), palette.CRAG_TOP_FG, palette.CRAG_TOP_BG,
+)
+CRATER_RIM = TileType(
+    # The impact crater's ejecta: broken rock thrown up round it.
+    "crater rim", ("::", ".:", ":.", ". "), palette.CRATER_FG, palette.CRATER_BG,
+)
+IMPACT_GLASS = TileType(
+    # The crater's floor, melted to glass by the star's fall.
+    "impact glass", ("  ", "/ ", " \\", "- ", "  "), palette.GLASS_FG, palette.GLASS_BG,
+)
+STAR_STONE = TileType(
+    # The strange black stone: the star that will end the age of giants.
+    "black stone", ("██", "▓█", "█▓"), palette.STAR_STONE_FG, palette.STAR_STONE_BG,
+    solid=True, blocks_shots=True,
+)
+CALDERA_FLOOR = TileType(
+    # Cooling black rock, red glowing in its cracks: the Ancestor's floor
+    # (calm, so the fight on it reads).
+    "caldera floor", ("  ", "  ", ". ", " '", "  ", "_ "), palette.CALDERA_FG, palette.CALDERA_BG,
+)
+CALDERA_RIM = TileType(
+    "caldera rim", ("██", "▓█", "█▓"), palette.RIM_FG, palette.RIM_BG,
+    solid=True, blocks_shots=True,
+)
+FIRE_CURTAIN = TileType(
+    # The caldera's gate: a curtain of fire, sealed until the seventh great
+    # beast falls (M31.4). It stops you, not shots.
+    "curtain of fire", ("^^", "*^", "^*"), palette.CURTAIN_FG, palette.CURTAIN_BG,
+    solid=True,
+)
