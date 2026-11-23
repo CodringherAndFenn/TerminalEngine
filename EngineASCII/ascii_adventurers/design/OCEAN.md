@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Ocean Zones
 
-Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE.** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -12,7 +12,7 @@ Four islands out in the ocean, reached by **water walking** (Adventurer's Glory,
 |-------|------|-----------------------------------|
 | **North** | **Paradise** (heaven) | A white, heaven-like island with a twist: "biblically accurate" horror angels and Bible-inspired monsters that look pretty at first and turn into extremely bloody monsters. Blood is a big theme; **white and red** are the colours. **M29.** |
 | **South** | **Pandemonium** (hell) | Hell twisted toward excess: the humans there aren't tortured, all their pleasures are indulged (the opposite of the torturous heaven), but the trance makes them mad, so they're still aggressive. **Revellers in groups:** they feast, drink and dance lost in the trance, ignore you until you come close or hit one, then the whole group frenzies. Kept to feasts, wine, music, dance, gold and vanity, with our own names. **M30** (section 13 on). |
-| **West** | The Past | To draft (ask what "the past" means) |
+| **West** | **Pangaea** (the past) | **Deep time:** a primeval island from before people's history: giant ferns, tar pits, a smoking volcano, amber; great mammals, dinosaurs, giant insects and a tribe of early hunters. **Its twist: echoes:** every attack repeats a few seconds later. **M31** (section 24 on). |
 | **East** | The Future | To draft (ask what "the future" means) |
 
 Heaven against Hell and the Past against the Future are natural pairs for M33's kill order.
@@ -527,4 +527,129 @@ One per pleasure he plays on, each the recommended one of three proposals (GEAR.
 On the gear (16 letters at most) the goblet is "Host's Goblet". The power that grows: the bib's damage a stack, the goblet's damage, the cutlery's damage, the gilding's bonus. Look (M28.6): the bib turns your body white, wine-stained. Affixes: Bib -- thick hide, second wind, magnet; Goblet -- broad strokes, lingering, potency; Shoes -- swift boots, extra roll, quick recovery; Ring -- brutal, keen eye, prospector. Code: `systems/relics.py` (`_bib`, `_goblet`, `spin_out`, `toss_coin`, `_gilded`, `on_kill`), `combat.strike` (the bib's stacks, the gilding) and `combat._relic_on_hit` (the coin), `Statuses.drunk` (`systems/statuses.py`: the slow) and `Character.take_damage` (the misses), `roll._ended` (the spin), `render/feast.py` (`draw_feast_marks`: scraps, coins, the gilded "$"; `draw_drunk`), effect `goblet_wave`, config `U_BIB`, `U_GOBLET`, `U_SHOES`, `U_GILDED`, `WEAPONS["dancing_cutlery"]`. 46 boss uniques now (U43-U46). **Tests:** `tests/test_m30_5.py` (30 in all, 9 for the relics); `test_cards` and `test_m28_5` count them.
 
 **M30 (Pandemonium) is complete. NEXT: M31, the west zone (the Past), drafted with the user first.**
+
+---
+
+## 24. Pangaea (west): the land (user, M31 rounds 1-3, 2026-11-23)
+
+**What the past means: deep time** -- a primeval island from before people's history (nothing on the main island is prehistoric; the desert's mummies, the ruins' old soldiers and the forest's skeletons are a younger past). It's the clean opposite of the Future (the east, M32).
+
+**Name: PANGAEA** ("all the land", the first supercontinent; it starts with P like Paradise and Pandemonium). **(mine)** The arrival banner: "where the world began".
+
+**Look: jungle and fire.** Giant ferns and cycads, deep green on dark volcanic soil, black basalt, glowing orange lava and drifting ash. **The shore is a black-sand beach**, steaming where the lava meets the sea (Paradise's cloud bank, Pandemonium's coin beach). The green is darker and wilder than the swamp's; the orange is new to the game.
+
+**The land's dangers (all four)** -- the counterpart of Paradise's blood and Pandemonium's excess:
+- **The volcano and its lava:** a smoking volcano at the heart. Lava rivers run down from it, burning and closing lanes, and now and then it throws **lava bombs** onto marked spots.
+- **Tar pits:** black tar pools that slow you badly and hold you; enemies stuck in them are easy prey. Some hold the half-sunk skeletons of giant beasts.
+- **Amber:** golden amber outcrops with things frozen inside, from insects to small beasts. Breaking one frees what's in it: loot or a fight.
+- **Giant bones and nests:** huge ribcages and skulls to fight among (cover), and nests of eggs: break the eggs and the parent comes while the hatchlings swarm.
+
+**Landmarks (all four):**
+- **The sea-beast skeleton:** the bones of a giant sea monster beached on the shore facing the main island, its ribs an arch you walk through: where you arrive (Paradise's Gate, Pandemonium's gilded pier).
+- **The painted caves:** a cave mouth in a hill, its walls painted with hunts of the island's beasts, round a fire pit: the early hunters' home.
+- **The great nest:** a giant ring of branches and bones on a crag, with eggs the size of a man.
+- **The impact crater:** a glass-floored crater round a strange black stone: the star that will end the age of the giants.
+
+**The shape (round 3): rings of ages.** Paradise climbs, Pandemonium sinks; on Pangaea **walking inland goes back in time**. The shore ring is the youngest age (the great mammals and the early hunters), the middle ring the dinosaurs, the heart the oldest (giant insects round steaming pools) under the volcano. The enemies change ring by ring.
+
+## 25. Pangaea: the echoes (user, M31 rounds 1 and 3)
+
+**The past repeats.** About **3 s** after an enemy attacks (shots, slams, charges, anything that hurts), **a faded echo plays the same attack again from the same spot, at full damage**. You saw it once, so you can read it, but you dodge everything twice. **Killing the enemy cancels its echoes that haven't played yet** (so killing fast is still the skill, as with Paradise's unveiling, but for a different reason).
+
+**Only enemies echo:** your own attacks don't, so your damage is the same as everywhere else.
+
+**Who lives there (round 3):** four groups of four, as on the other islands: **great mammals**, **dinosaurs**, **giant insects and the earliest life**, and **a tribe of early hunters** (spears, traps, fire) who hunt the beasts and you. **(mine)** By ring: mammals and hunters on the shore ring, dinosaurs in the middle, insects at the heart.
+
+## 26. Pangaea: the enemies (all 16 picked, M31 round 4)
+
+Every attack below echoes about 3 s later (section 25). One elite in each group.
+
+| Group (ring) | Enemy | Behaviour |
+|--------------|-------|-----------|
+| Great mammals (shore) | **Mammoth** (elite) | walks in herds of 2-3; trumpets (a cone that pushes you back), then the whole herd stampedes in parallel lanes shown first: roll through the gaps |
+| | **Sabre-tooth** | stalks hidden in the tall ferns, only its eyes showing; pounces from far off along a marked line and pins you, biting, until you roll free |
+| | **Woolly rhino** | its armoured front shrugs off shots; it charges, skids and turns slowly, so you hit it from the side or behind |
+| | **Cave bear** | rears up on its hind legs (the tell), swipes twice in a wide arc and slams down; its roar wakes the beasts nearby |
+| Dinosaurs (middle) | **Raptor pack** | packs of 3-4 that circle you at a distance, then leap in one after another from behind you, each leap marked |
+| | **The Tyrant** (elite) | a huge king lizard: its roar is a cone that roots you in fear for a moment unless you roll; it bites ahead and sweeps its tail behind; each footstep shakes the ground |
+| | **Club-tail** | armoured all over its back (shots glance off everywhere but its head); swings a club tail in a wide arc behind it that throws you |
+| | **Pterosaur** | circles overhead, then swoops along a shown line; if it catches you it carries you a few tiles and drops you, perhaps into tar or lava |
+| Giant insects and the earliest life (heart) | **Giant dragonfly** | groups of 3, darting in fast straight lines (marked a beat ahead), turning sharply between darts |
+| | **Bombardier beetle** | turns its back to you, then sprays a cone of boiling spray behind it: get round to its front |
+| | **Giant ants** | march in a column from a mound; break the column and they swarm you; the mound keeps sending more until you collapse it |
+| | **Sea scorpion** (elite) | a huge armoured hunter in the steaming pools: grabs you with its claws from the pool's edge and drags you into the scalding water; stabs with its tail spike |
+| Early hunters (shore, from the painted caves) | **Spear hunter** | throws spears with a spear-thrower, fast and far; they stick in the ground where they land, fencing lanes for a few seconds |
+| | **Trapper** | lays snares and covered pits, only faintly marked (a snare holds you a second, a pit drops you in for a moment); throws bolas that tangle your legs |
+| | **Fire-bearer** | waves torches and sets the ferns alight: the fire spreads through the jungle; drives the beasts toward you like a beater |
+| | **Shaman** (elite) | paints on the rock: the painted beasts come alive as flat ochre spirits (a mammoth, a sabre-tooth) that charge once and fade; keeps the tribe's fires burning |
+
+## 27. Pangaea: the quest (user, M31 round 5)
+
+**The great hunt.** The cave wall shows **seven great beasts**, and they roam the island: each bigger than the rest of its kind and named (**(mine)** quest-only variants of the island's beasts, the framework's hunt kind -- e.g. Old Tusk the mammoth, Broken Horn the rhino; one or two per ring). **Track them and kill them**; each kill is painted on the wall, and **the seventh wakes the boss**. You hunt instead of standing still (the seals and the bandstands are both "stand at it ~8 s"). **(mine)** Out from the start, every kill counts, quest taken or not (like the seals); visible and shootable from range like any enemy (the no-ambush rule, BOSSES.md 3.2), so the sabre-tooth's variant shows its eyes from far off.
+
+**The giver: the old painter.** The tribe's painter, too old to hunt, by the fire in the painted caves. She paints what will be: **the deepest wall already shows the end of the age**. She is the one who remembers: she knows **the echoes are the island remembering** (Paradise's fallen angel tells the truth, Pandemonium's sober man woke; she remembers).
+
+## 28. Pangaea: the boss -- THE ANCESTOR (user, M31 rounds 6-7)
+
+**Who:** the beast all beasts come from. **It walks back in time as you hurt it**, like the island's rings: a great mammal, then a tyrant lizard, then a giant insect, then the first life crawling out of the sea, each age with its own kit.
+
+**Arena: the caldera.** At the heart (the oldest place), inside the volcano's rim: a floor of cooling black rock between lava lakes, **sealed by a curtain of fire until the seventh great beast falls**.
+
+**Two forms** (like the Horsemen and the Host of the Feast), each a full kit:
+- **Form 1, the ages:** it changes shape at each third of its health: **great mammal, tyrant lizard, giant insect**. Each shape brings a signature that carries on into the shapes after it (like the Host's rooms).
+- **Form 2, the first life:** at 0 the first life rises, **a vast primordial thing in a sea that floods the caldera**.
+
+**It moults:** each older shape bursts out of the last one's skin and leaves the old body as **a husk on the floor**. The husk is cover, and **for a while it echoes the old shape's attacks**.
+
+**Its echoes:** its attacks echo 3 s later at full damage like everyone's on Pangaea. **(mine, from the user's pick)** Its patterns are sparser and easier to read than other tier III bosses', so the echo doubles them into a fair, dense fight.
+
+**Movement: like its age.** Always moving in its shape's way: the mammal charges round the caldera, the lizard stalks and lunges, the insect flits and hovers, the first life swims through the flood. Only a few moves plant it, with a clear tell.
+
+### 28.1 Form 1: the ages (user, M31 round 8)
+
+**Phases = ages:** the great mammal, the tyrant lizard, the giant insect (**(mine)** 100-67-33-0%, a moult at each threshold). One signature comes with each age and keeps going in the ages after it:
+1. **The stampede** (the great mammal): it bellows, and **spirit herds** (mammoths, rhinos) stampede across the caldera in lanes marked first, with gaps to stand in. The later ages keep calling them.
+2. **The roar** (the tyrant lizard): a huge roar in a wide cone **roots you in fear** for a moment unless you roll, and shakes the rim so **rocks fall onto marked spots** all over the caldera.
+3. **The swarm** (the giant insect): clouds of small insects pour out of it and fly across the caldera in **shifting rivers that sting** what they pass through; you move with the gaps.
+
+**Moves (all four; each shape does them its own way):**
+- **The charge:** along a marked line -- tusks for the mammal, a lunging bite for the lizard, a dive for the insect.
+- **Spit fan:** a fan of shots -- bone shards, then boiling spit, then acid.
+- **The eruption:** it shakes the volcano, and lava bombs fall onto marked circles around you.
+- **The sweep:** a wide arc behind it -- a hind kick, then a tail sweep, then a stinger.
+
+### 28.2 Form 2: the first life (user, M31 round 9)
+
+At 0 the giant insect's skin splits too, and **the first life rises**: the caldera floods with a warm primordial sea.
+
+**Look: a vast sea-thing**, the oldest hunter of the first seas: a huge segmented body with grasping arms and a round mouth ringed with teeth, many-eyed, glowing faintly.
+
+**Arena: the tide.** The sea **rises and falls**: at low tide the floor is open; at high tide only the rocks and the husks stand above it, and **you wade slowly while it swims freely**. **(mine)** A tide every ~20 s (rising over 3 s, shown first by the water creeping in), wading at half speed like the hunger's wine; a roll still carries you its full length.
+
+**Signatures (all four), one added per phase** (**(mine)** four phases, 100-75-50-25-0%, like the hunger):
+1. **Life evolves:** small first life crawls out of the sea and **evolves if left alone**: a blob becomes a crawler, then a small beast. Kill them before they grow up. **(mine)** ~8 s a stage; the evolved beast is one of the island's (a raptor, a sabre-tooth cub...).
+2. **Echoes of the ages:** the three husks from form 1 **wake as echoes**, and each replays its age's signature on its own: the mammal's stampede, the lizard's roar, the insect's swarm.
+3. **Tentacles:** its arms burst out of the sea on marked spots, sweep along lines and grab you if you're slow. **(mine)** These are its arms reaching up through the sea far from its body; the arm lash (below) is the reach from its body.
+4. **Tidal wave:** it rears up and **a great wave rolls across the caldera**, pushing you; roll through it.
+
+**Moves (all four):** **dive and surface** (it sinks out of sight and surfaces under you, its spot shown by a swelling ripple, bursting up with a ring of spray), **whirlpool** (a spinning current that drags you round toward its centre; walk or roll out), **boiling bubbles** (bubbles of boiling gas rise and burst on marked spots in quick chains), **arm lash** (its long arms lash along shown lines, then grab and pull you closer).
+
+Everything it does echoes 3 s later (section 28), and so do the husks' echoed signatures **(mine: once; an echo is never echoed again)**.
+
+### 28.3 Numbers and rules (mine, to tune with the bot and then in play)
+
+- Tier III, like the Host of the Feast (12,000 + 14,000). **Proposed:** the ages **12,000** (4,000 an age); the first life **14,000**. All scaled like every boss. Policy: no HP cut below these on bot numbers alone.
+- Target length (bot): the ages ~3 min (about a minute an age), the first life ~5 min.
+- **The echo, exactly (mine):** an enemy's attack is whatever it fires or drops that can hurt (shots, zones, rings, slams, bites); a charge or a pounce echoes as a faded copy of the body running the same path. The echo is drawn faded (a ghost of the enemy's colours) and shows the same tell again, a beat ahead, so it's as readable as the first. An echo never echoes, and the land itself (lava bombs, tar, fire in the ferns) doesn't echo: only enemies. Killing an enemy cancels its waiting echoes; a husk's echoes stop when the husk crumbles (**(mine)** ~20 s after the moult in form 1).
+- Relics: like every boss, uniques drafted with the user once it's built (GEAR.md 21.1); **(mine)** one per age is the obvious set (mammal, lizard, insect, the first life).
+
+## 29. M31 build plan (mine; each step: tests, a headless screenshot, a report, a stop)
+
+| Step | Content |
+|------|---------|
+| M31.1 | **Pangaea's land:** the west zone (Paradise's framework), jungle and fire, the black-sand beach, the rings of ages (shore, middle, heart), the volcano and its lava rivers and lava bombs, tar pits, amber outcrops, giant bones and nests, the four landmarks (sea-beast skeleton, painted caves, great nest, impact crater), the caldera (sealed shell, the curtain of fire), the HUD name and banner |
+| M31.2 | **The echoes + the shore ring's 8:** recording and replaying attacks (faded, cancelled on death), endgame toughness; the great mammals (mammoth, sabre-tooth, woolly rhino, cave bear) and the early hunters (spear hunter, trapper, fire-bearer, shaman); fire spreading through the ferns |
+| M31.3 | **The middle and the heart, 8 more:** raptor pack, the Tyrant, club-tail, pterosaur; giant dragonfly, bombardier beetle, giant ants (and their mounds), sea scorpion; nests (eggs, the parent, hatchlings) and amber (breaking it frees what's inside) |
+| M31.4 | **The quest + form 1:** the great hunt (the seven named great beasts, the painted wall), the old painter, waking and sealing the caldera; the ages (the mammal, the lizard, the insect, the moults and their echoing husks, three signatures, four moves) |
+| M31.5 | **Form 2:** the first life (the tide, life evolving, the husks' echoes, tentacles, the tidal wave, four moves), the bot benchmark; then the relics drafted with the user |
 
