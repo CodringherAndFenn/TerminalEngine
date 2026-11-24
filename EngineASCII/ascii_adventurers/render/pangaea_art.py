@@ -1,0 +1,200 @@
+"""
+render/pangaea_art.py -- Pangaea's beasts and hunters (M31.2, design/OCEAN.md
+26), drawn like the heroes (see render/plains_art.py for the format), facing
+right. Some have a second picture for a move: the mammoth trumpeting (trunk
+up), the sabre-tooth leaping, the cave bear reared up, the shaman painting;
+the sabre-tooth's "_eyes" is all of it that shows in the tall ferns. Their
+echoes are these same pictures faded, and the shaman's spirits these in
+flat ochre (render/pangaea.py). Importing this adds them to
+render/characters.ART.
+
+Letters: k outline, W dark woolly fur, n/a brown and ginger fur, h/N a
+bear's brown, l/L a big cat's tawny, d bone and ivory, s/S skin, H/h
+leather and hair, K ochre paint, t wood, m flint, f/F flame, r/y feathers.
+"""
+
+from __future__ import annotations
+
+from .characters import ART
+from .plains_art import _pad
+
+PANGAEA_ART = {
+    # --- The great mammals -----------------------------------------------------------
+    "mammoth": [                     # a shaggy dome, the trunk down, tusks curling forward
+        "......kkkkk",
+        "..kkkkWWWWWk",
+        ".kWWWWWWWWWWk",
+        "kWWnWWWWWWWkWk",
+        "kWWWWnWWWWWWWk",
+        "kWnWWWWWWnWWWk",
+        "kWWWWWWWWWWkWk",
+        "kWWnWWWnWWkdWk",
+        ".kWWWWWWWkddWk",
+        ".kWnWWnWWk.dWk",
+        ".kWWkkWWWk..Wk",
+        ".kWWk.kWWk..kk",
+        ".kWWk.kWWk",
+        ".kkkk.kkkk",
+    ],
+    "mammoth_trumpet": [             # the trunk raised, trumpeting
+        "......kkkkk.kk",
+        "..kkkkWWWWWkWk",
+        ".kWWWWWWWWWWWk",
+        "kWWnWWWWWWWkWk",
+        "kWWWWnWWWWWWk",
+        "kWnWWWWWWnWWk",
+        "kWWWWWWWWWWdk",
+        "kWWnWWWnWWkddk",
+        ".kWWWWWWWk..dk",
+        ".kWnWWnWWk",
+        ".kWWkkWWWk",
+        ".kWWk.kWWk",
+        ".kWWk.kWWk",
+        ".kkkk.kkkk",
+    ],
+    "sabre_tooth": [                 # a tawny cat, low, its long fangs down
+        "..........kkk",
+        ".........klllk",
+        "kk.......klkLk",
+        "kLk.kkkkkllllk",
+        ".kLklllllllLdk",
+        "..kllLlllLllkd",
+        "..kLllllllllk",
+        "..kllkkkkllk",
+        "..klk....klk",
+        "..kLk....kLk",
+        "..kk.....kk",
+    ],
+    "sabre_tooth_pounce": [          # stretched out in the leap
+        "..........kkk",
+        ".........klllk",
+        ".........klkLk",
+        "kkkkkkkkklllLk",
+        "kLllLlllllllkd",
+        ".kllllLlllllkd",
+        "klkkkkkkkkkklk",
+        "kk..........kk",
+    ],
+    "sabre_tooth_eyes": [            # in the tall ferns: only its eyes
+        "..........y.y",
+        "..", "..", "..", "..", "..", "..", "..", "..", "..", "..",
+    ],
+    "woolly_rhino": [                # shaggy, its head low, a great horn on the snout
+        "...kkkkkkk",
+        "..kWWaWWWWkk",
+        ".kWaWWWWaWWWk",
+        "kWWWWaWWWWkWkd",
+        "kWaWWWWWaWWWdk",
+        "kWWWWWWWWWWkdk",
+        "kWaWWaWWWWWWWk",
+        ".kWWWWWWWkkkk",
+        ".kWkWWkkWWk",
+        ".kWk.kk.kWk",
+        ".kkk....kkk",
+    ],
+    "cave_bear": [                   # dark brown, a hump on its shoulders
+        "....kkkkk..kk",
+        "..kkhhhhhkkhk",
+        ".khhhNhhhhhhhk",
+        "khhhhhhhhhkhhk",
+        "khNhhhhhNhhhhk",
+        "khhhhhhhhhhhNk",
+        "khhNhhhhhhhkk",
+        ".khhhkkkhhhk",
+        ".khhk..khhk",
+        ".khhk..khhk",
+        ".kkkk..kkkk",
+    ],
+    "cave_bear_rear": [              # up on its hind legs, claws out
+        "..kd....kkkk",
+        "..khk..khhhhk",
+        "...khk.khhkhk",
+        "....khkhhhhhNk",
+        "...khhhhhhhkk",
+        "..khhhhhhhhhkd",
+        ".khhNhhhhhhhk",
+        ".khhhhhhhhhk",
+        ".khhhhNhhhhk",
+        "..khhhhhhhk",
+        "..khhk.khhk",
+        "..khhk.khhk",
+        ".kkkkk.kkkkk",
+    ],
+    # --- The early hunters -----------------------------------------------------------
+    "spear_hunter": [                # in hides, a flint-tipped spear up
+        ".........km",
+        "...kkkk..kt",
+        "..khhhhk.kt",
+        "..khsssk.kt",
+        "..kskssk.kt",
+        "...kssk..kt",
+        "..kHHHHkkst",
+        ".kHHHHHHkkt",
+        ".ksHHHHk..t",
+        "..kHHHHk..t",
+        "..khkkhk..k",
+        "..ksk.ksk",
+        "..kk..kk",
+    ],
+    "trapper": [                     # a fur cap, a coil of rope, bolas in hand
+        "...kkkk",
+        "..knnnnk",
+        "..khsssk",
+        "..kskssk",
+        "...kssk...k",
+        "..kHHHHk.kmk",
+        ".kHlllHHkkl",
+        ".kslllHk.kmk",
+        "..kHHHHk..k",
+        "..khkkhk",
+        "..ksk.ksk",
+        "..kk..kk",
+    ],
+    "fire_bearer": [                 # a torch in each hand, raised
+        ".f.........f",
+        "fFf.......fFf",
+        ".kt.kkkk...tk",
+        "..tkhhhhk.kt",
+        "..kkhsssk.kt",
+        "...kskssk.k",
+        "....kssk.ks",
+        "..kHHHHHkkk",
+        ".ksHHHHHk",
+        ".k.kHHHHk",
+        "...khkkhk",
+        "...ksk.ksk",
+        "...kk..kk",
+    ],
+    "shaman": [                      # a crown of feathers, ochre on the face, a staff
+        "...r.y.r",
+        "...rkykrk",
+        "...kssssk",
+        "...kskskk..d",
+        "...kKssKk.kdk",
+        "....kssk..kt",
+        "..kHKHHKHkkt",
+        ".kHHHKHHHkst",
+        ".kHKHHHKHk.t",
+        ".kHHHKHHHk.t",
+        "..kHHHHHk..t",
+        "..khhkhhk..k",
+        "..kkk.kkk",
+    ],
+    "shaman_paint": [                # an ochre hand out, painting a beast into being
+        "...r.y.r",
+        "...rkykrk",
+        "...kssssk",
+        "...kskskk",
+        "...kKssKk",
+        ".d..kssk",
+        "kdkHKHHKHkkkK",
+        "ktHHHKHHHksKKK",
+        "ktHKHHHKHk.kK",
+        ".tHHHKHHHk",
+        ".tkHHHHHk",
+        ".tkhhkhhk",
+        "..kkk.kkk",
+    ],
+}
+
+ART.update({k: _pad(v) for k, v in PANGAEA_ART.items()})

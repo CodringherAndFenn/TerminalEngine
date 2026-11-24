@@ -1517,7 +1517,8 @@ class GameScene(Scene):
         draw_entranced(text, cam, [p.hero for p in self.players if p.alive])   # (M30.2)
         draw_feast_marks(text, cam, [p.hero for p in self.players if p.alive])   # (M30.4)
         draw_drunk(text, cam, self.enemies)                                      # (M30.5)
-        draw_pangaea(text, cam, self.volcano, [p.hero for p in self.players if p.alive])   # (M31.1)
+        draw_pangaea(text, cam, self.volcano, [p.hero for p in self.players if p.alive],  # (M31.1)
+                     getattr(self.world, "pangaea_land", None), self.steps / 60)   # (M31.2)
         draw_relics(text, self.sprites, cam, [p for p in self.players if p.alive], self.enemies,
                     self.steps)
         draw_bear_riders(self.sprites, cam, self.quests, self.players)

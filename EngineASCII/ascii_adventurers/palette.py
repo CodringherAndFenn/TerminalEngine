@@ -117,6 +117,8 @@ SPRITE_COLORS = {
     "x": (128, 136, 122), "X": (86, 92, 82),         # lead (the Lead Apron)
     # M29.2 (Paradise's angels: render/paradise_art.py)
     "z": (120, 16, 28), "Z": (255, 246, 196),        # clotted blood, holy light
+    # M31.2 (Pangaea's beasts and hunters: render/pangaea_art.py)
+    "K": (200, 110, 44), "W": (88, 60, 40),          # ochre paint, dark woolly fur
 }
 # Creature sprites (warrior, worm) flash this for a moment when hit.
 HIT_FLASH = (255, 235, 220)
@@ -1332,3 +1334,37 @@ MAP_TILE_BIOME.update({"trampled ferns": "pangaea", "ashy splinters": "pangaea",
                        "eggshell": "pangaea", "amber shards": "pangaea", "cave floor": "pangaea",
                        "crag top": "pangaea"})
 PIN_GIVER["pangaea"] = ((255, 186, 50), (60, 26, 12))             # amber on embers
+
+# --- M31.2: Pangaea's enemies (ai/pangaea.py, render/pangaea.py) --------------------------
+# Fire in the ferns, what it leaves, a spear stuck in the ground.
+BURNING_FG = (255, 196, 60)
+BURNING_BG = (150, 44, 10)
+FIRE_FLICKER = ((255, 236, 140), (255, 140, 30), (210, 60, 16))
+SCORCHED_FG = (70, 56, 46)
+SCORCHED_BG = (22, 18, 16)
+STUCK_SPEAR_FG = (196, 150, 96)
+MAP_TILE.update({"burning ferns": (240, 110, 30), "scorched ground": (34, 28, 24),
+                 "stuck spear": (150, 110, 70)})
+# The echoes: a ghost's colours are its own, faded (ECHO_ALPHA of 255) and
+# washed toward ECHO_WASH by ECHO_MIX; its tells (the shape of what's coming
+# again) in ECHO_TELL, flashing to the first as it comes.
+ECHO_ALPHA = 120
+ECHO_WASH = (200, 214, 230)
+ECHO_MIX = 0.45
+ECHO_TELL = ((230, 240, 255), (130, 150, 180))
+# The originals' tells and hits: a cone, a line, a circle shown first
+# (flashing to the first as it comes), a hit's flash.
+BEAST_TELL = ((255, 236, 170), (220, 140, 70))
+BEAST_HIT = ((255, 230, 190), (200, 120, 60))
+BEAST_ROAR = ((230, 200, 150), (150, 110, 70))
+# The shaman's spirits: flat ochre (dark, mid, light by the art's own shade).
+OCHRE = ((120, 56, 22), (196, 104, 40), (236, 164, 80))
+# The trapper's traps: only faintly marked.
+TRAP_MARK = ((96, 112, 62), (120, 96, 60))
+DRIVEN = (255, 170, 60)                 # a beast the fire-bearer drives at you
+GLANCE = (230, 230, 220)                # a shot glancing off a rhino's front
+# Shots: a spear (wood, a flint head), bolas; their echoes, faded.
+SHOT_SPEAR = ((200, 196, 186), ((170, 120, 70), (120, 84, 50)))
+SHOT_SPEAR_ECHO = ((170, 186, 210), ((120, 134, 160), (84, 96, 120)))
+SHOT_BOLAS = ((150, 130, 110), ((120, 96, 70), (90, 70, 50)))
+SHOT_BOLAS_ECHO = ((160, 176, 200), ((110, 124, 150), (80, 90, 112)))

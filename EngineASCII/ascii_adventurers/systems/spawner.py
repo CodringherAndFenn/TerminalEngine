@@ -27,6 +27,9 @@ and choir rings are the angels' own).
 The ocean zones (M29.2): enemies woken on one are endgame tough
 (ZONE_TOUGH: more HP, more damage), and the zone's packs are bigger and
 its elites more common.
+Pangaea (M31.2): each of its enemies is rolled only on its own ring of
+ages (config.PANGAEA_RING_OF: the chunk's middle picks the type, and its
+spot must be on that ring too).
 Residents (M29.3): some of a zone's enemies live at fixed places (the
 choristers at Paradise's choir rings, the leviathans in its river of
 blood); they're added to their chunk's roster and live like the rest.
@@ -99,6 +102,9 @@ class Spawner:
         zone = biome in ZONE_BIOMES
         choices = [(k, s.weight * (config.ZONE_TOUGH[3] if zone and s.elite else 1))
                    for k, s in config.ENEMIES.items() if biome in s.biomes]
+        if biome == "pangaea":                  # (M31.2: each on its own ring of ages)
+            ring = self._ring(mx, my)
+            choices = [c for c in choices if config.PANGAEA_RING_OF.get(c[0], ring) == ring]
         elites = [c for c in choices if config.ENEMIES[c[0]].elite]
         out = []
         for k in range(count):
@@ -173,6 +179,8 @@ class Spawner:
             if biome not in spec.biomes:
                 continue
             x, y = tx + 0.5, ty + 0.5
+            if biome == "pangaea" and config.PANGAEA_RING_OF.get(key, -1) not in (-1, self._ring(x, y)):
+                continue
             if any(m.contains(x, y, config.LANDMARK_QUIET) for m in self._quiet):
                 continue
             if spec.kind == "tower" and not self._near_wall(tx, ty):
@@ -183,6 +191,16 @@ class Spawner:
             if not hull_hits_solid(self.world, x, y, 0.0, half, half):
                 return x, y
         return None
+
+    def _ring(self, x: float, y: float) -> int:
+        """Pangaea's ring of ages at (x, y) (0 the heart, 1 the middle, 2 the
+        shore); the shore's on a world without the zone's plan."""
+        layout = getattr(self.world, "layout", None)
+        z = layout.zone("pangaea") if hasattr(layout, "zone") else None
+        if z is None:
+            return 2
+        from ..world.zones import plan_of
+        return plan_of(layout, z).ring_at(x, y)
 
     @property
     def _landmarks(self) -> list:

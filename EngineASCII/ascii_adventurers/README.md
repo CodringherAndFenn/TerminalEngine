@@ -930,7 +930,23 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   outcrops hold things long frozen, giant bones are cover, nests hold
   eggs. You arrive through the ribs of a beached sea-beast; the painted
   caves, the great nest on its crag and the impact crater round its black
-  stone wait inland. No one lives there yet (M31.2).
+  stone wait inland.
+- **Pangaea, M31.2** (`design/OCEAN.md` 31): the past repeats. About 3 s
+  after any enemy on Pangaea attacks, a faded echo of it plays the same
+  attack again from the same spot, at full damage -- its tell shows again
+  first (a ghost where it stood, the shape coming), so you can read it,
+  but you dodge everything twice; kill it and its echoes stop. Your own
+  attacks and the land don't echo. The shore ring's eight: herds of
+  **mammoths** that trumpet you back and stampede down shown lanes, the
+  **sabre-tooth** whose eyes are all that shows in the ferns (it pounces
+  and pins you until you roll), the **woolly rhino** whose front shrugs
+  off shots, the **cave bear** that rears, swipes twice and slams, and
+  whose roar wakes the beasts; the **spear hunter** whose spears stick in
+  the ground and fence you in, the **trapper** (faint snares and pits,
+  bolas), the **fire-bearer** whose torches set the ferns burning (the fire
+  spreads) and who drives the beasts at you, and the **shaman** who paints
+  beasts that come alive as ochre spirits and charge, and keeps the fires
+  near it burning. The middle ring and the heart are empty until M31.3.
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

@@ -43,6 +43,9 @@ ai -- enemy behaviour.
                 a dancing host in a hall that changes room each phase
   hunger.py     form 2 (M30.5): the hunger, devouring the feast to grow in
                 a hall fallen into the wine; his demon waiters
+  pangaea.py    Pangaea's enemies (M31.2), every attack echoing 3 s later:
+                mammoth, sabre-tooth, woolly rhino, cave bear; spear hunter,
+                trapper, fire-bearer, shaman
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -82,6 +85,8 @@ from .horsemen import ConquestBanner, Horseman, PaleShade
 from .pandemonium import (BandDrummer, Beloved, Bouncer, Carver, Cupbearer, Dancer, Drunkard,
                           GildedReveller, Glutton, Hoarder, MaskedDancer, MasterOfRevels, Piper,
                           Ravenous, Toastmaster, Vain)
+from .pangaea import (CaveBear, FireBearer, Mammoth, SabreTooth, Shaman, SpearHunter, Trapper,
+                      WoollyRhino)
 from .paradise import (BowlBearer, CenserBearer, Cherub, Chorister, Dove, Halo, Lamb,
                        Leviathan, Locust, Martyr, Ophan, Seraph, Trumpeter, Watcher,
                        WeepingSaint, Behemoth, LightPillar)
@@ -269,6 +274,15 @@ KINDS = {
     "carver": Carver,
     "bouncer": Bouncer,
     "master_of_revels": MasterOfRevels,
+    # M31.2: Pangaea's shore ring (every attack echoes: ai/pangaea.Beast)
+    "mammoth": Mammoth,
+    "sabre_tooth": SabreTooth,
+    "woolly_rhino": WoollyRhino,
+    "cave_bear": CaveBear,
+    "spear_hunter": SpearHunter,
+    "trapper": Trapper,
+    "fire_bearer": FireBearer,
+    "shaman": Shaman,
 }
 
 

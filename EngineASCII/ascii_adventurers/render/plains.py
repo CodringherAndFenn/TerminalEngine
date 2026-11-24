@@ -20,12 +20,14 @@ from __future__ import annotations
 import math
 
 from .. import config, palette
+from ..ai.pangaea import Beast
 from ..ai.plains import Bull, Drummer, Hawk, Lancer, PlainsCreature
 from .ascii_fx import _Batch, draw_hp_bar
 from .characters import draw_character
 from .mounts import draw_rider, gallop_frame
-from . import (desert_art, forest_art, mushroom_art, pandemonium_art, paradise_art,  # noqa: F401
-               plains_art, ruins_art, swamp_art)         # (they add the pictures to ART)
+from .pangaea import draw_beast, draw_spirit_painting
+from . import (desert_art, forest_art, mushroom_art, pandemonium_art, pangaea_art,  # noqa: F401
+               paradise_art, plains_art, ruins_art, swamp_art)   # (they add the pictures to ART)
 
 
 def _frame(e) -> int:
@@ -80,6 +82,7 @@ def draw_plains_tells(text, camera, e) -> None:
     from .mushroom import draw_mushroom_tells             # (P12: the mushroom biome's)
     from .paradise import draw_paradise_tells             # (M29.2: Paradise's)
     from .pandemonium import draw_pandemonium_tells       # (M30.2: Pandemonium's)
+    from .pangaea import draw_pangaea_tells               # (M31.2: Pangaea's)
     from .forest import draw_forest_tells                 # (P8: the haunted forest's)
     draw_forest_tells(batch, camera, e)
     draw_desert_tells(batch, camera, e)
@@ -88,6 +91,7 @@ def draw_plains_tells(text, camera, e) -> None:
     draw_mushroom_tells(batch, camera, e)
     draw_paradise_tells(batch, camera, e)
     draw_pandemonium_tells(batch, camera, e)
+    draw_pangaea_tells(batch, camera, e)
     batch.flush()
 
 
@@ -108,6 +112,9 @@ def draw_plains(text, bank, camera, e) -> None:
                    gallop_frame(_Gait(e)), hurt)
         _lance(text, camera, e, angle)
     else:
+        if isinstance(e, Beast):                         # (M31.2: its echoes, under it)
+            draw_beast(text, bank, camera, e)
+            draw_spirit_painting(bank, camera, e)
         sprite = e.sprite_now() if hasattr(e, "sprite_now") else e.espec.sprite
         draw_character(bank, x, y, sprite, scale, e.facing_left(), _frame(e), hurt)
     draw_plains_tells(text, camera, e)

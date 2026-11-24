@@ -255,10 +255,10 @@ class TilesTest(unittest.TestCase):
             self.assertFalse(t.destructible, t.name)
             self.assertTrue(t.blocks_shots, t.name)
 
-    def test_nobody_lives_here_yet(self):
-        # (M31.2: the beasts and the hunters)
-        self.assertEqual(config.BIOME_ENEMY_DENSITY.get("pangaea", 0.0), 0.0)
-        self.assertFalse([k for k, s in config.ENEMIES.items() if "pangaea" in s.biomes])
+    def test_somebody_lives_here_now(self):
+        # (M31.2: the beasts and the hunters; it was "nobody lives here yet")
+        self.assertGreater(config.BIOME_ENEMY_DENSITY.get("pangaea", 0.0), 0.0)
+        self.assertTrue([k for k, s in config.ENEMIES.items() if "pangaea" in s.biomes])
 
 
 class MapTest(unittest.TestCase):

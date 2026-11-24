@@ -1406,3 +1406,16 @@ FIRE_CURTAIN = TileType(
     "curtain of fire", ("^^", "*^", "^*"), palette.CURTAIN_FG, palette.CURTAIN_BG,
     solid=True,
 )
+# M31.2: what the hunters leave on Pangaea (systems/pangaea.py). Ferns on
+# fire (walkable: it burns), what they leave for good, and a spear stuck in
+# the ground for a few seconds (it stops you, not shots).
+BURNING_FERNS = TileType(
+    "burning ferns", ("^^", "*^", "^*", "^'"), palette.BURNING_FG, palette.BURNING_BG,
+)
+SCORCHED = TileType(
+    "scorched ground", ("  ", ". ", " ,", "' ", "  "), palette.SCORCHED_FG, palette.SCORCHED_BG,
+)
+STUCK_SPEAR = TileType(
+    "stuck spear", ("/ ", " /", "\\ ", " \\"), palette.STUCK_SPEAR_FG, palette.SCORCHED_BG,
+    solid=True,
+)

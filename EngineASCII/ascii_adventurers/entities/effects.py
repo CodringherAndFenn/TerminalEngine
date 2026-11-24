@@ -84,6 +84,7 @@ DURATIONS = {
     "belly_quake": config.HUNGER_QUAKE[4] / config.HUNGER_QUAKE[3],
     "goblet_wave": config.U_GOBLET[1] / config.U_GOBLET[2],   # (the Host's Goblet's toast)
     "lava_burst": 0.5,      # M31.1: a lava bomb landing on Pangaea (size: its radius)
+    "beast_roar": 0.6,      # M31.2: a cave bear's roar, a fire-bearer's beat (a ring; size: reach)
 }
 
 

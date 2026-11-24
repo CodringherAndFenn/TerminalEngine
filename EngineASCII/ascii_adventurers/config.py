@@ -1176,6 +1176,51 @@ ENEMIES = {
         name="demon waiter", kind="feast_waiter", sprite="feast_waiter",
         max_hp=60, sight=1, biomes=(), speed=3.2, damage=0, size_px=22, xp=4,
     ),
+    # --- M31.2: Pangaea's shore ring (design/OCEAN.md 26; ai/pangaea.py) ---------------
+    # Every attack echoes ECHO[0] s later (ai/pangaea.Beast). Each is rolled
+    # only on its own ring (PANGAEA_RING_OF). On top of these: ZONE_TOUGH.
+    # The great mammals.
+    "mammoth": EnemySpec(
+        name="mammoth", kind="mammoth", sprite="mammoth", scale=5, elite=True, group=(2, 3),
+        max_hp=260, sight=18, biomes=("pangaea",), weight=1, speed=2.6,
+        damage=26, attack_radius=3.0, windup=0.6, cooldown=2.4, size_px=40, xp=30,
+    ),
+    "sabre_tooth": EnemySpec(
+        name="sabre-tooth", kind="sabre_tooth", sprite="sabre_tooth", scale=4,
+        max_hp=110, sight=18, biomes=("pangaea",), weight=3, speed=4.6,
+        damage=16, attack_radius=1.0, windup=0.7, cooldown=3.0, size_px=28, xp=14,
+    ),
+    "woolly_rhino": EnemySpec(
+        name="woolly rhino", kind="woolly_rhino", sprite="woolly_rhino", scale=4,
+        max_hp=200, sight=16, biomes=("pangaea",), weight=2, speed=2.8,
+        damage=24, windup=0.8, cooldown=1.0, size_px=34, xp=18,
+    ),
+    "cave_bear": EnemySpec(
+        name="cave bear", kind="cave_bear", sprite="cave_bear", scale=4,
+        max_hp=220, sight=16, biomes=("pangaea",), weight=2, speed=3.6,
+        damage=20, attack_radius=3.0, windup=0.8, cooldown=2.6, size_px=32, xp=18,
+    ),
+    # The early hunters (from the painted caves).
+    "spear_hunter": EnemySpec(
+        name="spear hunter", kind="spear_hunter", sprite="spear_hunter", group=(1, 2),
+        max_hp=70, sight=18, biomes=("pangaea",), weight=3, speed=4.0,
+        damage=0, windup=0.5, cooldown=2.2, size_px=22, xp=10,
+    ),
+    "trapper": EnemySpec(
+        name="trapper", kind="trapper", sprite="trapper",
+        max_hp=65, sight=16, biomes=("pangaea",), weight=2, speed=4.2,
+        damage=0, windup=0.4, cooldown=3.4, size_px=22, xp=10,
+    ),
+    "fire_bearer": EnemySpec(
+        name="fire-bearer", kind="fire_bearer", sprite="fire_bearer",
+        max_hp=75, sight=16, biomes=("pangaea",), weight=2, speed=3.8,
+        damage=14, attack_radius=2.4, windup=0.5, cooldown=3.8, size_px=22, xp=12,
+    ),
+    "shaman": EnemySpec(
+        name="shaman", kind="shaman", sprite="shaman", scale=4, elite=True,
+        max_hp=280, sight=18, biomes=("pangaea",), weight=1, speed=2.8,
+        damage=0, windup=1.1, cooldown=5.5, size_px=28, xp=35,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -1636,6 +1681,76 @@ BOUNCER = (12.0, 10.0, 14.0, 6.0, 0.6)
 # keeps MASTER[2]-[3] away; fireworks: MASTER[4] circles MASTER[5] tiles
 # across, marked MASTER[6] s, up to MASTER[7] tiles round you.
 MASTER = (22.0, 10.0, 7.0, 10.0, 3, 1.5, 1.2, 2.5)
+
+# M31.2: Pangaea's enemies (ai/pangaea.py; design/OCEAN.md 25-26, 28.3).
+# THE ECHOES (user): ECHO[0] s after an enemy attacks, a faded echo plays
+# the same attack again from the same spot at full damage; its tell shows
+# again first, for as long as the attack's own windup (at least ECHO[1] s,
+# at most [2]). Killing the enemy cancels its echoes; an echo never echoes;
+# players and the land don't echo.
+ECHO = (3.0, 0.35, 0.9)
+# Which ring each is rolled on (world/pangaea.Plan.ring_at: 0 the heart, 1
+# the middle, 2 the shore; mine, from the draft: mammals and hunters on the
+# shore, dinosaurs in the middle, insects at the heart).
+PANGAEA_RING_OF = {
+    "mammoth": 2, "sabre_tooth": 2, "woolly_rhino": 2, "cave_bear": 2,
+    "spear_hunter": 2, "trapper": 2, "fire_bearer": 2, "shaman": 2,
+}
+# The mammoth (elite, herds): every MAMMOTH[0] s it trumpets (a [1] s
+# windup, trunk up): a cone [2] degrees, [3] tiles, pushing [4] tiles (x [5]
+# of its damage); then every mammoth of its herd within [6] tiles takes a
+# lane -- parallel lanes [7] tiles apart, shown [8] s -- and they stampede
+# along them at [9] tiles/s for [10] tiles. Close in, a tusk sweep (spec
+# windup): a cone [11] degrees out to the spec's attack radius, pushing [12].
+MAMMOTH = (8.0, 0.9, 70.0, 8.0, 3.0, 0.4, 16.0, 3.6, 1.1, 11.0, 18.0, 120.0, 1.5)
+# The sabre-tooth: in tall ferns only its eyes show (still shootable). It
+# stalks you at x SABRE[0] and pounces from [1]-[2] tiles: it crouches
+# (spec windup; the line shows) and leaps at [3] tiles/s; caught, you're
+# pinned -- bitten for [4] every [5] s -- until you roll free (or [6] s);
+# thrown off, it's dazed [7] s.
+SABRE = (0.6, 5.0, 11.0, 18.0, 9.0, 0.5, 3.0, 1.2)
+# The woolly rhino: hits from within RHINO[0] degrees of its front do x [1].
+# It scrapes (spec windup; its line shows) and charges at [2] tiles/s for [3]
+# tiles, skids [4] s, then turns slowly ([5] rad/s) toward you; caught,
+# you're tossed [6] tiles. A wall dazes it [7] s.
+RHINO = (60.0, 0.25, 13.0, 14.0, 0.7, 1.3, 3.0, 1.2)
+# The cave bear: it rears up (spec windup), swipes twice ([0] degrees out
+# to the spec's attack radius, [1] s apart), and slams down [2] tiles ahead
+# (radius [3], x [4] its damage); then it's open [5] s. Its roar (on first
+# sight, then every [6] s) wakes every enemy within [7] tiles.
+BEAR = (150.0, 0.35, 1.4, 2.6, 1.4, 1.2, 14.0, 18.0)
+# The spear hunter keeps SPEAR[0]-[1] tiles off; a spear every spec cooldown
+# (spec windup), leading you by x [2] of its flight; one that lands on open
+# ground sticks there [3] s (a stake: it stops you, not shots).
+SPEAR = (8.0, 13.0, 0.5, 4.0)
+# The trapper keeps TRAPPER[0]-[1] off and lays a trap where it stands every
+# [2] s (at most [3] laid, each lasting [4] s; [5] of them pits), [6] round
+# its home to start with. A snare holds you [7] s; a pit drops you in for
+# [8] s and hurts [9]; a roll carries you over both. Bolas every spec
+# cooldown: tangled, x [10] for [11] s.
+TRAPPER = (6.0, 11.0, 2.6, 5, 40.0, 0.4, 3, 1.0, 1.3, 18.0, 0.3, 1.8)
+# The fire-bearer keeps FIREB[0]-[1] off; a torch every spec cooldown, lobbed
+# ([2] s, marked where it lands): it bursts ([3] tiles) and sets the ferns
+# alight (a blaze of [4] tiles at most). Close in, a torch swing (a cone [5]
+# degrees). Every [6] s it beats: every beast within [7] tiles comes for
+# you, x [8] as fast for [9] s.
+FIREB = (5.0, 9.0, 0.9, 1.6, 40, 110.0, 7.0, 16.0, 1.4, 4.0)
+# The shaman (elite) keeps SHAMAN[0]-[1] off; every spec cooldown it paints
+# (spec windup; the spirit's line shows) a beast that comes alive and charges
+# once along it, then fades: a mammoth spirit ([2] tiles/s, [3] across, [4]
+# damage) or a sabre-tooth's ([5], [6], [7]), [8] tiles. While it lives no
+# fire within [9] tiles of it burns out.
+SHAMAN = (8.0, 13.0, 13.0, 1.4, 26.0, 19.0, 0.8, 18.0, 18.0, 12.0)
+# Fire in the ferns (the land's: it doesn't echo). A burning tile burns
+# FIRE[0] s (then it's scorched for good), every [1] s trying to light each
+# of its neighbours that burns (PANGAEA_FLAMMABLE: the chance); standing in
+# it burns [2] every [3] s (scaled like the land's other dangers; never the
+# fire-bearer or the shaman). Fires [4] tiles from every hero go out. A lava
+# bomb's splash lights [5] tiles at most.
+FIRE = (6.0, 0.5, 6.0, 0.3, 70.0, 10)
+PANGAEA_FLAMMABLE = {"tall ferns": 0.55, "jungle ferns": 0.55, "fern meadow": 0.2,
+                     "giant fern": 0.45, "cycad": 0.35, "trampled ferns": 0.3,
+                     "horsetails": 0.35, "twigs": 0.5}
 CHERUB = (7.0, 2.2, 3, 0.25, 14.0, 4.0, 4.0, 0.5, 5.0, 60.0, 1.5)
                              # serene: keeps this far, plinks every this many s a run of this
                              # many notes, s apart; unveiled: lunges at this speed for up to
@@ -4376,6 +4491,19 @@ BESTIARY = {
                              "cracks: clear the food and kill his guests before he eats them and grows."),
     # M30.5
     "feast_waiter": (1500, "The Host's servant, bringing him a course. Kill it before he eats it."),
+    # M31.2: Pangaea (every attack echoes 3 s later; kill it and its echoes stop)
+    "mammoth": (4000, "Herds. It trumpets you back, then the herd stampedes down shown lanes: "
+                      "stand in a gap."),
+    "sabre_tooth": (2500, "Only its eyes show in the ferns. It pounces along a shown line and "
+                          "pins you: roll free."),
+    "woolly_rhino": (2500, "Its front shrugs off shots. It charges, skids and turns slowly: "
+                           "hit its side."),
+    "cave_bear": (2500, "Rears up, swipes twice and slams down. Its roar wakes the beasts."),
+    "spear_hunter": (2000, "Spears fly fast and far, and stick where they land, fencing you in."),
+    "trapper": (2000, "Snares and pits, faintly marked: roll over them. Its bolas tangle your legs."),
+    "fire_bearer": (2000, "Its torches set the ferns alight, and it drives the beasts at you."),
+    "shaman": (4000, "Its painted beasts come alive and charge. While it lives, no fire near it "
+                     "goes out."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -4454,7 +4582,8 @@ REV1_PRICES = {
 # mushroom ~72, desert ~77, ruins ~100. Doubling a density doubles its rate.
 BIOME_ENEMY_DENSITY = {"plains": 0.35, "forest": 1.0, "desert": 1.0, "ruins": 1.3,
                        "swamp": 0.9, "mushroom": 1.1,
-                       "paradise": 1.0}     # (M29.2, mine; packs are bigger there: ZONE_TOUGH)
+                       "paradise": 1.0,     # (M29.2, mine; packs are bigger there: ZONE_TOUGH)
+                       "pangaea": 1.0}      # (M31.2, mine; each type on its own ring)
 # Scales every biome at once (0.5 = half as many enemies everywhere).
 # 2.0 on 2026-09-30 (user: "increase around 2x"), then 1.6 the same day
 # (user: "a bit too hard, dial down the difficulty a bit").
@@ -4837,6 +4966,18 @@ TAR = (0.55, 0.22, 1.6, 0.45)
 # (the players' level, the difficulty, the zone's toughness).
 LAVA_BOMB_EVERY = (9.0, 16.0, 3.0)
 LAVA_BOMB = (3, (3.0, 7.0), 1.8, 2.2, 22.0, 1.5, 4.0, 4.0)
+# Pangaea's enemies' shots (M31.2, ai/pangaea.py); each "_echo" is the same
+# shot played again by an echo, drawn faded.
+PANGAEA_SHOTS = {
+    "spear": ShellSpec(speed=20.0, damage=14, max_range=17.0, damages_terrain=False,
+                       look="spear", sound="bow"),
+    "spear_echo": ShellSpec(speed=20.0, damage=14, max_range=17.0, damages_terrain=False,
+                            look="spear_echo", sound="bow"),
+    "bolas": ShellSpec(speed=12.0, damage=8, max_range=14.0, damages_terrain=False,
+                       look="bolas", sound="bow"),
+    "bolas_echo": ShellSpec(speed=12.0, damage=8, max_range=14.0, damages_terrain=False,
+                            look="bolas_echo", sound="bow"),
+}
 # The angels' shots (M29.2, ai/paradise.py): serene, slow notes, rings and
 # orbs of light; unveiled, the seraph's spirals of blood and fire.
 # The Beloved's glitter (M30.3, ai/pandemonium.py).

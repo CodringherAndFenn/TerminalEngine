@@ -173,6 +173,11 @@ SHOT_LOOKS = {
     "lyre": (NOTE, ("'", "."), palette.SHOT_LYRE),
     "light": ("o", ("'", "."), palette.SHOT_LIGHT),
     "revel_glitter": ("*", ("+", ":"), palette.REVEL_GLITTER),   # M30.3: the Beloved's
+    # M31.2: Pangaea's hunters' (and their echoes, faded)
+    "spear": (None, (None, None), palette.SHOT_SPEAR),
+    "spear_echo": (None, (None, None), palette.SHOT_SPEAR_ECHO),
+    "bolas": ("%", ("o", "."), palette.SHOT_BOLAS),
+    "bolas_echo": ("%", ("o", "."), palette.SHOT_BOLAS_ECHO),
     "cutlery": ("Y", ("-", " "), palette.FEAST_CUTLERY),        # M30.4: the Host's spin
     "carving": ("/", ("'", " "), palette.FEAST_CUTLERY),        # M30.4: his carving set
     "shriek": ("o", (":", "."), palette.SHOT_SHRIEK),     # M29.3: a chorister's rings
@@ -334,6 +339,12 @@ def _frame(e: Effect) -> list:
         return [(math.cos(q * math.tau / 4 + (k + 0.5) * (math.tau / 4) / 9) * r * config.TILE_PX_W,
                  math.sin(q * math.tau / 4 + (k + 0.5) * (math.tau / 4) / 9) * r * config.TILE_PX_H,
                  "*" if k % 2 else "x", col) for k in range(9)]
+    if e.kind == "beast_roar":                   # (M31.2: a bear's roar, a beater's shout)
+        r = (e.size or 6.0) * (0.2 + 0.8 * p)
+        col = palette.BEAST_ROAR[min(1, int(p * 2))]
+        n = max(12, int(r * 4))
+        return [(math.cos(k * math.tau / n) * r * config.TILE_PX_W,
+                 math.sin(k * math.tau / n) * r * config.TILE_PX_H, "~", col) for k in range(n)]
     if e.kind in ("belly_slam", "beat", "wine_wave", "gold_slam", "bell", "host_toast",
                   "room_change", "belly_quake", "goblet_wave"):   # (M30.2-5: rings)
         r = e.size * p
