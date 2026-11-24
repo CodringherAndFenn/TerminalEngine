@@ -1437,6 +1437,19 @@ HUSK = TileType(
     solid=True, blocks_shots=True,
 )
 
+# M31.5: the first sea flooding the caldera (ai/first_life.py): shallows at
+# low tide (you walk them), the deep at high tide (you wade it slowly: it
+# swims), the rocks that stand above it (the lava lakes quenched among them).
+TIDE_SHALLOWS = TileType(
+    "shallows", ("  ", "  ", "_ ", " _", "  ", ", "), palette.TIDE_SHALLOW_FG, palette.TIDE_SHALLOW_BG,
+)
+TIDE_SEA = TileType(
+    "first sea", ("░ ", " ░", "  ", "▒░", "  "), palette.TIDE_SEA_FG, palette.TIDE_SEA_BG,
+)
+TIDE_ROCK = TileType(
+    "rock in the tide", ("  ", "_ ", " _", "  ", "=_"), palette.TIDE_ROCK_FG, palette.TIDE_ROCK_BG,
+)
+
 # M31.3: the tiles whose breaking the world reports (world.broke, taken by
 # systems/pangaea.step): an egg hatches, amber frees what's in it.
 REPORT_BREAKS = frozenset((EGG, GIANT_EGG, AMBER))

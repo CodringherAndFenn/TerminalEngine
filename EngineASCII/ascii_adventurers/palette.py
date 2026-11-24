@@ -1389,3 +1389,25 @@ ANCESTOR_TELL = ((255, 240, 190), (230, 150, 70))
 ANCESTOR_ROCK = (170, 150, 130)           # a rock falling from the rim
 SWARM = ((220, 230, 120), (150, 170, 70), (100, 120, 50))
 SWARM_ECHO = ((210, 222, 240), (140, 154, 180))
+
+# --- M31.5: the first life (ai/first_life.py, render/first_life.py) ---------------------
+# The first sea flooding the caldera: shallows at low tide, the deep (a warm
+# teal, glowing faintly) at high tide; the rocks standing above it.
+TIDE_SHALLOW_FG = (52, 104, 96)
+TIDE_SHALLOW_BG = (18, 38, 38)
+TIDE_SEA_FG = (56, 142, 132)
+TIDE_SEA_BG = (20, 74, 76)
+TIDE_ROCK_FG = (120, 108, 100)
+TIDE_ROCK_BG = (44, 38, 38)
+MAP_TILE.update({"shallows": (30, 66, 64), "first sea": (34, 120, 118),
+                 "rock in the tide": (70, 62, 60)})
+SHOT_SPRAY = ((220, 255, 250), ((140, 220, 210), (80, 150, 150)))
+SHOT_SPRAY_ECHO = ((190, 204, 226), ((130, 146, 172), (90, 102, 128)))
+FIRST_ARM = ((236, 120, 190), (160, 70, 140), (96, 40, 90))   # its arms: tip, body, deep
+FIRST_ARM_ECHO = ((200, 212, 236), (140, 154, 184), (96, 108, 136))
+WHIRL = ((255, 255, 255), (200, 236, 255), (150, 196, 236))
+WHIRL_ECHO = ((200, 214, 236), (130, 146, 176), (90, 100, 130))
+BUBBLE_MARK = ((255, 240, 200), (220, 150, 90))
+WAVE_FRONT = ((240, 255, 255), (150, 230, 220), (70, 150, 150))
+LIFE_GLOW = ((180, 255, 200), (90, 200, 140))     # about to evolve
+STEAM = ((230, 236, 240), (160, 170, 180))

@@ -1281,6 +1281,18 @@ ENEMIES = {
         name="the Ancestor", kind="ancestor", sprite="ancestor_mammal", scale=7,
         max_hp=12000, sight=400, biomes=(), windup=0.8, size_px=64, xp=1500,
     ),
+    # M31.5: form 2's first life, crawling out of the sea (ai/first_life.py):
+    # left alone, a blob evolves into a crawler, then into one of the
+    # island's beasts (LIFE_BEASTS). Never rolled.
+    "first_blob": EnemySpec(
+        name="first life", kind="first_blob", sprite="first_blob", scale=2,
+        max_hp=16, sight=40, biomes=(), speed=1.8, damage=0, size_px=12, xp=2,
+    ),
+    "first_crawler": EnemySpec(
+        name="first crawler", kind="first_crawler", sprite="first_crawler", scale=3,
+        max_hp=32, sight=40, biomes=(), speed=3.4, damage=10, attack_radius=1.0,
+        windup=0.35, cooldown=1.0, size_px=18, xp=4,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -1583,6 +1595,11 @@ for _key, _name, _base, _ring in GREAT_BEASTS:
         scale=_b.scale + GREAT[2], size_px=round(_b.size_px * GREAT[3]), sight=_b.sight + GREAT[4],
         xp=_b.xp * GREAT[5], biomes=(), weight=0, elite=True, group=(1, 1))
 GREAT_KEYS = frozenset(k for k, *_ in GREAT_BEASTS)
+# M31.5: what the first life evolves into last: a sabre-tooth cub (a small
+# sabre-tooth) or a raptor (LIFE_BEASTS).
+ENEMIES["sabre_cub"] = replace(ENEMIES["sabre_tooth"], name="sabre-tooth cub", scale=3,
+                               max_hp=40, damage=10, size_px=22, sight=40, xp=6, biomes=(),
+                               weight=0)
 
 # P7 enemy behaviour (ai/plains.py; design/BOSSES.md 24.5).
 HOUND_ORBIT = 3.5            # tiles a hound circles its target at...
@@ -1904,7 +1921,7 @@ AMBER_FIGHTS = {0: (("dragonfly", 3), ("bombardier_beetle", 1)), 1: (("raptor", 
 # echoes ECHO[0] s later (OCEAN.md 28), so its patterns are sparser than
 # other tier III bosses' (its own, smaller combo chances). Numbers mine.
 # Damages per hit at level 1 (x the enemy damage scaling, BOSS_DMG_MULT).
-ANCESTOR_AGES = ("the great mammal", "the tyrant lizard", "the giant insect")
+ANCESTOR_AGES = ("the great mammal", "the tyrant lizard", "the giant insect", "the first life")
 ANCESTOR_HIT_RADIUS = (2.6, 2.6, 2.0)          # by age
 ANCESTOR_COMBO = ((0.0, 0), (0.25, 1), (0.35, 1))
 # Moving like its age (always moving; only the roar and the eruption plant
@@ -1960,6 +1977,67 @@ ANCESTOR_ERUPTION = (0.8, 6, 1.6, 2.2, 26, 6.0)
 # SWEEP_CLOSE[0] s at x[1] its speed).
 ANCESTOR_SWEEP = ((140, 4.6, 30, 3.5, 0.7), (180, 6.0, 28, 4.0, 0.7), (100, 5.4, 32, 2.0, 0.6))
 ANCESTOR_SWEEP_CLOSE = (1.0, 2.0)
+
+# M31.5: THE ANCESTOR, form 2: the first life (design/OCEAN.md 28.2-28.3;
+# ai/first_life.py). At 0 the giant insect's skin splits too (a third husk)
+# and for FIRST_LIFE_RISE s it can't be hit while the caldera floods with
+# the first sea, from the rim in (the lava lakes quench into rocks); then
+# the first life, at full health (x FIRST_LIFE_HP: 14,000 of 12,000), with
+# four phases (100-75-50-25%). Numbers mine; damages per hit at level 1.
+FIRST_LIFE_HP = 14000 / 12000
+DRAIN_PER_STEP = 600               # tiles of the first sea going back a step when it falls
+FIRST_LIFE_RISE = 3.0
+FIRST_LIFE_HIT_RADIUS = 3.0
+# It swims round you, through everything (tiles/s in the deep, in the
+# shallows; circling this far off; turning at most this many rad/s).
+FIRST_LIFE_SWIM = (9.0, 5.5, 9.0, 2.2)
+# The tide (OCEAN.md 28.2): [0] s low (shallows you walk), rising [1] s
+# (the deep creeping in from the rim), [2] s high, falling [3] s; in the
+# deep you wade at x[4] (a roll still carries you its full length).
+TIDE = (8.0, 3.0, 6.0, 3.0, 0.5)
+# The rocks that stand above it: a jittered grid ([0] tiles apart, jitter
+# [1]) of round rocks [2] tiles in radius.
+TIDE_ROCKS = (13.0, 3.5, (2.0, 3.6))
+# Signature 1, life evolves (the whole form): every [0] s, [1] of the first
+# life crawl out of the sea [2] tiles from you (at most [3] alive); left
+# alone, each evolves after [4] s: a blob, then a crawler (LIFE_STAGES),
+# then one of the island's beasts (LIFE_BEASTS).
+LIFE_EVOLVE = (14.0, 2, (8.0, 16.0), 5, 8.0)
+LIFE_STAGES = ("first_blob", "first_crawler")
+LIFE_BEASTS = ("raptor", "sabre_cub")
+# Signature 2, echoes of the ages (75%): the three husks wake as echoes
+# (standing for the rest of the fight) and each replays its age's signature
+# from where it lies every [0] s, a third of that apart, the first [1] s
+# in: the mammal's stampede, the lizard's roar, the insect's swarm. Each
+# echoes once, like everything (an echo never echoes).
+HUSK_WAKE = (18.0, 2.0)
+# Signature 3, tentacles (50%): [0] arms burst out of the sea on spots
+# marked [1] s, [2]-[3] tiles from you (the burst [4] tiles round, [5]
+# damage); then each sweeps an arc of [6] degrees, [7] tiles long, in [8] s:
+# caught (unless mid-roll) you're held [9] s, squeezed [11] times for [10]
+# (roll free).
+TENTACLES = (3, 1.1, 4.0, 8.0, 1.4, 16, 110, 9.0, 0.8, 1.4, 10, 3)
+# Signature 4, the tidal wave (25%): it rears up [0] s while the wave's
+# front shows, [1] tiles before you; it rolls [2] tiles past you at [3]
+# tiles/s, hitting for [4] and carrying you along [5] s (roll through it).
+TIDAL_WAVE = (1.3, 16.0, 20.0, 12.0, 22, 0.9)
+# Its moves. Dive and surface: it sinks [0] s, then its spot swells under
+# you [1] s (following you the first [2] of them) and it bursts up: [3]
+# tiles round for [4], and a ring of [5] spray shots.
+DIVE = (0.6, 1.3, 0.6, 2.8, 26, 10)
+# Whirlpool: on you, shown [0] s, spinning [1] s, [2] tiles round: it drags
+# you round at [3] tiles/s and in at [4] (not mid-roll); in its eye ([5]
+# tiles) it hurts [6] every [7] s.
+WHIRLPOOL = (1.0, 3.5, 8.0, 5.0, 2.6, 1.6, 12, 0.5)
+# Boiling bubbles: [0] chains of [1] through where you are (from [2] tiles
+# off, a bubble every [3] tiles), shown [4] s, bursting [5] s apart down a
+# chain ([6] tiles round, [7] damage).
+BUBBLES = (3, 5, 7.0, 2.4, 0.9, 0.16, 1.6, 20)
+# Arm lash: [0] arms fanned [1] degrees at you, [2] tiles long, shown [3] s,
+# whipping out at [4] tiles/s ([5] tiles either side); caught (unless
+# mid-roll) you're dragged in at [6] tiles/s to [7] tiles from it and
+# bitten for [8] (roll free).
+ARM_LASH = (3, 36, 14.0, 0.8, 30.0, 0.8, 10.0, 4.0, 26)
 PANGAEA_FLAMMABLE = {"tall ferns": 0.55, "jungle ferns": 0.55, "fern meadow": 0.2,
                      "giant fern": 0.45, "cycad": 0.35, "trampled ferns": 0.3,
                      "horsetails": 0.35, "twigs": 0.5}
@@ -4733,6 +4811,9 @@ BESTIARY = {
     # M31.4
     "ancestor": (10000, "The beast all beasts come from: it walks back through the ages as you "
                         "hurt it. Everything it does echoes. Mind the husks it leaves."),
+    # M31.5
+    "first_blob": (800, "The first life, crawling out of the first sea. Left alone it evolves."),
+    "first_crawler": (1000, "A blob that was left alone. Kill it before it becomes a beast."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -5220,6 +5301,11 @@ PANGAEA_SHOTS = {
                            look="acid_spit", sound="orb"),
     "acid_spit_echo": ShellSpec(speed=15.0, damage=12, max_range=22.0, damages_terrain=False,
                                 look="acid_spit_echo", sound="orb"),
+    # M31.5: the first life's ring of spray as it bursts up (DIVE).
+    "spray": ShellSpec(speed=11.0, damage=12, max_range=11.0, damages_terrain=False,
+                       look="spray", sound="orb"),
+    "spray_echo": ShellSpec(speed=11.0, damage=12, max_range=11.0, damages_terrain=False,
+                            look="spray_echo", sound="orb"),
 }
 # The angels' shots (M29.2, ai/paradise.py): serene, slow notes, rings and
 # orbs of light; unveiled, the seraph's spirals of blood and fire.
@@ -6701,7 +6787,25 @@ BOSSES = {
             BossPhase(0.33, (("swarm", 3), ("roar", 2), ("stampede", 2), ("charge", 2),
                              ("spit", 2), ("eruption", 1), ("sweep", 2)), rest=1.0),
         ),
-        loot=10000, achievement="ancestor", pages=("ancestor",),
+        loot=10000, achievement="ancestor", pages=("ancestor", "first_blob", "first_crawler"),
+    ),
+    # M31.5: form 2, the first life (OCEAN.md 28.2; ai/first_life.py). Four
+    # phases, a signature added in each: life evolves (all the form: not a
+    # move), the husks wake as echoes of the ages (not a move either), then
+    # tentacles, the tidal wave. Its moves: dive and surface, whirlpool,
+    # boiling bubbles, arm lash. The reward and pages are form 1's.
+    "ancestor_first_life": BossSpec(
+        name="The First Life",
+        phases=(
+            BossPhase(1.0, (("dive", 2), ("whirlpool", 2), ("bubbles", 2), ("lash", 2)), rest=1.6),
+            BossPhase(0.75, (("dive", 2), ("whirlpool", 2), ("bubbles", 2), ("lash", 2)),
+                      rest=1.5),
+            BossPhase(0.5, (("tentacles", 3), ("dive", 2), ("whirlpool", 2), ("bubbles", 2),
+                            ("lash", 2)), rest=1.4),
+            BossPhase(0.25, (("wave", 3), ("tentacles", 2), ("dive", 2), ("whirlpool", 2),
+                             ("bubbles", 2), ("lash", 2)), rest=1.3),
+        ),
+        loot=0, achievement="ancestor", pages=(),
     ),
 }
 BOSS_KEYS = tuple(BOSSES)         # (M28.5: a stable order for the relic drop's seed)

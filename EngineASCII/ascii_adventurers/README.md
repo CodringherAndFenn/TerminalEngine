@@ -973,6 +973,18 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   at each third into a husk that's cover and echoes the old shape's attacks
   until it crumbles. Its charges, spit fans, eruptions and sweeps change
   with each age, and everything it does plays again 3 s later.
+- **Pangaea, M31.5** (`design/OCEAN.md` 34): **the first life.** At 0 the
+  giant insect's skin splits and the caldera floods with the first sea.
+  **The tide** rises and falls: at low tide you walk the shallows; at high
+  tide you wade the deep slowly while it swims freely, and only the rocks
+  and the husks stand above it. **Life crawls out of the sea** and evolves
+  if you leave it alone (a blob, a crawler, then a raptor or a sabre-tooth
+  cub); at 75% **the three husks wake** and replay the stampede, the roar
+  and the swarm on their own; at 50% **its arms rise out of the sea** far
+  from it and sweep through you; at 25% it rears up and **a great wave**
+  rolls across the caldera (roll through it). It dives and surfaces under
+  you, spins whirlpools, boils chains of bubbles and lashes its arms out to
+  drag you in -- and everything echoes.
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

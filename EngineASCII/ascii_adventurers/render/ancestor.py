@@ -8,6 +8,12 @@ herd (in ochre, its echo in ghost blue); the swarm's rivers (insects
 streaming along a drifting band; before they sting, the band they'll pour
 down, blinking); and its tells: the lanes, the roar's and the sweep's cones,
 a charge's line, a spit fan's lines, a shadow under it in the air.
+
+M31.5, form 2 (the first life): what's in the sea is render/first_life.py's;
+here its body (nothing of it while it's under the sea; flickering between
+the insect and the first life while it rises), and the husks woken as
+echoes of the ages (ghosts of their ages over their skins) with what they're
+about to do (a stampede's lanes, a roar's cone).
 """
 
 from __future__ import annotations
@@ -84,8 +90,12 @@ def draw_ancestor(text, bank, camera, b: Ancestor) -> None:
     scale = b.espec.scale
     for h in b.husks:                                  # (the old bodies, lying there)
         if not h.crumbled:
-            _figure(bank, camera, h.x, h.y, h.sprite, scale, math.cos(h.facing) < 0, "husk")
+            _figure(bank, camera, h.x, h.y, h.sprite, scale, math.cos(h.facing) < 0,
+                    "ghost" if h.awake and int(clock * 3 + h.age) % 3 else "husk")
     draw_echoes(text, bank, camera, b, scale)
+    if b.form != 1:
+        from .first_life import draw_first_life
+        draw_first_life(text, bank, camera, b, view, clock)
     batch = _Batch(text)
     for ech in b.echoes:                               # (a river coming again)
         if ech.kind == "river" and ech.t <= ech.tell:
@@ -99,12 +109,15 @@ def draw_ancestor(text, bank, camera, b: Ancestor) -> None:
             col = palette.ECHO_TELL[1] if r.look == "ghost" else palette.ANCESTOR_TELL[1]
             _lane(batch, camera, view, r.x0 + math.cos(r.angle) * ahead,
                   r.y0 + math.sin(r.angle) * ahead, r.angle, r.length - ahead, r.radius, col, col)
-    for x0, y0, a, length, half in b.lanes:            # (the spirit herd's lanes)
-        _lane(batch, camera, view, x0, y0, a, length, half,
-              _blink(clock % 0.6, palette.ANCESTOR_TELL), palette.ANCESTOR_TELL[1], shift=clock * 4)
-    if b.cone is not None:
-        x, y, a, reach, half = b.cone
-        _shape(batch, camera, "cone", x, y, a, reach, half, _blink(clock % 0.5, palette.ANCESTOR_TELL))
+    for src in [b] + [h for h in b.husks if h.awake]:  # (the spirit herd's lanes; a roar's cone)
+        for x0, y0, a, length, half in src.lanes:
+            _lane(batch, camera, view, x0, y0, a, length, half,
+                  _blink(clock % 0.6, palette.ANCESTOR_TELL), palette.ANCESTOR_TELL[1],
+                  shift=clock * 4)
+        if src.cone is not None:
+            x, y, a, reach, half = src.cone
+            _shape(batch, camera, "cone", x, y, a, reach, half,
+                   _blink(clock % 0.5, palette.ANCESTOR_TELL))
     if b.line is not None:
         x0, y0, a, length, half = b.line
         _lane(batch, camera, view, x0, y0, a, length, half,
@@ -117,9 +130,13 @@ def draw_ancestor(text, bank, camera, b: Ancestor) -> None:
         lift = 26
         batch.put_c(x, y + scale * 6, "___", palette.BOMB_SHADOW)
     batch.flush()
+    if b.submerged:                                    # (under the sea: only its ripple shows)
+        return
     sprite = b.sprite_now()
     if b.moulting > 0 and int(b.moulting * 10) % 2 == 0 and b.husks:
         sprite = b.husks[-1].sprite                    # (bursting out of the old skin)
+    if b.form == "rising" and int(b.rise_t * 6) % 2 == 0 and b.husks:
+        sprite = b.husks[-1].sprite                    # (the first life rising out of the insect)
     frame = int(b.walked * 1.2) % 2
     draw_character(bank, x, y - lift, sprite, scale, math.cos(b.facing) < 0, frame, b.hurt_flash > 0)
     if b.tell is not None and (b.planted or b.busy) and int(clock * 8) % 2:

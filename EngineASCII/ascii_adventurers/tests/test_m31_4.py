@@ -218,6 +218,12 @@ class QuestFlowTest(unittest.TestCase):
                 s.draw(self.m.text)
             self.assertEqual(b.age, age)
         self.assertEqual(len(b.husks), 2)
+        b.take_damage(b.hp + 1, s.hero, 0.0)                  # (M31.5: the first life rises)
+        self.assertEqual((b.form, q.stage), ("rising", "fight"))
+        for _ in range(round((config.FIRST_LIFE_RISE + 0.2) * 60)):
+            s._step(DT)
+            h.hp = h.max_hp
+        self.assertEqual((b.form, q.stage, len(b.husks)), (2, "fight", 3))
         b.hp = 0.0
         b.last_hit_by = s.me
         for _ in range(3):

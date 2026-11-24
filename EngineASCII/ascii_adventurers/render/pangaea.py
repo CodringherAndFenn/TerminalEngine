@@ -156,10 +156,13 @@ def _tinted(name: str, scale: int, flip: bool, frame: int, mode: str):
     return paint
 
 
-def _scale(sprite: str, own: int) -> int:
+def _scale(sprite: str, own: int, base: str = "") -> int:
     """How big a picture is drawn: a beast's own size (a shaman's spirits are
     a mammoth's and a sabre-tooth's; the Ancestor's spirit herd mammoths'
-    and rhinos')."""
+    and rhinos'). Its own picture (`base`'s) at its own size: a great beast,
+    a sabre-tooth cub (M31.5)."""
+    if base and sprite.startswith(base):
+        return own
     if sprite.startswith("mammoth"):
         return config.ENEMIES["mammoth"].scale
     if sprite.startswith("sabre_tooth"):
@@ -197,6 +200,7 @@ def draw_echoes(text, bank, camera, e, scale: int) -> None:
     """Any echoing enemy's echoes about to play, runners, hits and what it
     threw (ai/pangaea.Echoing: a beast's, the Ancestor's)."""
     batch = _Batch(text)
+    base = e.espec.sprite
     for ech in e.echoes:
         if ech.t > ech.tell:
             continue
@@ -223,11 +227,12 @@ def draw_echoes(text, bank, camera, e, scale: int) -> None:
         elif ech.kind not in ("area",):                   # (another kind: its own drawer's)
             continue
         sprite = d["sprite"] if ech.kind == "run" else ech.sprite   # (a spirit's: the spirit)
-        _figure(bank, camera, gx, gy, sprite, _scale(sprite, scale), math.cos(face) < 0, "ghost")
+        _figure(bank, camera, gx, gy, sprite, _scale(sprite, scale, base), math.cos(face) < 0,
+                "ghost")
     for r in e.runners:
         frame = int(r.done * config.WALK_STEPS_PER_TILE) % 4
-        _figure(bank, camera, r.x, r.y, r.sprite, _scale(r.sprite, scale), math.cos(r.angle) < 0,
-                r.look, frame)
+        _figure(bank, camera, r.x, r.y, r.sprite, _scale(r.sprite, scale, base),
+                math.cos(r.angle) < 0, r.look, frame)
     for (shape, x, y, angle, reach, half), left, echo in e.flashes:
         cols = palette.ECHO_TELL if echo else palette.BEAST_HIT
         _shape(batch, camera, shape, x, y, angle, reach, half, cols[0 if left > 0.12 else 1])
@@ -281,6 +286,9 @@ def draw_pangaea_tells(batch, camera, e) -> None:
         batch.put_c(x + 10, top, "^", palette.DRIVEN)
     if getattr(e, "kind_key", "") in config.GREAT_KEYS:    # (M31.4: a great beast, by name)
         batch.put_c(x, top - 24, e.espec.name.upper(), palette.GREAT_NAME)
+    grow = getattr(e, "grow_t", None)                    # (M31.5: the first life about to evolve)
+    if grow is not None and grow < 2.0 and int(grow * 8) % 2 == 0:
+        batch.put_c(x, top + 4, "*", palette.LIFE_GLOW[0 if grow < 1.0 else 1])
     if e.glanced > 0:
         for k in (-1, 1):
             gx, gy = camera.world_to_px(e.x + math.cos(e.facing) * e.hit_radius + k * 0.3,

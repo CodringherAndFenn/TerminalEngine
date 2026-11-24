@@ -240,10 +240,20 @@ class Land:
         self.burn_t: dict = {}       # id(actor) -> s to its next burn
         self.parents: set = set()    # (M31.3) the nests whose parent has been called
         self.opened: set = set()     # (M31.3) the amber outcrops already broken into
+        self.draining: list = []     # (M31.5) the first sea's tiles going back: [((tx, ty), tile)]
 
     @property
     def busy(self) -> bool:
-        return bool(self.fires or self.spears or self.traps)
+        return bool(self.fires or self.spears or self.traps or self.draining)
+
+    def drain(self, world) -> None:
+        """M31.5: the first sea draining away when the first life falls, a
+        slice a step (DRAIN_PER_STEP tiles; all at once was a ~50 ms step)."""
+        n = config.DRAIN_PER_STEP
+        for (tx, ty), tile in self.draining[:n]:
+            if world.tile_at(tx, ty) is not tiles.HUSK:
+                world.set_tile(tx, ty, tile)
+        del self.draining[:n]
 
     # --- Fire -------------------------------------------------------------------------
 
@@ -381,6 +391,8 @@ class Land:
             self._spears(world, dt)
         if self.traps:
             self._traps(scene, heroes, dt)
+        if self.draining:
+            self.drain(world)
 
 
 def land(world) -> Land:

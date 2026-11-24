@@ -17,7 +17,10 @@ body and wings, o its eyes, c/C a beetle's shell, R/r an ant's red, n/N
 earth, v/V and p a sea scorpion's plates and claws; (M31.4) the old
 painter's grey hair D, and the Ancestor's three ages: the great mammal (W
 wool with K ochre markings, d tusks, o/O its eyes), the tyrant lizard (G/g,
-d spines), the giant insect (q/Q segments, i/I wings, d its stinger).
+d spines), the giant insect (q/Q segments, i/I wings, d its stinger);
+(M31.5) the first life (v/V segments glowing q, P/p its lobes and arms, o
+its eyes, w/r its round mouth ringed with teeth), a blob of the first life
+(p/P jelly), a crawler (v/V).
 """
 
 from __future__ import annotations
@@ -464,6 +467,53 @@ PANGAEA_ART = {
         "....kkkkkkk..w",
         "...k.k.k.k",
         "..k..k..k..k",
+    ],
+    # --- M31.5: the Ancestor's second form, the first life, and what crawls out of its sea ---
+    "first_life": [
+        "........o.o.o.",
+        "........k.k.k.",
+        "..kkkkkkkkkkkk",
+        ".kPvVqVvVqVvvk",
+        "kPPVvVvVvVvVok",
+        "kPkvVqVvVqVvvk",
+        ".kPkPkPkPkkwrw",
+        "..k.k.k.k.kwrw",
+        "..........kpkk",
+        "..........kpPk",
+        "...........kpk",
+        "..........kpk.",
+        "..........kk..",
+    ],
+    "first_life_open": [
+        "........o.o.o.",
+        "........k.k.k.",
+        "..kkkkkkkkkkkk",
+        ".kPvVqVvVqVvvk",
+        "kPPVvVvVvVvVok",
+        "kPkvVqVvVqVvkk",
+        ".kPkPkPkPkkwrr",
+        "..k.k.k.k.kwrr",
+        ".........kkwwk",
+        ".........kpppp",
+        "..........kPPp",
+        "............kk",
+    ],
+    "first_blob": [
+        "....kkk...",
+        "..kkpppk..",
+        ".kpPppwpk.",
+        ".kppPpppk.",
+        "..kkpppkk.",
+        "...k...k..",
+    ],
+    "first_crawler": [
+        "..........k.",
+        "...kkkkkkk.k",
+        "..kVvVvVvVk.",
+        ".kvVvVvVvVok",
+        "..kVvVvVvVk.",
+        "...kkkkkkk.k",
+        "..k.k.k.k...",
     ],
 }
 

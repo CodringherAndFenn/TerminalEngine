@@ -85,6 +85,9 @@ DURATIONS = {
     "goblet_wave": config.U_GOBLET[1] / config.U_GOBLET[2],   # (the Host's Goblet's toast)
     "lava_burst": 0.5,      # M31.1: a lava bomb landing on Pangaea (size: its radius)
     "beast_roar": 0.6,      # M31.2: a cave bear's roar, a fire-bearer's beat (a ring; size: reach)
+    # M31.5: the first life (ai/first_life.py; size: about its radius)
+    "splash": 0.5,          # something bursting up out of the sea, a bubble bursting
+    "steam": 0.9,           # lava quenching in the first sea
 }
 
 

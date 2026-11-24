@@ -52,6 +52,9 @@ ai -- enemy behaviour.
   ancestor.py   Pangaea's boss, form 1 (M31.4): the Ancestor, the ages (the
                 great mammal, the tyrant lizard, the giant insect), moulting
                 into husks that echo; everything it does echoes
+  first_life.py Pangaea's boss, form 2 (M31.5): the first life, in the
+                flooded caldera's tide (a mix-in of the Ancestor); the first
+                life crawling out of the sea that evolves if left alone
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -87,6 +90,7 @@ from .mimic import Mimic
 from .cavalry import Cavalry
 from .feast import FeastHost
 from .ancestor import Ancestor
+from .first_life import FirstBlob, FirstCrawler
 from .hunger import Waiter
 from .horsemen import ConquestBanner, Horseman, PaleShade
 from .pandemonium import (BandDrummer, Beloved, Bouncer, Carver, Cupbearer, Dancer, Drunkard,
@@ -303,6 +307,8 @@ KINDS = {
     "giant_ant": GiantAnt,
     "sea_scorpion": SeaScorpion,
     "hatchling": Hatchling,
+    "first_blob": FirstBlob,               # M31.5: the first life's, out of the sea
+    "first_crawler": FirstCrawler,
 }
 
 

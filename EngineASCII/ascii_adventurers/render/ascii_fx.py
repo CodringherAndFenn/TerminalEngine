@@ -185,6 +185,8 @@ SHOT_LOOKS = {
     "boiling_spit_echo": ("@", ("o", "."), palette.SHOT_BOILING_SPIT_ECHO),
     "acid_spit": ("*", (".", None), palette.SHOT_ACID_SPIT),
     "acid_spit_echo": ("*", (".", None), palette.SHOT_ACID_SPIT_ECHO),
+    "spray": ("o", (":", None), palette.SHOT_SPRAY),            # M31.5: the first life's
+    "spray_echo": ("o", (":", None), palette.SHOT_SPRAY_ECHO),
     "cutlery": ("Y", ("-", " "), palette.FEAST_CUTLERY),        # M30.4: the Host's spin
     "carving": ("/", ("'", " "), palette.FEAST_CUTLERY),        # M30.4: his carving set
     "shriek": ("o", (":", "."), palette.SHOT_SHRIEK),     # M29.3: a chorister's rings
@@ -405,6 +407,19 @@ def _frame(e: Effect) -> list:
         return [(math.cos(k * math.tau / 10 + p) * r * config.TILE_PX_W,
                  math.sin(k * math.tau / 10 + p) * r * config.TILE_PX_H, glyphs[k % 2], col)
                 for k in range(10)]
+    if e.kind == "splash":                       # (M31.5: bursting up out of the first sea)
+        r = (e.size or 1.0) * (0.3 + 0.9 * p)
+        col = palette.WAVE_FRONT[min(2, int(p * 3))]
+        return [(0, -p * 14, "o" if p < 0.5 else ":", col)] + [
+            (math.cos(k * math.tau / 12) * r * config.TILE_PX_W,
+             math.sin(k * math.tau / 12) * r * config.TILE_PX_H - math.sin(p * math.pi) * 8,
+             "o" if k % 3 == 0 else ":", col) for k in range(12)]
+    if e.kind == "steam":                        # (M31.5: lava quenching in the first sea)
+        col = palette.STEAM[0 if p < 0.5 else 1]
+        r = (e.size or 1.0)
+        return [(math.cos(k * 2.4) * r * 0.6 * config.TILE_PX_W,
+                 math.sin(k * 2.4) * r * 0.4 * config.TILE_PX_H - p * (20 + k * 3),
+                 "o" if k % 2 else ":", col) for k in range(6)]
     if e.kind == "cake_fall":                    # (M30.4: the cake tower toppling)
         n = 12
         col = palette.FEAST_DISH["cake"]

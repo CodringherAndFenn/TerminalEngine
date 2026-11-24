@@ -40,8 +40,9 @@ hovers. Only the roar and the eruption plant it, with a clear tell. Like the
 Host of the Feast it glides over the caldera's floor (lava, husks and all);
 it never leaves the caldera.
 
-At 0 the ages end (M31.4: it dies; M31.5 brings form 2, the first life).
-Drawn by render/ancestor.py.
+At 0 the ages end: the giant insect's skin splits too and form 2, the first
+life, rises (M31.5: ai/first_life.FirstLife, a mix-in: one body, two forms).
+Drawn by render/ancestor.py (form 2: render/first_life.py).
 """
 
 from __future__ import annotations
@@ -55,6 +56,7 @@ from ..specs import EnemySpec
 from ..world import tiles
 from .bosses import Boss
 from .creatures import _numbered_hit
+from .first_life import FirstLife
 from .pangaea import Echo, Echoing, Runner, _wrap
 
 _TAU = math.tau
@@ -62,7 +64,8 @@ _TAU = math.tau
 # mouth open (bellowing, roaring, spitting; the insect's wings spread).
 SPRITES = (("ancestor_mammal", "ancestor_mammal_open"),
            ("ancestor_lizard", "ancestor_lizard_open"),
-           ("ancestor_insect", "ancestor_insect_open"))
+           ("ancestor_insect", "ancestor_insect_open"),
+           ("first_life", "first_life_open"))         # (M31.5: form 2)
 AGE_BANNERS = (("THE GREAT MAMMAL", ""),
                ("THE TYRANT LIZARD", "it bursts out of its skin -- the old body still remembers"),
                ("THE GIANT INSECT", "older still -- mind the husks"))
@@ -72,9 +75,13 @@ SPIRITS = ("mammoth", "woolly_rhino")        # the stampede's spirit herd
 class Husk:
     """The old body it moulted (`age`'s), lying at (x, y): cover while it
     stands (the tiles it covered in `stamped`), echoing that age's attacks
-    every MOULT[3] s; it crumbles MOULT[5] s after the moult."""
+    every MOULT[3] s; it crumbles MOULT[5] s after the moult. In form 2
+    (M31.5) the three wake as echoes of the ages (`awake`: they stand for
+    the rest of the fight), each replaying its age's signature every
+    HUSK_WAKE[0] s (what it shows meanwhile: `lanes`, `cone`)."""
 
-    __slots__ = ("age", "x", "y", "facing", "t", "cd", "k", "stamped", "crumbled")
+    __slots__ = ("age", "x", "y", "facing", "t", "cd", "k", "stamped", "crumbled", "awake",
+                 "sig_cd", "lanes", "cone", "pose")
 
     def __init__(self, age: int, x: float, y: float, facing: float) -> None:
         self.age, self.x, self.y, self.facing = age, x, y, facing
@@ -83,6 +90,11 @@ class Husk:
         self.k = 0                        # which of its attacks it echoes next
         self.stamped: dict = {}
         self.crumbled = False
+        self.awake = False
+        self.sig_cd = 0.0
+        self.lanes: list = []
+        self.cone: tuple | None = None
+        self.pose = ""
 
     @property
     def sprite(self) -> str:
@@ -128,13 +140,15 @@ class River:
         return (x - self.x0) * -sa + (y - self.y0) * ca - self.offset(t)
 
 
-class Ancestor(Echoing, Boss):
-    """The Ancestor, form 1 (see the module's docstring)."""
+class Ancestor(FirstLife, Echoing, Boss):
+    """The Ancestor: form 1 here, form 2 (the first life) in
+    ai/first_life.py (see the modules' docstrings)."""
 
     def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
                  spawn_id=None) -> None:
         super().__init__(spec, x, y, rng, spawn_id, hit_radius=config.ANCESTOR_HIT_RADIUS[0])
         self.init_echoes()
+        self._init_first_life()
         self.age = 0                      # 0 the great mammal, 1 the tyrant lizard, 2 the insect
         self.moulting = 0.0               # s left bursting out of its skin (it can't be hurt)
         self.husks: list[Husk] = []
@@ -161,7 +175,7 @@ class Ancestor(Echoing, Boss):
 
     @property
     def hittable(self) -> bool:
-        return Boss.hittable.fget(self) and self.moulting <= 0
+        return Boss.hittable.fget(self) and self.moulting <= 0 and self.form != "rising"
 
     @property
     def bar_label(self) -> str:
@@ -172,6 +186,18 @@ class Ancestor(Echoing, Boss):
 
     def sprite_now(self) -> str:
         return SPRITES[self.age][1 if self.pose in ("open", "stomp") else 0]
+
+    def _record(self, kind: str, tell, data: dict) -> None:
+        """As every echo -- but what an awake husk does (M31.5) echoes from
+        where the husk lies, its ghost the husk's age."""
+        src = self.rec_from
+        if src is None or self.replaying:
+            super()._record(kind, tell, data)
+            return
+        lo, hi = config.ECHO[1], config.ECHO[2]
+        tell = self.espec.windup if tell is None else tell
+        self.echoes.append(Echo(kind, min(hi, max(lo, tell)), src.x, src.y, src.facing,
+                                src.sprite, data))
 
     def hurt(self, base: float) -> float:
         return base * self.damage_mult
@@ -225,9 +251,14 @@ class Ancestor(Echoing, Boss):
 
     def think(self, ctx, dt: float) -> None:
         self.ctx = ctx
+        if self.form == "rising":                      # (M31.5: the caldera flooding)
+            self._rise_step(ctx, dt)
+            return
         self.play_echoes(ctx, dt)                      # (its echoes and the husks' play on)
         self._tick_husks(ctx, dt)
         self._tick_rivers(ctx, dt)
+        if self.form == 2:
+            self._first_life_step(ctx, dt)
         if self.moulting > 0:
             self.moulting = max(0.0, self.moulting - dt)
             self.time += dt
@@ -261,6 +292,8 @@ class Ancestor(Echoing, Boss):
         self.pose = ""
         self.lanes, self.cone, self.line, self.fans = [], None, None, []
         self.airborne = 0.0
+        self.submerged = False
+        self.ripple = self.wave_tell = None
 
     # --- Moving like its age -----------------------------------------------------------
 
@@ -274,6 +307,9 @@ class Ancestor(Echoing, Boss):
                                             self.hit_radius + 1.0)
 
     def _move_like_its_age(self, dt: float) -> None:
+        if self.form == 2:
+            self._swim(dt)
+            return
         t = self.drift_target()
         if t is None:
             return
@@ -284,12 +320,17 @@ class Ancestor(Echoing, Boss):
         else:
             self._flit(t, dt)
 
-    def _gallop(self, t, dt: float) -> None:
+    def _gallop(self, t, dt: float, speed: float | None = None, r: float | None = None,
+                rate: float | None = None, flip: float = 7.0) -> bool:
         """The great mammal gallops round you: a round of ANCESTOR_GALLOP[1]
-        tiles about you, turning at most [2] rad/s, now and then reversing."""
-        speed, r, rate = config.ANCESTOR_GALLOP
+        tiles about you, turning at most [2] rad/s, reversing every `flip`
+        s (True when it just has). The first life swims the same way, with
+        its own numbers."""
+        g = config.ANCESTOR_GALLOP
+        speed, r, rate = speed or g[0], r or g[1], rate or g[2]
         self.round_t += dt
-        if self.round_t >= 7.0:
+        flipped = self.round_t >= flip
+        if flipped:
             self.round_t = 0.0
             self.round_dir = -self.round_dir
         self.round_a += self.round_dir * speed / r * dt
@@ -303,6 +344,7 @@ class Ancestor(Echoing, Boss):
         v = speed * (1.3 if far > r else 1.0)
         self._glide(self.x + math.cos(self.facing) * v * dt * 4,
                     self.y + math.sin(self.facing) * v * dt * 4, v, dt)
+        return flipped
 
     def _stalk(self, t, dt: float) -> None:
         """The tyrant lizard stalks you at ANCESTOR_STALK[1] tiles, and
@@ -360,7 +402,10 @@ class Ancestor(Echoing, Boss):
     # --- The ages and the moults ----------------------------------------------------------
 
     def on_phase(self, phase: int, ctx) -> None:
-        age = min(phase, len(SPRITES) - 1)
+        if self.form != 1:
+            self._life_phase(phase, ctx)
+            return
+        age = min(phase, 2)
         if age <= self.age:
             return
         old = self.age
@@ -389,9 +434,17 @@ class Ancestor(Echoing, Boss):
         ctx.events.append("boulder")
 
     def _leave_husk(self, age: int, ctx) -> None:
-        """The old body, lying where it moulted: an oval of HUSK tiles
-        (not where a hero stands), cover until it crumbles."""
-        h = Husk(age, self.x, self.y, self.facing)
+        """The old body, lying where it moulted, cover until it crumbles."""
+        self._stamp_husk(self._new_husk(age, self.x, self.y, self.facing), ctx)
+
+    def _new_husk(self, age: int, x: float, y: float, facing: float) -> Husk:
+        h = Husk(age, x, y, facing)
+        self.husks.append(h)
+        return h
+
+    def _stamp_husk(self, h: Husk, ctx) -> None:
+        """A husk's body on the floor: an oval of HUSK tiles (not where a
+        hero stands)."""
         _, ra, rb, *_ = config.ANCESTOR_MOULT
         w = ctx.world
         if hasattr(w, "set_tile"):
@@ -408,14 +461,13 @@ class Ancestor(Echoing, Boss):
                         continue
                     h.stamped[(tx, ty)] = t
                     w.set_tile(tx, ty, tiles.HUSK)
-        self.husks.append(h)
 
     def _crumble(self, h: Husk, ctx) -> None:
         h.crumbled = True
         w = ctx.world
         if hasattr(w, "set_tile"):
             for (tx, ty), t in h.stamped.items():
-                w.set_tile(tx, ty, t)
+                w.set_tile(tx, ty, self._husk_ground((tx, ty), t))
         h.stamped = {}
         ctx.effects.append(Effect("debris", h.x, h.y))
         ctx.effects.append(Effect("toast", h.x, h.y - 2, label="THE HUSK CRUMBLES"))
@@ -424,6 +476,12 @@ class Ancestor(Echoing, Boss):
         _, _, _, every, tell, lasts = config.ANCESTOR_MOULT
         for h in self.husks:
             if h.crumbled:
+                continue
+            if h.awake:                                  # (M31.5: an echo of its age)
+                h.sig_cd -= dt
+                if h.sig_cd <= 0 and not any(run[2] is h for run in self.husk_runs):
+                    h.sig_cd = config.HUSK_WAKE[0]
+                    self.husk_runs.append([self._husk_signature(h), 0.0, h])
                 continue
             h.t += dt
             if h.t >= lasts:
@@ -461,19 +519,24 @@ class Ancestor(Echoing, Boss):
     # --- Signature 1: the stampede ----------------------------------------------------------
 
     def m_stampede(self):
-        bellow, shown, n, gap, half, speed, dmg, push, stagger = config.ANCESTOR_STAMPEDE
         t = self.target_now()
         if t is None:
             return
         self.planted = True
-        self.pose = "open"
-        self.facing = self.angle_to(t.x, t.y)
         self.tell = ("stampede",)
-        self.ctx.effects.append(Effect("beast_roar", self.x, self.y, size=6.0))
+        yield from self._stampede(self, t)
+
+    def _stampede(self, src, t):
+        """The stampede called by `src` (it, or an awake husk: M31.5)."""
+        bellow, shown, n, gap, half, speed, dmg, push, stagger = config.ANCESTOR_STAMPEDE
+        src.pose = "open"
+        src.facing = math.atan2(t.y - src.y, t.x - src.x)
+        self.ctx.effects.append(Effect("beast_roar", src.x, src.y, size=6.0))
         self.ctx.events.append("roar")
         yield self.tell_s(bellow)
-        self.pose = ""
-        self.planted = False
+        src.pose = ""
+        if src is self:
+            self.planted = False
         a = self.rng.uniform(0, _TAU)
         px, py = -math.sin(a), math.cos(a)
         phase = self.rng.uniform(-gap / 2, gap / 2)
@@ -492,10 +555,10 @@ class Ancestor(Echoing, Boss):
             s1 = min((c[0] - mx) * ux + (c[1] - my) * uy + c[2], reach)
             if s1 - s0 > 4:
                 lanes.append((mx + ux * s0, my + uy * s0, a, s1 - s0, half))
-        self.lanes = lanes
+        src.lanes = lanes
         wait = self.tell_s(shown)
         yield wait
-        self.lanes = []
+        src.lanes = []
         for k, (x0, y0, ang, length, hw) in enumerate(lanes):
             sprite = SPIRITS[k % len(SPIRITS)]
             r = Runner(x0, y0, ang, length, speed, hw, self.hurt(dmg), push, sprite, "ochre")
@@ -509,23 +572,27 @@ class Ancestor(Echoing, Boss):
     # --- Signature 2: the roar --------------------------------------------------------------
 
     def m_roar(self):
-        shown, cone, reach, fear, dmg = config.ANCESTOR_ROAR
-        n, near, marked, radius, _, spread = config.ANCESTOR_ROCKS
         t = self.target_now()
         if t is None:
             return
         self.planted = True
-        self.pose = "open"
-        self.facing = self.angle_to(t.x, t.y)
-        half = math.radians(cone) / 2
-        self.cone = (self.x, self.y, self.facing, reach, half)
         self.tell = ("roar",)
+        yield from self._roar(self, t)
+
+    def _roar(self, src, t):
+        """The roar from `src` (it, or an awake husk: M31.5)."""
+        shown, cone, reach, fear, dmg = config.ANCESTOR_ROAR
+        n, near, marked, radius, _, spread = config.ANCESTOR_ROCKS
+        src.pose = "open"
+        src.facing = math.atan2(t.y - src.y, t.x - src.x)
+        half = math.radians(cone) / 2
+        src.cone = (src.x, src.y, src.facing, reach, half)
         wait = self.tell_s(shown)
         yield wait
-        self.cone = None
-        self.area(self.ctx, "cone", self.x, self.y, self.facing, reach, half, self.hurt(dmg),
+        src.cone = None
+        self.area(self.ctx, "cone", src.x, src.y, src.facing, reach, half, self.hurt(dmg),
                   tell=wait, root=fear)
-        self.ctx.effects.append(Effect("beast_roar", self.x, self.y, size=reach))
+        self.ctx.effects.append(Effect("beast_roar", src.x, src.y, size=reach))
         self.ctx.events.append("roar")
         # (it shakes the rim: rocks fall on marked spots all over the caldera)
         spots = []
@@ -544,14 +611,18 @@ class Ancestor(Echoing, Boss):
     # --- Signature 3: the swarm -------------------------------------------------------------
 
     def m_swarm(self):
-        n, shown, stings, half, drift, sway, dmg, every = config.ANCESTOR_SWARM
         t = self.target_now()
         if t is None:
             return
-        self.pose = "open"
         self.tell = ("swarm",)
-        self.ctx.effects.append(Effect("toast", self.x, self.y - self.hit_radius - 2,
-                                       label="THE SWARM POURS OUT"))
+        yield from self._swarm(self, t)
+
+    def _swarm(self, src, t):
+        """The swarm pouring out of `src` (it, or an awake husk: M31.5)."""
+        n, shown, stings, half, drift, sway, dmg, every = config.ANCESTOR_SWARM
+        src.pose = "open"
+        top = self.hit_radius if src is self else 1.5
+        self.ctx.effects.append(Effect("toast", src.x, src.y - top - 2, label="THE SWARM POURS OUT"))
         base = self.rng.uniform(0, _TAU)
         wait = self.tell_s(shown)
         for k in range(n):
@@ -567,7 +638,7 @@ class Ancestor(Echoing, Boss):
             data["life"] = stings
             self._record("river", wait, data)
         yield 0.6
-        self.pose = ""
+        src.pose = ""
 
     def _tick_rivers(self, ctx, dt: float) -> None:
         for r in self.rivers:
@@ -733,3 +804,4 @@ class Ancestor(Echoing, Boss):
         for h in self.husks:
             if not h.crumbled:
                 self._crumble(h, ctx)
+        self._first_life_gone(ctx)
