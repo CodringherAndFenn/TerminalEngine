@@ -181,9 +181,10 @@ class Spawner:
             if biome not in spec.biomes:
                 continue
             x, y = tx + 0.5, ty + 0.5
-            if biome == "pangaea" and config.PANGAEA_RING_OF.get(key, -1) not in (-1, self._ring(x, y)):
-                continue
             if any(m.contains(x, y, config.LANDMARK_QUIET) for m in self._quiet):
+                continue
+            # (the ring after the landmarks: it's the dearer test, M31.4)
+            if biome == "pangaea" and config.PANGAEA_RING_OF.get(key, -1) not in (-1, self._ring(x, y)):
                 continue
             if spec.kind == "tower" and not self._near_wall(tx, ty):
                 continue

@@ -47,7 +47,11 @@ ai -- enemy behaviour.
                 later: mammoth, sabre-tooth, woolly rhino, cave bear; spear
                 hunter, trapper, fire-bearer, shaman; raptor, the Tyrant,
                 club-tail, pterosaur; dragonfly, bombardier beetle, ant mound
-                (and its ants), sea scorpion; hatchlings
+                (and its ants), sea scorpion; hatchlings; M31.4 the great
+                hunt's seven great beasts are these, bigger and named
+  ancestor.py   Pangaea's boss, form 1 (M31.4): the Ancestor, the ages (the
+                great mammal, the tyrant lizard, the giant insect), moulting
+                into husks that echo; everything it does echoes
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -82,6 +86,7 @@ from .shooters import Archer, Ogre, PsyFrog, Spitter, Toad, Tower, Warlock, Wisp
 from .mimic import Mimic
 from .cavalry import Cavalry
 from .feast import FeastHost
+from .ancestor import Ancestor
 from .hunger import Waiter
 from .horsemen import ConquestBanner, Horseman, PaleShade
 from .pandemonium import (BandDrummer, Beloved, Bouncer, Carver, Cupbearer, Dancer, Drunkard,
@@ -249,6 +254,7 @@ KINDS = {
     # M29.4: Paradise's boss, form 1, and its lances' pillars
     "cavalry": Cavalry,
     "host_of_feast": FeastHost,
+    "ancestor": Ancestor,                  # M31.4: Pangaea's boss, form 1
     "feast_waiter": Waiter,                # M30.5: the hunger's demon waiters
     "light_pillar": LightPillar,
     # M29.5: form 2, the Four Horsemen; Conquest's banner; the dead risen

@@ -616,9 +616,11 @@ class ForestTest(_Relic):
             self.assertEqual(config.BOSS_UNIQUES[boss], keys)
         self.assertEqual(len(uniques()), 46)                  # (M29.5: +4, M30.5: +4)
         # (the Four Horsemen are the Serene Cavalry's form 2: they drop as it;
-        # the hunger is the Host of the Feast's second form: he drops them)
+        # the hunger is the Host of the Feast's second form: he drops them;
+        # the Ancestor's relics come with its second form, M31.5)
         self.assertEqual(set(config.BOSS_UNIQUES) | {"necromancer_lich", "conquest", "war",
-                                                     "famine", "death", "host_hunger"},
+                                                     "famine", "death", "host_hunger",
+                                                     "ancestor"},
                          set(config.BOSSES))
 
     def test_shrinking_dust_shrinks_you_on_a_roll(self):

@@ -140,6 +140,10 @@ def _tinted(name: str, scale: int, flip: bool, frame: int, mode: str):
                 if mode == "ghost":
                     rgb = tuple(round(v + (u - v) * mix) for v, u in zip(c[:3], wash))
                     img.set_at((px, py), (*rgb, palette.ECHO_ALPHA))
+                elif mode == "husk":                     # (M31.4: a moulted skin, dry and dull)
+                    lum = (c.r + c.g + c.b) / 3
+                    img.set_at((px, py), (round(40 + lum * 0.5), round(32 + lum * 0.44),
+                                          round(24 + lum * 0.34), 255))
                 else:
                     lum = (c.r + c.g + c.b) / 3
                     img.set_at((px, py), (*palette.OCHRE[0 if lum < 40 else 1 if lum < 130 else 2], 235))
@@ -154,11 +158,14 @@ def _tinted(name: str, scale: int, flip: bool, frame: int, mode: str):
 
 def _scale(sprite: str, own: int) -> int:
     """How big a picture is drawn: a beast's own size (a shaman's spirits are
-    a mammoth's and a sabre-tooth's)."""
+    a mammoth's and a sabre-tooth's; the Ancestor's spirit herd mammoths'
+    and rhinos')."""
     if sprite.startswith("mammoth"):
         return config.ENEMIES["mammoth"].scale
     if sprite.startswith("sabre_tooth"):
         return config.ENEMIES["sabre_tooth"].scale
+    if sprite.startswith("woolly_rhino"):
+        return config.ENEMIES["woolly_rhino"].scale
     return own
 
 
@@ -169,13 +176,26 @@ def _figure(bank, camera, x, y, sprite, scale, left, mode, frame=0) -> None:
     bank.draw(bank.static(key, _tinted(sprite, scale, left, frame, mode), reach), px, py)
 
 
+def lob_radius(what: str) -> float:
+    """How wide what's thrown or falling lands (its ring shown meanwhile)."""
+    if what == "rock":
+        return config.ANCESTOR_ROCKS[3]
+    if what == "bomb":
+        return config.ANCESTOR_ERUPTION[3]
+    return config.FIREB[3]
+
+
 def draw_beast(text, bank, camera, e) -> None:
     """Under a Pangaean enemy's body: its echoes about to play (a ghost
     where it stood, the shape coming), its runners (echoed runs, painted
     spirits), its hits, what it threw."""
-    if not isinstance(e, Beast):
-        return
-    scale = e.espec.scale
+    if isinstance(e, Beast):
+        draw_echoes(text, bank, camera, e, e.espec.scale)
+
+
+def draw_echoes(text, bank, camera, e, scale: int) -> None:
+    """Any echoing enemy's echoes about to play, runners, hits and what it
+    threw (ai/pangaea.Echoing: a beast's, the Ancestor's)."""
     batch = _Batch(text)
     for ech in e.echoes:
         if ech.t > ech.tell:
@@ -196,7 +216,12 @@ def draw_beast(text, bank, camera, e) -> None:
                       off=side * d["radius"])
         elif ech.kind == "lob":
             gx, gy = d["x0"], d["y0"]
-            _shape(batch, camera, "circle", d["x1"], d["y1"], 0.0, config.FIREB[3], 0.0, col)
+            _shape(batch, camera, "circle", d["x1"], d["y1"], 0.0, lob_radius(d["what"]), 0.0, col)
+        elif ech.kind == "lobs":                          # (M31.4: rocks, bombs: where they'll fall)
+            for _, _, x1, y1 in d["spots"]:
+                _shape(batch, camera, "circle", x1, y1, 0.0, lob_radius(d["what"]), 0.0, col)
+        elif ech.kind not in ("area",):                   # (another kind: its own drawer's)
+            continue
         sprite = d["sprite"] if ech.kind == "run" else ech.sprite   # (a spirit's: the spirit)
         _figure(bank, camera, gx, gy, sprite, _scale(sprite, scale), math.cos(face) < 0, "ghost")
     for r in e.runners:
@@ -209,7 +234,15 @@ def draw_beast(text, bank, camera, e) -> None:
     for x0, y0, x1, y1, s, flight, what, echo in e.lobs:
         q = min(1.0, s / flight)
         cols = palette.ECHO_TELL if echo else palette.BEAST_TELL
-        _shape(batch, camera, "circle", x1, y1, 0.0, config.FIREB[3], 0.0, _blink(flight - s, cols))
+        _shape(batch, camera, "circle", x1, y1, 0.0, lob_radius(what), 0.0, _blink(flight - s, cols))
+        if what in ("rock", "bomb"):                      # (M31.4: falling out of the sky)
+            if q > 0.3:
+                f = (q - 0.3) / 0.7
+                px, py = camera.world_to_px(x1, y1)
+                col = palette.ECHO_TELL[0] if echo else (
+                    palette.ANCESTOR_ROCK if what == "rock" else palette.LAVA_BOMB_FG)
+                batch.put_c(px + (1.0 - f) * 30, py - (1.0 - f) * _FALL_PX, "@", col)
+            continue
         px, py = camera.world_to_px(x0 + (x1 - x0) * q, y0 + (y1 - y0) * q)
         batch.put_c(px, py - math.sin(q * math.pi) * 40, "*",
                     palette.ECHO_TELL[0] if echo else palette.FIRE_FLICKER[int(s * 12) % 2])
@@ -246,6 +279,8 @@ def draw_pangaea_tells(batch, camera, e) -> None:
     top = y - e.espec.scale * 9 - 10
     if e.driven > 0:
         batch.put_c(x + 10, top, "^", palette.DRIVEN)
+    if getattr(e, "kind_key", "") in config.GREAT_KEYS:    # (M31.4: a great beast, by name)
+        batch.put_c(x, top - 24, e.espec.name.upper(), palette.GREAT_NAME)
     if e.glanced > 0:
         for k in (-1, 1):
             gx, gy = camera.world_to_px(e.x + math.cos(e.facing) * e.hit_radius + k * 0.3,

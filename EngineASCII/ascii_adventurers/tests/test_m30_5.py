@@ -95,7 +95,11 @@ class CatalogTest(unittest.TestCase):
         self.assertNotIn("spill", moves[2])
         self.assertIn("spill", moves[3])
         self.assertEqual(spec.loot, 0)                      # (the reward is form 1's)
-        self.assertEqual(config.BOSS_KEYS[-1], "host_hunger")   # (the relic seeds stay put)
+        # (the relic seeds stay put: added after every boss before it; M31.4's
+        # Ancestor comes after it)
+        keys = config.BOSS_KEYS
+        self.assertEqual(keys[keys.index("host_hunger") - 1], "host_of_feast")
+        self.assertLess(keys.index("host_hunger"), keys.index("ancestor"))
 
     def test_the_waiter_and_the_pictures(self):
         self.assertIn("feast_waiter", KINDS)

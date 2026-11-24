@@ -178,6 +178,13 @@ SHOT_LOOKS = {
     "spear_echo": (None, (None, None), palette.SHOT_SPEAR_ECHO),
     "bolas": ("%", ("o", "."), palette.SHOT_BOLAS),
     "bolas_echo": ("%", ("o", "."), palette.SHOT_BOLAS_ECHO),
+    # M31.4: the Ancestor's spit fans (and their echoes)
+    "bone_shard": ("^", ("'", None), palette.SHOT_BONE_SHARD),
+    "bone_shard_echo": ("^", ("'", None), palette.SHOT_BONE_SHARD_ECHO),
+    "boiling_spit": ("@", ("o", "."), palette.SHOT_BOILING_SPIT),
+    "boiling_spit_echo": ("@", ("o", "."), palette.SHOT_BOILING_SPIT_ECHO),
+    "acid_spit": ("*", (".", None), palette.SHOT_ACID_SPIT),
+    "acid_spit_echo": ("*", (".", None), palette.SHOT_ACID_SPIT_ECHO),
     "cutlery": ("Y", ("-", " "), palette.FEAST_CUTLERY),        # M30.4: the Host's spin
     "carving": ("/", ("'", " "), palette.FEAST_CUTLERY),        # M30.4: his carving set
     "shriek": ("o", (":", "."), palette.SHOT_SHRIEK),     # M29.3: a chorister's rings

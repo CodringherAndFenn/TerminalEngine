@@ -154,7 +154,198 @@ class Runner:
         return self.y0 + math.sin(self.angle) * self.done
 
 
-class Beast(PlainsCreature):
+class Echoing:
+    """The echoes' machinery (see the module's docstring): a Pangaean enemy
+    (Beast) and the Ancestor (ai/ancestor.py, M31.4) attack through `area`,
+    `throw`/`fan`, `record_run`/`ram` and `lob`, so what they do is what
+    echoes; `play_echoes` every turn plays them. Who they can hurt:
+    `victims` (a beast tramples whatever's there; the Ancestor, heroes)."""
+
+    def init_echoes(self) -> None:
+        self.echoes: list[Echo] = []
+        self.runners: list[Runner] = []
+        self.flashes: list[list] = []     # [(shape, x, y, angle, reach, half), s left, an echo's?]
+        self.lobs: list[list] = []        # [x0, y0, x1, y1, s, of s, what, an echo's?]
+        self.replaying = False            # playing an echo now: what it does doesn't echo
+
+    def victims(self, ctx: AIContext) -> list:
+        return ctx.actors
+
+    def drop_echoes(self, ctx: AIContext) -> None:
+        """Its echoes go with it (waiting or running); what's already in the
+        air still comes down."""
+        for b in self.lobs:
+            self.landed(ctx, b[2], b[3], b[6], b[7])
+        self.lobs, self.echoes, self.runners = [], [], []
+
+    # --- Attacks (each one echoes) ----------------------------------------------------
+
+    def _record(self, kind: str, tell: float | None, data: dict) -> None:
+        if self.replaying:                      # (an echo never echoes)
+            return
+        lo, hi = config.ECHO[1], config.ECHO[2]
+        tell = self.espec.windup if tell is None else tell
+        self.echoes.append(Echo(kind, min(hi, max(lo, tell)), self.x, self.y, self.facing,
+                                self.sprite_now(), data))
+
+    def area(self, ctx: AIContext, shape: str, x: float, y: float, angle: float, reach: float,
+             half: float, damage: float, push: float = 0.0, tell: float | None = None,
+             record: bool = True, root: float = 0.0) -> list:
+        """Hit everyone whose body touches the shape (see `inside`) for
+        `damage`, pushing them `push` tiles away (along `angle` for a
+        line); `root`: a hero it catches is rooted in fear that long (the
+        Tyrant's roar). It echoes (unless `record` is False: part of
+        something that echoes as a whole, a torch's burst). Returns who it
+        hit."""
+        hit = []
+        for a in self.victims(ctx):
+            if a is self or not a.hittable or not inside(a, shape, x, y, angle, reach, half):
+                continue
+            ang = angle if shape == "line" else math.atan2(a.y - y, a.x - x)
+            if damage > 0:
+                _numbered_hit(a, damage, self, ang, ctx)
+            if push:
+                combat.push(a, ctx.world, math.cos(ang) * push, math.sin(ang) * push)
+            if root and getattr(a, "faction", "") == "player":
+                a.slowed(0.0, root)
+                ctx.effects.append(Effect("toast", a.x, a.y - 1.5, label="FEAR!"))
+            hit.append(a)
+        self.flashes.append([(shape, x, y, angle, reach, half), 0.25, self.replaying])
+        if record:
+            self._record("area", tell, dict(shape=shape, x=x, y=y, angle=angle, reach=reach,
+                                            half=half, damage=damage, push=push, root=root))
+        return hit
+
+    def throw(self, ctx: AIContext, shot: str, angle: float, on_hit=None, tell: float | None = None):
+        """A shot (config.PANGAEA_SHOTS) from where it stands; it echoes as
+        the same shot again (its "_echo" look)."""
+        shell = config.PANGAEA_SHOTS[shot]
+        p = patterns.shoot(self, self.x, self.y, angle, shell, ctx.projectiles)
+        p.on_hit = on_hit
+        ctx.events.append(shell.sound)
+        self._record("shots", tell, dict(shots=[(self.x, self.y, angle, shot, p.damage, on_hit)]))
+        return p
+
+    def fan(self, ctx: AIContext, shot: str, angles, x: float | None = None,
+            y: float | None = None, tell: float | None = None) -> list:
+        """Several shots at once (a fan) from (x, y) (where it stands): they
+        echo together, as one."""
+        shell = config.PANGAEA_SHOTS[shot]
+        x = self.x if x is None else x
+        y = self.y if y is None else y
+        out = [patterns.shoot(self, x, y, a, shell, ctx.projectiles) for a in angles]
+        if out:
+            ctx.events.append(shell.sound)
+            self._record("shots", tell, dict(shots=[(x, y, a, shot, p.damage, None)
+                                                    for a, p in zip(angles, out)]))
+        return out
+
+    def ram(self, ctx: AIContext, x: float, y: float, radius: float, damage: float, push: float,
+            angle: float, hit: set) -> list:
+        """A running body at (x, y) hits whoever it touches (each once: `hit`
+        holds who it has), pushing them along `angle`. Returns who it hit now."""
+        caught = []
+        for a in self.victims(ctx):
+            if a is self or not a.hittable or id(a) in hit or combat.drafting(a):
+                continue
+            if math.hypot(a.x - x, a.y - y) <= radius + a.hit_radius:
+                hit.add(id(a))
+                _numbered_hit(a, damage, self, angle, ctx)
+                if push:
+                    combat.push(a, ctx.world, math.cos(angle) * push, math.sin(angle) * push)
+                caught.append(a)
+        return caught
+
+    def record_run(self, x0: float, y0: float, angle: float, length: float, speed: float,
+                   radius: float, damage: float, push: float, tell: float | None = None,
+                   sprite: str | None = None) -> None:
+        """A run it made (or a spirit's it set going): it echoes as a ghost
+        running the same line."""
+        if length > 0.2:
+            self._record("run", tell, dict(x0=x0, y0=y0, angle=angle, length=length, speed=speed,
+                                           radius=radius, damage=damage, push=push,
+                                           sprite=sprite or self.sprite_now()))
+
+    def lob(self, ctx: AIContext, x1: float, y1: float, flight: float, what: str,
+            tell: float | None = None) -> None:
+        """Throw something in an arc to (x1, y1), landing `flight` s later
+        (`landed`); where it'll land shows meanwhile. It echoes."""
+        self.lobs.append([self.x, self.y, x1, y1, 0.0, flight, what, self.replaying])
+        self._record("lob", tell, dict(x0=self.x, y0=self.y, x1=x1, y1=y1, flight=flight,
+                                       what=what))
+
+    def lob_many(self, ctx: AIContext, spots, flight: float, what: str,
+                 tell: float | None = None) -> None:
+        """Several things coming down at once on `spots` [(x0, y0, x1, y1)]
+        (from (x0, y0): the Ancestor's falling rocks and lava bombs), all
+        `flight` s later; they echo together, as one."""
+        for x0, y0, x1, y1 in spots:
+            self.lobs.append([x0, y0, x1, y1, 0.0, flight, what, self.replaying])
+        if spots:
+            self._record("lobs", tell, dict(spots=list(spots), flight=flight, what=what))
+
+    def landed(self, ctx: AIContext, x: float, y: float, what: str, echo: bool) -> None:
+        """Something it threw came down at (x, y) (`echo`: an echo's)."""
+
+    # --- Playing the echoes -----------------------------------------------------------
+
+    def play_echoes(self, ctx: AIContext, dt: float) -> None:
+        for f in self.flashes:
+            f[1] -= dt
+        self.flashes = [f for f in self.flashes if f[1] > 0]
+        due = []
+        for e in self.echoes:
+            e.t -= dt
+            if e.t <= 0:
+                due.append(e)
+        if due:
+            self.echoes = [e for e in self.echoes if e.t > 0]
+            self.replaying = True
+            try:
+                for e in due:
+                    self._play(ctx, e)
+            finally:
+                self.replaying = False
+        self._run_runners(ctx, dt)
+        self._fly_lobs(ctx, dt)
+
+    def _play(self, ctx: AIContext, e: Echo) -> None:
+        d = e.data
+        if e.kind == "area":
+            self.area(ctx, **d)
+            ctx.events.append("hit")
+        elif e.kind == "shots":
+            for x, y, angle, shot, damage, on_hit in d["shots"]:
+                p = patterns.shoot(self, x, y, angle, config.PANGAEA_SHOTS[shot + "_echo"],
+                                   ctx.projectiles)
+                p.damage = damage
+                p.on_hit = on_hit
+                p.echo = True
+            ctx.events.append(config.PANGAEA_SHOTS[d["shots"][0][3]].sound)
+        elif e.kind == "run":
+            self.runners.append(Runner(d["x0"], d["y0"], d["angle"], d["length"], d["speed"],
+                                       d["radius"], d["damage"], d["push"], d["sprite"], "ghost"))
+        elif e.kind == "lob":
+            self.lobs.append([d["x0"], d["y0"], d["x1"], d["y1"], 0.0, d["flight"], d["what"], True])
+        elif e.kind == "lobs":
+            for x0, y0, x1, y1 in d["spots"]:
+                self.lobs.append([x0, y0, x1, y1, 0.0, d["flight"], d["what"], True])
+
+    def _run_runners(self, ctx: AIContext, dt: float) -> None:
+        for r in self.runners:
+            r.done = min(r.length, r.done + r.speed * dt)
+            self.ram(ctx, r.x, r.y, r.radius, r.damage, r.push, r.angle, r.hit)
+        self.runners = [r for r in self.runners if r.done < r.length]
+
+    def _fly_lobs(self, ctx: AIContext, dt: float) -> None:
+        for b in self.lobs:
+            b[4] += dt
+            if b[4] >= b[5]:
+                self.landed(ctx, b[2], b[3], b[6], b[7])
+        self.lobs = [b for b in self.lobs if b[4] < b[5]]
+
+
+class Beast(Echoing, PlainsCreature):
     """Every Pangaean enemy: its attacks echo (see the module's docstring).
     Subclasses write `turn`; they attack through `area`, `throw`,
     `record_run`/`ram` and `lob`, so what they do is what echoes."""
@@ -165,11 +356,7 @@ class Beast(PlainsCreature):
     def __init__(self, *a, **kw) -> None:
         super().__init__(*a, **kw)
         self.clock = 0.0
-        self.echoes: list[Echo] = []
-        self.runners: list[Runner] = []
-        self.flashes: list[list] = []     # [(shape, x, y, angle, reach, half), s left, an echo's?]
-        self.lobs: list[list] = []        # [x0, y0, x1, y1, s, of s, what, an echo's?]
-        self.replaying = False            # playing an echo now: what it does doesn't echo
+        self.init_echoes()
         self.driven = 0.0                 # s left driven at you by a fire-bearer
         self.glanced = 0.0                # s left showing a hit glancing off (the rhino)
 
@@ -215,44 +402,6 @@ class Beast(PlainsCreature):
             self.go(ctx, t.x, t.y, dt, self.speed * 0.8)
         self.facing = self.angle_to(t.x, t.y)
 
-    # --- Attacks (each one echoes) ----------------------------------------------------
-
-    def _record(self, kind: str, tell: float | None, data: dict) -> None:
-        if self.replaying:                      # (an echo never echoes)
-            return
-        lo, hi = config.ECHO[1], config.ECHO[2]
-        tell = self.espec.windup if tell is None else tell
-        self.echoes.append(Echo(kind, min(hi, max(lo, tell)), self.x, self.y, self.facing,
-                                self.sprite_now(), data))
-
-    def area(self, ctx: AIContext, shape: str, x: float, y: float, angle: float, reach: float,
-             half: float, damage: float, push: float = 0.0, tell: float | None = None,
-             record: bool = True, root: float = 0.0) -> list:
-        """Hit everyone whose body touches the shape (see `inside`) for
-        `damage`, pushing them `push` tiles away (along `angle` for a
-        line); `root`: a hero it catches is rooted in fear that long (the
-        Tyrant's roar). It echoes (unless `record` is False: part of
-        something that echoes as a whole, a torch's burst). Returns who it
-        hit."""
-        hit = []
-        for a in ctx.actors:
-            if a is self or not a.hittable or not inside(a, shape, x, y, angle, reach, half):
-                continue
-            ang = angle if shape == "line" else math.atan2(a.y - y, a.x - x)
-            if damage > 0:
-                _numbered_hit(a, damage, self, ang, ctx)
-            if push:
-                combat.push(a, ctx.world, math.cos(ang) * push, math.sin(ang) * push)
-            if root and getattr(a, "faction", "") == "player":
-                a.slowed(0.0, root)
-                ctx.effects.append(Effect("toast", a.x, a.y - 1.5, label="FEAR!"))
-            hit.append(a)
-        self.flashes.append([(shape, x, y, angle, reach, half), 0.25, self.replaying])
-        if record:
-            self._record("area", tell, dict(shape=shape, x=x, y=y, angle=angle, reach=reach,
-                                            half=half, damage=damage, push=push, root=root))
-        return hit
-
     # --- Moving like something big ----------------------------------------------------
 
     def turn_to(self, want: float, rate: float, dt: float) -> bool:
@@ -274,113 +423,10 @@ class Beast(PlainsCreature):
         if blocked:
             self.go(ctx, gx, gy, dt, self.speed)
 
-    def throw(self, ctx: AIContext, shot: str, angle: float, on_hit=None, tell: float | None = None):
-        """A shot (config.PANGAEA_SHOTS) from where it stands; it echoes as
-        the same shot again (its "_echo" look)."""
-        shell = config.PANGAEA_SHOTS[shot]
-        p = patterns.shoot(self, self.x, self.y, angle, shell, ctx.projectiles)
-        p.on_hit = on_hit
-        ctx.events.append(shell.sound)
-        self._record("shots", tell, dict(shots=[(self.x, self.y, angle, shot, p.damage, on_hit)]))
-        return p
-
-    def ram(self, ctx: AIContext, x: float, y: float, radius: float, damage: float, push: float,
-            angle: float, hit: set) -> list:
-        """A running body at (x, y) hits whoever it touches (each once: `hit`
-        holds who it has), pushing them along `angle`. Returns who it hit now."""
-        caught = []
-        for a in ctx.actors:
-            if a is self or not a.hittable or id(a) in hit or combat.drafting(a):
-                continue
-            if math.hypot(a.x - x, a.y - y) <= radius + a.hit_radius:
-                hit.add(id(a))
-                _numbered_hit(a, damage, self, angle, ctx)
-                if push:
-                    combat.push(a, ctx.world, math.cos(angle) * push, math.sin(angle) * push)
-                caught.append(a)
-        return caught
-
-    def record_run(self, x0: float, y0: float, angle: float, length: float, speed: float,
-                   radius: float, damage: float, push: float, tell: float | None = None,
-                   sprite: str | None = None) -> None:
-        """A run it made (or a spirit's it set going): it echoes as a ghost
-        running the same line."""
-        if length > 0.2:
-            self._record("run", tell, dict(x0=x0, y0=y0, angle=angle, length=length, speed=speed,
-                                           radius=radius, damage=damage, push=push,
-                                           sprite=sprite or self.sprite_now()))
-
-    def lob(self, ctx: AIContext, x1: float, y1: float, flight: float, what: str,
-            tell: float | None = None) -> None:
-        """Throw something in an arc to (x1, y1), landing `flight` s later
-        (`landed`); where it'll land shows meanwhile. It echoes."""
-        self.lobs.append([self.x, self.y, x1, y1, 0.0, flight, what, self.replaying])
-        self._record("lob", tell, dict(x0=self.x, y0=self.y, x1=x1, y1=y1, flight=flight,
-                                       what=what))
-
-    def landed(self, ctx: AIContext, x: float, y: float, what: str, echo: bool) -> None:
-        """Something it threw came down at (x, y) (`echo`: an echo's)."""
-
-    # --- Playing the echoes -----------------------------------------------------------
-
-    def play_echoes(self, ctx: AIContext, dt: float) -> None:
-        for f in self.flashes:
-            f[1] -= dt
-        self.flashes = [f for f in self.flashes if f[1] > 0]
-        due = []
-        for e in self.echoes:
-            e.t -= dt
-            if e.t <= 0:
-                due.append(e)
-        if due:
-            self.echoes = [e for e in self.echoes if e.t > 0]
-            self.replaying = True
-            try:
-                for e in due:
-                    self._play(ctx, e)
-            finally:
-                self.replaying = False
-        self._run_runners(ctx, dt)
-        self._fly_lobs(ctx, dt)
-
-    def _play(self, ctx: AIContext, e: Echo) -> None:
-        d = e.data
-        if e.kind == "area":
-            self.area(ctx, **d)
-            ctx.events.append("hit")
-        elif e.kind == "shots":
-            for x, y, angle, shot, damage, on_hit in d["shots"]:
-                p = patterns.shoot(self, x, y, angle, config.PANGAEA_SHOTS[shot + "_echo"],
-                                   ctx.projectiles)
-                p.damage = damage
-                p.on_hit = on_hit
-                p.echo = True
-            ctx.events.append(config.PANGAEA_SHOTS[d["shots"][0][3]].sound)
-        elif e.kind == "run":
-            self.runners.append(Runner(d["x0"], d["y0"], d["angle"], d["length"], d["speed"],
-                                       d["radius"], d["damage"], d["push"], d["sprite"], "ghost"))
-        elif e.kind == "lob":
-            self.lobs.append([d["x0"], d["y0"], d["x1"], d["y1"], 0.0, d["flight"], d["what"], True])
-
-    def _run_runners(self, ctx: AIContext, dt: float) -> None:
-        for r in self.runners:
-            r.done = min(r.length, r.done + r.speed * dt)
-            self.ram(ctx, r.x, r.y, r.radius, r.damage, r.push, r.angle, r.hit)
-        self.runners = [r for r in self.runners if r.done < r.length]
-
-    def _fly_lobs(self, ctx: AIContext, dt: float) -> None:
-        for b in self.lobs:
-            b[4] += dt
-            if b[4] >= b[5]:
-                self.landed(ctx, b[2], b[3], b[6], b[7])
-        self.lobs = [b for b in self.lobs if b[4] < b[5]]
-
     def on_death(self, ctx: AIContext) -> None:
         """Its echoes die with it (waiting or running); what's already in
         the air still comes down."""
-        for b in self.lobs:
-            self.landed(ctx, b[2], b[3], b[6], b[7])
-        self.lobs, self.echoes, self.runners = [], [], []
+        self.drop_echoes(ctx)
         ctx.effects.append(Effect("debris", self.x, self.y))
 
 

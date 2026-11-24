@@ -1368,3 +1368,24 @@ SHOT_SPEAR = ((200, 196, 186), ((170, 120, 70), (120, 84, 50)))
 SHOT_SPEAR_ECHO = ((170, 186, 210), ((120, 134, 160), (84, 96, 120)))
 SHOT_BOLAS = ((150, 130, 110), ((120, 96, 70), (90, 70, 50)))
 SHOT_BOLAS_ECHO = ((160, 176, 200), ((110, 124, 150), (80, 90, 112)))
+
+# --- M31.4: the great hunt and the Ancestor (systems/quests.py, ai/ancestor.py) ---------
+HUNT_MURAL_FG = (250, 236, 214)         # a kill, freshly painted (white over the red)
+STAR_MURAL_FG = (200, 170, 255)         # the falling star at the end of the age
+HUSK_FG = (150, 132, 104)               # the Ancestor's moulted skin, dry and split
+HUSK_BG = (62, 50, 38)
+MAP_TILE.update({"fresh painting": (250, 236, 214), "star painting": (200, 170, 255),
+                 "husk": (150, 132, 104)})
+GREAT_NAME = (255, 214, 110)            # a great beast's name over it
+# Its shots (and their echoes, faded): bone shards, boiling spit, acid.
+SHOT_BONE_SHARD = ((236, 226, 200), ((180, 170, 146), (120, 112, 96)))
+SHOT_BONE_SHARD_ECHO = ((176, 190, 214), ((124, 138, 162), (86, 98, 122)))
+SHOT_BOILING_SPIT = ((255, 230, 170), ((240, 150, 60), (170, 80, 30)))
+SHOT_BOILING_SPIT_ECHO = ((180, 196, 222), ((126, 140, 166), (88, 100, 124)))
+SHOT_ACID_SPIT = ((200, 255, 120), ((130, 210, 70), (80, 140, 40)))
+SHOT_ACID_SPIT_ECHO = ((174, 200, 214), ((120, 146, 160), (84, 104, 118)))
+# Its tells and what it leaves: spirit herds' lanes, falling rocks, the swarm.
+ANCESTOR_TELL = ((255, 240, 190), (230, 150, 70))
+ANCESTOR_ROCK = (170, 150, 130)           # a rock falling from the rim
+SWARM = ((220, 230, 120), (150, 170, 70), (100, 120, 50))
+SWARM_ECHO = ((210, 222, 240), (140, 154, 180))

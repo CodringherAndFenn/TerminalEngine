@@ -1420,6 +1420,23 @@ STUCK_SPEAR = TileType(
     solid=True,
 )
 
+# M31.4: the great hunt painted on the deepest wall of the painted caves (a
+# kill each, in fresh white and red), and the end of the age painted there
+# already (the falling star). The husk the Ancestor leaves when it moults:
+# cover for a while (it crumbles: ai/ancestor.py puts the old tiles back).
+HUNT_MURAL = TileType(
+    "fresh painting", ("M>", "<M", "m>", "<m", "/\\"), palette.HUNT_MURAL_FG, palette.CAVE_WALL_BG,
+    solid=True, blocks_shots=True,
+)
+STAR_MURAL = TileType(
+    "star painting", ("*.", ".*", "*'", "'*"), palette.STAR_MURAL_FG, palette.CAVE_WALL_BG,
+    solid=True, blocks_shots=True,
+)
+HUSK = TileType(
+    "husk", ("()", "%%", "))", "((", "%("), palette.HUSK_FG, palette.HUSK_BG,
+    solid=True, blocks_shots=True,
+)
+
 # M31.3: the tiles whose breaking the world reports (world.broke, taken by
 # systems/pangaea.step): an egg hatches, amber frees what's in it.
 REPORT_BREAKS = frozenset((EGG, GIANT_EGG, AMBER))

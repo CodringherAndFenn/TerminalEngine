@@ -262,6 +262,11 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
         from .feast import draw_feast_host
         draw_feast_host(text, bank, camera, e)
         return
+    from ..ai.ancestor import Ancestor
+    if isinstance(e, Ancestor):                # M31.4: the Ancestor
+        from .ancestor import draw_ancestor
+        draw_ancestor(text, bank, camera, e)
+        return
     if isinstance(e, Cavalry):                 # M29.4: its tells (its riders draw themselves)
         from .cavalry import draw_cavalry
         draw_cavalry(text, bank, camera, e)

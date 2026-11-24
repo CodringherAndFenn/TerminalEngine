@@ -47,6 +47,10 @@ from .paradise import _ellipse_point, _line_dist, _meander, _nearest_on, _point_
 from .rng import hash_coords
 
 _TAU = 2.0 * math.pi
+
+
+def _wrap_angle(a: float) -> float:
+    return (a + math.pi) % _TAU - math.pi
 HEART, MIDDLE, SHORE = 0, 1, 2           # the rings of ages, oldest first
 
 
@@ -146,6 +150,8 @@ class Plan:
             if math.hypot(ex - near[0], ey - near[1]) > 4:
                 self.trails.append(_meander(near, (ex, ey), 6.0, rng, 3))
         self._trail_segs = _segments(self.trails)
+        # M31.4: where the seven great beasts live (the great hunt's spots).
+        self.hunt = self._hunt_spots(layout, avoid)
         self.marks = self._build_marks(rng)
 
     # --- The rings ------------------------------------------------------------------------
@@ -225,6 +231,29 @@ class Plan:
                 return x, y
         return None
 
+    def _hunt_spots(self, layout, avoid) -> list[tuple[float, float]]:
+        """The great hunt's spots, one for each of config.GREAT_BEASTS in its
+        order (M31.4): each on its own ring, GREAT_APART from the others
+        (its own dice, so the rest of the island stays where it was); a sea
+        scorpion's is a steaming pool (the second: the residents live in
+        every SEA_SCORPION[0]th from the first)."""
+        hrng = random.Random(hash_coords(layout.seed, 0x6EA7, self.zone.salt))
+        out: list[tuple[float, float]] = []
+        for key, _, _, ring in config.GREAT_BEASTS:
+            if config.ENEMIES[key].kind == "sea_scorpion" and self.pools:
+                x, y, _ = self.pools[1 if len(self.pools) > 1 else 0]
+                out.append((x + 0.5, y + 0.5))
+                continue
+            at = (self._site(hrng, 4, 4, (ring,), avoid, apart=(out, config.GREAT_APART))
+                  or self._site(hrng, 4, 4, (ring,), avoid))
+            if at is None:                                 # (a tiny island: the ring's middle)
+                ang = hrng.uniform(0.0, _TAU)
+                ex, ey = self._at_depth(np.array([math.cos(ang)]), np.array([math.sin(ang)]),
+                                        (0.3, 0.57, 0.86)[ring])
+                at = (round(float(ex[0])), round(float(ey[0])))
+            out.append((at[0] + 0.5, at[1] + 0.5))
+        return out
+
     # --- Landmarks --------------------------------------------------------------------
 
     def _mark(self, key: str, kind: str, name: str, cells: dict, cx: float, cy: float,
@@ -252,6 +281,8 @@ class Plan:
             out.append(self._great_nest(rng))
         if self.crater is not None:
             out.append(self._crater(rng))
+        out += [self._den(x, y, k) for k, (x, y) in enumerate(self.hunt)
+                if config.ENEMIES[config.GREAT_BEASTS[k][0]].kind != "sea_scorpion"]
         out += [self._nest(x, y, rng) for x, y in self.nests]
         out += [self._bones(x, y, rng) for x, y in self.bones]
         # (a beast half-sunk in some of the tar pits)
@@ -315,12 +346,14 @@ class Plan:
                 cells[p] = tiles.LAVA_CRUST
             else:
                 cells[p] = tiles.CALDERA_FLOOR
-        # (kind "court" until M31.4 makes it the quest's lair, as with
-        # Paradise's court and Pandemonium's hall)
-        return self._mark("pangaea_caldera", "court", "The Caldera", cells, cx, cy,
+        # (the quest's lair, M31.4: the curtain parts when the seventh great
+        # beast falls, closes behind you for the fight, parts when it's won;
+        # the Ancestor sleeps in the middle)
+        return self._mark("pangaea_caldera", "lair", "The Caldera", cells, cx, cy,
                           gate=gate_tiles, radii=(a, b), floor=tiles.CALDERA_FLOOR,
                           props={"seal": tiles.FIRE_CURTAIN, "barred": True, "facing": (gx, gy),
-                                 "lakes": lakes})
+                                 "lakes": lakes},
+                          quest=self.quest, spots=[(cx, cy)])
 
     def _skeleton(self, rng: random.Random):
         """The sea-beast skeleton beached on the shore facing the main
@@ -391,10 +424,37 @@ class Plan:
                     cells[(x, y)] = tiles.CAVE_ROCK
         cells[(hx, hy)] = tiles.FIRE_PIT
         cells[(hx + 1, hy)] = tiles.FIRE_PIT
+        # M31.4: the deepest wall, left to right as you face it: the end of
+        # the age already painted in its middle (the falling star), and a
+        # stretch either side for each great beast, painted as it falls.
+        back = math.atan2(-my, -mx)
+        wall = sorted(deep, key=lambda p: _wrap_angle(math.atan2(p[1] + 0.5 - hy - 0.5,
+                                                                 p[0] + 0.5 - hx - 0.5) - back))
+        n = len(wall)
+        star = wall[n // 2 - 1:n // 2 + 1] if n >= 9 else []
+        for p in star:
+            cells[p] = tiles.STAR_MURAL
+        rest = [p for p in wall if p not in star]
+        k = len(config.GREAT_BEASTS)
+        groups = [rest[i * len(rest) // k:(i + 1) * len(rest) // k] for i in range(k)]
         npc = (hx - mx * 3 + 0.5, hy - my * 3 + 0.5)
-        return self._mark("pangaea_caves", "zone", "The Painted Caves", cells, hx + 0.5, hy + 0.5,
+        # (the quest's camp, M31.4: the old painter by the fire; its spots
+        # are where the seven great beasts live)
+        return self._mark("pangaea_caves", "camp", "The Painted Caves", cells, hx + 0.5, hy + 0.5,
                           npc=npc, props={"fire": (hx + 1.0, hy + 0.5), "deep_wall": deep,
-                                          "mouth": (mx, my)})
+                                          "mouth": (mx, my), "hunt_wall": groups,
+                                          "star_wall": star},
+                          quest=self.quest, spots=list(self.hunt))
+
+    def _den(self, x: float, y: float, k: int):
+        """Where great beast k lives (M31.4): a patch of trampled ground."""
+        ring = config.GREAT_BEASTS[k][3]
+        floor = tiles.ASH if ring == HEART else tiles.TRAMPLED_FERNS
+        tx, ty = math.floor(x), math.floor(y)
+        cells = {(tx + i, ty + j): floor for j in range(-3, 4) for i in range(-4, 5)
+                 if (i / 4.2) ** 2 + (j / 3.2) ** 2 < 1.0}
+        name = config.GREAT_BEASTS[k][1]
+        return self._mark("pangaea_den", "spot", f"{name}'s Ground", cells, x, y)
 
     def _great_nest(self, rng: random.Random):
         """The great nest: sheer crag round a flat top (a ramp up it, toward

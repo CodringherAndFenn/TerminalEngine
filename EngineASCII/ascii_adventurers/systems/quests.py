@@ -39,6 +39,9 @@ a player takes one from its giver. Stages:
              M24.3: guarded pieces to carry back to the giver -- and then,
              sewn whole, Mr. Buttons the bear, carried into the fight and
              given back to Fragile after it);
+             (M31.4: a hunt's spec may give each spot its own target --
+             Pangaea's great hunt, seven named great beasts, each kill
+             painted on the painted caves' deepest wall);
              the giver (pinned from the start since P2, round, in its
              biome's colour) tells you what to
              do; talking to them TAKES the quest (`taken`): it gets a
@@ -326,12 +329,15 @@ class Quests:
                          "destroy": "CACHE", "fell": "MARKED",
                          "sever": "NODE"}.get(s.spec.kind) \
                     or config.ENEMIES[s.spec.target].name.split()[-1].upper()
-                if every_target and not s.taken and s is not dev:
+                hide = every_target and not s.taken and s is not dev
+                if hide:
                     label = ""
-                for _, x, y in self.open_targets(s):
+                for i, x, y in self.open_targets(s):
                     if near is not None and not every_target and math.hypot(
                             x - near[0], y - near[1]) > config.QUEST_TARGET_PIN_RADIUS:
                         continue
+                    if s.spec.targets and not hide:      # (M31.4: each great beast by name)
+                        label = config.ENEMIES[self.target_of(s, i)].name.upper()
                     out.append((x, y, "target", label))
             if s.stage in ("awake", "fight", "cleared"):
                 out.append((s.lair.cx, s.lair.cy, "done" if giver_done else "lair", s.lair.name))
@@ -434,7 +440,7 @@ class Quests:
             return
         if s.spec.kind == "hunt":
             for i, (x, y) in enumerate(s.camp.spots):
-                sp.place((QUEST_SID, s.qid, i, 0), s.spec.target, x, y)
+                sp.place((QUEST_SID, s.qid, i, 0), self.target_of(s, i), x, y)
         elif s.spec.kind == "seals":
             # M29.4: serene angels standing guard round each of the seven seals.
             n = config.SEVEN_SEAL_GUARDS
@@ -456,6 +462,13 @@ class Quests:
                     sp.place((QUEST_SID, s.qid, i, k + 1), s.spec.target,
                              x + math.cos(a) * r, y + math.sin(a) * r * 0.7)
 
+    @staticmethod
+    def target_of(s: QuestState, i: int) -> str:
+        """The config.ENEMIES key living at a hunt's spot i (M31.4: the great
+        hunt has a different great beast at each)."""
+        targets = s.spec.targets
+        return targets[i % len(targets)] if targets else s.spec.target
+
     def guards_left(self, s: QuestState, i: int) -> int:
         """Collect quests: the guards still alive round bundle i."""
         sp = self.scene.spawner
@@ -473,6 +486,8 @@ class Quests:
         """An enemy died (`killer`: the player who killed it, or None)."""
         for s in self.states.values():
             if s.stage == "hunt" and s.spec.kind == "hunt" and self.is_target(s, enemy):
+                if s.spec.targets:                       # (M31.4: painted on the wall)
+                    self._paint_kill(s, enemy.spawn_id[2])
                 self._found(s, killer.hero if killer is not None else enemy)
             elif s.stage == "fight" and enemy is s.boss:
                 self._win(s, killer)
@@ -488,6 +503,9 @@ class Quests:
                 self.banner = Banner("THE MUSIC STOPS",
                                      f"the Host of the Feast wakes in a rage -- "
                                      f"{place_name(s.lair.name)} is open")
+            elif s.biome == "pangaea":               # (M31.4: the wall is full)
+                self.banner = Banner("THE LAST GREAT BEAST FALLS",
+                                     "the curtain of fire parts -- the caldera is open")
             else:
                 self.banner = Banner("SOMETHING STIRS...",
                                      f"{place_name(s.lair.name)} is marked on your map")
@@ -499,6 +517,15 @@ class Quests:
                 "toast", at.x, at.y - 1,
                 label=s.spec.goal.format(n=s.found, count=s.spec.count).upper()))
             self.scene._sounds.append("chime")
+
+    def _paint_kill(self, s: QuestState, i: int) -> None:
+        """M31.4: great beast i is painted on the painted caves' deepest wall
+        (its stretch of it, camp.props["hunt_wall"][i]), fresh white."""
+        groups = s.camp.props.get("hunt_wall") or []
+        if not 0 <= i < len(groups) or not hasattr(self.world, "set_tile"):
+            return
+        for tx, ty in groups[i]:
+            self.world.set_tile(tx, ty, tiles.HUNT_MURAL)
 
     # --- Collect quests (M23.2) ---------------------------------------------------------
 
@@ -1024,8 +1051,9 @@ class Quests:
         self.scene.enemies.append(boss)
         # A swarm boss (M22) fights with many bodies: they join the enemies.
         self.scene.enemies.extend(getattr(boss, "parts", ()))
-        where = {"pandemonium": "at the bottom of Pandemonium"}.get(
-            s.biome, f"on the summit of {s.biome.capitalize()}")      # (M30.4: a pit)
+        where = {"pandemonium": "at the bottom of Pandemonium",          # (M30.4: a pit)
+                 "pangaea": "in the heart of the volcano"}.get(            # (M31.4)
+            s.biome, f"on the summit of {s.biome.capitalize()}")
         self.banner = Banner(boss.espec.name.upper(),
                              where if s.biome in config.ZONE_PLACES else "guardian of the " + s.biome)
         self.scene.effects.append(Effect("explosion", x, y))
@@ -1216,6 +1244,8 @@ class Quests:
                 self._smash_band(i, x, y)
         if s.spec.kind == "fetch":
             s.bear = self.scene.me.index           # (dev: the bear's yours)
+        for i in range(len(s.camp.spots) if s.spec.targets else 0):
+            self._paint_kill(s, i)                 # (M31.4: the wall is full)
         if done is not None and hasattr(self.world, "set_tile"):
             for x, y in s.camp.spots:
                 self.world.set_tile(math.floor(x), math.floor(y), done)

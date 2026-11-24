@@ -1274,6 +1274,13 @@ ENEMIES = {
         max_hp=14, sight=16, biomes=(), speed=6.5,
         damage=5, attack_radius=0.9, windup=0.25, cooldown=0.8, size_px=12, xp=2,
     ),
+    # M31.4: Pangaea's boss, form 1: the ages (OCEAN.md 28.1; ai/ancestor.py).
+    # Its picture and body change with its age (the mammal, the lizard, the
+    # insect); this is the mammal's.
+    "ancestor": EnemySpec(
+        name="the Ancestor", kind="ancestor", sprite="ancestor_mammal", scale=7,
+        max_hp=12000, sight=400, biomes=(), windup=0.8, size_px=64, xp=1500,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -1550,6 +1557,32 @@ ENEMIES = {
         name="bone rib", kind="myco_part", max_hp=25, sight=400, biomes=(), size_px=12, xp=0,
     ),
 }
+
+# M31.4: the great hunt's seven great beasts (design/OCEAN.md 27): the
+# quest's targets, one at each of its spots (world/pangaea.Plan.hunt), out
+# from the start of the run. Each is one of the island's own beasts grown old
+# and huge, and named: the same behaviour (its kind's), never rolled.
+# GREAT_BEASTS: (key, name, its kind's key, the ring it lives on: 2 the
+# shore, 1 the middle, 0 the heart). GREAT: x max HP, x damage, + picture
+# scale, x body size, + sight, x xp (mine). On top: ZONE_TOUGH, like any.
+GREAT_BEASTS = (
+    ("old_tusk", "Old Tusk", "mammoth", 2),
+    ("broken_horn", "Broken Horn", "woolly_rhino", 2),
+    ("long_fang", "Long Fang", "sabre_tooth", 2),
+    ("thunderfoot", "Thunderfoot", "tyrant", 1),
+    ("stoneback", "Stoneback", "club_tail", 1),
+    ("glasswing", "Glasswing", "dragonfly", 0),
+    ("deep_claw", "Deep Claw", "sea_scorpion", 0),
+)
+GREAT = (3.0, 1.25, 1, 1.25, 4, 6)
+GREAT_APART = 50.0           # tiles between their spots, where the island has room
+for _key, _name, _base, _ring in GREAT_BEASTS:
+    _b = ENEMIES[_base]
+    ENEMIES[_key] = replace(
+        _b, name=_name, max_hp=round(_b.max_hp * GREAT[0]), damage=round(_b.damage * GREAT[1]),
+        scale=_b.scale + GREAT[2], size_px=round(_b.size_px * GREAT[3]), sight=_b.sight + GREAT[4],
+        xp=_b.xp * GREAT[5], biomes=(), weight=0, elite=True, group=(1, 1))
+GREAT_KEYS = frozenset(k for k, *_ in GREAT_BEASTS)
 
 # P7 enemy behaviour (ai/plains.py; design/BOSSES.md 24.5).
 HOUND_ORBIT = 3.5            # tiles a hound circles its target at...
@@ -1864,6 +1897,69 @@ NEST_PARENTS = {"tyrant": 1, "club_tail": 2, "raptor": 2}
 # (AMBER_FIGHTS: (key, how many)).
 AMBER_FREE = (0.4, 40.0, 0.35)
 AMBER_FIGHTS = {0: (("dragonfly", 3), ("bombardier_beetle", 1)), 1: (("raptor", 2), ("hatchling", 4))}
+
+# M31.4: THE ANCESTOR, form 1: the ages (design/OCEAN.md 28-28.1;
+# ai/ancestor.py). Its three ages, a third of its health each (100-67-33%):
+# the great mammal, the tyrant lizard, the giant insect. Everything it does
+# echoes ECHO[0] s later (OCEAN.md 28), so its patterns are sparser than
+# other tier III bosses' (its own, smaller combo chances). Numbers mine.
+# Damages per hit at level 1 (x the enemy damage scaling, BOSS_DMG_MULT).
+ANCESTOR_AGES = ("the great mammal", "the tyrant lizard", "the giant insect")
+ANCESTOR_HIT_RADIUS = (2.6, 2.6, 2.0)          # by age
+ANCESTOR_COMBO = ((0.0, 0), (0.25, 1), (0.35, 1))
+# Moving like its age (always moving; only the roar and the eruption plant
+# it): the mammal gallops round you (speed, the round's radius, turning at
+# most this many rad/s); the lizard stalks (speed, keeping this far, s
+# between lunges, a lunge's tiles, its speed: a lunge only moves it); the
+# insect flits and hovers (s hovering, flit speed, hovering this far from
+# you, a flit at most this many tiles).
+ANCESTOR_GALLOP = (7.0, 11.0, 2.4)
+ANCESTOR_STALK = (2.8, 8.0, 2.6, 4.0, 14.0)
+ANCESTOR_FLIT = (1.1, 16.0, 9.0, 10.0)
+# A moult (at each third): MOULT[0] s bursting out of its skin (it can't be
+# hurt meanwhile); the husk it leaves is cover (an oval of HUSK tiles, [1] x
+# [2] tiles either way) and echoes one of the old age's attacks every [3] s
+# (its tell [4] s), crumbling [5] s after the moult (OCEAN.md 28.3).
+ANCESTOR_MOULT = (1.4, 2.6, 1.8, 5.0, 0.8, 20.0)
+# Signature 1, the stampede (the mammal, then every age): it bellows [0] s,
+# then the lanes of a spirit herd show [1] s across the caldera ([2] lanes,
+# [3] tiles apart, a spirit [4] tiles either side of its lane's line: gaps
+# of ~1.7 tiles to stand in), and the spirits run them at [5] tiles/s for
+# [6] each (pushing [7] tiles), setting off within [8] s of each other.
+ANCESTOR_STAMPEDE = (0.9, 1.4, 7, 5.0, 1.2, 12.0, 30, 2.5, 0.35)
+ANCESTOR_STAMPEDE_REACH = 24.0     # a lane runs at most this far either side of your line
+# Signature 2, the roar (the lizard on): [0] s shown, a cone [1] degrees
+# wide, [2] tiles long; caught (unless mid-roll) you're rooted in fear [3]
+# s and hit for [4]. It shakes the rim: rocks fall onto marked spots all
+# over the caldera (ROCKS: how many, of them round each hero, s marked,
+# radius, damage, within this far of you).
+ANCESTOR_ROAR = (1.0, 100, 16.0, 1.2, 10)
+ANCESTOR_ROCKS = (12, 3, 1.6, 1.6, 26, 5.0)
+# Signature 3, the swarm (the insect): rivers of insects pour across the
+# caldera ([0] of them, shown [1] s, stinging [2] s, [3] tiles either side
+# of their line, drifting sideways at up to [4] tiles/s, swaying [5] tiles;
+# [6] a sting, every [7] s you're in one).
+ANCESTOR_SWARM = (3, 1.1, 5.0, 1.7, 1.4, 3.0, 9, 0.45)
+# The moves, each its age's way. The charge along a marked line (per age:
+# s shown, tiles, tiles/s, half-width -- at least its body's --, damage,
+# push): tusks, a lunging bite
+# (ending in a bite: BITE degrees, reach), a dive (it's in the air until it
+# comes down the line).
+ANCESTOR_CHARGE = ((0.9, 22.0, 16.0, 1.8, 34, 3.0), (0.7, 9.0, 18.0, 1.6, 30, 2.0),
+                   (0.8, 14.0, 20.0, 1.4, 26, 1.5))
+ANCESTOR_BITE = (70, 3.8)
+# Spit fan (per age: shot, how many, spread degrees, s shown): bone shards,
+# boiling spit, acid (PANGAEA_SHOTS).
+ANCESTOR_SPIT = (("bone_shard", 7, 60, 0.7), ("boiling_spit", 5, 50, 0.7),
+                 ("acid_spit", 9, 80, 0.7))
+# The eruption: it stomps [0] s and lava bombs fall onto [1] marked circles
+# round you (marked [2] s, radius [3], [4] damage, within [5] tiles of you).
+ANCESTOR_ERUPTION = (0.8, 6, 1.6, 2.2, 26, 6.0)
+# The sweep, behind it (per age: degrees, reach, damage, push, s shown): a
+# hind kick, a tail sweep, a stinger. It backs up to you first (at most
+# SWEEP_CLOSE[0] s at x[1] its speed).
+ANCESTOR_SWEEP = ((140, 4.6, 30, 3.5, 0.7), (180, 6.0, 28, 4.0, 0.7), (100, 5.4, 32, 2.0, 0.6))
+ANCESTOR_SWEEP_CLOSE = (1.0, 2.0)
 PANGAEA_FLAMMABLE = {"tall ferns": 0.55, "jungle ferns": 0.55, "fern meadow": 0.2,
                      "giant fern": 0.45, "cycad": 0.35, "trampled ferns": 0.3,
                      "horsetails": 0.35, "twigs": 0.5}
@@ -4634,6 +4730,9 @@ BESTIARY = {
     "sea_scorpion": (5000, "Lurks in the steaming pools: its claws drag you into the scalding water. "
                            "Roll free. Mind its tail spike."),
     "hatchling": (800, "Out of a broken egg. The parent is coming."),
+    # M31.4
+    "ancestor": (10000, "The beast all beasts come from: it walks back through the ages as you "
+                        "hurt it. Everything it does echoes. Mind the husks it leaves."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -4659,6 +4758,7 @@ ACHIEVEMENTS = {
     "necromancer": "defeat More than Death",
     "cavalry": "break the seven seals and defeat the Four Horsemen",
     "host_of_feast": "silence the seven bandstands and defeat the Host of the Feast",
+    "ancestor": "hunt the seven great beasts and defeat the Ancestor",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -5107,6 +5207,19 @@ PANGAEA_SHOTS = {
                        look="bolas", sound="bow"),
     "bolas_echo": ShellSpec(speed=12.0, damage=8, max_range=14.0, damages_terrain=False,
                             look="bolas_echo", sound="bow"),
+    # M31.4: the Ancestor's spit fans, an age each (and their echoes, faded).
+    "bone_shard": ShellSpec(speed=13.0, damage=16, max_range=22.0, damages_terrain=False,
+                            look="bone_shard", sound="bow"),
+    "bone_shard_echo": ShellSpec(speed=13.0, damage=16, max_range=22.0, damages_terrain=False,
+                                 look="bone_shard_echo", sound="bow"),
+    "boiling_spit": ShellSpec(speed=10.0, damage=20, max_range=18.0, damages_terrain=False,
+                              look="boiling_spit", sound="orb"),
+    "boiling_spit_echo": ShellSpec(speed=10.0, damage=20, max_range=18.0, damages_terrain=False,
+                                   look="boiling_spit_echo", sound="orb"),
+    "acid_spit": ShellSpec(speed=15.0, damage=12, max_range=22.0, damages_terrain=False,
+                           look="acid_spit", sound="orb"),
+    "acid_spit_echo": ShellSpec(speed=15.0, damage=12, max_range=22.0, damages_terrain=False,
+                                look="acid_spit_echo", sound="orb"),
 }
 # The angels' shots (M29.2, ai/paradise.py): serene, slow notes, rings and
 # orbs of light; unveiled, the seraph's spirals of blood and fire.
@@ -5919,6 +6032,38 @@ QUESTS = {
                          "I'll sit here a while. Thank you.")),
         ),
     ),
+    # M31.4: Pangaea's (OCEAN.md 27), a "hunt" with a different great beast
+    # at each spot (GREAT_BEASTS, world/pangaea.Plan.hunt). The old painter
+    # sits by the fire in the painted caves (the camp); each kill is painted
+    # on the deepest wall, and the seventh parts the caldera's curtain of
+    # fire (the lair). Her lines are mine (the doc gives what she knows).
+    "great_hunt": QuestSpec(
+        title="The Great Hunt", biome="pangaea", giver="old painter",
+        giver_sprite="old_painter", camp="zone", lair="zone", target="old_tusk", count=7,
+        boss="ancestor", goal="Great beasts {n}/{count}",
+        camp_name="THE OLD PAINTER", lair_name="THE CALDERA", kind="hunt",
+        skin="pangaea", targets=tuple(k for k, *_ in GREAT_BEASTS),
+        lines=(
+            ("offer", ("Sit. My legs gave up the hunt long ago. My hands didn't.",
+                       "Look at the wall. Seven great beasts. Older than the rest.",
+                       "Old Tusk. Broken Horn. Long Fang, in the ferns.",
+                       "Thunderfoot and Stoneback where the giants walk.",
+                       "Glasswing and Deep Claw down by the fire mountain.",
+                       "Hunt them. Each one you kill, I paint.",
+                       "When the seventh is on the wall, the fire will open.")),
+            ("progress", ("{left} great beasts still walk.",
+                          "The deep wall waits for them.")),
+            ("done", ("Seven. The wall is full.",
+                      "Do you hear it? The island remembers. Everything twice.",
+                      "That is what the echoes are. Memory.",
+                      "The fire mountain is open. The first beast waits there.",
+                      "It walks back through the ages as you wound it.",
+                      "Look at the deepest wall. I painted the end already.")),
+            ("fight", ("It is awake. Go. Strike once, it strikes twice.",)),
+            ("cleared", ("You walked to the beginning and back.",
+                         "Let me paint you on the wall. Hold still.")),
+        ),
+    ),
 }
 # Developer / test: the quest key the dev keys (F6 to its giver, F7 finish
 # it, F8 to its lair) act on; run.py --boss sets it. None: the first quest
@@ -6539,6 +6684,24 @@ BOSSES = {
                              ("quake", 2), ("bones", 2)), rest=0.7),
         ),
         loot=0, achievement="host_of_feast", pages=(),
+    ),
+    # M31.4: Pangaea's boss, form 1, the ages (OCEAN.md 28.1; ai/ancestor.py).
+    # Three ages (100-67-33%), a signature added in each: the stampede (the
+    # great mammal), the roar (the tyrant lizard), the swarm (the giant
+    # insect). Its moves, each its age's way: the charge, the spit fan, the
+    # eruption, the sweep. Sparser than other tier III bosses' (longer rests):
+    # every move echoes.
+    "ancestor": BossSpec(
+        name="The Ancestor",
+        phases=(
+            BossPhase(1.0, (("stampede", 3), ("charge", 2), ("spit", 2), ("eruption", 2),
+                            ("sweep", 2)), rest=1.2),
+            BossPhase(0.67, (("roar", 3), ("stampede", 2), ("charge", 2), ("spit", 2),
+                             ("eruption", 2), ("sweep", 2)), rest=1.1),
+            BossPhase(0.33, (("swarm", 3), ("roar", 2), ("stampede", 2), ("charge", 2),
+                             ("spit", 2), ("eruption", 1), ("sweep", 2)), rest=1.0),
+        ),
+        loot=10000, achievement="ancestor", pages=("ancestor",),
     ),
 }
 BOSS_KEYS = tuple(BOSSES)         # (M28.5: a stable order for the relic drop's seed)

@@ -327,6 +327,10 @@ class QuestSpec:
     camp_name: str = ""
     lair_name: str = ""
     skin: str = ""
+    # M31.4: a hunt whose spots each hold a different target (the great
+    # hunt's seven great beasts), in the camp's spots' order; empty: every
+    # spot holds `target`.
+    targets: tuple[str, ...] = ()
 
     def say(self, stage: str) -> tuple[str, ...]:
         return dict(self.lines).get(stage, ())

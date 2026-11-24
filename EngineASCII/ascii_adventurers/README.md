@@ -959,6 +959,20 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   into the scalding pools. Break a nest's eggs and the hatchlings swarm
   while the parent comes; break into amber and what's inside wakes, or
   there's loot.
+- **Pangaea, M31.4** (`design/OCEAN.md` 33): **the great hunt.** The old
+  painter sits by the fire in the painted caves; her wall shows seven great
+  beasts -- **Old Tusk**, **Broken Horn**, **Long Fang**, **Thunderfoot**,
+  **Stoneback**, **Glasswing** and **Deep Claw**, the island's own beasts
+  grown old and huge, named, out on their rings from the start. Each kill is
+  painted on the deepest wall (beside the falling star she painted
+  already); the seventh parts the caldera's curtain of fire, and **the
+  Ancestor** wakes: it walks back through the ages as you hurt it -- **the
+  great mammal** (spirit herds stampede down shown lanes), **the tyrant
+  lizard** (its roar roots you in fear and brings rocks down) and **the
+  giant insect** (rivers of stinging insects across the caldera) -- moulting
+  at each third into a husk that's cover and echoes the old shape's attacks
+  until it crumbles. Its charges, spit fans, eruptions and sweeps change
+  with each age, and everything it does plays again 3 s later.
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

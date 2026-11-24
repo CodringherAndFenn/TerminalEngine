@@ -124,7 +124,7 @@ class PlanTest(unittest.TestCase):
     def test_the_caldera_is_sealed_by_fire_and_faces_the_skeleton(self):
         _, _, p = pang()
         cal = next(m for m in p.marks if m.key == "pangaea_caldera")
-        self.assertEqual(cal.kind, "court")                  # (the quest's lair from M31.4)
+        self.assertEqual(cal.kind, "lair")                   # (the quest's lair, M31.4)
         self.assertGreaterEqual(len(cal.gate), config.PANGAEA_CALDERA_GATE)
         gx, gy = p.facing
         for tx, ty in cal.gate:
@@ -152,7 +152,7 @@ class PlanTest(unittest.TestCase):
                 self.assertTrue(want[m.key] <= flat, m.key)
         caves = next(m for m in p.marks if m.key == "pangaea_caves")
         self.assertTrue(caves.props["deep_wall"])
-        self.assertIs(caves.tile_at(*caves.props["deep_wall"][0]), tiles.PAINTED_WALL)
+        self.assertIs(caves.tile_at(*caves.props["hunt_wall"][0][0]), tiles.PAINTED_WALL)
         self.assertIsNotNone(caves.npc)
         self.assertIs(caves.tile_at(math.floor(caves.npc[0]), math.floor(caves.npc[1])), tiles.CAVE_FLOOR)
 
