@@ -946,7 +946,19 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   bolas), the **fire-bearer** whose torches set the ferns burning (the fire
   spreads) and who drives the beasts at you, and the **shaman** who paints
   beasts that come alive as ochre spirits and charge, and keeps the fires
-  near it burning. The middle ring and the heart are empty until M31.3.
+  near it burning.
+- **Pangaea, M31.3** (`design/OCEAN.md` 32): the middle ring's dinosaurs --
+  **raptor** packs that circle you and leap in one at a time from behind,
+  **the Tyrant** (its roar roots you in fear unless you roll; it bites
+  ahead, sweeps its tail behind, and the ground shakes as it walks), the
+  **club-tail** (hit its head: it turns its back and swings its club), the
+  **pterosaur** that carries you off and drops you -- and the heart's
+  **giant dragonflies** (each dart shown a beat ahead), **bombardier
+  beetles** (get round to the front), **ant mounds** (their ants march in a
+  column until you break it, then swarm) and **sea scorpions** that drag you
+  into the scalding pools. Break a nest's eggs and the hatchlings swarm
+  while the parent comes; break into amber and what's inside wakes, or
+  there's loot.
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

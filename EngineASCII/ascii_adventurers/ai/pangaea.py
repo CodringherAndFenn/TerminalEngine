@@ -33,6 +33,26 @@ them):
                turns slowly, so you hit it from the side or behind
   cave bear    rears up on its hind legs (the tell), swipes twice in a wide
                arc and slams down; its roar wakes the enemies near it
+M31.3, the middle ring's dinosaurs:
+  raptor       packs circle you, then one at a time go round behind you and
+               leap in, each leap marked
+  tyrant       (elite) turns slowly; its roar (a cone) roots you in fear
+               unless you roll; it bites what's ahead and sweeps its tail at
+               what's behind; the ground shakes where it walks
+  club-tail    armoured everywhere but its head; close in, it turns its back
+               and swings its club tail, throwing you
+  pterosaur    circles overhead, swoops along a shown line; caught, you're
+               carried off and dropped (into tar, onto the lava's crust...)
+The heart's giant insects and the earliest life:
+  dragonfly    darts in fast straight lines, each marked a beat ahead
+  bombardier   turns its back to you and sprays a cone of boiling spray out
+               of it: get round to its front
+  ant mound    sends giant ants marching in a column; hurt one (or let the
+               first reach you) and the column swarms you; collapse the mound
+  sea scorpion (elite) lives in a steaming pool: its claws drag you into the
+               scalding water (roll free); its tail spike stabs marked spots
+  hatchling    out of a broken egg (the nest's parent comes too:
+               systems/pangaea.py)
 The early hunters:
   spear hunter keeps its distance and throws spears, fast and far; one that
                lands on open ground sticks there a few seconds, fencing lanes
@@ -207,25 +227,52 @@ class Beast(PlainsCreature):
 
     def area(self, ctx: AIContext, shape: str, x: float, y: float, angle: float, reach: float,
              half: float, damage: float, push: float = 0.0, tell: float | None = None,
-             record: bool = True) -> list:
+             record: bool = True, root: float = 0.0) -> list:
         """Hit everyone whose body touches the shape (see `inside`) for
         `damage`, pushing them `push` tiles away (along `angle` for a
-        line). It echoes (unless `record` is False: part of something that
-        echoes as a whole, a torch's burst). Returns who it hit."""
+        line); `root`: a hero it catches is rooted in fear that long (the
+        Tyrant's roar). It echoes (unless `record` is False: part of
+        something that echoes as a whole, a torch's burst). Returns who it
+        hit."""
         hit = []
         for a in ctx.actors:
             if a is self or not a.hittable or not inside(a, shape, x, y, angle, reach, half):
                 continue
             ang = angle if shape == "line" else math.atan2(a.y - y, a.x - x)
-            _numbered_hit(a, damage, self, ang, ctx)
+            if damage > 0:
+                _numbered_hit(a, damage, self, ang, ctx)
             if push:
                 combat.push(a, ctx.world, math.cos(ang) * push, math.sin(ang) * push)
+            if root and getattr(a, "faction", "") == "player":
+                a.slowed(0.0, root)
+                ctx.effects.append(Effect("toast", a.x, a.y - 1.5, label="FEAR!"))
             hit.append(a)
         self.flashes.append([(shape, x, y, angle, reach, half), 0.25, self.replaying])
         if record:
             self._record("area", tell, dict(shape=shape, x=x, y=y, angle=angle, reach=reach,
-                                            half=half, damage=damage, push=push))
+                                            half=half, damage=damage, push=push, root=root))
         return hit
+
+    # --- Moving like something big ----------------------------------------------------
+
+    def turn_to(self, want: float, rate: float, dt: float) -> bool:
+        """Turn toward `want` at most `rate` rad/s; True once facing it."""
+        diff = _wrap(want - self.facing)
+        step = rate * dt
+        self.facing = _wrap(self.facing + max(-step, min(step, diff)))
+        return abs(diff) <= step
+
+    def stride(self, ctx: AIContext, gx: float, gy: float, rate: float, dt: float) -> None:
+        """A big body walking at (gx, gy): it turns (at most `rate` rad/s)
+        and walks on only once it faces roughly that way; round what's in
+        its way like anyone."""
+        if not self.turn_to(math.atan2(gy - self.y, gx - self.x), rate, dt) \
+                and abs(_wrap(math.atan2(gy - self.y, gx - self.x) - self.facing)) > 0.8:
+            return
+        face = self.facing
+        moved, blocked = _dash(self, ctx, face, self.speed, dt)
+        if blocked:
+            self.go(ctx, gx, gy, dt, self.speed)
 
     def throw(self, ctx: AIContext, shot: str, angle: float, on_hit=None, tell: float | None = None):
         """A shot (config.PANGAEA_SHOTS) from where it stands; it echoes as
@@ -977,3 +1024,652 @@ class Shaman(Hunter):
             a = self.angle_to(t.x, t.y) + side * math.pi / 2
             self.spot = (self.x + math.cos(a) * 1.8, self.y + math.sin(a) * 1.8)
             self.aim = math.atan2(t.y - self.spot[1], t.x - self.spot[0])
+
+
+# --- M31.3: the middle ring's dinosaurs ---------------------------------------------------------
+
+
+class Raptor(Beast):
+    """In packs (RAPTOR): they circle you, and one at a time goes round
+    behind you, crouches (its line shows) and leaps through you."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "circle"         # circle | set | crouch | leap | land
+        self.timer = 0.0
+        self.aim = 0.0
+        self.length = 0.0
+        self.ran = 0.0
+        self.run_from = (self.x, self.y)
+        self.bitten: set[int] = set()
+        self.around = self.rng.uniform(0, math.tau)
+        self.way = self.rng.choice((-1, 1))
+        self.leap_cd = self.rng.uniform(0.5, 2.0)
+        self.leap_wait = 0.0
+
+    def sprite_now(self) -> str:
+        return "raptor_leap" if self.state in ("crouch", "leap") else "raptor"
+
+    def _my_turn(self, ctx: AIContext) -> bool:
+        if self.leap_cd > 0 or self.leap_wait > 0:
+            return False
+        return not any(isinstance(r, Raptor) and r is not self and r.alive and r.target is self.target
+                       and r.state in ("set", "crouch", "leap") for r in ctx.actors)
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        radius, slow, speed, past, gap, wait = config.RAPTOR
+        self.leap_cd = max(0.0, self.leap_cd - dt)
+        self.leap_wait = max(0.0, self.leap_wait - dt)
+        t = self.target
+        if self.state == "crouch":
+            self.timer -= dt
+            self.tell = max(self.timer, 1e-3)
+            self.facing = self.aim
+            if self.timer <= 0:
+                self.tell = 0.0
+                self.state, self.ran, self.run_from, self.bitten = "leap", 0.0, (self.x, self.y), set()
+            return
+        if self.state == "leap":
+            self.facing = self.aim
+            moved, blocked = _dash(self, ctx, self.aim, speed, dt)
+            self.ran += moved
+            self.ram(ctx, self.x, self.y, self.hit_radius, self.hurt(self.espec.damage), 0.5,
+                     self.aim, self.bitten)
+            if blocked or self.ran >= self.length:
+                self.record_run(*self.run_from, self.aim, self.ran, speed, self.hit_radius,
+                                self.hurt(self.espec.damage), 0.5, sprite="raptor_leap")
+                self.state, self.timer = "land", 0.5
+                self.leap_cd = self.rng.uniform(*wait)
+                for r in ctx.actors:
+                    if isinstance(r, Raptor) and r is not self and self.dist_to(r) <= 20:
+                        r.leap_wait = max(r.leap_wait, gap)
+            return
+        if self.state == "land":
+            self.timer -= dt
+            if self.timer <= 0:
+                self.state = "circle"
+            return
+        if t is None or not self.sees_target:
+            self.state = "circle"
+            self.roam(ctx, dt)
+            return
+        if self.state == "set":
+            self.timer -= dt
+            back = getattr(t, "aim_angle", getattr(t, "facing", 0.0)) + math.pi
+            gx, gy = t.x + math.cos(back) * radius * 0.8, t.y + math.sin(back) * radius * 0.8
+            self.go(ctx, gx, gy, dt, self.speed)
+            if math.hypot(gx - self.x, gy - self.y) < 1.5 or self.timer <= 0:
+                self.state, self.timer = "crouch", self.espec.windup
+                self.aim = self.facing = self.angle_to(t.x, t.y)
+                self.length = self.dist_to(t) + past
+            return
+        if self._my_turn(ctx):
+            self.state, self.timer = "set", 1.5
+            return
+        self.around += self.way * speed * slow / radius * dt * 0.4
+        gx, gy = t.x + math.cos(self.around) * radius, t.y + math.sin(self.around) * radius
+        self.go(ctx, gx, gy, dt, self.speed * slow)
+        self.facing = self.angle_to(t.x, t.y)
+
+
+class Tyrant(Beast):
+    """Elite (TYRANT). A huge king lizard that turns slowly: it roars (a
+    cone that roots you in fear unless you roll), bites what's ahead and
+    sweeps its tail at what's behind. The ground shakes where it walks."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "roam"           # roam | roar | bite | tail
+        self.timer = 0.0
+        self.roar_cd = self.rng.uniform(2.0, config.TYRANT[1])
+        self.stepped = 0.0
+
+    def sprite_now(self) -> str:
+        return "tyrant_roar" if self.state in ("roar", "bite") else "tyrant"
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        (rate, roar_every, roar_windup, cone, reach, roar_x, fear, bite, tail, tail_reach,
+         throw, tail_windup, every, shake, stumble, secs) = config.TYRANT
+        self.roar_cd = max(0.0, self.roar_cd - dt)
+        t = self.target
+        if self.state in ("roar", "bite", "tail"):
+            self.timer -= dt
+            self.tell = max(self.timer, 1e-3)
+            if t is not None and self.state != "tail" and self.timer > 0.3:
+                self.turn_to(self.angle_to(t.x, t.y), rate * 0.5, dt)
+            if self.timer > 0:
+                return
+            self.tell = 0.0
+            if self.state == "roar":
+                self.area(ctx, "cone", self.x, self.y, self.facing, reach, math.radians(cone) / 2,
+                          self.hurt(self.espec.damage * roar_x), 0.0, tell=roar_windup, root=fear)
+                ctx.effects.append(Effect("scream", self.x, self.y, self.facing, size=reach))
+                ctx.events.append("hex")
+            elif self.state == "bite":
+                self.area(ctx, "cone", self.x, self.y, self.facing, self.espec.attack_radius,
+                          math.radians(bite) / 2, self.hurt(self.espec.damage), 1.0)
+                ctx.events.append("hit")
+            else:
+                self.area(ctx, "cone", self.x, self.y, self.facing + math.pi, tail_reach,
+                          math.radians(tail) / 2, self.hurt(self.espec.damage * 0.8), throw,
+                          tell=tail_windup)
+                ctx.events.append(combat.BREAK)
+            self.state, self.cooldown = "roam", self.espec.cooldown
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            self._steps(ctx, every, shake, stumble, secs)
+            return
+        d = self.dist_to(t)
+        diff = abs(_wrap(self.angle_to(t.x, t.y) - self.facing))
+        if self.roar_cd <= 0 and d <= reach * 0.9 and diff < 0.6:
+            self.state, self.timer, self.roar_cd = "roar", roar_windup, roar_every
+            return
+        if self.cooldown <= 0 and d <= self.espec.attack_radius + t.hit_radius \
+                and diff < math.radians(bite) / 2 + 0.2:
+            self.state, self.timer = "bite", self.espec.windup
+            return
+        if self.cooldown <= 0 and d <= tail_reach + t.hit_radius \
+                and diff > math.pi - math.radians(tail) / 2:
+            self.state, self.timer = "tail", tail_windup
+            return
+        if d > self.espec.attack_radius * 0.7:
+            self.stride(ctx, t.x, t.y, rate, dt)
+        else:
+            self.turn_to(self.angle_to(t.x, t.y), rate, dt)
+        self._steps(ctx, every, shake, stumble, secs)
+
+    def _steps(self, ctx: AIContext, every, shake, stumble, secs) -> None:
+        """Every TYRANT[12] tiles it walks the ground shakes: heroes near
+        stumble (no harm, so it doesn't echo)."""
+        self.stepped += self._moved
+        if self.stepped < every:
+            return
+        self.stepped = 0.0
+        ctx.effects.append(Effect("beast_roar", self.x, self.y + self.hit_radius * 0.6, size=2.0))
+        for h in ctx.players:
+            if h.alive and math.hypot(h.x - self.x, h.y - self.y) <= shake:
+                h.slowed(stumble, secs)
+
+
+class ClubTail(Beast):
+    """Armoured everywhere but its head (CLUB). From afar it comes head
+    first; close in it turns its back to you and swings its club tail."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "roam"           # roam | swing
+        self.timer = 0.0
+
+    def take_damage(self, amount, source, from_angle):
+        if from_angle is not None:
+            came_from = from_angle + math.pi
+            if abs(_wrap(came_from - self.facing)) >= math.radians(config.CLUB[0]):
+                amount *= config.CLUB[1]
+                self.glanced = 0.25
+        return super().take_damage(amount, source, from_angle)
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        _, _, rate, close, cone, throw = config.CLUB
+        t = self.target
+        if self.state == "swing":
+            self.timer -= dt
+            self.tell = max(self.timer, 1e-3)
+            if t is not None:
+                self.turn_to(self.angle_to(t.x, t.y) + math.pi, rate * 0.4, dt)
+            if self.timer <= 0:
+                self.tell = 0.0
+                self.area(ctx, "cone", self.x, self.y, self.facing + math.pi, self.espec.attack_radius,
+                          math.radians(cone) / 2, self.hurt(self.espec.damage), throw)
+                ctx.events.append(combat.BREAK)
+                self.state, self.cooldown = "roam", self.espec.cooldown
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        d = self.dist_to(t)
+        if d > close:
+            self.stride(ctx, t.x, t.y, rate, dt)
+            return
+        self.turn_to(self.angle_to(t.x, t.y) + math.pi, rate, dt)
+        behind = abs(_wrap(self.angle_to(t.x, t.y) - self.facing - math.pi))
+        reach = self.espec.attack_radius + t.hit_radius
+        if behind < 0.5 and d > reach - 0.4:              # (backing into you, tail first)
+            _dash(self, ctx, self.facing + math.pi, self.speed * 0.6, dt)
+        if self.cooldown <= 0 and behind < math.radians(cone) / 2 and d <= reach:
+            self.state, self.timer = "swing", self.espec.windup
+
+
+class Pterosaur(Beast):
+    """It flies (PTERO): circles you, swoops along a shown line, and carries
+    off whoever it catches, dropping them a few tiles on."""
+
+    flies = True
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "circle"         # circle | mark | swoop | carry | climb
+        self.timer = 0.0
+        self.aim = 0.0
+        self.length = 0.0
+        self.ran = 0.0
+        self.run_from = (self.x, self.y)
+        self.caught = None
+        self.carried = 0.0
+        self.struck: set[int] = set()
+        self.around = self.rng.uniform(0, math.tau)
+
+    def can_see(self, world, other) -> bool:          # (up in the air)
+        return math.hypot(other.x - self.x, other.y - self.y) <= self.espec.sight
+
+    def sprite_now(self) -> str:
+        return "pterosaur_swoop" if self.state in ("swoop", "carry") else "pterosaur"
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        radius, speed, past, carry, carry_speed, drop_x, climb = config.PTERO
+        t = self.target
+        if self.state == "mark":
+            self.timer -= dt
+            self.tell = max(self.timer, 1e-3)
+            self.facing = self.aim
+            if self.timer <= 0:
+                self.tell = 0.0
+                self.state, self.ran, self.run_from, self.struck = "swoop", 0.0, (self.x, self.y), set()
+            return
+        if self.state == "swoop":
+            step = speed * dt
+            self.x += math.cos(self.aim) * step
+            self.y += math.sin(self.aim) * step
+            self.ran += step
+            self._moved = step
+            self.walked += step
+            for a in self.ram(ctx, self.x, self.y, self.hit_radius, self.hurt(self.espec.damage), 0.0,
+                              self.aim, self.struck):
+                if self.caught is None and getattr(a, "faction", "") == "player" and a.alive:
+                    self.caught, self.carried = a, 0.0
+            if self.caught is not None or self.ran >= self.length:
+                self.record_run(*self.run_from, self.aim, self.ran, speed, self.hit_radius,
+                                self.hurt(self.espec.damage), 0.0, sprite="pterosaur_swoop")
+                self.state = "carry" if self.caught is not None else "climb"
+                self.timer = climb
+            return
+        if self.state == "carry":
+            h = self.caught
+            step = carry_speed * dt
+            self.x += math.cos(self.aim) * step
+            self.y += math.sin(self.aim) * step
+            self.carried += step
+            if h is None or not h.alive:
+                self.caught, self.state = None, "climb"
+                return
+            h.x, h.y = self.x, self.y + 0.3
+            h.slowed(0.0, 0.2)
+            if self.carried >= carry:
+                self._drop(ctx, h, drop_x)
+            return
+        if self.state == "climb":
+            self.timer -= dt
+            a = self.aim
+            self.go(ctx, self.x + math.cos(a) * 4, self.y + math.sin(a) * 4, dt, self.speed)
+            if self.timer <= 0:
+                self.state, self.cooldown = "circle", self.espec.cooldown
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        self.around += self.speed / radius * dt * 0.6
+        gx, gy = t.x + math.cos(self.around) * radius, t.y + math.sin(self.around) * radius
+        self.go(ctx, gx, gy, dt, self.speed)
+        if self.cooldown <= 0:
+            self.state, self.timer = "mark", self.espec.windup
+            self.aim = self.facing = self.angle_to(t.x, t.y)
+            self.length = self.dist_to(t) + past
+
+    def _drop(self, ctx: AIContext, h, drop_x: float) -> None:
+        """Let go: the hero lands at the nearest spot back along the way it
+        was carried where they can stand (tar, the lava's crust: anything
+        they can stand on)."""
+        from ..systems.collision import WaterWalk, hull_hits_solid
+        world = WaterWalk(ctx.world) if getattr(h, "water_walk", False) else ctx.world
+        x, y = h.x, h.y
+        for k in range(16):
+            if not hull_hits_solid(world, x, y, 0.0, h.half, h.half):
+                break
+            x -= math.cos(self.aim) * 0.25
+            y -= math.sin(self.aim) * 0.25
+        h.x, h.y = x, y
+        _numbered_hit(h, self.hurt(self.espec.damage * drop_x), self, self.aim, ctx)
+        ctx.effects.append(Effect("toast", h.x, h.y - 1.5, label="DROPPED!"))
+        self.caught, self.state, self.timer = None, "climb", config.PTERO[6]
+
+
+# --- M31.3: the heart's insects and the earliest life ------------------------------------------
+
+
+class Dragonfly(Beast):
+    """It flies (DRAGONFLY): hovers while its next dart's line shows, then
+    darts straight along it, turning sharply between darts."""
+
+    flies = True
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "hover"          # hover | dart
+        self.timer = self.rng.uniform(0.2, 1.0)
+        self.aim = 0.0
+        self.ran = 0.0
+        self.run_from = (self.x, self.y)
+        self.stung: set[int] = set()
+        self.aimed = False
+
+    def can_see(self, world, other) -> bool:
+        return math.hypot(other.x - self.x, other.y - self.y) <= self.espec.sight
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        length, speed, off = config.DRAGONFLY
+        t = self.target
+        if self.state == "dart":
+            step = speed * dt
+            self.x += math.cos(self.aim) * step
+            self.y += math.sin(self.aim) * step
+            self.ran += step
+            self._moved = step
+            self.walked += step
+            self.ram(ctx, self.x, self.y, self.hit_radius, self.hurt(self.espec.damage), 0.0,
+                     self.aim, self.stung)
+            if self.ran >= length:
+                self.record_run(*self.run_from, self.aim, self.ran, speed, self.hit_radius,
+                                self.hurt(self.espec.damage), 0.0)
+                self.state, self.timer, self.aimed = "hover", self.espec.windup, False
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        if not self.aimed:                        # (where the next dart goes: shown a beat ahead)
+            a, r = self.rng.uniform(0, math.tau), self.rng.uniform(0, off)
+            self.aim = math.atan2(t.y + math.sin(a) * r - self.y, t.x + math.cos(a) * r - self.x)
+            self.aimed, self.timer = True, self.espec.windup
+        self.timer -= dt
+        self.tell = max(self.timer, 1e-3)
+        self.facing = self.aim
+        if self.timer <= 0:
+            self.tell = 0.0
+            self.state, self.ran, self.run_from, self.stung = "dart", 0.0, (self.x, self.y), set()
+
+
+class Bombardier(Beast):
+    """It comes close (BEETLE), turns its back to you and sprays a cone of
+    boiling spray out of it. Get round to its front."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "roam"           # roam | turn | aim
+        self.timer = 0.0
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        close, rate, aim_rate, cone, reach = config.BEETLE
+        t = self.target
+        if t is None or not self.sees_target:
+            self.state = "roam"
+            self.roam(ctx, dt)
+            return
+        away = self.angle_to(t.x, t.y) + math.pi
+        if self.state == "aim":
+            self.timer -= dt
+            self.tell = max(self.timer, 1e-3)
+            self.turn_to(away, aim_rate, dt)
+            if self.timer <= 0:
+                self.tell = 0.0
+                self.area(ctx, "cone", self.x, self.y, self.facing + math.pi, reach,
+                          math.radians(cone) / 2, self.hurt(self.espec.damage), 0.5)
+                ctx.events.append("fizzle")
+                self.state, self.cooldown = "roam", self.espec.cooldown
+            return
+        d = self.dist_to(t)
+        if d > close + (2.0 if self.state == "turn" else 0.0):
+            self.state = "roam"
+            self.go(ctx, t.x, t.y, dt, self.speed)
+            return
+        self.state = "turn"
+        if self.turn_to(away, rate, dt) and self.cooldown <= 0:
+            self.state, self.timer = "aim", self.espec.windup
+
+
+class AntMound(Beast):
+    """Never moves (ANTS): sends giant ants out while it sees a hero, at
+    most ANTS[1] of its own at a time. They march in a column; once it's
+    broken they all swarm. Collapse it and no more come."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.ants: list = []
+        self.sent = 0
+        self.swarm = False
+        self.send_t = self.rng.uniform(0.5, config.ANTS[0])
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        self.ants = [a for a in self.ants if a.alive]
+        if self.target is None or not self.sees_target:
+            return
+        self.send_t -= dt
+        if self.send_t <= 0:
+            self.send_t = config.ANTS[0]
+            if len(self.ants) < config.ANTS[1]:
+                a = self.angle_to(self.target.x, self.target.y)
+                ctx.spawned.append(("giant_ant", self.x + math.cos(a) * (self.hit_radius + 0.6),
+                                    self.y + math.sin(a) * (self.hit_radius + 0.6)))
+
+    def on_death(self, ctx: AIContext) -> None:
+        super().on_death(ctx)
+        for a in self.ants:
+            a.mound = None
+            a.swarming = True
+        ctx.effects.append(Effect("debris", self.x, self.y + 0.5))
+
+
+class Biter(Beast):
+    """A small chaser: straight at you, a short windup, a bite."""
+
+    def chase_bite(self, ctx: AIContext, dt: float, speed: float) -> None:
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = max(self.windup, 1e-3)
+            if self.windup <= 0:
+                self.tell = 0.0
+                x = self.x + math.cos(self.facing) * 0.6
+                y = self.y + math.sin(self.facing) * 0.6
+                self.area(ctx, "circle", x, y, self.facing, self.espec.attack_radius * 0.7, 0.0,
+                          self.hurt(self.espec.damage))
+                ctx.events.append("hit")
+                self.cooldown = self.espec.cooldown
+            return
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        if self.cooldown <= 0 and self.dist_to(t) <= self.espec.attack_radius + t.hit_radius:
+            self.windup = self.espec.windup
+            self.facing = self.angle_to(t.x, t.y)
+            return
+        self.go(ctx, t.x, t.y, dt, speed)
+
+
+class GiantAnt(Biter):
+    """Out of a mound: marches in its column behind the ant before it (the
+    first straight at you) -- until the column is broken (one hurt or
+    killed, or the first reaches you), and then they all swarm."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.mound = None
+        self.order = 0
+        self.linked = False
+        self.swarming = False
+
+    def take_damage(self, amount, source, from_angle):
+        dealt = super().take_damage(amount, source, from_angle)
+        if dealt > 0:
+            self._break()
+        return dealt
+
+    def _break(self) -> None:
+        if self.mound is not None:
+            self.mound.swarm = True
+        self.swarming = True
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        if not self.linked:                       # (its mound: the one it came out of)
+            self.linked = True
+            mounds = [m for m in ctx.actors if isinstance(m, AntMound) and m.alive
+                      and self.dist_to(m) <= m.hit_radius + 2.0]
+            if mounds:
+                self.mound = min(mounds, key=self.dist_to)
+                self.order = self.mound.sent
+                self.mound.sent += 1
+                self.mound.ants.append(self)
+            else:
+                self.swarming = True
+        if self.mound is not None and self.mound.swarm:
+            self.swarming = True
+        if self.swarming:
+            self.chase_bite(ctx, dt, self.speed * config.ANTS[3])
+            return
+        t = self.target
+        if t is None or not self.sees_target:
+            self.roam(ctx, dt)
+            return
+        column = sorted((a for a in self.mound.ants if a.alive and not a.swarming and a is not self
+                         and a.order < self.order), key=lambda a: a.order)
+        if not column:                            # (at the head: straight at you)
+            self.go(ctx, t.x, t.y, dt, self.speed * config.ANTS[4])
+            if self.dist_to(t) <= self.espec.attack_radius + t.hit_radius + 0.3:
+                self._break()
+            return
+        ahead = column[-1]
+        if self.dist_to(ahead) > config.ANTS[2]:
+            self.go(ctx, ahead.x, ahead.y, dt, self.speed * 1.15)
+
+
+class Hatchling(Biter):
+    """Out of a broken egg: straight at you, biting."""
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        self.chase_bite(ctx, dt, self.speed)
+
+
+class SeaScorpion(Beast):
+    """Elite, in a steaming pool it never leaves (SEA_SCORPION): its claws
+    grab you from the pool's edge and drag you into the scalding water,
+    holding you until you roll free; its tail spike stabs marked spots."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "lurk"           # lurk | claw | drag | sting
+        self.timer = 0.0
+        self.aim = 0.0
+        self.water: set | None = None     # its pool's tiles
+        self.held = None
+        self.held_t = 0.0
+        self.drag_from = (0.0, 0.0)
+        self.sting_cd = self.rng.uniform(1.0, config.SEA_SCORPION[4])
+        self.sting_at = (0.0, 0.0)
+
+    def _pool(self, ctx: AIContext) -> set:
+        if self.water is None:
+            hx, hy = math.floor(self.home[0]), math.floor(self.home[1])
+            self.water = {(x, y) for y in range(hy - 9, hy + 10) for x in range(hx - 9, hx + 10)
+                          if ctx.world.tile_at(x, y) is tiles.HOT_SPRING}
+        return self.water
+
+    def _swim(self, ctx: AIContext, gx: float, gy: float, dt: float) -> None:
+        """Toward (gx, gy), only ever through its pool's water."""
+        water = self._pool(ctx)
+        d = math.hypot(gx - self.x, gy - self.y)
+        if d < 0.3:
+            self._moved = 0.0
+            return
+        step = min(d, self.speed * dt)
+        dx, dy = (gx - self.x) / d * step, (gy - self.y) / d * step
+        for mx, my in ((dx, dy), (dx, 0.0), (0.0, dy)):
+            nx, ny = self.x + mx, self.y + my
+            if (math.floor(nx), math.floor(ny)) in water:
+                self.x, self.y = nx, ny
+                self._moved = math.hypot(mx, my)
+                self.walked += self._moved
+                self.facing = math.atan2(my, mx) if (mx or my) else self.facing
+                return
+        self._moved = 0.0
+
+    def can_see(self, world, other) -> bool:          # (over its pool's edge: it's low in the water)
+        return math.hypot(other.x - self.x, other.y - self.y) <= self.espec.sight
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        _, reach, drag, most, sting_every, sting_reach, mark, radius, sting_x = config.SEA_SCORPION
+        self.sting_cd = max(0.0, self.sting_cd - dt)
+        t = self.target
+        if self.state == "drag":
+            h = self.held
+            self.held_t += dt
+            if h is None or not h.alive or h.rolling or self.held_t >= drag + most:
+                if h is not None and h.alive and h.rolling:
+                    ctx.effects.append(Effect("toast", h.x, h.y - 1.5, label="ROLLED FREE!"))
+                self.held, self.state, self.cooldown = None, "lurk", self.espec.cooldown
+                return
+            q = min(1.0, self.held_t / drag)
+            tx = self.x + math.cos(self.aim) * self.hit_radius
+            ty = self.y + math.sin(self.aim) * self.hit_radius
+            h.x = self.drag_from[0] + (tx - self.drag_from[0]) * q
+            h.y = self.drag_from[1] + (ty - self.drag_from[1]) * q
+            h.slowed(0.0, 0.2)
+            return
+        if self.state == "claw":
+            self.timer -= dt
+            self.tell = max(self.timer, 1e-3)
+            self.facing = self.aim
+            if self.timer <= 0:
+                self.tell = 0.0
+                for a in self.area(ctx, "line", self.x, self.y, self.aim, reach + 1.0, 0.7,
+                                   self.hurt(self.espec.damage)):
+                    if getattr(a, "faction", "") == "player" and a.alive and self.held is None:
+                        self.held, self.held_t, self.drag_from = a, 0.0, (a.x, a.y)
+                ctx.events.append("hit")
+                self.state = "drag" if self.held is not None else "lurk"
+                self.cooldown = self.espec.cooldown
+            return
+        if self.state == "sting":
+            self.timer -= dt
+            self.tell = max(self.timer, 1e-3)
+            if self.timer <= 0:
+                self.tell = 0.0
+                self.area(ctx, "circle", *self.sting_at, 0.0, radius, 0.0,
+                          self.hurt(self.espec.damage * sting_x), 0.5, tell=mark)
+                ctx.events.append("hit")
+                self.state, self.sting_cd = "lurk", sting_every
+            return
+        if t is None or not self.sees_target:
+            self._swim(ctx, *self.home, dt)
+            return
+        d = self.dist_to(t)
+        if self.cooldown <= 0 and d <= reach + self.hit_radius + t.hit_radius:
+            self.state, self.timer = "claw", self.espec.windup
+            self.aim = self.facing = self.angle_to(t.x, t.y)
+            return
+        if self.sting_cd <= 0 and d <= sting_reach:
+            self.state, self.timer, self.sting_at = "sting", mark, (t.x, t.y)
+            return
+        water = self._pool(ctx)
+        if water:                                 # (to the water nearest you)
+            wx, wy = min(water, key=lambda w: (w[0] + 0.5 - t.x) ** 2 + (w[1] + 0.5 - t.y) ** 2)
+            self._swim(ctx, wx + 0.5, wy + 0.5, dt)
+        self.facing = self.angle_to(t.x, t.y)
+
+
+def residents(layout, zone) -> list[tuple[str, float, float]]:
+    """Pangaea's enemies that live at fixed places (rostered with their
+    chunks: systems/spawner): a sea scorpion in every SEA_SCORPION[0]th
+    steaming pool."""
+    if zone.key != "pangaea":
+        return []
+    from ..world.zones import plan_of
+    p = plan_of(layout, zone)
+    return [("sea_scorpion", x + 0.5, y + 0.5) for x, y, _ in p.pools[::config.SEA_SCORPION[0]]]

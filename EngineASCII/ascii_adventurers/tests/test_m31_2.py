@@ -483,14 +483,14 @@ class SpawnTest(unittest.TestCase):
             if w.biome_at(cx * n + n // 2, cy * n + n // 2).name != "pangaea":
                 continue
             ring = p.ring_at(cx * n + n / 2, cy * n + n / 2)
-            roster = sp.roster(cx, cy)
-            if ring < 2:
-                self.assertEqual(roster, [])                  # (M31.3 brings theirs)
-            for _, key, x, y in roster:
-                self.assertEqual(config.PANGAEA_RING_OF[key], 2)
-                if not key.startswith(("mammoth", "spear")):  # (packs stand round the first)
-                    self.assertEqual(p.ring_at(x, y), 2)
-                got.append((key, x, y))
+            for _, key, x, y in sp.roster(cx, cy):
+                if key not in config.PANGAEA_RING_OF:         # (M31.3: the pools' sea scorpions)
+                    continue
+                self.assertEqual(config.PANGAEA_RING_OF[key], ring)
+                if ring == 2 and key in NEW:
+                    if not key.startswith(("mammoth", "spear")):  # (packs stand round the first)
+                        self.assertEqual(p.ring_at(x, y), 2)
+                    got.append((key, x, y))
         self.assertGreaterEqual(len(got), 25)
         key, x, y = got[0]
         e = sp.wake(key, x, y, (0, 0, 0))

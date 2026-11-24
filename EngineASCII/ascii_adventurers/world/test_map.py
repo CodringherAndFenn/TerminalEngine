@@ -46,6 +46,7 @@ class TestMap:
         # Hit points left for tiles that have taken damage: (tx, ty) -> hp.
         self._hp: dict[tuple[int, int], int] = {}
         self._changed: set[tuple[int, int]] = set()   # see drain_changed
+        self.broke: list = []      # (tx, ty, tile): tiles.REPORT_BREAKS destroyed (M31.3)
         self._spawn = (self.width / 2, self.height / 2)
         for ty, line in enumerate(rows):
             row = []
@@ -102,6 +103,8 @@ class TestMap:
             self._tiles[ty][tx] = rubble
             self._glyphs[ty][tx] = rubble.glyph_at(tx, ty)
             self._changed.add((tx, ty))
+            if tile in tiles.REPORT_BREAKS:
+                self.broke.append((tx, ty, tile))
             return Damage.DESTROYED
         self._hp[(tx, ty)] = hp
         self._glyphs[ty][tx] = tile.glyph_at(tx, ty, hp)

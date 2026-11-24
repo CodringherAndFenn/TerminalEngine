@@ -43,9 +43,11 @@ ai -- enemy behaviour.
                 a dancing host in a hall that changes room each phase
   hunger.py     form 2 (M30.5): the hunger, devouring the feast to grow in
                 a hall fallen into the wine; his demon waiters
-  pangaea.py    Pangaea's enemies (M31.2), every attack echoing 3 s later:
-                mammoth, sabre-tooth, woolly rhino, cave bear; spear hunter,
-                trapper, fire-bearer, shaman
+  pangaea.py    Pangaea's enemies (M31.2-M31.3), every attack echoing 3 s
+                later: mammoth, sabre-tooth, woolly rhino, cave bear; spear
+                hunter, trapper, fire-bearer, shaman; raptor, the Tyrant,
+                club-tail, pterosaur; dragonfly, bombardier beetle, ant mound
+                (and its ants), sea scorpion; hatchlings
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -85,8 +87,9 @@ from .horsemen import ConquestBanner, Horseman, PaleShade
 from .pandemonium import (BandDrummer, Beloved, Bouncer, Carver, Cupbearer, Dancer, Drunkard,
                           GildedReveller, Glutton, Hoarder, MaskedDancer, MasterOfRevels, Piper,
                           Ravenous, Toastmaster, Vain)
-from .pangaea import (CaveBear, FireBearer, Mammoth, SabreTooth, Shaman, SpearHunter, Trapper,
-                      WoollyRhino)
+from .pangaea import (AntMound, Bombardier, CaveBear, ClubTail, Dragonfly, FireBearer, GiantAnt,
+                      Hatchling, Mammoth, Pterosaur, Raptor, SabreTooth, SeaScorpion, Shaman,
+                      SpearHunter, Trapper, Tyrant, WoollyRhino)
 from .paradise import (BowlBearer, CenserBearer, Cherub, Chorister, Dove, Halo, Lamb,
                        Leviathan, Locust, Martyr, Ophan, Seraph, Trumpeter, Watcher,
                        WeepingSaint, Behemoth, LightPillar)
@@ -283,6 +286,17 @@ KINDS = {
     "trapper": Trapper,
     "fire_bearer": FireBearer,
     "shaman": Shaman,
+    # M31.3: its middle ring and heart
+    "raptor": Raptor,
+    "tyrant": Tyrant,
+    "club_tail": ClubTail,
+    "pterosaur": Pterosaur,
+    "dragonfly": Dragonfly,
+    "bombardier_beetle": Bombardier,
+    "ant_mound": AntMound,
+    "giant_ant": GiantAnt,
+    "sea_scorpion": SeaScorpion,
+    "hatchling": Hatchling,
 }
 
 

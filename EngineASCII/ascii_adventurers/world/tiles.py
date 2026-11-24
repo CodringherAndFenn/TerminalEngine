@@ -1419,3 +1419,7 @@ STUCK_SPEAR = TileType(
     "stuck spear", ("/ ", " /", "\\ ", " \\"), palette.STUCK_SPEAR_FG, palette.SCORCHED_BG,
     solid=True,
 )
+
+# M31.3: the tiles whose breaking the world reports (world.broke, taken by
+# systems/pangaea.step): an egg hatches, amber frees what's in it.
+REPORT_BREAKS = frozenset((EGG, GIANT_EGG, AMBER))

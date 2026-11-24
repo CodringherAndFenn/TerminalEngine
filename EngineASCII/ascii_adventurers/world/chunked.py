@@ -63,6 +63,10 @@ class ChunkedWorld:
         self._changes: dict[tuple[int, int], dict[int, TileType]] = {}
         self._hp: dict[tuple[int, int], int] = {}             # damaged tiles
         self._changed: set[tuple[int, int]] = set()          # see drain_changed
+        # (M31.3) The tiles.REPORT_BREAKS destroyed since last looked at: (tx,
+        # ty, tile). systems/pangaea.step takes them (a broken egg hatches,
+        # broken amber frees what's in it).
+        self.broke: list = []
         self.sync_builds = 0   # chunks that had to be finished on demand
         # Keys of chunks loaded since the last drain_loaded() -- the enemy
         # spawner listens to this.
@@ -132,6 +136,8 @@ class ChunkedWorld:
             self._changes.setdefault((c.cx, c.cy), {})[i] = debris
             self.explored.set_tile(tx, ty, debris)
             self._changed.add((tx, ty))
+            if tile in tiles.REPORT_BREAKS:            # (M31.3: eggs, amber)
+                self.broke.append((tx, ty, tile))
             return Damage.DESTROYED
         self._hp[(tx, ty)] = hp
         c.glyphs[i] = tile.glyph_at(tx, ty, hp)

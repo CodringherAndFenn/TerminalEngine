@@ -28,7 +28,8 @@ import math
 import pygame
 
 from .. import config, palette
-from ..ai.pangaea import Beast, CaveBear, Mammoth, SabreTooth, Shaman, WoollyRhino
+from ..ai.pangaea import (Beast, Bombardier, CaveBear, ClubTail, Dragonfly, Mammoth, Pterosaur,
+                          Raptor, SabreTooth, SeaScorpion, Shaman, Tyrant, WoollyRhino)
 from .ascii_fx import _Batch
 from .characters import ART_H, ART_W, _picture, _walk_frame
 from . import pangaea_art  # noqa: F401  (adds the pictures to ART)
@@ -240,6 +241,7 @@ def draw_pangaea_tells(batch, camera, e) -> None:
         rad = config.SHAMAN[3] if e.painting == "mammoth" else config.SHAMAN[6]
         for side in (-1, 1):
             _dots(batch, camera, *e.spot, e.aim, config.SHAMAN[8], col, off=side * rad)
+    _tells_m313(batch, camera, e)
     x, y = camera.world_to_px(e.x, e.y)
     top = y - e.espec.scale * 9 - 10
     if e.driven > 0:
@@ -256,3 +258,40 @@ def draw_spirit_painting(bank, camera, e) -> None:
     if isinstance(e, Shaman) and e.painting and int(e.windup * 10) % 2 == 0:
         sprite = "mammoth" if e.painting == "mammoth" else "sabre_tooth_pounce"
         _figure(bank, camera, *e.spot, sprite, _scale(sprite, 4), math.cos(e.aim) < 0, "ochre")
+
+
+def _tells_m313(batch, camera, e) -> None:
+    """The middle ring's and the heart's tells (M31.3)."""
+    if e.flies:                                       # (a shadow on the ground under it)
+        x, y = camera.world_to_px(e.x, e.y)
+        batch.put_c(x, y + e.espec.scale * 6, "_", palette.BOMB_SHADOW)
+    if isinstance(e, Raptor) and e.state == "crouch":
+        _dots(batch, camera, e.x, e.y, e.aim, e.length, _blink(e.timer, palette.BEAST_TELL), 0.8)
+    elif isinstance(e, Tyrant) and e.state in ("roar", "bite", "tail"):
+        _, _, _, cone, reach, _, _, bite, tail, tail_reach = config.TYRANT[:10]
+        col = _blink(e.timer, palette.BEAST_TELL)
+        if e.state == "roar":
+            _shape(batch, camera, "cone", e.x, e.y, e.facing, reach, math.radians(cone) / 2, col)
+        elif e.state == "bite":
+            _shape(batch, camera, "cone", e.x, e.y, e.facing, e.espec.attack_radius,
+                   math.radians(bite) / 2, col)
+        else:
+            _shape(batch, camera, "cone", e.x, e.y, e.facing + math.pi, tail_reach,
+                   math.radians(tail) / 2, col)
+    elif isinstance(e, ClubTail) and e.state == "swing":
+        _shape(batch, camera, "cone", e.x, e.y, e.facing + math.pi, e.espec.attack_radius,
+               math.radians(config.CLUB[4]) / 2, _blink(e.timer, palette.BEAST_TELL))
+    elif isinstance(e, Pterosaur) and e.state == "mark":
+        _dots(batch, camera, e.x, e.y, e.aim, e.length, _blink(e.timer, palette.BEAST_TELL), 0.9)
+    elif isinstance(e, Dragonfly) and e.state == "hover" and e.aimed:
+        _dots(batch, camera, e.x, e.y, e.aim, config.DRAGONFLY[0], _blink(e.timer, palette.BEAST_TELL))
+    elif isinstance(e, Bombardier) and e.state == "aim":
+        _shape(batch, camera, "cone", e.x, e.y, e.facing + math.pi, config.BEETLE[4],
+               math.radians(config.BEETLE[3]) / 2, _blink(e.timer, palette.BEAST_TELL))
+    elif isinstance(e, SeaScorpion) and e.state == "claw":
+        col = _blink(e.timer, palette.BEAST_TELL)
+        for side in (-1, 1):
+            _dots(batch, camera, e.x, e.y, e.aim, config.SEA_SCORPION[1] + 1.0, col, off=side * 0.7)
+    elif isinstance(e, SeaScorpion) and e.state == "sting":
+        _shape(batch, camera, "circle", *e.sting_at, 0.0, config.SEA_SCORPION[7], 0.0,
+               _blink(e.timer, palette.BEAST_TELL))

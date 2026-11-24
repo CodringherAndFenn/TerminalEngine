@@ -25,6 +25,11 @@ M31.2, what the hunters leave on the ground (`Land`, one per world: `land`):
     hero who walks onto one is held (a pit also hurts); a roll carries you
     over. Beasts are caught too (the hunters hunt them).
 
+M31.3: the steaming pools scald a hero standing in them (PANGAEA_SCALD);
+breaking things (`breaks`, from world.broke): an egg hatches (NEST_HATCH:
+hatchlings, and the first egg of a nest calls its parent), and breaking
+into an amber outcrop frees what's in it once (AMBER_FREE: loot or a fight).
+
 The land's damage scales like an enemy's (`hazard`). Nothing here echoes
 (the echoes are the enemies': ai/pangaea.py). The scene keeps one
 `Volcano` (its bombs in the air, each hero's next volley) and calls `step`
@@ -40,6 +45,7 @@ import random
 from .. import config
 from ..entities.effects import Effect
 from ..world import tiles
+from ..world.rng import hash_coords
 
 _SINK_EVERY = 0.15          # how long a step in tar keeps its slow on (s)
 
@@ -81,6 +87,11 @@ def hazard(scene, base: float) -> float:
 def step(scene, living, dt: float) -> None:
     """One step of the land's dangers for everyone on Pangaea."""
     world = scene.world
+    broke = getattr(world, "broke", None)              # (M31.3: eggs hatch, amber frees)
+    if broke:
+        got = broke[:]
+        broke.clear()
+        breaks(scene, got)
     ground = getattr(world, "pangaea_land", None)      # (fires, spears, traps: wherever
     if ground is not None and ground.busy:             # Pangaea's enemies made them)
         ground.step(scene, [p.hero for p in living], dt)
@@ -118,6 +129,13 @@ def _underfoot(scene, h, tile, dt: float) -> None:
             strike(h, hazard(scene, config.PANGAEA_CRUST[0]), None, None, scene.effects)
     else:
         h.crust_t = 0.0
+    if tile is tiles.HOT_SPRING:                       # (M31.3: the pools scald)
+        h.scald_t = getattr(h, "scald_t", 0.0) - dt
+        if h.scald_t <= 0:
+            h.scald_t = config.PANGAEA_SCALD[1]
+            strike(h, hazard(scene, config.PANGAEA_SCALD[0]), None, None, scene.effects)
+    else:
+        h.scald_t = 0.0
 
 
 def _enemy_underfoot(scene, e, tile, dt: float) -> None:
@@ -220,6 +238,8 @@ class Land:
         self.traps: list = []        # [x, y, "snare" | "pit", s left, who laid it (id)]
         self.rng = random.Random(seed ^ 0x5A17)
         self.burn_t: dict = {}       # id(actor) -> s to its next burn
+        self.parents: set = set()    # (M31.3) the nests whose parent has been called
+        self.opened: set = set()     # (M31.3) the amber outcrops already broken into
 
     @property
     def busy(self) -> bool:
@@ -414,3 +434,125 @@ def stick_spear(world, x: float, y: float, actors) -> bool:
 def lay_trap(world, x: float, y: float, kind: str, who) -> None:
     """A snare or a pit at (x, y), laid by `who` (a trapper)."""
     land(world).traps.append([x, y, kind, config.TRAPPER[4], id(who)])
+
+
+# --- M31.3: eggs and amber ------------------------------------------------------------------
+
+
+def breaks(scene, broke) -> None:
+    """What the world reported broken (world.broke): eggs hatch, amber
+    frees what's in it."""
+    plan = _plan(scene)
+    g = land(scene.world)
+    for tx, ty, tile in broke:
+        if tile is tiles.AMBER:
+            _amber(scene, plan, g, tx, ty)
+        else:
+            _hatch(scene, plan, g, tx, ty, tile)
+
+
+def _wake(scene, key: str, x: float, y: float, rng: random.Random):
+    """One of the land's enemies woken at the nearest open spot to (x, y),
+    as tough as any (spawner.wake), alert."""
+    from ..ai import make_enemy
+    from .quests import free_spot
+    spec = config.ENEMIES[key]
+    x, y = free_spot(scene.world, x, y, spec.size_px / 2 + 1)
+    sp = getattr(scene, "spawner", None)
+    e = sp.wake(key, x, y, None, random.Random(rng.random())) if sp is not None else \
+        make_enemy(key, x, y, random.Random(rng.random()))
+    e.alert = True
+    scene.enemies.append(e)
+    return e
+
+
+def _nearest_hero(scene, x: float, y: float):
+    heroes = [p.hero for p in getattr(scene, "players", ()) if p.alive] or \
+        [h for h in getattr(scene, "heroes", ()) if h.alive]
+    return min(heroes, key=lambda h: math.hypot(h.x - x, h.y - y)) if heroes else None
+
+
+def _hatch(scene, plan, g, tx: int, ty: int, tile) -> None:
+    """An egg broke: hatchlings out of it; the first of its nest's eggs
+    calls the parent (NEST_HATCH, NEST_PARENTS)."""
+    per_egg, per_giant, far, angry = config.NEST_HATCH
+    seed = getattr(scene.world, "seed", 0) or 0
+    rng = random.Random(hash_coords(seed, 0xE66, tx, ty))
+    x, y = tx + 0.5, ty + 0.5
+    for _ in range(per_giant if tile is tiles.GIANT_EGG else per_egg):
+        _wake(scene, "hatchling", x + rng.uniform(-0.8, 0.8), y + rng.uniform(-0.8, 0.8), rng)
+    scene.effects.append(Effect("debris", x, y))
+    nests = []
+    if plan is not None:
+        nests = [("nest", nx, ny) for nx, ny in plan.nests]
+        if plan.great_nest is not None:
+            nests.append(("great", *plan.great_nest))
+    near = [n for n in nests if math.hypot(n[1] - x, n[2] - y) <= 12]
+    kind, nx, ny = min(near, key=lambda n: math.hypot(n[1] - x, n[2] - y)) if near else \
+        ("nest", tx // 8 * 8 + 4, ty // 8 * 8 + 4)
+    key = (round(nx), round(ny))
+    if key in g.parents:
+        return
+    g.parents.add(key)
+    prng = random.Random(hash_coords(seed, 0x9A4E, *key))
+    if kind == "great":
+        parents = ["pterosaur", "pterosaur"]
+    else:
+        names = list(config.NEST_PARENTS)
+        parents = [prng.choices(names, [config.NEST_PARENTS[n] for n in names])[0]]
+    h = _nearest_hero(scene, x, y)
+    for name in parents:
+        a = prng.uniform(0, math.tau)
+        e = _wake(scene, name, nx + math.cos(a) * far, ny + math.sin(a) * far, prng)
+        e.driven = angry
+        if h is not None:
+            e.last_known = (h.x, h.y)
+            e.forget_timer = config.FORGET_TIME
+    scene.effects.append(Effect("toast", x, y - 1.5, label="THE PARENT COMES!"))
+
+
+def _outcrop(world, tx: int, ty: int) -> tuple[int, int]:
+    """The outcrop a broken piece of amber was part of, named by its first
+    tile (the amber and the shards round it, joined)."""
+    seen = {(tx, ty)}
+    todo = [(tx, ty)]
+    while todo and len(seen) < 80:
+        x, y = todo.pop()
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                q = (x + dx, y + dy)
+                if q not in seen and world.tile_at(*q) in (tiles.AMBER, tiles.AMBER_SHARDS):
+                    seen.add(q)
+                    todo.append(q)
+    return min(seen)
+
+
+def _amber(scene, plan, g, tx: int, ty: int) -> None:
+    """Breaking into an amber outcrop frees what's in it, once: loot, or
+    what was frozen in it, waking (AMBER_FREE, AMBER_FIGHTS)."""
+    key = _outcrop(scene.world, tx, ty)
+    if key in g.opened:
+        return
+    g.opened.add(key)
+    loot, value, piece = config.AMBER_FREE
+    seed = getattr(scene.world, "seed", 0) or 0
+    rng = random.Random(hash_coords(seed, 0xA3B, *key))
+    x, y = tx + 0.5, ty + 0.5
+    scene.effects.append(Effect("nova", x, y, size=1.5))
+    if rng.random() < loot:
+        from ..entities.gems import drop
+        gems = getattr(scene, "gems", None)
+        if gems is not None:
+            for k in range(3):
+                drop(gems, x + rng.uniform(-0.8, 0.8), y + rng.uniform(-0.8, 0.8), value / 3)
+        if rng.random() < piece and hasattr(scene, "_drop_piece"):
+            h = _nearest_hero(scene, x, y)
+            p = next((p for p in scene.players if p.hero is h), None)
+            if p is not None:
+                scene._drop_piece(p, x, y)
+        return
+    ring = plan.ring_at(x, y) if plan is not None else 0
+    name, n = rng.choice(config.AMBER_FIGHTS.get(ring, config.AMBER_FIGHTS[0]))
+    for _ in range(n):
+        _wake(scene, name, x + rng.uniform(-1.0, 1.0), y + rng.uniform(-1.0, 1.0), rng)
+    scene.effects.append(Effect("toast", x, y - 1.5, label="IT LIVES!"))

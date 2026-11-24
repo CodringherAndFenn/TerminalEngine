@@ -1221,6 +1221,59 @@ ENEMIES = {
         max_hp=280, sight=18, biomes=("pangaea",), weight=1, speed=2.8,
         damage=0, windup=1.1, cooldown=5.5, size_px=28, xp=35,
     ),
+    # --- M31.3: Pangaea's middle ring and heart (OCEAN.md 26; ai/pangaea.py) -------------
+    # The dinosaurs (the middle ring).
+    "raptor": EnemySpec(
+        name="raptor", kind="raptor", sprite="raptor", group=(3, 4),
+        max_hp=55, sight=18, biomes=("pangaea",), weight=3, speed=6.0,
+        damage=14, windup=0.5, cooldown=1.0, size_px=22, xp=8,
+    ),
+    "tyrant": EnemySpec(
+        name="the Tyrant", kind="tyrant", sprite="tyrant", scale=6, elite=True,
+        max_hp=520, sight=20, biomes=("pangaea",), weight=1, speed=2.6,
+        damage=30, attack_radius=3.6, windup=0.5, cooldown=1.6, size_px=46, xp=50,
+    ),
+    "club_tail": EnemySpec(
+        name="club-tail", kind="club_tail", sprite="club_tail", scale=4,
+        max_hp=240, sight=16, biomes=("pangaea",), weight=2, speed=2.2,
+        damage=26, attack_radius=3.6, windup=0.7, cooldown=2.2, size_px=34, xp=20,
+    ),
+    "pterosaur": EnemySpec(
+        name="pterosaur", kind="pterosaur", sprite="pterosaur", scale=4,
+        max_hp=80, sight=22, biomes=("pangaea",), weight=2, speed=6.0,
+        damage=12, windup=0.7, cooldown=2.5, size_px=26, xp=12,
+    ),
+    # The giant insects and the earliest life (the heart).
+    "dragonfly": EnemySpec(
+        name="giant dragonfly", kind="dragonfly", sprite="dragonfly", group=(3, 3),
+        max_hp=35, sight=18, biomes=("pangaea",), weight=2, speed=9.0,
+        damage=10, windup=0.45, size_px=18, xp=6,
+    ),
+    "bombardier_beetle": EnemySpec(
+        name="bombardier beetle", kind="bombardier_beetle", sprite="bombardier_beetle",
+        max_hp=120, sight=16, biomes=("pangaea",), weight=3, speed=3.2,
+        damage=24, windup=0.6, cooldown=2.5, size_px=24, xp=12,
+    ),
+    "ant_mound": EnemySpec(
+        name="ant mound", kind="ant_mound", sprite="ant_mound", scale=4,
+        max_hp=300, sight=18, biomes=("pangaea",), weight=2, speed=0.0,
+        damage=0, size_px=32, xp=20,
+    ),
+    "giant_ant": EnemySpec(                      # (sent out by its mound, never rolled)
+        name="giant ant", kind="giant_ant", sprite="giant_ant", scale=2,
+        max_hp=30, sight=18, biomes=(), speed=3.6,
+        damage=8, attack_radius=1.0, windup=0.3, cooldown=0.9, size_px=14, xp=3,
+    ),
+    "sea_scorpion": EnemySpec(                   # (lives in the steaming pools: residents)
+        name="sea scorpion", kind="sea_scorpion", sprite="sea_scorpion", scale=5, elite=True,
+        max_hp=380, sight=16, biomes=(), speed=3.5,
+        damage=22, windup=0.6, cooldown=1.6, size_px=38, xp=40,
+    ),
+    "hatchling": EnemySpec(                      # (out of a broken egg, never rolled)
+        name="hatchling", kind="hatchling", sprite="hatchling", scale=2,
+        max_hp=14, sight=16, biomes=(), speed=6.5,
+        damage=5, attack_radius=0.9, windup=0.25, cooldown=0.8, size_px=12, xp=2,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -1695,6 +1748,8 @@ ECHO = (3.0, 0.35, 0.9)
 PANGAEA_RING_OF = {
     "mammoth": 2, "sabre_tooth": 2, "woolly_rhino": 2, "cave_bear": 2,
     "spear_hunter": 2, "trapper": 2, "fire_bearer": 2, "shaman": 2,
+    "raptor": 1, "tyrant": 1, "club_tail": 1, "pterosaur": 1,          # (M31.3)
+    "dragonfly": 0, "bombardier_beetle": 0, "ant_mound": 0,
 }
 # The mammoth (elite, herds): every MAMMOTH[0] s it trumpets (a [1] s
 # windup, trunk up): a cone [2] degrees, [3] tiles, pushing [4] tiles (x [5]
@@ -1748,6 +1803,67 @@ SHAMAN = (8.0, 13.0, 13.0, 1.4, 26.0, 19.0, 0.8, 18.0, 18.0, 12.0)
 # fire-bearer or the shaman). Fires [4] tiles from every hero go out. A lava
 # bomb's splash lights [5] tiles at most.
 FIRE = (6.0, 0.5, 6.0, 0.3, 70.0, 10)
+# M31.3, the middle ring's dinosaurs. Raptors (packs) circle you RAPTOR[0]
+# tiles out (x [1] their speed), then one at a time go round behind you,
+# crouch (spec windup; the line shows) and leap through you at [2] tiles/s,
+# [3] tiles past; the next goes [4] s after one lands; each waits [5] s
+# (give or take) before its own next leap.
+RAPTOR = (6.0, 0.8, 16.0, 3.0, 0.8, (2.5, 4.0))
+# The Tyrant (elite): turns at most TYRANT[0] rad/s. Every [1] s it roars
+# ([2] s windup): a cone [3] degrees, [4] tiles, x [5] of its damage, and
+# whoever it catches is rooted in fear [6] s (a roll: it can't touch you).
+# It bites what's ahead (a cone [7] degrees out to the spec's attack radius)
+# and sweeps its tail at what's behind it (a cone [8] degrees, [9] tiles,
+# throwing you [10]; a [11] s windup). Every [12] tiles it walks, the ground
+# shakes: whoever's within [13] tiles stumbles (x [14] for [15] s; no harm).
+TYRANT = (1.8, 9.0, 0.9, 70.0, 10.0, 0.3, 1.2, 60.0, 150.0, 4.2, 3.0, 0.6, 1.6, 3.5, 0.6, 0.35)
+# The club-tail: hits from within CLUB[0] degrees of its head do full damage,
+# anywhere else x [1]. It turns at most [2] rad/s: from afar it comes head
+# first; within [3] tiles it turns its back to you and swings its tail (spec
+# windup): a cone [4] degrees behind it out to the spec's attack radius,
+# throwing you [5] tiles.
+CLUB = (50.0, 0.2, 1.6, 5.0, 160.0, 4.5)
+# The pterosaur (it flies): circles you PTERO[0] tiles out, swoops along a
+# shown line (spec windup) at [1] tiles/s, [2] tiles past you; catching
+# you, it carries you [3] tiles at [4] tiles/s and drops you (x [5] of its
+# damage), then climbs away [6] s.
+PTERO = (8.0, 15.0, 4.0, 4.0, 9.0, 0.6, 1.0)
+# M31.3, the heart. Dragonflies (groups) hover (spec windup; the next dart's
+# line shows), then dart DRAGONFLY[0] tiles at [1] tiles/s at a spot up to
+# [2] tiles off you, turning sharply between darts.
+DRAGONFLY = (7.0, 20.0, 1.5)
+# The bombardier beetle comes to BEETLE[0] tiles, turns its back to you ([1]
+# rad/s; [2] while it aims), and sprays (spec windup): a cone [3] degrees
+# out of its back, [4] tiles. Get round to its front.
+BEETLE = (4.5, 3.0, 1.0, 70.0, 5.0)
+# The ant mound sends an ant every ANTS[0] s while it sees a hero (at most [1]
+# of its own out): they march in a column, [2] tiles apart, the first at
+# you at x [4] (the rest catch up). Hurt one, or the first reach you, and
+# the whole column swarms you (x [3] as fast, biting). Collapse the mound
+# and no more come.
+ANTS = (0.9, 8, 1.1, 1.5, 0.8)
+# The sea scorpion (elite) lives in the steaming pools (one in every
+# SEA_SCORPION[0]th) and never leaves its pool. It grabs with its claws (spec
+# windup; the line shows) out to [1] tiles: caught, you're dragged into the
+# pool over [2] s and held there, scalding, until you roll (or [3] s). Every
+# [4] s it stabs its tail spike at a marked spot up to [5] tiles off ([6] s
+# marked, radius [7], x [8] of its damage).
+SEA_SCORPION = (2, 3.2, 1.0, 2.5, 3.0, 6.0, 0.6, 1.2, 1.3)
+# The steaming pools scald whoever stands in them (water walkers): PANGAEA_SCALD
+# [0] every [1] s, scaled like the land's other dangers.
+PANGAEA_SCALD = (5.0, 0.3)
+# Nests (OCEAN.md 24): break an egg and NEST_HATCH[0] hatchlings come out of
+# it ([1] out of each piece of a giant egg); the first egg broken calls the
+# nest's parent, which comes from [2] tiles off, driven at you for [3] s:
+# one of NEST_PARENTS by the seed (the great nest's: two pterosaurs).
+NEST_HATCH = (2, 1, 18.0, 8.0)
+NEST_PARENTS = {"tyrant": 1, "club_tail": 2, "raptor": 2}
+# Amber: breaking into an outcrop frees what's in it, once an outcrop: loot
+# AMBER_FREE[0] of the time (gems worth [1] in all, and a piece of gear [2]
+# of those times), else a fight -- what was frozen in it, by the ring
+# (AMBER_FIGHTS: (key, how many)).
+AMBER_FREE = (0.4, 40.0, 0.35)
+AMBER_FIGHTS = {0: (("dragonfly", 3), ("bombardier_beetle", 1)), 1: (("raptor", 2), ("hatchling", 4))}
 PANGAEA_FLAMMABLE = {"tall ferns": 0.55, "jungle ferns": 0.55, "fern meadow": 0.2,
                      "giant fern": 0.45, "cycad": 0.35, "trampled ferns": 0.3,
                      "horsetails": 0.35, "twigs": 0.5}
@@ -4504,6 +4620,20 @@ BESTIARY = {
     "fire_bearer": (2000, "Its torches set the ferns alight, and it drives the beasts at you."),
     "shaman": (4000, "Its painted beasts come alive and charge. While it lives, no fire near it "
                      "goes out."),
+    # M31.3
+    "raptor": (2000, "Packs circle you, then leap in one at a time from behind, each leap marked."),
+    "tyrant": (5000, "Its roar roots you in fear unless you roll. It bites ahead, sweeps its tail "
+                     "behind, and the ground shakes as it walks."),
+    "club_tail": (3000, "Shots glance off its back: hit its head. Its club tail throws you."),
+    "pterosaur": (2500, "Swoops along a shown line; caught, you're carried off and dropped."),
+    "dragonfly": (1500, "Darts in straight lines, each marked a beat ahead."),
+    "bombardier_beetle": (2000, "Turns its back and sprays boiling spray: get round to its front."),
+    "ant_mound": (2500, "Sends ants marching in a column. Break the column and they swarm. "
+                        "Collapse the mound."),
+    "giant_ant": (1000, "Marches in a column from its mound; hurt one and they all swarm you."),
+    "sea_scorpion": (5000, "Lurks in the steaming pools: its claws drag you into the scalding water. "
+                           "Roll free. Mind its tail spike."),
+    "hatchling": (800, "Out of a broken egg. The parent is coming."),
 }
 
 # Achievements (they unlock "A:" cards).
