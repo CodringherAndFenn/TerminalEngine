@@ -48,7 +48,7 @@ class PlacementTest(unittest.TestCase):
     def test_pangaea_is_due_west_a_minute_off_the_coast(self):
         for seed in SEEDS:
             lay, z, _ = pang(seed)
-            self.assertEqual([q.key for q in lay.zones], ["paradise", "pandemonium", "pangaea"])
+            self.assertEqual([q.key for q in lay.zones][:3], ["paradise", "pandemonium", "pangaea"])
             self.assertEqual((z.place, z.cy), ("W", 0))
             self.assertLess(z.cx, -lay.max_land_radius)
             zones, lay.zones = lay.zones, ()
@@ -59,10 +59,10 @@ class PlacementTest(unittest.TestCase):
             self.assertIs(lay.biome_at(z.cx - z.max_radius - 5, z.cy), biomes.OCEAN)
             self.assertEqual(z.facing, (1.0, 0.0))           # (toward the main island)
 
-    def test_only_the_east_stays_open_sea(self):
+    def test_the_east_is_panopticon_now(self):
+        # (it was "only the east stays open sea", until M32.1)
         lay = IslandLayout(31)
-        x, y = lay.cardinal_sites()["E"]
-        self.assertTrue(lay.all_ocean(x - 200, y - 200, x + 200, y + 200))
+        self.assertEqual(lay.zone("panopticon").place, "E")
 
 
 class PlanTest(unittest.TestCase):

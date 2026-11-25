@@ -79,6 +79,13 @@ _TILES = (
     tiles.SCALE_TREE, tiles.HOT_SPRING, tiles.BASALT, tiles.BASALT_BOULDER, tiles.LAVA,
     tiles.LAVA_CRUST, tiles.LAVA_CROSSING, tiles.TAR, tiles.GAME_TRAIL, tiles.BLACK_SAND,
     tiles.STEAMING_SEA, tiles.AMBER,
+    # Panopticon (M32.1, world/panopticon.py)
+    tiles.STREET, tiles.LANE_LINE, tiles.PAVEMENT, tiles.PLAZA, tiles.LOT, tiles.QUAY,
+    tiles.OILY_SEA, tiles.WAREHOUSE_WALL, tiles.WAREHOUSE_ROOF, tiles.SHED_WALL, tiles.SHED_ROOF,
+    tiles.FLAT_WALL, tiles.FLAT_ROOF, tiles.NEON_SIGN, tiles.SCRAP_HEAP, tiles.LOOSE_SCRAP,
+    tiles.SCRAP_BITS, tiles.CITY_WALL, tiles.LASER_POST, tiles.LASER_TRACK, tiles.BELT_E,
+    tiles.BELT_W, tiles.BELT_N, tiles.BELT_S, tiles.PRESS_BED, tiles.PRESS_FRAME, tiles.PYLON,
+    tiles.CABLE, tiles.PUDDLE, tiles.YARD_DIRT, tiles.WRECK, tiles.MAST_PAD, tiles.MAST_BASE,
 )
 _IDX = {t: i for i, t in enumerate(_TILES)}
 _T = _IDX.__getitem__
@@ -186,6 +193,13 @@ def _pangaea(detail, r1, r2):
     return np.full(detail.shape, _T(tiles.JUNGLE_FLOOR))
 
 
+def _panopticon(detail, r1, r2):
+    """Panopticon's ground (M32.1): bare street here. Its districts' street
+    grids, blocks, walls, the tower's plaza, the power lines, the fences,
+    the belts and the quay are all the plan's (world/panopticon.Plan.paint)."""
+    return np.full(detail.shape, _T(tiles.STREET))
+
+
 _FEATURES = {
     biomes.PLAINS.id: _plains,
     biomes.FOREST.id: _forest,
@@ -197,6 +211,7 @@ _FEATURES = {
     biomes.PARADISE.id: _paradise,
     biomes.PANDEMONIUM.id: _pandemonium,
     biomes.PANGAEA.id: _pangaea,
+    biomes.PANOPTICON.id: _panopticon,
 }
 # Lakes form in plains, forest and mushroom land (swamps have bogs, deserts
 # and ruins stay dry).

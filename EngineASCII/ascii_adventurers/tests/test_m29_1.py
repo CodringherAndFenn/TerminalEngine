@@ -40,12 +40,14 @@ class PlacementTest(unittest.TestCase):
             self.assertIs(lay.biome_at(z.cx, z.cy), biomes.PARADISE)
             self.assertIs(lay.biome_at(z.cx, z.cy - z.max_radius - 5), biomes.OCEAN)
 
-    def test_the_other_places_stay_open_sea(self):
+    def test_every_place_has_its_zone(self):
+        # (it was "the other places stay open sea": M30.1 built Pandemonium
+        # south, M31.1 Pangaea west, M32.1 Panopticon east)
         lay = IslandLayout(31)
-        for place in ("E",):                  # (M30.1: Pandemonium is south; M31.1: Pangaea west)
-            x, y = lay.cardinal_sites()[place]
-            self.assertTrue(lay.all_ocean(x - 200, y - 200, x + 200, y + 200), place)
-            self.assertIsNone(lay.zone_at(x, y, 300))
+        for place, key in (("N", "paradise"), ("S", "pandemonium"), ("W", "pangaea"),
+                           ("E", "panopticon")):
+            self.assertEqual(lay.zone(key).place, place)
+            self.assertEqual(config.ZONE_PLACES[key], place)
 
     def test_the_island_is_not_a_circle(self):
         z = IslandLayout(7).zone("paradise")

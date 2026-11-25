@@ -1662,7 +1662,8 @@ ZONE_TOUGH = (2.5, 1.5, 4 / 3, 2.0)
 # statues, choir rings and the cathedral are the angels' own.
 ZONE_QUIET_MARKS = ("paradise_gate", "paradise_stairway", "paradise_court",
                     "pandemonium_pier", "pandemonium_hall",
-                    "pangaea_skeleton", "pangaea_caves", "pangaea_caldera")
+                    "pangaea_skeleton", "pangaea_caves", "pangaea_caldera",
+                    "panopticon_sea_wall", "panopticon_tower")
 # --- M30.2: Pandemonium's trance (design/OCEAN.md 14; ai/pandemonium.py) ---------------
 # The revellers live in groups (a table's, a bandstand's, the endless
 # banquet's, the hall of mirrors'). A group frenzies as one -- the user's
@@ -5124,10 +5125,11 @@ CARDINAL_REGION_DISTANCE = 1.35
 # --- The ocean zones (M29, design/OCEAN.md) --------------------------------------
 # Four islands out in the ocean, one due N/E/S/W, reached by water walking
 # (Adventurer's Glory). Fixed places (user): Paradise north, Pandemonium (hell) south,
-# Pangaea (the past: deep time, M31) west, the Future east. Only the zones listed in OCEAN_ZONES are
-# built; the others' places stay open sea.
-ZONE_PLACES = {"paradise": "N", "pandemonium": "S", "pangaea": "W", "future": "E"}
-OCEAN_ZONES = ("paradise", "pandemonium", "pangaea")
+# Pangaea (the past: deep time, M31) west, Panopticon (the future: the
+# machine city, M32) east. Only the zones listed in OCEAN_ZONES are built;
+# the others' places stay open sea.
+ZONE_PLACES = {"paradise": "N", "pandemonium": "S", "pangaea": "W", "panopticon": "E"}
+OCEAN_ZONES = ("paradise", "pandemonium", "pangaea", "panopticon")
 # Each zone is one island ZONE_RADIUS tiles across (half: about 40 s to
 # cross), its coast wandering by up to ZONE_COAST_AMPLITUDE of that (fBm,
 # ZONE_COAST_SCALE tiles across). Its centre is put far enough out that its
@@ -5145,7 +5147,8 @@ ZONE_FOUND_RANGE = 120
 # The banner the first time a player sets foot on a zone: its name, and this.
 ZONE_ARRIVAL = {"paradise": "where the angels sing",
                 "pandemonium": "where the feast never ends",
-                "pangaea": "where the world began"}
+                "pangaea": "where the world began",
+                "panopticon": "where nothing goes unseen"}
 
 # Paradise (M29.1, OCEAN.md 3). Its land: soft cloud ground, puffier drifts
 # where the detail field is above PARADISE_DRIFT_MIN, blossom trees in
@@ -5308,6 +5311,82 @@ TAR = (0.55, 0.22, 1.6, 0.45)
 # (the players' level, the difficulty, the zone's toughness).
 LAVA_BOMB_EVERY = (9.0, 16.0, 3.0)
 LAVA_BOMB = (3, (3.0, 7.0), 1.8, 2.2, 22.0, 1.5, 4.0, 4.0)
+# Panopticon (M32.1, OCEAN.md 35): the machine city, chrome and neon. The
+# watchtower at the centre (its hall of cells inside: the Overseer's arena,
+# sealed by blast doors until the seventh eye goes dark, M32.4), a plaza
+# round it PANOPTICON_PLAZA tiles wide, and round that WEDGES (user): four
+# districts, one per compass quarter -- the docks facing the main island,
+# then the factory, the scrapyard behind the tower and the kept homes (which
+# side the factory takes is the seed's) -- walled off from each other by
+# district walls along the diagonals, PANOPTICON_WALL_GATES gates in each
+# (at those fractions of the way out, PANOPTICON_GATE_W wide). Each district
+# is a grid of streets between tall blocks that break line of sight
+# (PANOPTICON_GRID: block, street; its main avenue PANOPTICON_AVENUE tiles
+# either side of its axis); PANOPTICON_LOTS of the blocks are open lots.
+# The district names come up the first time you walk into one
+# (PANOPTICON_DISTRICTS: title, subtitle; the docks' is the island's
+# arrival banner), and the tower's plaza too.
+PANOPTICON_HALL_RADII = (52, 42)
+PANOPTICON_TOWER_WALL = 5
+PANOPTICON_HALL_GATE = 7
+PANOPTICON_HALL_PILLARS = 6
+PANOPTICON_PLAZA = 20
+PANOPTICON_WALL_GATES = (0.36, 0.62, 0.86)
+PANOPTICON_GATE_W = 6
+PANOPTICON_GRID = {"docks": (15, 5), "factory": (21, 5), "scrapyard": (17, 5), "homes": (11, 5)}
+PANOPTICON_AVENUE = 4
+PANOPTICON_LOTS = 0.12
+PANOPTICON_SIGNS = 0.05            # a facade tile's chance of a neon sign
+PANOPTICON_DISTRICTS = {"factory": ("THE FACTORY", "where machines make machines"),
+                        "scrapyard": ("THE SCRAPYARD", "where the broken ones go"),
+                        "homes": ("THE KEPT HOMES", "kept for people who never came back"),
+                        "tower": ("THE WATCHTOWER", "it sees everything")}
+# The shore: the land's last PANOPTICON_QUAY tiles are steel quay; the sea
+# within PANOPTICON_OIL tiles of it is oily black water over drowned
+# plating. The sea wall runs PANOPTICON_SEA_WALL[0] tiles either side of
+# its lock gate along the shore facing the main island, [1] thick, [2]
+# tiles in from the shore; the lock gate is [3] wide.
+PANOPTICON_QUAY = 3
+PANOPTICON_OIL = 18
+PANOPTICON_SEA_WALL = (70, 3, 4, 9)
+# The seven camera masts (blinded one by one in M32.4's quest): at least
+# PANOPTICON_MAST_GAP apart, in every district, each on a pad with three
+# pylons round it PANOPTICON_MAST_PYLONS tiles out (its shield, M32.4),
+# cabled to it.
+PANOPTICON_MASTS = 7
+PANOPTICON_MAST_GAP = 60
+PANOPTICON_MAST_PYLONS = 9
+PANOPTICON_SITE_GAP = 10
+# Live power: lines of pylons along both edges of every avenue (one every
+# PANOPTICON_PYLON_EVERY tiles) and PANOPTICON_POWER_LINES more along random
+# streets (a few spans each), cables on the ground between them, a puddle
+# by PANOPTICON_PUDDLES of the spans.
+PANOPTICON_PYLON_EVERY = 10
+PANOPTICON_POWER_LINES = 7          # per district
+PANOPTICON_PUDDLES = 0.3
+# Laser fences: one across every district gate, two across every avenue
+# (sweeping), PANOPTICON_FENCES more across random streets.
+PANOPTICON_FENCES = 5               # per district
+# The land's dangers (systems/panopticon.py; numbers mine). A laser that's
+# on burns PANOPTICON_LASER[0] every [1] s while you touch it, shown [2] s
+# before it comes on (a blinking fence: on [3] s, off [4] s; a sweeping one
+# slides [5] tiles along its street and back every [6] s).
+PANOPTICON_LASER = (12.0, 0.25, 0.4, 1.8, 1.6, 7.0, 4.2)
+# Conveyors carry you PANOPTICON_BELT tiles/s; a press slams down every
+# PANOPTICON_PRESS[0] s, its shadow shown [1] s before, down for [2] s:
+# [3] to whoever is under it.
+PANOPTICON_BELT = 3.6
+PANOPTICON_PRESS = (2.6, 0.8, 0.35, 34.0)
+# Live cables and puddles shock PANOPTICON_SHOCK[0] every [1] s; every span
+# arcs every PANOPTICON_ARC[0] s (+- [1]), crackling [2] s first: [3] to
+# anyone within [4] tiles of the span or [5] of its pylons.
+PANOPTICON_SHOCK = (8.0, 0.4)
+PANOPTICON_ARC = (3.6, 1.2, 0.6, 18.0, 1.0, 2.0)
+# The cleaning: every PANOPTICON_SWEEP[0] s (+- [1]) a sweeper washes a
+# street near each hero: its lane marked [2] s, then it drives down it at
+# [3] tiles/s, [4] tiles long: [5] to anyone it sprays.
+PANOPTICON_SWEEP = (24.0, 6.0, 2.0, 15.0, 46.0, 32.0)
+
 # Pangaea's enemies' shots (M31.2, ai/pangaea.py); each "_echo" is the same
 # shot played again by an echo, drawn faded.
 PANGAEA_SHOTS = {

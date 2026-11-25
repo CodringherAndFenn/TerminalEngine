@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Ocean Zones
 
-Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE. M32 (Panopticon, the east) DRAFTED 2026-11-25 (sections 35-40).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE. M32 (Panopticon, the east) DRAFTED 2026-11-25 (sections 35-40). M32.1 BUILT (2026-11-25, section 41).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -948,8 +948,82 @@ At 0 **the eye tears out of the ceiling and builds a giant from the hall itself*
 
 | Step | Content |
 |------|---------|
-| M32.1 | **Panopticon's land:** the east zone (Paradise's framework), chrome and neon, the sea wall shore, the wedges round the tower (four districts, street grids, district walls and gates), laser fences, conveyors and presses, live power (pylons, cables, puddles), the cleaning (sweeper lanes), the four landmarks (the sea wall, the factory, the scrapyard, the kept homes), the seven camera masts and their pylons (standing), the tower and the hall of cells (sealed by blast doors), the HUD name and banner |
+| M32.1 | **Panopticon's land:** the east zone (Paradise's framework), chrome and neon, the sea wall shore, the wedges round the tower (four districts, street grids, district walls and gates), laser fences, conveyors and presses, live power (pylons, cables, puddles), the cleaning (sweeper lanes), the four landmarks (the sea wall, the factory, the scrapyard, the kept homes), the seven camera masts and their pylons (standing), the tower and the hall of cells (sealed by blast doors), the HUD name and banner. **Built, section 41** |
 | M32.2 | **The alert + the watch and the workers (8):** cameras, the meter and its three levels (calls, turrets waking, gates sealing, the hunter squad, the cleaning on your street), endgame toughness; the sentry drone, spotter, riot robot, Warden; the welder, hauler, assembler, foreman |
 | M32.3 | **The other 8:** the butler, scrubber, gardener, nanny (and the mess in the kept homes); the junker, magnet, rust swarm, scrap colossus (and the wrecks that aren't quite dead) |
 | M32.4 | **The quest + form 1:** blinding the seven eyes (the pylons, the masts, the darkened districts), the voice in the screens, opening and sealing the hall; the eye (the ceiling rail, the gaze, the cells, the laser grid, the recordings, four moves) |
 | M32.5 | **Form 2:** the walking city (the walls come down, it builds itself, power from the grid, a hundred eyes, the city answers, four moves), the bot benchmark; then the relics drafted with the user |
+
+## 41. Built: M32.1 (2026-11-25) -- Panopticon's land
+
+**The zone:** `config.OCEAN_ZONES` is now all four: Paradise, Pandemonium, Pangaea and Panopticon (the zone key `panopticon`, east; it was `future` in `ZONE_PLACES` until now). No compass place is open sea any more. Over three seeds it sits ~3,350 tiles east. Everything else is M29.1's framework: hidden until found, the arrival banner **PANOPTICON -- "where nothing goes unseen"**, F3 in dev mode jumps to each zone in turn (Panopticon fourth).
+
+**The land** (`world/panopticon.py`, a `Plan` per seed, ~100 ms; chunks ~3.2 ms each, at most ~4.4: Pangaea's ~4.2, Pandemonium's ~3.3), as drafted, plus these calls of mine:
+- **The watchtower** at the centre: the hall of cells, an oval of 52 x 42 tiles inside a tower wall 5 thick (Pangaea's caldera is 70 x 52). The wall's inner face is **tiers of cell doors with a screen every fourth**; **six pillars** (3 x 3) stand at half the radius for cover; **blast doors** (7 wide, red) face the sea wall. Kind "court" until M32.4 makes it the quest's lair. Round the tower **a plaza** 20 tiles wide.
+- **The wedges:** the plaza's four quarters by angle. **The docks face the main island, the scrapyard is behind the tower, and the factory and the homes are either side** (which side is the seed's). **District walls** (chrome, 2-3 tiles thick) run along the four diagonals from the plaza out to the sea, **three gates in each** (6 wide, a third, three fifths and most of the way out). The shore isn't walled, so a water walker can always go round by sea.
+- **Each district's grid:** streets 5 wide on a grid lined up with the district's axis, so every street runs straight. The blocks are 15 tiles in the docks, 21 in the factory, 17 in the scrapyard and 11 in the homes. Each district has its own blocks, which show on the maps:
+  - the docks' **steel warehouses**;
+  - the factory's **rusty sheds**;
+  - the homes' **blue flats**, windows lit for nobody;
+  - the scrapyard's **heaps of broken machines**: loose scrap round their edges breaks, and the heaps don't.
+
+  Every block's walls stop you and shots, so the blocks break line of sight. One block in eight is an **empty lot**; in the scrapyard a lot is oily dirt with wrecks in it. A facade tile now and then is a **magenta neon sign**. **Glowing cyan dashes** run down every street's middle, with pavement at its edges. **The main avenue** down each district's axis is 9 wide and runs from the plaza to the shore (the docks' ends at the lock house). Each district's name comes up the first time you walk into it, and so does the tower's plaza:
+  - **THE FACTORY** -- "where machines make machines";
+  - **THE SCRAPYARD** -- "where the broken ones go";
+  - **THE KEPT HOMES** -- "kept for people who never came back";
+  - **THE WATCHTOWER** -- "it sees everything".
+
+  The docks' name is the island's own arrival banner.
+- **The sea wall:** steel, 3 thick, 4 tiles in from the shore, 70 tiles either side of the facing line and following the coast. **Its lock gate** is 9 wide in the middle. Behind the gate, inland, the **lock house** is a walled chamber 9 tiles long with **the voice's cracked screen** (amber) in its side wall. It opens onto a plaza. Kept for M32.4: the screen's spot, `props["screen"]`.
+- **The factory** (66 x 38, factory district):
+  - an assembly hall with a door on every side;
+  - **four belts** along its length, each way in turn, with **a press on each every 12 tiles** (16 presses);
+  - **robot arms** beside the belts;
+  - **half-built robots** at each belt's end and down the middle (`props["chassis"]`, for M32.2-3).
+- **The scrapyard** (72 x 54, scrapyard district):
+  - a chain fence round a yard of oily dirt, with gates at either end;
+  - **seven mounds** of scrap, loose scrap at their feet;
+  - **16 wrecks** (`props["wrecks"]`: the ones that aren't quite dead, M32.3).
+- **The kept homes** (54 x 30, homes district):
+  - a clean street, five homes either side behind trimmed hedges and front lawns;
+  - each home spotless: **its table set for dinner, its bed made**. Both break into "a mess", and the hedges break too (M32.3: the housekeepers mind).
+- **The seven camera masts:** one in the docks and two in each other district, at least 60 apart. Each stands on a red-tinted pad (25 x 25) with a 3 x 3 foot, and **three pylons round it** 9 tiles out, cabled to its foot (its shield, M32.4). The masts can't be hurt yet.
+- **The shore:** the land's last 3 tiles are **a steel quay**. The sea within 18 tiles is **oily black water over drowned plating**: watery, so water walkers cross it.
+
+**The land's dangers** (`systems/panopticon.py`; numbers mine, `PANOPTICON_LASER`, `_BELT`, `_PRESS`, `_SHOCK`, `_ARC`, `_SWEEP`). They hurt heroes; the city's machines will know its patterns (M32.2):
+- **Laser fences** (40 on seed 31):
+  - **a blinking fence across every district gate** (12) and across some streets: on 1.8 s, off 1.6 s, a faint line 0.4 s before it comes on, its posts on either side;
+  - **two sweeping fences across every avenue** and some across streets: always on, sliding 7 tiles along the street and back every 4.2 s, the ground they sweep marked with dim red dots.
+
+  Touching a beam that's on burns **12 every 0.25 s**.
+- **Conveyors and presses:**
+  - in the factory district a **belt** runs down every other cross street (3 wide), the direction turning every second belt street;
+  - **a press** sits on them every other block (its bed 3 x 3 across the belt, its frame on the pavement either side). Count: 42 on seed 31, the factory's 16 included.
+
+  The belts carry you at **3.6 tiles/s**. A press slams every **2.6 s**, its shadow growing 0.8 s before, and stays down 0.35 s: **34** to whoever's under it, once a slam.
+- **Live power** (~350 pylons, ~300 spans on seed 31):
+  - pylons every 10 tiles along both edges of every avenue, the line broken round the sweeping fences;
+  - **seven more lines in each district** along random streets, 3-6 spans each;
+  - **cables** on the ground between them, and **a puddle by a third of the spans**.
+
+  Standing on a live cable or puddle shocks **8 every 0.4 s**. Every span **arcs** on its own beat, about every 3.6 s (give or take 1.2): sparks crawl along it for 0.6 s, then a bolt runs between its pylons, **18** to anyone within 1 tile of the span or 2 of its pylons. **Break a pylon** (80, like a wall) and its spans go dead for good: no arcs, and their cables and puddles turn dead tiles.
+- **The cleaning:** about every **24 s** (give or take 6), a sweeper comes for one of the streets nearest each hero (off the tower's plaza). It picks one of the two nearest streets along the district and the two across it, trimmed to its open length (14-46 tiles). **The lane is marked 2 s** (orange edges, arrows the way it'll come), then the sweeper drives down it at **15 tiles/s** spraying a burning wash: **32** to each hero it passes, once.
+
+All of it **scales like the zone's enemies' damage** (`systems/pangaea.hazard`). A broken pylon reaches `systems/panopticon.step` through `world.broke` (`tiles.REPORT_BREAKS`); Pangaea's eggs and amber still go to `systems/pangaea.step`.
+
+**Not yet:**
+- no machines (`BIOME_ENEMY_DENSITY` has no "panopticon": M32.2-3), and so no alert or cameras (M32.2);
+- the masts can't be hurt and the voice isn't there (M32.4);
+- the tower's hall is a shell (M32.4-5).
+
+**Code:**
+- `world/panopticon.py` (`Plan`, `Fence`);
+- `world/zones.py` (`plan_of`, `shore_band`, the key `panopticon`), `world/generator` (`_panopticon`, 33 tiles), `world/biomes.PANOPTICON` (id 10);
+- `world/tiles.py` (56 new, `BELTS`, `PYLON` in `REPORT_BREAKS`) and `palette.py`;
+- `systems/collision.WATERY` (the oily sea);
+- `systems/panopticon.py` (`City`, `step`, `fence_now`, `press_now`, `span_now`, `district_banner`);
+- `scenes/game` (`city`, the step, `_zones_near`'s district banners);
+- `render/panopticon.py`, effect `spark_burst`.
+
+**Tests:** `tests/test_m32_1.py` (27); `test_m29_1` (every place has its zone now) and `test_m31_1` (the east is Panopticon) updated.
+

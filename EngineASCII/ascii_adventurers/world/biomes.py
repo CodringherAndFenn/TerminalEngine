@@ -36,8 +36,11 @@ OCEAN = Biome(6, "ocean", tiles.WATER)       # everything past the coast
 PARADISE = Biome(7, "paradise", tiles.CLOUD)
 PANDEMONIUM = Biome(8, "pandemonium", tiles.OBSIDIAN)
 PANGAEA = Biome(9, "pangaea", tiles.JUNGLE_FLOOR)          # (M31.1: the past, deep time)
+PANOPTICON = Biome(10, "panopticon", tiles.STREET)         # (M32.1: the future, the machine city)
 
-BY_ID = (PLAINS, FOREST, DESERT, RUINS, SWAMP, MUSHROOM, OCEAN, PARADISE, PANDEMONIUM, PANGAEA)
+BY_ID = (PLAINS, FOREST, DESERT, RUINS, SWAMP, MUSHROOM, OCEAN, PARADISE, PANDEMONIUM, PANGAEA,
+         PANOPTICON)
 # The zones' biomes by zone key.
-ZONES = {"paradise": PARADISE, "pandemonium": PANDEMONIUM, "pangaea": PANGAEA}
+ZONES = {"paradise": PARADISE, "pandemonium": PANDEMONIUM, "pangaea": PANGAEA,
+         "panopticon": PANOPTICON}
 BY_NAME = {b.name: b for b in BY_ID}

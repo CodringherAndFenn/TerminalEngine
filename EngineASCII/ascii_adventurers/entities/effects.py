@@ -84,6 +84,7 @@ DURATIONS = {
     "belly_quake": config.HUNGER_QUAKE[4] / config.HUNGER_QUAKE[3],
     "goblet_wave": config.U_GOBLET[1] / config.U_GOBLET[2],   # (the Host's Goblet's toast)
     "lava_burst": 0.5,      # M31.1: a lava bomb landing on Pangaea (size: its radius)
+    "spark_burst": 0.4,     # M32.1: Panopticon's power arcing, a pylon breaking, a press slamming
     "beast_roar": 0.6,      # M31.2: a cave bear's roar, a fire-bearer's beat (a ring; size: reach)
     # M31.5: the first life (ai/first_life.py; size: about its radius)
     "splash": 0.5,          # something bursting up out of the sea, a bubble bursting

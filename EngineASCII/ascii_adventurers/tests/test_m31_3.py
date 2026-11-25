@@ -399,7 +399,8 @@ class WorldTest(unittest.TestCase):
     def test_breaking_reports_eggs_and_amber_only(self):
         w = ChunkedWorld(31)
         self.assertEqual(w.broke, [])
-        self.assertEqual(tiles.REPORT_BREAKS, {tiles.EGG, tiles.GIANT_EGG, tiles.AMBER})
+        # (M32.1: and Panopticon's pylons, taken by systems/panopticon.step)
+        self.assertEqual(tiles.REPORT_BREAKS, {tiles.EGG, tiles.GIANT_EGG, tiles.AMBER, tiles.PYLON})
 
 
 class GameTest(unittest.TestCase):

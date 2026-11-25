@@ -989,6 +989,23 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   enemies), the **Tyrant Skull** (your roar freezes them in fear), the
   **Swarm Ring** (a stinging river along your aim) or the **Echo Conch**
   (your attacks fire again 3 s later from where you stood).
+- **Panopticon, M32.1** (`design/OCEAN.md` 41): the fourth ocean zone's
+  island, far east, hidden until you come near ("where nothing goes
+  unseen"): the machine city, chrome and neon, kept running by its machines
+  long after the people left. You arrive through the lock gate in the sea
+  wall. The watchtower stands at the centre (its hall of cells sealed by
+  blast doors), and round its plaza lie four walled districts -- the docks,
+  the factory, the scrapyard behind the tower and the kept homes -- each a
+  grid of streets between tall blocks that break line of sight, its name
+  coming up the first time you walk into it. Laser fences blink across the
+  district gates and the streets and sweep along the avenues; conveyor
+  belts run down the factory's streets into stamping presses (their shadows
+  show where they'll slam); pylons carry live power along the avenues --
+  the cables and puddles shock you, the spans arc between pylons, and a
+  broken pylon kills its lines; and every so often a sweeper washes a street
+  near you with a burning spray down a lane marked first. The factory, the
+  scrapyard, the kept homes and seven great camera masts stand in the
+  districts. Nobody's home yet (M32.2-3: the machines).
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

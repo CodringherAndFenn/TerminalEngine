@@ -1450,6 +1450,245 @@ TIDE_ROCK = TileType(
     "rock in the tide", ("  ", "_ ", " _", "  ", "=_"), palette.TIDE_ROCK_FG, palette.TIDE_ROCK_BG,
 )
 
+# --- Panopticon (M32.1, design/OCEAN.md 35): the machine city, chrome and neon ----------
+# Black steel streets with glowing cyan lines between tall blocks that break
+# line of sight (each district's its own: the docks' warehouses, the
+# factory's sheds, the homes' flats, the scrapyard's heaps), magenta neon
+# signs; district walls with gates; the watchtower and its hall of cells at
+# the centre. The land's dangers (systems/panopticon.py): laser fences
+# (their posts and tracks: the beam is drawn when it's on), conveyors and
+# presses, live power (pylons, cables and puddles: dead once their pylon
+# breaks). A steel quay all round, oily black water over drowned plating.
+# (Ground stays dark so shots read on it.)
+STREET = TileType(
+    "street", ("  ", "  ", "  ", ". ", " .", "  "), palette.STREET_FG, palette.STREET_BG,
+)
+LANE_LINE = TileType(
+    # A street's glowing middle line.
+    "lane line", ("--", "- ", " -"), palette.LANE_LINE_FG, palette.STREET_BG,
+)
+PAVEMENT = TileType(
+    "pavement", ("  ", "_ ", " _", "  "), palette.PAVEMENT_FG, palette.PAVEMENT_BG,
+)
+PLAZA = TileType(
+    # The tower's plaza, the gates', the landmarks' forecourts.
+    "plaza", ("  ", ". ", " .", "  ", "' "), palette.PLAZA_FG, palette.PLAZA_BG,
+)
+LOT = TileType(
+    # An empty block: open ground among the buildings.
+    "empty lot", ("  ", ". ", ",.", " '", "_ "), palette.LOT_FG, palette.LOT_BG,
+)
+QUAY = TileType(
+    "quay", ("  ", ": ", " :", "_ ", "  "), palette.QUAY_FG, palette.QUAY_BG,
+)
+OILY_SEA = TileType(
+    # Oily black water over drowned steel plating: watery (water walkers
+    # cross it).
+    "oily sea", ("  ", "░ ", " ░", "= ", "  "), palette.OILY_FG, palette.OILY_BG,
+    solid=True,
+)
+WAREHOUSE_WALL = TileType(
+    # The docks' blocks: warehouses.
+    "warehouse wall", ("[]", "[]", "||", "]["), palette.WAREHOUSE_FG, palette.WAREHOUSE_BG,
+    solid=True, blocks_shots=True,
+)
+WAREHOUSE_ROOF = TileType(
+    "warehouse roof", ("▓▓", "▓▒", "▒▓"), palette.WAREHOUSE_ROOF_FG, palette.WAREHOUSE_ROOF_BG,
+    solid=True, blocks_shots=True,
+)
+SHED_WALL = TileType(
+    # The factory's blocks (and the factory's own walls): sheds.
+    "factory shed", ("##", "#|", "|#"), palette.SHED_FG, palette.SHED_BG,
+    solid=True, blocks_shots=True,
+)
+SHED_ROOF = TileType(
+    "shed roof", ("▒▒", "▒░", "░▒", "o▒"), palette.SHED_ROOF_FG, palette.SHED_ROOF_BG,
+    solid=True, blocks_shots=True,
+)
+FLAT_WALL = TileType(
+    # The homes' blocks: flats, their windows lit for nobody.
+    "apartment block", ("::", ": ", " :", "''"), palette.FLAT_FG, palette.FLAT_BG,
+    solid=True, blocks_shots=True,
+)
+FLAT_ROOF = TileType(
+    "rooftop", ("▓▓", "▓▒", "▒▓", "▓▓"), palette.FLAT_ROOF_FG, palette.FLAT_ROOF_BG,
+    solid=True, blocks_shots=True,
+)
+NEON_SIGN = TileType(
+    "neon sign", ("[]", "==", "##"), palette.NEON_FG, palette.NEON_BG,
+    solid=True, blocks_shots=True,
+)
+SCRAP_BITS = TileType(
+    "scrap bits", (",.", ".,", "_,", ",_"), palette.SCRAP_BITS_FG, palette.LOT_BG,
+)
+SCRAP_HEAP = TileType(
+    # The scrapyard's blocks: mountains of broken machines.
+    "scrap heap", ("%#", "#%", "&%", "%&"), palette.HEAP_FG, palette.HEAP_BG,
+    solid=True, blocks_shots=True,
+)
+LOOSE_SCRAP = TileType(
+    "loose scrap", ("%,", ",%", "&."), palette.LOOSE_SCRAP_FG, palette.LOOSE_SCRAP_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP,
+    wear=((",.", ".,"),),
+    becomes=SCRAP_BITS,
+)
+CITY_WALL = TileType(
+    # The district walls (their gates are gaps).
+    "district wall", ("██", "▓█", "█▓"), palette.CITY_WALL_FG, palette.CITY_WALL_BG,
+    solid=True, blocks_shots=True,
+)
+LASER_POST = TileType(
+    # A laser fence's post: it stops you, not shots.
+    "laser post", ("[]", "|]", "[|"), palette.LASER_POST_FG, palette.LASER_POST_BG,
+    solid=True,
+)
+LASER_TRACK = TileType(
+    # Where a fence's beam runs (drawn over it while it's on).
+    "laser track", (". ", " .", ".."), palette.LASER_TRACK_FG, palette.STREET_BG,
+)
+BELT_E = TileType("conveyor belt", (">>", "> ", " >"), palette.BELT_FG, palette.BELT_BG)
+BELT_W = TileType("conveyor belt", ("<<", "< ", " <"), palette.BELT_FG, palette.BELT_BG)
+BELT_N = TileType("conveyor belt", ("^^", "^ ", " ^"), palette.BELT_FG, palette.BELT_BG)
+BELT_S = TileType("conveyor belt", ("vv", "v ", " v"), palette.BELT_FG, palette.BELT_BG)
+BELTS = {BELT_E: (1, 0), BELT_W: (-1, 0), BELT_N: (0, -1), BELT_S: (0, 1)}
+PRESS_BED = TileType(
+    # Where a press slams down (its shadow shows first).
+    "press bed", ("==", "=_", "_="), palette.PRESS_BED_FG, palette.PRESS_BED_BG,
+)
+PRESS_FRAME = TileType(
+    "press frame", ("||", "]["), palette.PRESS_FRAME_FG, palette.PRESS_FRAME_BG,
+    solid=True, blocks_shots=True,
+)
+PYLON_STUMP = TileType(
+    "broken pylon", ("._", "_.", ".."), palette.STUMP_PYLON_FG, palette.STREET_BG,
+)
+PYLON = TileType(
+    # Break it and its lines go dead (systems/panopticon.py).
+    "pylon", ("/\\", "|\\", "/|"), palette.PYLON_FG, palette.PYLON_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP,
+    wear=(("/.", ".\\"),),
+    becomes=PYLON_STUMP,
+)
+CABLE = TileType(
+    # A live cable on the ground: it shocks.
+    "live cable", ("=-", "-=", ":="), palette.CABLE_FG, palette.STREET_BG,
+)
+DEAD_CABLE = TileType(
+    "dead cable", ("=-", "-=", ":="), palette.DEAD_CABLE_FG, palette.STREET_BG,
+)
+PUDDLE = TileType(
+    # An electrified puddle by a live cable.
+    "live puddle", ("░░", "▒░", "░▒"), palette.PUDDLE_FG, palette.PUDDLE_BG,
+)
+DEAD_PUDDLE = TileType(
+    "puddle", ("░░", "▒░", "░▒"), palette.DEAD_PUDDLE_FG, palette.DEAD_PUDDLE_BG,
+)
+TOWER_WALL = TileType(
+    "tower wall", ("██", "▓█", "█▓"), palette.TOWER_FG, palette.TOWER_BG,
+    solid=True, blocks_shots=True,
+)
+CELL_DOOR = TileType(
+    # The hall of cells' walls: tiers of cell doors and screens.
+    "cell door", ("||", "|#", "#|"), palette.CELL_DOOR_FG, palette.CELL_DOOR_BG,
+    solid=True, blocks_shots=True,
+)
+CELL_SCREEN = TileType(
+    "screen", ("[]", "[=", "=]"), palette.SCREEN_FG, palette.SCREEN_BG,
+    solid=True, blocks_shots=True,
+)
+CELL_FLOOR = TileType(
+    # The hall's floor (calm, so the fight on it reads).
+    "hall of cells floor", ("  ", "  ", ". ", " '", "  "), palette.CELL_FLOOR_FG, palette.CELL_FLOOR_BG,
+)
+HALL_PILLAR = TileType(
+    "pillar", ("██", "▓▓"), palette.HALL_PILLAR_FG, palette.HALL_PILLAR_BG,
+    solid=True, blocks_shots=True,
+)
+BLAST_DOOR = TileType(
+    # The hall's gate, sealed until the seventh eye goes dark (M32.4).
+    "blast door", ("##", "=#", "#="), palette.BLAST_DOOR_FG, palette.BLAST_DOOR_BG,
+    solid=True, blocks_shots=True,
+)
+SEA_WALL = TileType(
+    "sea wall", ("██", "▓█", "█▓"), palette.SEA_WALL_FG, palette.SEA_WALL_BG,
+    solid=True, blocks_shots=True,
+)
+LOCK_FLOOR = TileType(
+    # The sea wall's lock gate, open: where you walk in.
+    "lock", ("==", "=_", "_="), palette.LOCK_FG, palette.LOCK_BG,
+)
+VOICE_SCREEN = TileType(
+    # A cracked screen in the lock house: the voice in the screens (M32.4).
+    "cracked screen", ("[/", "/]", "[\\"), palette.VOICE_FG, palette.VOICE_BG,
+    solid=True, blocks_shots=True,
+)
+FACTORY_FLOOR = TileType(
+    "factory floor", ("  ", ". ", " .", "_ ", "  "), palette.FACTORY_FLOOR_FG, palette.FACTORY_FLOOR_BG,
+)
+ROBOT_ARM = TileType(
+    # An assembly arm by a belt: it stops you, not shots.
+    "robot arm", ("Y-", "-Y", "Y|"), palette.ROBOT_ARM_FG, palette.FACTORY_FLOOR_BG,
+    solid=True,
+)
+CHASSIS = TileType(
+    # A half-built robot on the line (some start moving, M32.2-3).
+    "half-built robot", ("[]", "[o", "o]"), palette.CHASSIS_FG, palette.CHASSIS_BG,
+    solid=True, blocks_shots=True,
+)
+CHAIN_FENCE = TileType(
+    # The scrapyard's fence: it stops you, not shots.
+    "chain fence", ("xx", "XX", "xX"), palette.CHAIN_FENCE_FG, palette.YARD_BG,
+    solid=True,
+)
+YARD_DIRT = TileType(
+    "oily dirt", (". ", " ,", "  ", ",.", "  "), palette.YARD_FG, palette.YARD_BG,
+)
+WRECK = TileType(
+    # A dead machine (some aren't quite dead, M32.3): cover.
+    "wreck", ("[%", "%]", "&]"), palette.WRECK_FG, palette.WRECK_BG,
+    solid=True, blocks_shots=True,
+)
+A_MESS = TileType(
+    # What a broken thing in the kept homes leaves (the housekeepers mind, M32.3).
+    "a mess", (",'", "'.", ".,"), palette.MESS_FG, palette.HOME_FLOOR_BG,
+)
+HOME_WALL = TileType(
+    "home wall", ("▓▓", "▓█", "█▓"), palette.HOME_WALL_FG, palette.HOME_WALL_BG,
+    solid=True, blocks_shots=True,
+)
+HOME_FLOOR = TileType(
+    "clean floor", ("  ", "  ", ". ", "  "), palette.HOME_FLOOR_FG, palette.HOME_FLOOR_BG,
+)
+SET_TABLE = TileType(
+    # A table set for dinner: it stops you, not shots, and breaks.
+    "set table", ("o=", "=o", "=="), palette.SET_TABLE_FG, palette.SET_TABLE_BG,
+    solid=True, hp=config.STUMP_HP,
+    becomes=A_MESS,
+)
+MADE_BED = TileType(
+    "made bed", ("[=", "=]", "=="), palette.BED_FG, palette.BED_BG,
+    solid=True, hp=config.STUMP_HP,
+    becomes=A_MESS,
+)
+LAWN = TileType(
+    "lawn", ('" ', ' "', "  ", "''"), palette.LAWN_FG, palette.LAWN_BG,
+)
+HEDGE = TileType(
+    # A trimmed hedge in front of a home: it stops you, not shots.
+    "trimmed hedge", ("mm", "MM", "mM"), palette.HEDGE_FG, palette.HEDGE_BG,
+    solid=True, hp=config.TREE_HP,
+    becomes=LAWN,
+)
+MAST_BASE = TileType(
+    # A great camera mast's foot (blinded in M32.4's quest).
+    "camera mast", ("[]", "##", "[#"), palette.MAST_FG, palette.MAST_BG,
+    solid=True, blocks_shots=True,
+)
+MAST_PAD = TileType(
+    "mast pad", ("  ", ". ", "_ ", "  "), palette.MAST_PAD_FG, palette.MAST_PAD_BG,
+)
+
 # M31.3: the tiles whose breaking the world reports (world.broke, taken by
-# systems/pangaea.step): an egg hatches, amber frees what's in it.
-REPORT_BREAKS = frozenset((EGG, GIANT_EGG, AMBER))
+# systems/pangaea.step): an egg hatches, amber frees what's in it. M32.1: a
+# pylon's lines go dead (systems/panopticon.step takes those).
+REPORT_BREAKS = frozenset((EGG, GIANT_EGG, AMBER, PYLON))

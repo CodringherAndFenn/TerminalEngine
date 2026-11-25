@@ -96,6 +96,7 @@ from ..render.gear_looks import look_of
 from ..render.pandemonium import draw_entranced
 from ..render.feast import draw_drunk, draw_feast_marks
 from ..render.pangaea import draw_pangaea
+from ..render.panopticon import draw_panopticon
 from ..render.relics import draw_relics
 from ..render.enemies_sprite import draw_enemy
 from ..render.fallen import draw_groves
@@ -106,7 +107,7 @@ from ..render.spell_fx import (draw_gems, draw_ghost_sight, draw_overcast, draw_
 from ..render.sprites import SpriteBank
 from ..render.terrain import TerrainRenderer
 from ..ai.plains import drum_haste, tick_drum
-from ..systems import combat, mount, pangaea, relics, roll, temptation
+from ..systems import combat, mount, pangaea, panopticon, relics, roll, temptation
 from ..systems.chests import Chests
 from ..systems.quests import Banner, Quests, free_spot
 from ..systems.spawner import Spawner
@@ -190,6 +191,7 @@ class GameScene(Scene):
         self.dev_targets = False        # dev mode, F4: the big map shows every quest's targets
         self.arrived: set[str] = set()  # (M29.1) ocean zones someone has set foot on: their banner
         self.volcano = pangaea.Volcano()  # (M31.1) Pangaea's lava bombs in the air
+        self.city = panopticon.City()     # (M32.1) Panopticon's clock and sweepers
         self._run_recorded = False
         self.broken: set[str] = set()     # records this run broke
         self.overlay = None               # None | PauseMenu | SettingsPanel | GameOverPanel
@@ -450,6 +452,9 @@ class GameScene(Scene):
         if z.key == "pangaea" and biome == z.biome.name:  # (M31.1: each ring of ages' banner)
             from ..world.zones import plan_of
             pangaea.ring_banner(self, p, plan_of(layout, z))
+        if z.key == "panopticon" and biome == z.biome.name:   # (M32.1: each district's banner)
+            from ..world.zones import plan_of
+            panopticon.district_banner(self, p, plan_of(layout, z))
 
     def _dev_zone(self) -> None:
         """Developer mode, F3: jump to the next ocean zone (M29.1), just
@@ -683,6 +688,7 @@ class GameScene(Scene):
             biome = biome_at(math.floor(p.hero.x), math.floor(p.hero.y)).name if biome_at else None
             p.stats.tick(dt, p.hero.x, p.hero.y, p.hero.walked, biome)
             self._zones_near(p, biome)
+        panopticon.step(self, living, dt)            # (M32.1: lasers, belts, presses, power, sweepers)
         pangaea.step(self, living, dt)               # (M31.1: lava, tar, the volcano's bombs)
 
         update_effects(self.effects, dt)   # age first: new effects show frame 0
@@ -1521,6 +1527,7 @@ class GameScene(Scene):
         draw_drunk(text, cam, self.enemies)                                      # (M30.5)
         draw_pangaea(text, cam, self.volcano, [p.hero for p in self.players if p.alive],  # (M31.1)
                      getattr(self.world, "pangaea_land", None), self.steps / 60)   # (M31.2)
+        draw_panopticon(text, cam, self)                                         # (M32.1)
         draw_relics(text, self.sprites, cam, [p for p in self.players if p.alive], self.enemies,
                     self.steps)
         draw_bear_riders(self.sprites, cam, self.quests, self.players)

@@ -1414,3 +1414,146 @@ STEAM = ((230, 236, 240), (160, 170, 180))
 # Its relics: an Echo Conch's echo of a shot (faded), the Tyrant Skull's roar.
 CONCH_ECHO = ((206, 218, 236), ((140, 154, 182), (98, 110, 138)))
 SKULL_ROAR = ((240, 228, 200), (200, 80, 60))
+
+
+# --- Panopticon (M32.1, design/OCEAN.md 35): the machine city, chrome and neon ----------
+# Black steel streets with glowing cyan lines, chrome blocks, magenta signs
+# and screens (colours new to the game); each district's blocks their own
+# (the docks' steel warehouses, the factory's rusty sheds, the homes' blue
+# flats, the scrapyard's heaps), so the districts show on the maps. The
+# voice's screen is amber on black: the only warm colour in the city.
+STREET_FG = (44, 60, 72)
+STREET_BG = (10, 12, 18)
+LANE_LINE_FG = (60, 200, 214)           # the glowing cyan lines
+PAVEMENT_FG = (70, 80, 92)
+PAVEMENT_BG = (22, 25, 32)
+PLAZA_FG = (84, 96, 116)
+PLAZA_BG = (24, 27, 36)
+LOT_FG = (84, 76, 70)
+LOT_BG = (18, 17, 19)
+QUAY_FG = (110, 120, 132)
+QUAY_BG = (34, 38, 46)
+OILY_FG = (50, 56, 70)                  # drowned plating glinting under it...
+OILY_BG = (6, 8, 12)                    # ...black oily water
+WAREHOUSE_FG = (170, 182, 194)
+WAREHOUSE_BG = (50, 56, 68)
+WAREHOUSE_ROOF_FG = (64, 70, 84)
+WAREHOUSE_ROOF_BG = (32, 36, 46)
+SHED_FG = (196, 150, 92)
+SHED_BG = (62, 46, 36)
+SHED_ROOF_FG = (96, 74, 58)
+SHED_ROOF_BG = (42, 33, 28)
+FLAT_FG = (120, 226, 240)               # windows lit for nobody
+FLAT_BG = (40, 46, 68)
+FLAT_ROOF_FG = (70, 78, 104)
+FLAT_ROOF_BG = (30, 33, 48)
+NEON_FG = (255, 70, 200)
+NEON_BG = (64, 10, 52)
+HEAP_FG = (152, 104, 62)
+HEAP_BG = (60, 44, 34)
+LOOSE_SCRAP_FG = (176, 124, 72)
+LOOSE_SCRAP_BG = (52, 40, 32)
+SCRAP_BITS_FG = (120, 92, 64)
+CITY_WALL_FG = (200, 210, 222)
+CITY_WALL_BG = (90, 98, 112)
+LASER_POST_FG = (255, 64, 96)
+LASER_POST_BG = (44, 12, 20)
+LASER_TRACK_FG = (110, 30, 44)
+BELT_FG = (230, 200, 70)
+BELT_BG = (40, 36, 24)
+PRESS_BED_FG = (240, 200, 40)           # warning stripes
+PRESS_BED_BG = (44, 36, 10)
+PRESS_FRAME_FG = (156, 158, 168)
+PRESS_FRAME_BG = (62, 64, 74)
+PYLON_FG = (240, 230, 110)
+PYLON_BG = (40, 42, 54)
+STUMP_PYLON_FG = (96, 96, 100)
+CABLE_FG = (255, 230, 80)
+DEAD_CABLE_FG = (70, 70, 78)
+PUDDLE_FG = (180, 240, 255)
+PUDDLE_BG = (18, 40, 72)
+DEAD_PUDDLE_FG = (60, 70, 92)
+DEAD_PUDDLE_BG = (14, 20, 30)
+TOWER_FG = (222, 232, 242)
+TOWER_BG = (112, 120, 134)
+CELL_DOOR_FG = (180, 190, 202)
+CELL_DOOR_BG = (20, 22, 30)
+SCREEN_FG = (80, 240, 250)
+SCREEN_BG = (10, 40, 52)
+CELL_FLOOR_FG = (52, 58, 72)
+CELL_FLOOR_BG = (14, 16, 22)
+HALL_PILLAR_FG = (152, 162, 178)
+HALL_PILLAR_BG = (70, 76, 92)
+BLAST_DOOR_FG = (232, 62, 72)
+BLAST_DOOR_BG = (70, 74, 88)
+SEA_WALL_FG = (152, 162, 172)
+SEA_WALL_BG = (70, 76, 88)
+LOCK_FG = (112, 122, 132)
+LOCK_BG = (30, 34, 42)
+VOICE_FG = (255, 176, 60)               # amber, like an old terminal
+VOICE_BG = (22, 12, 4)
+FACTORY_FLOOR_FG = (82, 78, 72)
+FACTORY_FLOOR_BG = (26, 24, 22)
+ROBOT_ARM_FG = (255, 150, 40)
+CHASSIS_FG = (172, 182, 194)
+CHASSIS_BG = (50, 54, 62)
+CHAIN_FENCE_FG = (132, 138, 144)
+YARD_FG = (92, 76, 62)
+YARD_BG = (24, 20, 18)
+WRECK_FG = (164, 112, 72)
+WRECK_BG = (56, 42, 32)
+MESS_FG = (182, 172, 160)
+HOME_WALL_FG = (222, 216, 202)
+HOME_WALL_BG = (150, 146, 136)
+HOME_FLOOR_FG = (170, 166, 156)
+HOME_FLOOR_BG = (58, 56, 52)
+SET_TABLE_FG = (244, 244, 244)          # plates and glasses
+SET_TABLE_BG = (110, 80, 60)
+BED_FG = (232, 232, 246)
+BED_BG = (70, 90, 142)
+LAWN_FG = (62, 142, 72)
+LAWN_BG = (14, 40, 20)
+HEDGE_FG = (82, 192, 92)
+HEDGE_BG = (20, 62, 26)
+MAST_FG = (255, 64, 64)                 # its red light
+MAST_BG = (70, 74, 88)
+MAST_PAD_FG = (112, 40, 52)
+MAST_PAD_BG = (24, 16, 20)
+# The land's dangers (systems/panopticon.py, render/panopticon.py): a laser
+# that's on (its core, its glow) and its tell; a press's shadow (growing) and
+# its ram; a span's crackle before it arcs (the arc itself: ARC); a sweeper's
+# lane marks, the sweeper and its spray.
+LASER_BEAM = ((255, 70, 110), (255, 170, 200))
+LASER_TELL = (130, 36, 60)
+PRESS_SHADOW = ((70, 58, 20), (240, 200, 40))
+PRESS_RAM = ((210, 214, 224), (84, 88, 100))
+ARC_TELL = ((255, 236, 100), (150, 140, 60))
+SWEEP_MARK = ((255, 150, 40), (130, 70, 20))
+SWEEPER = ((236, 240, 246), (90, 96, 110))
+SPRAY = ((255, 180, 60), (255, 236, 150))
+
+MAP_BIOME["panopticon"] = (40, 46, 62)
+MAP_TILE.update({
+    "street": (30, 34, 46), "lane line": (36, 46, 58), "pavement": (44, 48, 60), "plaza": (62, 66, 82),
+    "empty lot": (40, 36, 36), "quay": (82, 90, 102), "oily sea": (12, 14, 20),
+    # (each district's blocks their own colour, so the districts show)
+    "warehouse wall": (134, 144, 156), "warehouse roof": (74, 82, 96),
+    "factory shed": (152, 112, 72), "shed roof": (104, 78, 58),
+    "apartment block": (80, 150, 174), "rooftop": (60, 70, 112),
+    "scrap heap": (112, 82, 56), "loose scrap": (132, 96, 62), "scrap bits": (80, 64, 50),
+    "neon sign": (230, 60, 190), "district wall": (192, 202, 214),
+    "laser post": (255, 64, 96), "laser track": (90, 30, 44), "conveyor belt": (182, 160, 64),
+    "press bed": (200, 170, 40), "press frame": (132, 134, 144), "pylon": (240, 230, 110),
+    "broken pylon": (80, 80, 84), "live cable": (200, 180, 64), "dead cable": (60, 60, 66),
+    "live puddle": (90, 150, 200), "puddle": (40, 50, 70),
+    "tower wall": (222, 232, 242), "cell door": (120, 126, 138), "screen": (60, 200, 212),
+    "hall of cells floor": (34, 38, 52), "pillar": (152, 162, 178), "blast door": (232, 62, 72),
+    "sea wall": (152, 162, 172), "lock": (92, 102, 112), "cracked screen": (255, 176, 60),
+    "factory floor": (62, 58, 54), "robot arm": (232, 140, 40), "half-built robot": (152, 162, 172),
+    "chain fence": (122, 128, 134), "oily dirt": (72, 60, 50), "wreck": (142, 100, 64),
+    "a mess": (140, 130, 120), "home wall": (222, 216, 202), "clean floor": (152, 148, 138),
+    "set table": (200, 200, 200), "made bed": (110, 130, 192), "lawn": (40, 100, 50),
+    "trimmed hedge": (62, 152, 72), "camera mast": (255, 64, 64), "mast pad": (92, 40, 52),
+})
+PIN_GIVER["panopticon"] = ((255, 176, 60), (22, 12, 4))           # amber on black
+
