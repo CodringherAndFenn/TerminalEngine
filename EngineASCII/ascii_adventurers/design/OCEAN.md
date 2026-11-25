@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Ocean Zones
 
-Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE.** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE. M32 (Panopticon, the east) DRAFTED 2026-11-25 (sections 35-40).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -13,7 +13,7 @@ Four islands out in the ocean, reached by **water walking** (Adventurer's Glory,
 | **North** | **Paradise** (heaven) | A white, heaven-like island with a twist: "biblically accurate" horror angels and Bible-inspired monsters that look pretty at first and turn into extremely bloody monsters. Blood is a big theme; **white and red** are the colours. **M29.** |
 | **South** | **Pandemonium** (hell) | Hell twisted toward excess: the humans there aren't tortured, all their pleasures are indulged (the opposite of the torturous heaven), but the trance makes them mad, so they're still aggressive. **Revellers in groups:** they feast, drink and dance lost in the trance, ignore you until you come close or hit one, then the whole group frenzies. Kept to feasts, wine, music, dance, gold and vanity, with our own names. **M30** (section 13 on). |
 | **West** | **Pangaea** (the past) | **Deep time:** a primeval island from before people's history: giant ferns, tar pits, a smoking volcano, amber; great mammals, dinosaurs, giant insects and a tribe of early hunters. **Its twist: echoes:** every attack repeats a few seconds later. **M31** (section 24 on). |
-| **East** | The Future | To draft (ask what "the future" means) |
+| **East** | **Panopticon** (the future) | **The machine city:** the people are long gone, but their machines kept the city running: it still builds, cleans and guards itself, and treats anything alive as a fault to fix. **Its twist: the alert:** being seen raises a city-wide alarm. **M32** (section 35 on). |
 
 Heaven against Hell and the Past against the Future are natural pairs for M33's kill order.
 
@@ -827,4 +827,129 @@ One per age and one for the first life, each the recommended one of three propos
 
 The power that grows: the herd's, the roar's and the stings' damage, the echo's share. Look: the Tyrant Skull is a bone helm with red eyes (`render/gear_looks`); the herd's mammoth in flat ochre like the shamans' spirits; the river three rows of insects streaming out; the roar a widening cone of ")"; the conch's shots in faded blue. Affixes: Herd -- broad strokes, brutal, second wind; Skull -- iron skin, brutal, long reach; Ring -- affliction, lingering, quickened; Conch -- quick hands, keen eye, sharpened. Code: `systems/relics.py` (`_herd`, `_skull`, `_swarm_ring`, `conch_record` from `GameScene._attack`, `_conch`, the shared clock `_due`), `render/relics.py` (the herd, `_draw_swarms`), effect `skull_roar`, `Projectile.conch`, config `U_HERD`, `U_SKULL`, `U_SWARM`, `U_CONCH`. 50 boss uniques now (U47-U50). **Tests:** `tests/test_m31_5.py` (23 in all, 8 for the relics); `test_cards` and `test_m28_5` count them.
 
-**M31 (Pangaea) is complete. NEXT: M32, the east zone (the Future), drafted with the user first.**
+**M31 (Pangaea) is complete. NEXT: M32, the east zone (the Future): drafted 2026-11-25 as Panopticon, sections 35-40.**
+
+---
+
+## 35. Panopticon (east): the land (user, M32 rounds 1-3, 2026-11-25)
+
+**What the future means: the machine city.** The people are long gone, but their machines kept the city running: it still builds, cleans and guards itself, and **treats anything alive as a fault to fix**. It's the clean opposite of Pangaea: the world before people, and the world after them.
+
+**Name: PANOPTICON** (Bentham's all-seeing prison of 1791, built so one tower can watch every cell: public domain; P like the other three). The arrival banner: **"where nothing goes unseen"**.
+
+**Look: chrome and neon** -- black steel streets with glowing cyan lines, chrome blocks and towers, magenta signs and screens: colours new to the game. **(mine)** The shore is the sea wall's: no beach, the city's edge rises straight out of oily black water over drowned steel plating (Paradise's cloud bank, Pandemonium's coin beach, Pangaea's black sand).
+
+**The land's dangers (all four)** -- the counterpart of Paradise's blood, Pandemonium's excess and Pangaea's lava:
+- **Laser fences:** security gates across the streets: laser lines that burn you. They switch on and off in patterns and sweep side to side. Read the pattern and slip through. **(mine)** Most stand at the district gates and across the busier streets.
+- **Conveyors and presses:** factory floors whose belts carry you and the machines along, into stamping presses and crushers that slam down on a beat. **(mine)** In the factory district and the factory itself; a press's shadow shows where it lands.
+- **Live power:** sparking cables, electrified puddles and pylons. Lightning arcs between pylons and to anything near them. Break a pylon and its lines go dead.
+- **The cleaning:** the city scrubs itself on a schedule. Sweepers wash whole streets with a burning spray along lanes marked first. Anything alive in a lane is "cleaned". **(mine)** The sweepers are part of the land, like Pangaea's lava bombs: they can't be hurt, and they never echo, frenzy or unveil.
+
+**Landmarks (all four):**
+- **The sea wall:** a huge steel flood wall along the shore facing the main island, with a lock gate you walk through: where you arrive (Paradise's Gate, Pandemonium's gilded pier, Pangaea's sea-beast skeleton).
+- **The factory:** an assembly hall where machines build more machines: belts, robot arms, half-built robots that start moving if you get close.
+- **The scrapyard:** mountains of broken machines to fight among. Some of the wrecks aren't quite dead.
+- **The kept homes:** a street of homes kept spotless for people who never came back: tables set, beds made. The machines still keep house, and they don't like visitors.
+
+**The shape (round 3): wedges round the tower.** Bentham's plan: **the watchtower at the centre sees everything**, and the city lies round it in **four wedge districts: the docks, the factory, the homes, the scrapyard**. Each is a grid of streets between tall blocks that break line of sight, walled off from the next with gates between. **The nearer the tower, the more cameras.** Paradise climbs, Pandemonium sinks, on Pangaea walking inland goes back in time; on Panopticon walking inland you're ever more watched. **(mine)** The docks face the main island (west), behind the sea wall; the other three follow round the tower.
+
+## 36. Panopticon: the alert (user, M32 rounds 2-3)
+
+**The city watches.** Cameras and sensors watch the streets. **Being seen fills a city-wide ALERT meter on the HUD** (like the Fallout King's rads and Pandemonium's temptation). It has **three levels:**
+1. **CALM:** the machines go about their work.
+2. **SEARCH,** once something sees you: **machines that spot you call the others nearby**, and **turrets wake**.
+3. **LOCKDOWN** when it's full: **gates seal round you**, **a hunter squad is sent**, and **the cleaning sweeps your street**.
+
+**It cools after a few seconds with nothing watching you.** Break line of sight, shoot the cameras or keep moving to let it cool. The skill: **kill the eyes first and stay out of sight** (Paradise: kill them before they unveil; Pandemonium: choose which group to wake; Pangaea: kill fast to cancel the echoes).
+
+**Who lives there (round 3):** four groups of four, as on the other islands, one elite in each: **the watch** (security), **the workers** (the factory), **the housekeepers** (the kept homes), **the scrap** (the scrapyard). **(mine)** Each group lives in its own district, the watch in the docks; sentry drones and spotters also patrol every district, more of them nearer the tower.
+
+**(mine) The numbers, to tune in play:** the meter runs 0-100: SEARCH from 30, LOCKDOWN at 100. A camera or one of the watch seeing you adds ~20 a second; any other machine ~6. After 3 s with nothing seeing you it drains ~15 a second; lockdown holds at least 10 s once reached. **Cameras** stand on poles and walls at street corners (a few hits to break; more of them nearer the tower). **Turrets** sit on the blocks' walls, asleep until SEARCH (they can be shot). **The hunter squad** is 2 riot robots and 2 sentry drones sent from ~25 tiles out. **The gates** of the district you're in close for 15 s. One meter for everyone on the island (it's the city's alarm, not yours), shown with its level's name; the screen's edge pulses magenta in lockdown.
+
+## 37. Panopticon: the enemies (all 16 picked, M32 round 4)
+
+Every machine can see you and raise the alert (section 36); the watch raise it fastest. One elite in each group.
+
+| Group (district) | Enemy | Behaviour |
+|------------------|-------|-----------|
+| The watch (the docks, patrols everywhere) | **Sentry drone** | hovers along patrol routes with a searchlight cone sweeping ahead; caught in the light, the alert rises fast and it fires a short burst; fragile: shoot it down or stay out of the light |
+| | **Spotter** | a camera on three long legs; it doesn't fight: it keeps its distance, and every second it sees you fills the alert; it runs and hides behind blocks; kill it first |
+| | **Riot robot** | heavy, a riot shield in front that blocks shots; shoves you back with the shield and lobs stun charges that leave you dazed a moment; get round behind it |
+| | **Warden** (elite) | a tall armoured robot with one searchlight eye: marks you ("TARGET MARKED"), holding the alert at lockdown while it lives; calls in drones, sweeps a slow beam, and fires a tether that chains you to a spot until you roll free |
+| The workers (the factory) | **Welder** | rushes in with a torch and drags a short arc of flame across you; leaves puddles of molten slag that burn |
+| | **Hauler** | a big loader that charges along a shown line carrying a crate, then throws it: the crate bursts into shrapnel and leaves a broken crate as cover |
+| | **Assembler** | builds where it stands: left alone it puts together a turret (~4 s) that fires at you until destroyed; then runs to a new spot and starts again; kill it before it's done |
+| | **Foreman** (elite) | the supervisor: its megaphone orders overtime (the workers near it attack faster), it calls presses that slam down from above on marked spots, and its bark is a shockwave ring |
+| The housekeepers (the kept homes) | **Butler** | tall and polite; bows (the tell), then throws its silver tray like a disc that flies out and curves back to it; two butlers throw crossing trays |
+| | **Scrubber** | a low round floor cleaner; groups of them shoot across the floor in straight lines, bouncing off walls, leaving soap trails that slide you along |
+| | **Gardener** | long hedge shears: a lunging snip with a second right after; grows hedges of thorned wire that wall you in until you cut through |
+| | **Nanny** (elite) | tall, long arms; "time out": grabs you and drops you in a playpen ring you must break out of; its lullaby makes you drowsy (slowed); it mends the other housekeepers |
+| The scrap (the scrapyard) | **Junker** | patched together from wrecks; killed, it falls apart into 2-3 small pieces that keep crawling at you; area damage cleans them up |
+| | **Magnet** | a walking crane magnet: pulls scrap and you toward it, then throws everything out in a burst of shrapnel; its pull also bends your shots off course |
+| | **Rust swarm** | a cloud of tiny rust mites, hard to hit with single shots; inside the cloud they eat your armour (you take more damage); burn them with area attacks |
+| | **Scrap colossus** (elite) | a giant built of wrecks: picks up dead machines to mend itself and throws them; hurt, it sheds pieces that become junkers; its slam shakes the ground |
+
+**(mine)** The workers work until you come near, then treat you as material; the housekeepers are polite until you make a mess (break something in the kept homes and they all come); the junkers lie among the wrecks as wrecks until you come near.
+
+## 38. Panopticon: the quest (user, M32 round 5)
+
+**Blind the seven eyes.** Seven great camera masts carry the city's sight to the tower. **Each is shielded by the pylons round it: cut them, then bring the mast down** (a big target with its own health) **while its district goes to lockdown**. **Each blinded mast darkens its part of the city, so the alert rises slower there.** **The seventh blinds the tower and wakes the boss.** You break things here (the seals and the bandstands were "stand at it ~8 s", the great hunt was tracking). **(mine)** Out from the start, every mast counts, quest taken or not (like the seals); at least 60 tiles apart and in every district; three pylons a mast within ~12 tiles of it; the mast's health about a seal's 8 s of steady fire for a geared hero; the alert fills at half speed within ~60 tiles of a blinded mast; the cameras near it go dark.
+
+**The giver: the voice in the screens.** The city's first, kind program, **locked out by the tower long ago**, speaking to you through broken screens and dead terminals. **It knows every street and wants its city back** (Paradise's fallen angel tells the truth, Pandemonium's sober man woke, Pangaea's old painter remembers; the voice was the city before the tower took it). **(mine)** You meet it on a cracked screen inside the sea wall's lock gate, and its face shows on broken screens you pass across the city. It's drawn in **amber on black, like an old terminal**: the only warm colour in Panopticon.
+
+## 39. Panopticon: the boss -- THE OVERSEER (user, M32 rounds 5-7)
+
+**Who:** the tower's mind itself: **a great eye-machine ringed by camera arms, running the room round you** (lasers, sentries, the alert).
+
+**Arena: the hall of cells.** A round hall inside the tower: its walls lined with **tiers of cell doors and screens**, **a few pillars on the floor for cover**, the eye hanging in the middle. **Blast doors seal it until the seventh eye goes dark.**
+
+**Two forms** (like the Horsemen, the Host of the Feast and the Ancestor), each a full kit: **form 1, the eye** on its ceiling rail; at 0 **the eye tears free and builds itself a body out of the city**: form 2, **a walker of the city**.
+
+### 39.1 Form 1: the eye (user, M32 round 6)
+
+**Movement: round a ceiling rail.** It hangs from a ring rail in the ceiling and **always slides round it, turning to watch you**. A few moves bring it **down low, planted and easier to hit**, with a clear tell.
+
+**Signatures (all four), one added per phase** (**(mine)** four phases, 100-75-50-25-0%, like the hunger and the first life; the order is mine):
+1. **The gaze:** its searchlight sweeps the hall. **While it sees you, the fight's own alert builds, and each level makes its moves faster. At lockdown every cell opens at once.** Hide behind the pillars to cool it.
+2. **The cells:** the cell doors round the hall open and **the watch comes out** (sentries, riot robots). It can also **lock you in a cell: laser bars close round you unless you roll out before they shut**.
+3. **Laser grid:** the floor fills with **laser fences in patterns**, like the city's: sweeping lines, a turning cross, a closing grid. Read the pattern and slip through.
+4. **Recordings:** **it has recorded you.** The screens play back what you did a few seconds ago, and **copies of you walk your path and fire your own shots back at you**. Shatter a copy (it's fragile) or move away from your past. (The "frozen reflections" idea the user kept for a later boss, `BOSSES.md` backlog.)
+
+**Moves (all four; it keeps sliding unless said):**
+- **Laser sweep:** its eye fires a beam that sweeps across the floor along an arc shown first; it keeps sweeping as it slides.
+- **Missile salvo:** small missiles lock onto marked spots round you and land in a quick chain.
+- **Shock drop:** it drops low on the rail and discharges (**planted, the clear tell**): an electric ring, then arcs leap out to the live pylons round the hall.
+- **Floor scan:** a pattern of tiles lights up across the hall, then the lit ones are struck from above; the dark ones are safe.
+
+### 39.2 Form 2: the walking city (user, M32 round 7)
+
+At 0 **the eye tears out of the ceiling and builds a giant from the hall itself** -- cell doors, pillars, screens, the machines in them: **a towering four-legged walker with the eye in its chest**. **It always walks round the hall and keeps adding to itself as it fights.** **(mine)** The boss bar reads "The Walking City".
+
+**Arena: the walls come down.** Tearing itself free rips the hall's walls apart: **the floor is wider, ringed with rubble and broken cells, and live cables spark where the walls stood.** There's more room to run from a walker.
+
+**Signatures (all four), one added per phase** (**(mine)** four phases again; the order is mine):
+1. **It builds itself:** it tears pieces out of the hall (pillars, cell doors, wrecks) and bolts them on. **Each piece is an armour plate that blocks shots until you shoot it off, and makes it bigger and stronger** (like the hunger's growth). Strip them.
+2. **Power from the grid:** cables run from the city into its body. **While they're plugged in it's shielded and mends. Cut the junctions to drop the shield**, and it walks over to plug in again.
+3. **A hundred eyes:** small eyes open all over its body and the hall, each watching a cone. **Any eye that sees you calls a laser strike onto you a beat later.** Shoot out the eyes or keep out of their sight.
+4. **The city answers:** the whole city comes: **drones and the watch pour in through the breaches** from the streets, and **turrets open on its body**.
+
+**Moves (all four):** **stomp** (its feet slam down on marked spots as it walks, each footstep a shock ring), **the great beam** (**planted, the clear tell**: the eye charges and fires one huge beam along a shown line, then drags it across the hall), **grab and throw** (it picks up a pillar, a wreck or you and throws it along a shown line; a thrown pillar breaks into cover where it lands), **arm swing** (an arm of chained cell doors swung in a wide arc shown first: roll under it or get out of reach).
+
+### 39.3 Numbers and rules (mine, to tune with the bot and then in play)
+
+- Tier III, like the others: **the eye 12,000** (3,000 a phase), **the walking city 14,000**. All scaled like every boss. Policy: no HP cut below these on bot numbers alone.
+- Target length (bot): the eye ~3 min, the walking city ~4-5 min.
+- **The fight's alert:** the same 0-100 as the city's, on the boss bar. SEARCH makes its moves ~15% faster, LOCKDOWN ~30% faster and opens every cell; it drains after 2 s out of the searchlight. Form 2 drops the meter: the hundred eyes are its sight now.
+- **The recordings:** a copy replays the last ~4 s of one hero's path and shots, starting where that hero stood 4 s ago; one or two hits shatter it; at most two copies a hero at once, drawn as magenta static ghosts of the hero. A copy's shots hurt only heroes.
+- The hall has four live pylons at its edge for the shock drop (form 1); in form 2 the cables in the broken walls are the grid's junctions.
+- Relics: like every boss, uniques drafted with the user once it's built (GEAR.md 21.1); one per thing it does to you (watching, locking up, recording, building itself) is the obvious set.
+
+## 40. M32 build plan (mine; each step: tests, a headless screenshot, a report, a stop)
+
+| Step | Content |
+|------|---------|
+| M32.1 | **Panopticon's land:** the east zone (Paradise's framework), chrome and neon, the sea wall shore, the wedges round the tower (four districts, street grids, district walls and gates), laser fences, conveyors and presses, live power (pylons, cables, puddles), the cleaning (sweeper lanes), the four landmarks (the sea wall, the factory, the scrapyard, the kept homes), the seven camera masts and their pylons (standing), the tower and the hall of cells (sealed by blast doors), the HUD name and banner |
+| M32.2 | **The alert + the watch and the workers (8):** cameras, the meter and its three levels (calls, turrets waking, gates sealing, the hunter squad, the cleaning on your street), endgame toughness; the sentry drone, spotter, riot robot, Warden; the welder, hauler, assembler, foreman |
+| M32.3 | **The other 8:** the butler, scrubber, gardener, nanny (and the mess in the kept homes); the junker, magnet, rust swarm, scrap colossus (and the wrecks that aren't quite dead) |
+| M32.4 | **The quest + form 1:** blinding the seven eyes (the pylons, the masts, the darkened districts), the voice in the screens, opening and sealing the hall; the eye (the ceiling rail, the gaze, the cells, the laser grid, the recordings, four moves) |
+| M32.5 | **Form 2:** the walking city (the walls come down, it builds itself, power from the grid, a hundred eyes, the city answers, four moves), the bot benchmark; then the relics drafted with the user |
