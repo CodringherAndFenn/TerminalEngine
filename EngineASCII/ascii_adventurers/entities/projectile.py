@@ -98,6 +98,7 @@ class Projectile:
         self.gen = 0
         self.family: dict | None = None
         self.echo = False
+        self.conch = False            # M31.5: an Echo Conch's echo of a shot (drawn faded)
         # M28.2f, the trinkets' tricks: a Chainbolt Charm bolt (Grounding,
         # Eternal arc), a Firefly Lantern bolt that lights up what it hits
         # (Glow) / leaves a wisp where it stops (Will-o'-wisps).

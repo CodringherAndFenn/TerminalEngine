@@ -196,6 +196,17 @@ class Character(Actor):
         self.ring_coins: list = []
         self.coin_t = -1e9
         self.ring_gilt_until = -1.0
+        # M31.5: the Ancestor's relics: the Spirit Herd's s to the next charge
+        # and its spirits running ([x0, y0, angle, tiles run, hit]); the Tyrant
+        # Skull's s to the next roar; the Swarm Ring's s to the next river and
+        # its rivers ([x0, y0, angle, s left, {id: s to its next sting}]); the
+        # Echo Conch's attacks waiting to echo ([s left, shots, pulse]).
+        self.herd_t = config.U_HERD[0] * 0.5
+        self.herd: list = []
+        self.skull_t = config.U_SKULL[0] * 0.5
+        self.swarm_t = config.U_SWARM[0] * 0.5
+        self.swarms: list = []
+        self.conch: list = []
         self.last_crit = False
         self.bestiary: set[str] = set()
         self.idle = 0.0                   # seconds since the last attack (Capacitor)

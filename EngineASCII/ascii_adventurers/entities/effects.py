@@ -88,6 +88,7 @@ DURATIONS = {
     # M31.5: the first life (ai/first_life.py; size: about its radius)
     "splash": 0.5,          # something bursting up out of the sea, a bubble bursting
     "steam": 0.9,           # lava quenching in the first sea
+    "skull_roar": 0.5,      # the Tyrant Skull's roar (angle: its middle; size: reach; value: degrees)
 }
 
 

@@ -41,6 +41,12 @@ M30.5 (the Host of the Feast's):
   Dancing Shoes             a roll ends in a ring of cutlery (roll._ended)
   Gilded Ring               hits on elites and bosses toss out coins; catch one
                             to be gilded (combat._relic_on_hit, combat.strike)
+M31.5 (the Ancestor's, one per age and one for the first life):
+  Spirit Herd               an ochre spirit mammoth charges through enemies
+  Tyrant Skull              a roar: a cone that hurts and freezes in fear
+  Swarm Ring                a river of stinging insects along your aim
+  Echo Conch                your attacks fire again 3 s later, faded, from
+                            where you stood (conch_record: GameScene._attack)
 And per hit (combat._relic_on_hit): the Fly Agaric Cap's trip (wander) and
 the Lawyer's Wig's scrawls (bound); the scene moves wandering enemies and
 holds bound ones (wander, after flee; `Statuses.bound`).
@@ -62,6 +68,7 @@ from ..entities.projectile import Projectile
 from .collision import hull_hits_solid, move_hull
 from .combat import push, strike
 from .statuses import daze, inflict, statuses_of
+from . import combat
 from .zones import Zone
 
 
@@ -170,6 +177,15 @@ def tick(scene, p, dt: float) -> None:
         _goblet(scene, hero, st, dt)
     if hero.ring_coins:
         _gilded(scene, hero, dt)
+    # (M31.5: the Ancestor's)
+    if st.has("spirit_herd") or hero.herd:
+        _herd(scene, hero, st, dt)
+    if st.has("tyrant_skull"):
+        _skull(scene, hero, st, dt)
+    if st.has("swarm_ring") or hero.swarms:
+        _swarm_ring(scene, hero, st, dt)
+    if hero.conch:
+        _conch(scene, hero, st, dt)
 
 
 # --- The dung ball ---------------------------------------------------------------------
@@ -1016,3 +1032,142 @@ def _gilded(scene, hero, dt: float) -> None:
             keep.append(c)
     hero.ring_coins = keep
 
+
+
+# === M31.5: the Ancestor's relics ===========================================================
+
+def _due(scene, hero, attr: str, every: float, reach: float, dt: float) -> bool:
+    """A relic's clock (`hero.<attr>`): True when it goes off -- once its
+    time is up and an enemy is within `reach` (else it tries again in 1 s)."""
+    left = getattr(hero, attr) - dt
+    setattr(hero, attr, left)
+    if left > 0:
+        return False
+    if not any(math.hypot(e.x - hero.x, e.y - hero.y) <= reach for e in _foes(scene)):
+        setattr(hero, attr, 1.0)
+        return False
+    setattr(hero, attr, every)
+    return True
+
+
+def _herd(scene, hero, st, dt: float) -> None:
+    """Spirit Herd: every U_HERD[0] s (an enemy within [1]), an ochre spirit
+    mammoth sets off [2] tiles behind you and charges along your aim to [3]
+    tiles past you at [4] tiles/s: the power's damage to each enemy it runs
+    through ([5] tiles either side), shoving them [6] tiles aside."""
+    every, reach, behind, past, speed, half, shove = config.U_HERD
+    foes = _foes(scene)
+    for r in hero.herd:
+        x0, y0, a = r[0], r[1], r[2]
+        r[3] += speed * dt
+        ca, sa = math.cos(a), math.sin(a)
+        x, y = x0 + ca * r[3], y0 + sa * r[3]
+        for e in foes:
+            if id(e) in r[4] or math.hypot(e.x - x, e.y - y) > half + e.hit_radius:
+                continue
+            r[4].add(id(e))
+            strike(e, st.uniques.get("spirit_herd", 30.0), hero, a, scene.effects, on_hit=False)
+            if e.alive:
+                side = 1.0 if (e.x - x0) * -sa + (e.y - y0) * ca >= 0 else -1.0
+                push(e, scene.world, -sa * side * shove, ca * side * shove)
+            scene.effects.append(Effect("debris", e.x, e.y))
+    hero.herd = [r for r in hero.herd if r[3] < behind + past]
+    if st.has("spirit_herd") and _due(scene, hero, "herd_t", every, reach, dt):
+        a = hero.aim_angle
+        hero.herd.append([hero.x - math.cos(a) * behind, hero.y - math.sin(a) * behind, a, 0.0,
+                          set()])
+        scene._sounds.append("boulder")
+
+
+def _skull(scene, hero, st, dt: float) -> None:
+    """Tyrant Skull: every U_SKULL[0] s (an enemy within [1]) you roar: the
+    enemies in a [2]-degree cone along your aim, [3] tiles out, take the
+    power's damage and freeze in fear [4] s (a boss is held [5] s)."""
+    every, reach, deg, long, fear, held = config.U_SKULL
+    if not _due(scene, hero, "skull_t", every, reach, dt):
+        return
+    a, half = hero.aim_angle, math.radians(deg) / 2
+    for e in _foes(scene):
+        d = math.hypot(e.x - hero.x, e.y - hero.y)
+        if d > long + e.hit_radius:
+            continue
+        off = (math.atan2(e.y - hero.y, e.x - hero.x) - a + math.pi) % math.tau - math.pi
+        if d > e.hit_radius + 0.5 and abs(off) > half:
+            continue
+        strike(e, st.uniques.get("tyrant_skull", 20.0), hero, a + off, scene.effects, on_hit=False)
+        if not e.alive:
+            continue
+        if getattr(e, "boss", False):
+            s = statuses_of(e)
+            s.bound = max(s.bound, held)
+        else:
+            daze(e, fear)
+        scene.effects.append(Effect("toast", e.x, e.y - e.hit_radius - 1.0, label="FEAR!"))
+    scene.effects.append(Effect("skull_roar", hero.x, hero.y, angle=a, size=long, value=deg))
+    scene.effects.append(Effect("toast", hero.x, hero.y - 2, label="ROAR!"))
+    scene._sounds.append("boulder")
+
+
+def _swarm_ring(scene, hero, st, dt: float) -> None:
+    """Swarm Ring: every U_SWARM[0] s (an enemy within [1]) a river of
+    insects pours from you along your aim, [2] tiles long and [3] either
+    side, for [4] s: the power's damage to an enemy in it every [5] s."""
+    every, reach, long, half, lasts, sting = config.U_SWARM
+    foes = _foes(scene)
+    for r in hero.swarms:
+        r[3] -= dt
+        ca, sa = math.cos(r[2]), math.sin(r[2])
+        cds = r[4]
+        for k in list(cds):
+            cds[k] -= dt
+        for e in foes:
+            dx, dy = e.x - r[0], e.y - r[1]
+            along = dx * ca + dy * sa
+            if along < 0 or along > long or abs(-dx * sa + dy * ca) > half + e.hit_radius:
+                continue
+            if cds.get(id(e), 0.0) > 0:
+                continue
+            cds[id(e)] = sting
+            strike(e, st.uniques.get("swarm_ring", 6.0), hero, r[2], scene.effects, on_hit=False)
+    hero.swarms = [r for r in hero.swarms if r[3] > 0]
+    if st.has("swarm_ring") and _due(scene, hero, "swarm_t", every, reach, dt):
+        hero.swarms.append([hero.x, hero.y, hero.aim_angle, lasts, {}])
+        scene._sounds.append("fizzle")
+
+
+def conch_record(hero, shots, kw: dict) -> None:
+    """Echo Conch: the attack just made, to fire again U_CONCH[0] s later
+    from where it was made: its shots, or (a pulse weapon) its burst."""
+    later, most = config.U_CONCH
+    if len(hero.conch) >= most:
+        return
+    got = [(q.x, q.y, q.angle, q.spec, q.damage, q.mult, q.max_range, q.variant)
+           for q in shots if q.alive and not q.conch]
+    burst = None
+    if hero.weapon is not None and hero.weapon.spec.kind == "pulse":
+        burst = (hero.x, hero.y, kw.get("mult", 1.0), kw.get("reach_mult", 1.0))
+    if got or burst:
+        hero.conch.append([later, got, burst])
+
+
+def _conch(scene, hero, st, dt: float) -> None:
+    """Echo Conch: an attack's echo comes due: its shots again from where
+    they left, faded, at the power x their damage (an echo never echoes)."""
+    power = st.uniques.get("echo_conch", 0.4) if st is not None else 0.4
+    keep = []
+    for c in hero.conch:
+        c[0] -= dt
+        if c[0] > 0:
+            keep.append(c)
+            continue
+        if not hero.alive:
+            continue
+        for x, y, a, spec, damage, mult, reach, variant in c[1]:
+            q = Projectile(x, y, a, spec, owner=hero, damage=damage * power)
+            q.mult, q.max_range, q.variant, q.conch = mult, reach, variant, True
+            scene.projectiles.append(q)
+        if c[2] is not None:
+            x, y, mult, reach_mult = c[2]
+            combat.pulse(hero, scene.world, scene._actors(), scene.effects, mult=mult * power,
+                         reach_mult=reach_mult, origin=(x, y))
+    hero.conch = keep

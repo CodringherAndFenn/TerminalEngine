@@ -62,6 +62,7 @@ HEAD_LOOKS: dict[str, tuple] = {
     "lawyers_wig": ("wig", "w", "m", "d"),            # Lawyer's Wig: white curls
     "lichs_gaze": ("lich", "c", "C", "o"),            # Lich's Gaze: a dark cowl, glowing eyes
     "crown_of_conquest": ("crown", "y", "Y", "r"),    # Crown of Conquest: gold, a red stone
+    "tyrant_skull": ("helm", "d", "D", "r"),          # Tyrant Skull (M31.5): old bone, red eyes
 }
 
 # Chest: key -> (light, dark), the body's colours.

@@ -1411,3 +1411,6 @@ BUBBLE_MARK = ((255, 240, 200), (220, 150, 90))
 WAVE_FRONT = ((240, 255, 255), (150, 230, 220), (70, 150, 150))
 LIFE_GLOW = ((180, 255, 200), (90, 200, 140))     # about to evolve
 STEAM = ((230, 236, 240), (160, 170, 180))
+# Its relics: an Echo Conch's echo of a shot (faded), the Tyrant Skull's roar.
+CONCH_ECHO = ((206, 218, 236), ((140, 154, 182), (98, 110, 138)))
+SKULL_ROAR = ((240, 228, 200), (200, 80, 60))

@@ -851,6 +851,8 @@ class GameScene(Scene):
             hero.shocking = False
             for q in self.projectiles[before:]:
                 q.shocks = True
+        if not echo and hero.stats is not None and hero.stats.has("echo_conch"):
+            relics.conch_record(hero, self.projectiles[before:], kw)   # (M31.5: the Ancestor's)
         if echo:                     # (M28.2a: the Canyon Horn counts an echo's kills)
             for q in self.projectiles[before:]:
                 q.echo = True

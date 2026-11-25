@@ -107,10 +107,36 @@ def draw_relics(text, bank: SpriteBank, camera: Camera, players, enemies, steps:
                 x, y = camera.world_to_px(h.x + math.cos(a) * r, h.y + math.sin(a) * r * 0.8)
                 batch.put_c(x, y, "*" if (k + steps // 10) % 2 else "+", palette.FROST_GATHER)
         _draw_5c(batch, camera, h, st, steps)
+        _draw_swarms(batch, camera, h, steps)
     _draw_marks(batch, camera, players, enemies, steps)
     batch.flush()
     for x, y, left, hurt in bears:
         draw_character(bank, x, y - 6, "mr_buttons", BEAR_SCALE, left, 0, hurt)
+    for p in players:                                  # (M31.5: the Spirit Herd's mammoths)
+        for x0, y0, a, done, _ in p.hero.herd:
+            from .pangaea import _figure
+            x, y = x0 + math.cos(a) * done, y0 + math.sin(a) * done
+            frame = int(done * config.WALK_STEPS_PER_TILE) % 4
+            _figure(bank, camera, x, y, "mammoth", config.ENEMIES["mammoth"].scale,
+                    math.cos(a) < 0, "ochre", frame)
+
+
+def _draw_swarms(batch, camera: Camera, h, steps: int) -> None:
+    """Swarm Ring (M31.5): its river of insects streaming out along its
+    line, in three rows."""
+    long, half = config.U_SWARM[2], config.U_SWARM[3]
+    t = steps / 60
+    for x0, y0, a, left, _ in h.swarms:
+        ca, sa = math.cos(a), math.sin(a)
+        for row, (glyph, col) in enumerate(((".", palette.SWARM[1]), (":", palette.SWARM[0]),
+                                            ("'", palette.SWARM[2]))):
+            off = (row - 1) * half * 0.6 + math.sin(t * 5 + row * 2.1) * 0.25
+            k = (t * 7.0 + row * 0.4) % 1.0
+            while k <= long:
+                x, y = x0 + ca * k - sa * off, y0 + sa * k + ca * off
+                px, py = camera.world_to_px(x, y)
+                batch.put_c(px, py, glyph, col)
+                k += 1.0
 
 
 def _bar(batch, x: float, y: float, frac: float) -> None:

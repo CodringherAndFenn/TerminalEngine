@@ -984,7 +984,11 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   from it and sweep through you; at 25% it rears up and **a great wave**
   rolls across the caldera (roll through it). It dives and surfaces under
   you, spins whirlpools, boils chains of bubbles and lashes its arms out to
-  drag you in -- and everything echoes.
+  drag you in -- and everything echoes. Beaten, it drops one of its relics:
+  the **Spirit Herd** (an ochre spirit mammoth charges through your
+  enemies), the **Tyrant Skull** (your roar freezes them in fear), the
+  **Swarm Ring** (a stinging river along your aim) or the **Echo Conch**
+  (your attacks fire again 3 s later from where you stood).
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

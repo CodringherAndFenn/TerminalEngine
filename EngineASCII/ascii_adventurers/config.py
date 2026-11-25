@@ -3084,6 +3084,28 @@ CARDS = {
         "to be gilded, +25% damage for 4 s",
         (("gilded_ring", "flag", 1), ("gilded_ring", "power", 0.25)),
         rarity="legendary", max_stacks=1, unlock="U:host_of_feast", code="U46"),
+    # M31.5: the Ancestor's relics, one per age and one for the first life
+    # (user's picks, 2026-11-25).
+    "spirit_herd": CardSpec(
+        "Spirit Herd", "every 10 s (once an enemy is within 10 tiles) an ochre spirit mammoth "
+        "charges from behind you along your aim: 30 damage to each enemy it runs through, "
+        "pushing them aside", (("spirit_herd", "flag", 1), ("spirit_herd", "power", 30.0)),
+        rarity="legendary", max_stacks=1, unlock="U:ancestor", code="U47"),
+    "tyrant_skull": CardSpec(
+        "Tyrant Skull", "every 15 s (once an enemy is within 6 tiles) you roar: enemies in a wide "
+        "cone ahead take 20 and freeze in fear for 1.5 s (bosses 0.5 s)",
+        (("tyrant_skull", "flag", 1), ("tyrant_skull", "power", 20.0)),
+        rarity="legendary", max_stacks=1, unlock="U:ancestor", code="U48"),
+    "swarm_ring": CardSpec(
+        "Swarm Ring", "every 12 s a river of stinging insects pours from you along your aim for "
+        "3 s: enemies in it take 6 every 0.5 s",
+        (("swarm_ring", "flag", 1), ("swarm_ring", "power", 6.0)),
+        rarity="legendary", max_stacks=1, unlock="U:ancestor", code="U49"),
+    "echo_conch": CardSpec(
+        "Echo Conch", "your attacks echo: 3 s after each one, a faded echo of it fires again from "
+        "where you stood, at 40% damage",
+        (("echo_conch", "flag", 1), ("echo_conch", "power", 0.4)),
+        rarity="legendary", max_stacks=1, unlock="U:ancestor", code="U50"),
     "retaliation": CardSpec("Retaliation", "when hit: a shockwave deals 30 and pushes (3 s)",
                             (("retaliation", "flag", 1),), rarity="uncommon", max_stacks=1,
                             code="R03"),
@@ -4389,6 +4411,15 @@ GEAR = {
                               affixes=("swift_boots", "extra_roll", "quick_recovery")),
     "gilded_ring": GearSpec("Gilded Ring", "ring", unique="host_of_feast",
                             affixes=("brutal", "keen_eye", "prospector")),
+    # (M31.5: the Ancestor's -- Pangaea's boss -- one per age, one for the first life)
+    "spirit_herd": GearSpec("Spirit Herd", "trinket", unique="ancestor",
+                            affixes=("broad_strokes", "brutal", "second_wind")),
+    "tyrant_skull": GearSpec("Tyrant Skull", "head", unique="ancestor",
+                             affixes=("iron_skin", "brutal", "long_reach")),
+    "swarm_ring": GearSpec("Swarm Ring", "ring", unique="ancestor",
+                           affixes=("affliction", "lingering", "quickened")),
+    "echo_conch": GearSpec("Echo Conch", "off", unique="ancestor",
+                           affixes=("quick_hands", "keen_eye", "sharpened")),
 }
 # Each boss's relics, in a fixed order (the drop picks by index).
 BOSS_UNIQUES: dict = {}
@@ -5615,6 +5646,17 @@ U_GOBLET = (12.0, 8.0, 16.0, 3.0, 0.6, 0.3, 1.0)   # The Host's Goblet: every s 
 U_SHOES = 8                             # Dancing Shoes: pieces of cutlery a spin
 U_GILDED = (6.0, 4.0, 6.0, 0.9, (2.0, 4.0))   # Gilded Ring: s between coins; s gilded; s a coin
                                         # lies; reach to catch it; how far it's tossed
+# M31.5: the Ancestor's relics (the powers grow +10% a level).
+U_HERD = (10.0, 10.0, 3.0, 14.0, 14.0, 1.4, 2.0)   # Spirit Herd: every s (once an enemy is within
+                                        # this far); it sets off this far behind you, runs this
+                                        # far past you at this tiles/s, this wide; pushes aside
+U_SKULL = (15.0, 6.0, 100, 8.0, 1.5, 0.5)   # Tyrant Skull: every s (once an enemy is within this
+                                        # far); a cone this many degrees, this long; s frozen in
+                                        # fear (a boss: held this long)
+U_SWARM = (12.0, 12.0, 12.0, 1.5, 3.0, 0.5)   # Swarm Ring: every s (once an enemy is within this
+                                        # far); the river this long, this far either side, this
+                                        # many s; a sting every s
+U_CONCH = (3.0, 12)                     # Echo Conch: s later; attacks waiting at most
 
 # Start: the tile nearest the centre (searched every SPAWN_SEARCH_STEP
 # tiles) that isn't in a lake and has dry land connecting it to at least

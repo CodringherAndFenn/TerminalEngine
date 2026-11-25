@@ -432,3 +432,124 @@ class EchoTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# --- The Ancestor's relics (user's picks, 2026-11-25) --------------------------------------
+
+from ascii_adventurers.render.gear_looks import HEAD_LOOKS            # noqa: E402
+from ascii_adventurers.systems import relics                         # noqa: E402
+from ascii_adventurers.tests.test_m28_5 import BASE, _Relic, mover   # noqa: E402
+
+
+class RelicsTest(_Relic):
+    """One per age and one for the first life: Spirit Herd, Tyrant Skull,
+    Swarm Ring, Echo Conch."""
+
+    def test_four_relics_in_four_slots(self):
+        keys = config.BOSS_UNIQUES["ancestor"]
+        self.assertEqual(set(keys), {"spirit_herd", "tyrant_skull", "swarm_ring", "echo_conch"})
+        self.assertEqual(sorted(config.GEAR[k].slot for k in keys),
+                         ["head", "off", "ring", "trinket"])
+        for k in keys:
+            self.assertEqual(config.CARDS[k].rarity, "legendary")
+            self.assertEqual(config.CARDS[k].unlock, "U:ancestor")
+            self.assertLessEqual(len(config.GEAR[k].name), 16)
+        self.assertNotIn("ancestor_first_life", config.BOSS_UNIQUES)   # (it's the Ancestor)
+        self.assertIn("tyrant_skull", HEAD_LOOKS)
+
+    def test_the_spirit_herd_charges_through_them_and_shoves_them_aside(self):
+        s, h = self.setup("spirit_herd")
+        on = mover(26.5, 20.8)
+        off = mover(26.5, 26.5)
+        self.place(on, off)
+        h.herd_t = 0.0
+        self.go(DT * 2)
+        self.assertEqual(len(h.herd), 1)
+        self.assertLess(h.herd[0][0], h.x)                    # (from behind you)
+        self.go(1.5)
+        self.assertLess(on.hp, BASE)
+        self.assertGreater(on.y, 21.5)                        # (shoved aside, its side)
+        self.assertEqual(off.hp, BASE)
+        self.assertEqual(h.herd, [])                          # (it ran its course)
+        self.assertGreater(h.herd_t, config.U_HERD[0] - 2.0)
+
+    def test_the_herd_waits_for_an_enemy_in_reach(self):
+        s, h = self.setup("spirit_herd")
+        self.place(mover(40.5, 20.5))
+        h.herd_t = 0.0
+        self.go(DT * 2)
+        self.assertEqual(h.herd, [])
+        self.assertGreater(h.herd_t, 0.5)
+
+    def test_the_tyrant_skull_roars_ahead_and_freezes_them_in_fear(self):
+        s, h = self.setup("tyrant_skull")
+        ahead = mover(25.5, 21.5)
+        behind = mover(16.5, 20.5)
+        boss = mover(27.5, 19.5)
+        boss.boss = True
+        self.place(ahead, behind, boss)
+        h.skull_t = 0.0
+        self.go(DT * 2)
+        self.assertLess(ahead.hp, BASE)
+        self.assertGreater(ahead.status.dazed, 1.0)
+        self.assertEqual(behind.hp, BASE)
+        self.assertTrue(behind.status is None or behind.status.dazed == 0.0)
+        self.assertGreater(boss.status.bound, 0.0)            # (a boss is held, briefly)
+        self.assertLessEqual(boss.status.bound, config.U_SKULL[5])
+        self.assertIn("skull_roar", [e.kind for e in s.effects])
+
+    def test_the_swarm_ring_pours_a_stinging_river_along_your_aim(self):
+        s, h = self.setup("swarm_ring")
+        on = mover(28.5, 20.5)
+        off = mover(28.5, 25.5)
+        self.place(on, off)
+        h.swarm_t = 0.0
+        self.go(DT * 2)                                       # (it pours out, then stings)
+        self.assertEqual(len(h.swarms), 1)
+        one = BASE - on.hp
+        self.assertGreater(one, 0)
+        self.go(1.1)                                          # (a sting every 0.5 s)
+        self.assertAlmostEqual(BASE - on.hp, one * 3, delta=one * 0.5)
+        self.assertEqual(off.hp, BASE)
+        self.go(config.U_SWARM[4])
+        self.assertEqual(h.swarms, [])
+
+    def test_the_echo_conch_fires_your_attack_again_from_where_you_stood(self):
+        s, h = self.setup("echo_conch")
+        s._attack(s.me)
+        mine = [q for q in s.projectiles if q.owner is h]
+        self.assertTrue(mine)
+        self.assertEqual(len(h.conch), 1)
+        dmg = mine[0].damage
+        h.x = 10.5                                            # (you've moved on)
+        self.go(config.U_CONCH[0] + DT)
+        echoes = [q for q in s.projectiles if q.conch]
+        self.assertEqual(len(echoes), len(mine))
+        self.assertAlmostEqual(echoes[0].damage, dmg * 0.4)
+        self.assertGreater(echoes[0].x, 15.0)                 # (from where you stood)
+        self.assertEqual(h.conch, [])
+        self.go(config.U_CONCH[0] + 0.1)
+        self.assertEqual(h.conch, [])                         # (an echo never echoes)
+
+    def test_a_pulse_echoes_too(self):
+        s, h = self.setup("echo_conch", hero="bard")
+        d = mover(24.5, 20.5)
+        self.place(d)
+        s._attack(s.me)
+        hit = BASE - d.hp
+        self.assertGreater(hit, 0)
+        h.x = 50.5
+        self.go(config.U_CONCH[0] + DT)
+        self.assertAlmostEqual(BASE - d.hp, hit * 1.4, delta=hit * 0.15)
+
+    def test_their_things_draw(self):
+        s, h = self.setup("spirit_herd")
+        self.place(mover(26.5, 20.5))
+        h.herd_t = 0.0
+        self.go(0.3)
+        h.swarms = [[h.x, h.y, 0.0, 2.0, {}]]
+        s.effects.append(relics.Effect("skull_roar", h.x, h.y, angle=0.0, size=8.0, value=100))
+        s.me.camera.center_on(h.x, h.y)
+        s.me.minimap = None
+        s.draw(s.manager.text)
+        self.assertTrue(h.herd)

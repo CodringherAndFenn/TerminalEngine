@@ -245,6 +245,8 @@ def draw_projectiles(text: TextRenderer, camera: Camera, projectiles: list[Proje
         elif p.tint and p.owner is not None and getattr(p.owner, "psychedelic", False):
             cols = palette.PSY_SHOTS[p.tint % len(palette.PSY_SHOTS)]
         head_col, trail_cols = cols
+        if p.conch:                          # (M31.5: an Echo Conch's echo, faded)
+            head_col, trail_cols = palette.CONCH_ECHO
         octant = _octant(p.angle)
         # Trail: only along the stretch the shot has actually flown.
         for k, dist in enumerate(TRAIL_TILES):
@@ -414,6 +416,17 @@ def _frame(e: Effect) -> list:
             (math.cos(k * math.tau / 12) * r * config.TILE_PX_W,
              math.sin(k * math.tau / 12) * r * config.TILE_PX_H - math.sin(p * math.pi) * 8,
              "o" if k % 3 == 0 else ":", col) for k in range(12)]
+    if e.kind == "skull_roar":                   # (M31.5: the Tyrant Skull's roar, a cone)
+        col = palette.SKULL_ROAR[0 if p < 0.5 else 1]
+        half = math.radians(e.value or 100) / 2
+        out = []
+        for k in range(9):
+            a = e.angle - half + 2 * half * k / 8
+            for f in (0.4, 0.7, 1.0):
+                r = e.size * f * (0.3 + 0.7 * p)
+                out.append((math.cos(a) * r * config.TILE_PX_W, math.sin(a) * r * config.TILE_PX_H,
+                            ")" if f == 1.0 else "'", col))
+        return out
     if e.kind == "steam":                        # (M31.5: lava quenching in the first sea)
         col = palette.STEAM[0 if p < 0.5 else 1]
         r = (e.size or 1.0)
