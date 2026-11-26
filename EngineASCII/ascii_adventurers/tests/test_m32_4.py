@@ -58,7 +58,9 @@ class CatalogTest(unittest.TestCase):
         self.assertTrue(issubclass(KINDS["camera_mast"], P.Machine))
         self.assertEqual(config.ENEMIES["overseer"].max_hp, 12000)
         b = config.BOSSES["overseer"]
-        self.assertEqual(list(config.BOSSES)[-1], "overseer")      # (last: the relic seeds stay)
+        keys = list(config.BOSSES)                                 # (after every older one: the
+        self.assertEqual(keys.index("overseer"), keys.index("ancestor_first_life") + 1)   # relic seeds
+        self.assertEqual(keys[-1], "overseer_city")                # stay; M32.5's form 2 after it)
         self.assertEqual([ph.below for ph in b.phases], [1.0, 0.75, 0.5, 0.25])
         for ph in b.phases:
             moves = {m for m, _ in ph.moves}

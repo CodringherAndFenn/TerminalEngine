@@ -26,6 +26,13 @@ _TAU = 2.0 * math.pi
 
 
 def draw_overseer(text, bank, camera, e) -> None:
+    if e.form == 2:                                       # (M32.5: the walking city)
+        from .walking_city import draw_walking_city
+        draw_walking_city(text, bank, camera, e)
+        return
+    if e.form == "tearing":
+        _draw_tearing(text, bank, camera, e)
+        return
     batch = _Batch(text)
     tw, th = config.TILE_PX_W, config.TILE_PX_H
     cx, cy, ra, rb = e.arena()
@@ -106,6 +113,26 @@ def draw_overseer(text, bank, camera, e) -> None:
         sh.flush()
     draw_character(bank, x, y - lift, e.sprite_now(), e.espec.scale,
                    math.cos(e.facing) < 0, 0, e.hurt_flash > 0)
+
+
+def _draw_tearing(text, bank, camera, e) -> None:
+    """The eye tearing free (M32.5): down out of the ceiling, flickering
+    between itself and the body it builds out of the hall, the hall's pieces
+    flying in to it."""
+    batch = _Batch(text)
+    x, y = camera.world_to_px(e.x, e.y)
+    left = max(0.0, e.tear_t) / config.WALKER_TEAR
+    for q in range(10):                                   # (pieces flying in)
+        a = q * _TAU / 10 + e.real_t * 0.7
+        r = 40 + 160 * ((left * 3 + q * 0.37) % 1.0)
+        batch.put_c(x + math.cos(a) * r, y - 30 + math.sin(a) * r * 0.6, "%#"[q % 2],
+                    palette.HALL_PILLAR_FG if q % 2 else palette.CELL_DOOR_FG)
+    batch.put_c(x, y + 18, "_____", palette.BOMB_SHADOW)
+    batch.flush()
+    built = int(e.real_t * 10) % 3 == 0 and left < 0.7 or left < 0.25
+    sprite = "walking_city" if built else "overseer_low"
+    scale = config.WALKER_BODY[1] if built else e.espec.scale
+    draw_character(bank, x, y - (1.0 - left) * 30, sprite, scale, math.cos(e.facing) < 0, 0, False)
 
 
 def _scan(text, camera, e) -> None:

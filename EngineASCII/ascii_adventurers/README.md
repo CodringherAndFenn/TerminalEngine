@@ -1053,6 +1053,24 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   your shots. Its moves: a sweeping laser, a missile salvo on marked spots,
   the shock drop (down low and vulnerable: a ring, then arcs to the pylons)
   and the floor scan (stand on the dark squares).
+- **The Overseer's second form, M32.5** (`design/OCEAN.md` 45): beaten, the
+  eye tears out of the ceiling and the hall's walls come down -- the floor
+  spreads out over the plaza to a rim of rubble, broken cells lying in it
+  and the grid's junctions sparking where the walls stood -- and it builds
+  itself a body out of the hall: THE WALKING CITY, a four-legged fortress
+  of cell doors with the eye in its chest, always walking, slow to turn
+  (get round it). Its armour plates each take every hit on their side
+  until you shoot them off, and it keeps tearing pillars and cover out of
+  the hall to bolt on more, growing bigger and stronger; from 75% it plugs
+  into the junctions (shielded and mending: cut the junction to drop the
+  shield, and it walks over to plug in again); from 50% a hundred eyes open
+  on its body and round the hall, calling laser strikes onto whatever they
+  see; from 25% the watch pours in through the breaches and turrets open on
+  its body. Its moves: the stomp (marked footsteps, each a shock ring), the
+  great beam (planted, the eye charging along a shown line -- and open to
+  your shots from the front), grab and throw (you, or a piece of the hall
+  that breaks into cover where it lands) and the arm swing (an arm of
+  chained cell doors: roll under it).
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

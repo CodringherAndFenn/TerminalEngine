@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Ocean Zones
 
-Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE. M32 (Panopticon, the east) DRAFTED 2026-11-25 (sections 35-40). M32.1 BUILT (2026-11-25, section 41). M32.2 BUILT (2026-11-26, section 42). M32.3 BUILT (2026-11-26, section 43). M32.4 BUILT (2026-11-26, section 44).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE. M32 (Panopticon, the east) DRAFTED 2026-11-25 (sections 35-40). M32.1 BUILT (2026-11-25, section 41). M32.2 BUILT (2026-11-26, section 42). M32.3 BUILT (2026-11-26, section 43). M32.4 BUILT (2026-11-26, section 44). M32.5 BUILT (2026-11-26, section 45: the walking city; its relics next, drafted with the user).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -952,7 +952,7 @@ At 0 **the eye tears out of the ceiling and builds a giant from the hall itself*
 | M32.2 | **The alert + the watch and the workers (8):** cameras, the meter and its three levels (calls, turrets waking, gates sealing, the hunter squad, the cleaning on your street), endgame toughness; the sentry drone, spotter, riot robot, Warden; the welder, hauler, assembler, foreman. **Built, section 42** |
 | M32.3 | **The other 8:** the butler, scrubber, gardener, nanny (and the mess in the kept homes); the junker, magnet, rust swarm, scrap colossus (and the wrecks that aren't quite dead). **Built, section 43** |
 | M32.4 | **The quest + form 1:** blinding the seven eyes (the pylons, the masts, the darkened districts), the voice in the screens, opening and sealing the hall; the eye (the ceiling rail, the gaze, the cells, the laser grid, the recordings, four moves). **Built, section 44** |
-| M32.5 | **Form 2:** the walking city (the walls come down, it builds itself, power from the grid, a hundred eyes, the city answers, four moves), the bot benchmark; then the relics drafted with the user |
+| M32.5 | **Form 2:** the walking city (the walls come down, it builds itself, power from the grid, a hundred eyes, the city answers, four moves), the bot benchmark; then the relics drafted with the user. **Built, section 45** (the relics: next) |
 
 ## 41. Built: M32.1 (2026-11-25) -- Panopticon's land
 
@@ -1286,3 +1286,72 @@ Both come back to the ground they were placed on when their time is up (a zone t
 
 **For later:** the bot benchmark comes with form 2 (M32.5). Play-test the gaze above all: in the open it reaches lockdown in ~9 s, and only six pillars hide you in a hall 104 tiles across. Also the recordings' shots: your own build at x0.5 could hurt a lot.
 
+
+## 45. Built: M32.5 (2026-11-26) -- the walking city, the Overseer's second form
+
+**The tear** (`ai/walking_city.py`, a mix-in of `ai/overseer.Overseer`: one body, two forms, like the hunger and the first life). At 0 the eye doesn't die: whatever it was doing stops (its recordings fizzle), **the fight's alert is gone**, and **the watch still out of the cells is pulled into it** (no kill: "the machines in them"). **THE EYE TEARS FREE** -- "it builds itself a body out of the hall": for 3.5 s it can't be hit while the eye comes down and **the hall's walls come down**, from the middle out (4,384 tiles on seed 31, a slice a step). Then **THE WALKING CITY** -- "shoot its armour plates off -- get round it", back at full health, **14,000** (as drafted, 39.3; scaled like every boss); the bar reads "The Walking City".
+
+**The walls come down** (mine: the numbers; `WALKER_ARENA`):
+- the floor now reaches **6 tiles past the tower wall's outer edge**, out over the plaza (the hall was 52 x 42, now 63 x 53 to its rim): torn floor where the walls and the plaza were;
+- **a rim of rubble 2 tiles thick** round it, with **4 breaches** (away from the gate) where the watch comes in;
+- **16 clumps of broken cells** lying in the torn walls: cover (they break), and pieces it can tear out;
+- **6 junctions** of the grid at the old wall's middle, each with **live cables** 6 tiles either way along it (stand on them and they shock you, like the city's);
+- **for good:** the lair is wider (its radii are the new floor's) and its gate is the rim's tiles where the blast doors were: they open when it's won. The walls stay down.
+- A solid tile that would land on someone waits until they step off (torn floor till then).
+
+**Its body** (`WALKER_BODY`): a four-legged fortress of cell doors, the eye in its chest, drawn raised above its feet (scale 9, more with its plates; its hit radius 3.2 tiles, x its size). **It always walks**, 3 tiles/s round a loop 0.4 of the hall's radii about its middle, reversing every ~12 s, **turning at most 0.9 rad/s to face you -- you can get round it**. Its legs step in diagonal pairs when their feet fall behind. It walks over everything; its body shoves you out of it.
+
+**Signatures, one added per phase (100-75-50-25%):**
+1. **It builds itself** (the whole form): **6 plate slots** round its body (its front, its sides, its back); it rises with 2 (a cell door at its front, a screen beside it). **A plate takes every hit on its side** (shots by the way they came, blasts by where their source stands) until it's shot off (**0.8% of its max HP** each: 112 at 14,000) -- **PLATE OFF!**: it falls beside it as broken cells, cover it can tear out again. **Every 24 s an arm tears the nearest piece of the hall within 30 tiles out** (a pillar, broken cells, a thrown piece's cover, a fallen plate; with nothing in reach, a slab of the floor, 60% as strong) and **bolts it on in the empty slot on its target's side** ("BOLTED ON!"). **Each plate: x1.05 its size, x1.04 its damage.** Under the boss bar: ARMOUR n/6 and what's left of them.
+2. **Power from the grid** (75%, "POWER FROM THE GRID"): it plugs into **the nearest live junction within 24 tiles** (a cable drawn from it to its body, sparks running along it; "PLUGGED IN"). **Plugged in it takes x0.35 damage (its plates don't) and mends 0.05% of its max HP a second.** **Shoot the junction** (160 tile HP) and its cables go dead: **CABLE CUT! -- SHIELD DOWN!** -- **24 s** before it walks over to plug in again (to the nearest live one, and in). A cable longer than 32 tiles pops loose (it walked too far). **A cut junction's power comes back in 40 s.** Under the boss bar: SHIELD / SHIELD DOWN.
+3. **A hundred eyes** (50%, "A HUNDRED EYES"): **4 eyes open on its body and 6 round the hall** (by the rim, panning across the floor), **2 more of each every 20 s, up to 6 and 10**. Each watches **a cone 50 degrees wide**, 18 tiles long on its body, 24 round the hall (walls and pillars hide you); **seeing you 0.4 s it calls a laser strike onto you** (3 s before it can again): **the mark follows you 0.55 s, holds 0.35 s, and strikes 1.5 tiles round for 22**; at most 3 marks on you at once. An eye is an enemy (16 HP, x2.5 like every zone enemy): shoot it out. The eyes on its body ride on it; its own shots pass them. When it falls they close (no kill).
+4. **The city answers** (25%, "THE CITY ANSWERS"): **every 18 s, 2 of the watch** (sentry drones, riot robots) **pour in through the breaches** nearest you, at most 5 out; and **4 turrets open on its body** (40 and 140 degrees either side of its front, each covering 100 degrees from its middle): **a burst of 3 bolts every 2.8 s** at whoever is in their sector within 20 tiles.
+
+**Its moves (all four, every phase; rests 1.4 / 1.3 / 1.2 / 1.1 s):**
+- **Stomp:** it strides at you at 4.5 tiles/s, **6 steps 0.42 s apart, each foot's landing spot marked 0.55 s**; each lands **a shock ring** out to 4.5 tiles at 11 tiles/s, **22** (roll through it).
+- **The great beam** (**planted, the clear tell**): its eye charges **1.5 s along a shown line** (2.4 tiles wide), **fires (36)** and **drags 75 degrees across the hall in 2 s** toward where you went, burning **17 every 0.25 s**; walls, pillars and cover stop it; 0.8 s more planted. **While it's planted, a hit from within 60 degrees of its front goes into the eye: past the plates, x1.25.**
+- **Grab and throw:** within 9 tiles of its body, **it grabs you** (an arm along a shown line, 0.75 s; its hand closes 1.8 tiles round): **GRABBED!** -- held 0.6 s by its body (**roll and you're FREE!**), then **THROWN!** 13 tiles along a shown line (away from it, kept on the floor) at 22 tiles/s, **26** where you land. Further off, **it tears out the nearest piece of the hall** (within 24 tiles) and **throws it at you along a shown line** (0.8 s; where you'll be): **2.4 tiles round, 32**, and **it breaks into cover where it lands** (a cross of broken pillar).
+- **Arm swing:** **an arm of chained cell doors 13 tiles long swung 150 degrees**, its arc shown 1.0 s, swept in 0.55 s: **34** and knocked 3.5 tiles (**roll under it**, or get out of reach).
+
+**At 0** it falls: its eyes close, its plates fall, and the quest is won (form 1's rewards; the gate through the rubble opens). The walls stay down.
+
+**The bot benchmark** (the M29.5 bot: a level-1 wizard that can't die, held at 60%, circle-strafing at 8 tiles, shooting adds within 6 tiles first, else the boss; it never rolls. Mine for this boss: in form 2, while the walking city is plugged in, it goes to 7 tiles from that junction and shoots it; it shoots a riot robot only from beside or behind its shield; seeds 31/7/12):
+
+| | The eye | The walking city | Both | Damage taken a minute |
+|-|---------|------------------|------|-----------------------|
+| Seed 31 | 3:57 | 7:16 | 11:14 | 608 / 534 |
+| Seed 7 | 3:55 | 6:19 | 10:14 | 569 / 562 |
+| Seed 12 | 3:49 | 6:00 | 9:50 | 541 / 549 |
+| The Ancestor (reference) | 3:26-3:35 | 5:41-5:52 | 9:12-9:22 | 888-1,014 / 1,649-1,904 |
+| The Four Horsemen (reference) | 4:52-4:56 | 6:59-7:41 | 11:54-12:37 | ~850 / ~1,280 |
+
+**Both forms are over their targets** (the eye ~3 min, the walking city ~4-5), and I've kept their HP (the policy). The eye: the bot never hides from the gaze (in lockdown ~90% of the fight, everything x1.3) and its shots miss an eye sliding round its rail. The walking city: **14,000 at the bot's pace (~45 a second into it) is ~5:10 before any of its mechanics**; on top, the junctions (11-14% of the bot's time), the eyes and the watch (16-23%) and its plates (1,700-2,100 of damage). In form 2 the bot spends 16-23% on adds, is plugged-in-against 8-12 times, and is grabbed and thrown ~2-6 s in all.
+
+**What I changed after the first runs** (seed 31's first: the eye 11:00, and the walking city still at 98% after 9 minutes):
+- **A bug from M32.4: the Overseer's watch filled the city's alert.** The machines out of the cells saw you in the hall and raised *the city's* meter; its lockdowns sent hunter squads into the fight (18 adds alive on average). Now **nothing in the tower's hall** (as wide as the walking city leaves it) **fills the city's alert**: it runs its own there (`systems/alert.in_tower`).
+- **A bug from M32.4: the cell's bars set you in the cell's middle tile even when your body there overlapped a pillar.** Now only when it's clear.
+- Mending 0.25% a second healed it ~11,800 over the fight (now 0.05%); two cables (now one: cut one junction to drop the shield); shield down 8 s (now 24), a junction's power back in 24 s (now 40), shielded x0.25 (now x0.35).
+- Plates 1.6% of its HP (now 0.8%), one every 15 s (now 24), 3 to start (now 2).
+- Eyes 6 + 8 at first (now 4 + 6), more every 15 s (now 20), up to 10 + 14 (now 6 + 10).
+- The watch 3 every 13 s, up to 8 (now 2 every 18 s, up to 5); the cell watch pulled into it when it tears free.
+- The turrets' sectors are measured from its middle (a hero close in front was in neither front turret's view) and are wider (100 degrees, at 40 and 140).
+- **Form 1:** the rail 4.5 tiles/s (was 5), the cells every 16 s (was 14), at most 6 of the watch out (was 8).
+- **Its hits +25%** (stomp 22, beam 36 / 17, thrown 26, a thrown piece 32, swing 34, strikes 22): the bot was taking ~470 a minute, a third of the other second forms.
+
+**To play-test:** the grid's rhythm (plug in, cut, 24 s down, walk over); whether the eyes' strikes land on players who keep moving (they follow you 0.55 s, then hold 0.35 s: moving straight you escape by a hair); getting round it (it turns 0.9 rad/s) vs. its front plates; the great beam's open eye as the reward for standing in front of it.
+
+**Measured:** the walls coming down cost 0.83 ms a step (at most 1.25). In the fourth phase (18 awake: 10 eyes, the watch, 3 plates, the great beam firing) a game step takes 0.73 ms (p95 0.9, at most 1.5) and drawing 2.0 ms (p95 3.0; once 23 ms, baking its picture at a new size).
+
+**Look** (`render/panopticon_art.py`, `render/walking_city.py`):
+- the walking city: a fortress of cell doors on four legs, towers on top, a hazard stripe, the eye in its chest (magenta ring, red, cyan); planted for the beam, the eye glowing white and cyan;
+- its legs (hip, knee, a foot "[#]" raised while it steps), its shadow; its plates on its outline (the far side behind its body, the near side in front), each a small picture of what it was (a cell door, a lit screen, a pillar's slab, torn floor), settling as they're bolted on, flashing when hit;
+- the eyes on its body and round the hall (a small magenta eye), their cones' edges (dim; lit while one sees you); the strikes' marks closing in, then a cross; its turrets "[T]" (a flash as they fire);
+- the cable from its junction to its body, sparks running along it; the stomp's marks ("!" in a ring) and shock rings; the beam's line (two dotted edges and its middle) and the beam (three bands); the grab's arm and its hand's ring; the piece held up ("[%%]") and thrown in an arc; the throw's line and landing ring; the swing's arc (its edges and rim) and the arm of chained cell doors;
+- the tear: the eye flickering between itself and the body it builds, pieces of the hall flying in;
+- new tiles: torn floor, broken cells, broken pillar, rubble heap, breach, junction, cut junction.
+
+**Also changed:** `systems/alert.py` (`in_tower`; the plan looked up once); `ai/overseer.py` (the forms: `think`, `take_damage`, `bars`, `bar_label`, `sprite_now`, `hurt`, `on_phase`, `_end_move`, `on_death`; the cell's snap); `render/overseer.py` (the tear; form 2 drawn by `render/walking_city.py`); `render/enemies_sprite.py` (the body's eyes are drawn with it); `test_m32_4` (the boss order: `overseer_city` after it), `test_m28_5` (`overseer_city` drops its relics as the Overseer).
+
+**Code:** `ai/walking_city.py` (`WalkingCity`: the tear, the walls, the gait, plates, building, the grid, the eyes, the strikes, the city answering, its turrets, stomp, the great beam, grab and throw, the swing; `WalkerEye`, `Plate`, `Foot`); `render/walking_city.py`; config `WALKER_*`, `JUNCTION_HP`, `walker_eye`, the boss spec `overseer_city` (added last: the relic seeds stay put), its bestiary page; tiles `BROKEN_FLOOR`, `BROKEN_CELL`, `BROKEN_PILLAR`, `RUBBLE_HEAP`, `BREACH`, `JUNCTION`, `DEAD_JUNCTION`; palette. **Tests:** `tests/test_m32_5.py` (16).
+
+**Next:** the Overseer's relics, drafted with the user (GEAR.md 21.1: one per thing it does to you -- watching, locking up, recording, building itself -- is the obvious set); then M32 (Panopticon) is complete.

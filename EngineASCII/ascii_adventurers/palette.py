@@ -1642,3 +1642,41 @@ MISSILE = ((255, 220, 120), (255, 90, 60))
 DROP_RING = ((140, 220, 255), (255, 255, 200))
 SCAN_LIT = ((40, 12, 30), (110, 26, 72))
 STATIC = ((255, 80, 220), (120, 255, 255))
+
+# --- M32.5: the walking city ----------------------------------------------------------------
+# The hall's walls come down: the torn floor where they stood, broken cells
+# (cover), the rubble rim and its breaches, the grid's junctions (live, cut).
+BROKEN_FLOOR_FG = (70, 74, 86)
+BROKEN_FLOOR_BG = (20, 22, 28)
+BROKEN_CELL_FG = (170, 180, 194)
+BROKEN_CELL_BG = (44, 48, 60)
+RUBBLE_HEAP_FG = (120, 124, 136)
+RUBBLE_HEAP_BG = (52, 54, 62)
+BREACH_FG = (255, 150, 60)
+JUNCTION_FG = (255, 230, 80)
+JUNCTION_BG = (60, 52, 20)
+DEAD_JUNCTION_FG = (110, 100, 70)
+MAP_TILE.update({"torn floor": (40, 42, 50), "broken cells": (150, 158, 170),
+                 "broken pillar": (150, 158, 170), "rubble heap": (110, 112, 120),
+                 "breach": (200, 120, 60), "junction": (255, 230, 80),
+                 "cut junction": (110, 100, 70)})
+# The walking city (render/walking_city.py): its legs and feet, its armour
+# plates' bar, its shield (the boss bar; the cables plugged in, sparking),
+# the stomp's marks and shock rings, the great beam (its shown line, the
+# beam), the grab's arm and hand, the thrown piece's line, the swing's arc
+# and the arm of cell doors, the eyes' cones (watching, seeing), the laser
+# strike's mark, the body's turrets.
+WALKER_LEG = ((150, 158, 174), (90, 96, 110))
+WALKER_ARMOUR = (190, 198, 214)
+WALKER_SHIELD = (110, 230, 255)
+WALKER_CABLE = ((255, 230, 80), (255, 255, 200))
+STOMP_MARK = ((255, 206, 40), (255, 120, 40))
+WALKER_SHOCK = ((140, 220, 255), (255, 255, 220))
+WALKER_BEAM_TELL = ((255, 70, 200), (120, 30, 100))
+GREAT_BEAM = ((255, 120, 230), (255, 240, 255))
+WALKER_ARM = ((180, 190, 202), (110, 118, 132))
+WALKER_THROW = ((255, 150, 60), (150, 80, 30))
+WALKER_SWING_ARC = ((255, 80, 80), (130, 40, 40))
+WALKER_EYE_CONE = ((120, 60, 110), (255, 70, 200))
+WALKER_STRIKE = ((255, 60, 120), (255, 220, 240))
+WALKER_TURRET = (255, 206, 40)

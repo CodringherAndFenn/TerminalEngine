@@ -271,6 +271,9 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
         from .overseer import draw_recording
         draw_recording(text, bank, camera, e)
         return
+    from ..ai.walking_city import WalkerEye
+    if isinstance(e, WalkerEye) and e.on_body:  # (M32.5: drawn on the walking city's body)
+        return
     from ..ai.ancestor import Ancestor
     if isinstance(e, Ancestor):                # M31.4: the Ancestor
         from .ancestor import draw_ancestor

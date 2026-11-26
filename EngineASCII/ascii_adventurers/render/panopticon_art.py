@@ -429,6 +429,89 @@ PANOPTICON_ART = {
         ".5..kkkkkk..5",
         "5..k..kk..k..5",
     ],
+    # --- M32.5: the walking city ------------------------------------------------------
+    "walking_city": [                # a fortress of cell doors on four legs, the eye in its chest
+        ".kk..kkkk..kk.",
+        ".k4k.k44k.k4k.",
+        "kk4kkk44kkk4kk",
+        "k3mmmmmmmmmm3k",
+        "k3mM3mM3mM3m3k",
+        "k3mkkkkkkkkm3k",
+        "k3mk111111km3k",
+        "k3mk1r55r1km3k",
+        "k3mk1r55r1km3k",
+        "k3mk111111km3k",
+        "k3mkkkkkkkkm3k",
+        "k3m6k6k6k6km3k",
+        "kkkkkkkkkkkkkk",
+        ".k33k....k33k.",
+    ],
+    "walking_city_beam": [           # planted, the eye in its chest charging
+        ".kk..kkkk..kk.",
+        ".k4k.k44k.k4k.",
+        "kk4kkk44kkk4kk",
+        "k3mmmmmmmmmm3k",
+        "k3mM3mM3mM3m3k",
+        "k3m5kkkkkk5m3k",
+        "k3mk155551km3k",
+        "k3mk544445km3k",
+        "k3mk544445km3k",
+        "k3mk155551km3k",
+        "k3m5kkkkkk5m3k",
+        "k3m6k6k6k6km3k",
+        "kkkkkkkkkkkkkk",
+        ".k33k....k33k.",
+    ],
 }
+
+# Small pictures, centred in the picture's box (a plate bolted on, an eye).
+_SMALL = {
+    "plate_door": [                  # a cell door torn from the walls
+        "kkkkkk",
+        "kM3M3k",
+        "kM3M3k",
+        "kM3M3k",
+        "kM3M3k",
+        "kkkkkk",
+    ],
+    "plate_screen": [                # a screen, still lit
+        "kkkkkk",
+        "k5555k",
+        "k5115k",
+        "k5555k",
+        "kkkkkk",
+    ],
+    "plate_pillar": [                # a slab of a pillar
+        "kkkkkk",
+        "k4mm3k",
+        "k4mm3k",
+        "k4mm3k",
+        "k4mm3k",
+        "kkkkkk",
+    ],
+    "plate_rubble": [                # a slab of torn-up floor
+        ".kkkk.",
+        "km3mmk",
+        "k3m3mk",
+        ".kkkk.",
+    ],
+    "walker_eye": [                  # one of the hundred eyes
+        ".kkkk.",
+        "k1551k",
+        "k5rr5k",
+        "k1551k",
+        ".kkkk.",
+    ],
+}
+
+
+def _centred(rows: list[str]) -> list[str]:
+    """A small picture in the middle of the box (_pad sits it at the bottom)."""
+    from .characters import ART_W
+    left = (ART_W - max(len(r) for r in rows)) // 2
+    return ["." * left + r for r in rows] + ["." * ART_W] * max(0, 7 - len(rows) // 2)
+
+
+PANOPTICON_ART.update({k: _centred(v) for k, v in _SMALL.items()})
 
 ART.update({k: _pad(v) for k, v in PANOPTICON_ART.items()})

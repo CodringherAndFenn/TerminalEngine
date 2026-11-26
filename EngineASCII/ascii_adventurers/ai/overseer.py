@@ -29,9 +29,11 @@ round you, struck in a quick chain), the shock drop (low and planted: an
 electric ring, then arcs to the hall's four pylons) and the floor scan
 (lit squares struck from above; the dark ones are safe).
 
-At 0 it dies and the quest is won (M32.5: the walking city tears itself
-out of the hall instead). Its pictures: render/panopticon_art.py; the
-rail, the gaze and the rest: render/overseer.py.
+At 0 the eye tears out of the ceiling and builds itself a body out of the
+hall: form 2, the walking city (M32.5, ai/walking_city.WalkingCity, a
+mix-in: one body, two forms). Its pictures: render/panopticon_art.py; the
+rail, the gaze and the rest: render/overseer.py (form 2:
+render/walking_city.py).
 """
 
 from __future__ import annotations
@@ -52,6 +54,9 @@ from .creatures import _numbered_hit
 from .panopticon import _beam_end, _raise_ring, _ring_tiles
 from .pangaea import _wrap
 from .plains import PlainsCreature
+from .walking_city import SIGNATURES as CITY_SIGNATURES
+from .walking_city import SIGNATURE_LINES as CITY_LINES
+from .walking_city import WalkingCity
 
 _TAU = 2.0 * math.pi
 SIGNATURES = ("THE GAZE", "THE CELLS", "THE LASER GRID", "THE RECORDINGS")
@@ -130,8 +135,9 @@ class Recording(PlainsCreature):
         return self.left_side
 
 
-class Overseer(Boss):
-    """The Overseer, form 1 (see the module's docstring)."""
+class Overseer(WalkingCity, Boss):
+    """The Overseer: form 1 here, form 2 (the walking city) in
+    ai/walking_city.py (see the modules' docstrings)."""
 
     def __init__(self, spec: EnemySpec, x: float, y: float, rng: random.Random,
                  spawn_id=None) -> None:
@@ -172,31 +178,63 @@ class Overseer(Boss):
         self.scan: tuple | None = None    # (squares lit, s shown, struck?)
         self.banner_req: tuple | None = None
         self.combo_haste = 1.0
+        self._init_city()                 # (M32.5: form 2)
 
     # --- Being the Overseer --------------------------------------------------------------
 
     @property
+    def hittable(self) -> bool:
+        return Boss.hittable.fget(self) and self.form != "tearing"
+
+    @property
     def bar_label(self) -> str:
-        return "The Overseer"
+        return "The Walking City" if self.form == 2 else "The Overseer"
 
     def bars(self) -> list[tuple[str, float]]:
-        """Under its health bar: the fight's alert, with its level."""
+        """Under its health bar: the fight's alert, with its level (form 2:
+        its armour plates, and from the second phase its shield)."""
         from .. import palette
+        if self.form == "tearing":
+            return []
+        if self.form == 2:
+            n = len(self.plates)
+            have = sum(p.hp for p in self.plates if p is not None)
+            parts = [(f"ARMOUR {self.plated}/{n}", have / max(1.0, n * self.plate_hp()),
+                      palette.WALKER_ARMOUR)]
+            if self.phase >= 1:
+                parts.append(("SHIELD" if self.cables else "SHIELD DOWN", 1.0 if self.cables else 0.0,
+                              palette.WALKER_SHIELD))
+            return parts
         return [(f"ALERT -- {NAMES[self.level]}", self.meter / 100.0, palette.ALERT_BAR[self.level])]
 
     def hurt(self, base: float) -> float:
-        return base * self.damage_mult
+        return base * self.damage_mult * (self.strength() if self.form == 2 else 1.0)
 
     def sprite_now(self) -> str:
+        if self.form == 2:
+            return "walking_city_beam" if self.pose == "beam" else "walking_city"
         return "overseer_low" if self.low > 0.5 else "overseer"
 
     def take_damage(self, amount, source, from_angle):
-        if self.low > 0.5:
+        if self.form == "tearing" or not self.alive:
+            return 0.0
+        if self.form == 2:                        # (M32.5: its plates, its shield, its open eye)
+            body, plate = self._city_takes(amount, source, from_angle)
+            if plate is not None:                 # (a plate on that side takes it all)
+                return self._hit_plate(plate, amount, source)
+            amount = body
+        elif self.low > 0.5:
             amount *= config.OVERSEER_RAIL[3]     # (down low: easier to hit)
-        return super().take_damage(amount, source, from_angle)
+        dealt = super().take_damage(amount, source, from_angle)
+        if self.form == 1 and self.hp <= 0:       # (the eye tears free: the walking city)
+            self.hp = 1.0
+            self._tear()
+        return dealt
 
     def shove_heroes(self, extra: float = 0.3) -> None:
-        if self.low > 0.5 and self.ctx is not None:  # (it hangs over you: only low does it push)
+        if self.ctx is None:
+            return
+        if self.form == 2 or self.low > 0.5:      # (it hangs over you: only low does it push)
             super().shove_heroes(extra)
 
     def arena(self) -> tuple[float, float, float, float]:
@@ -251,6 +289,13 @@ class Overseer(Boss):
     def think(self, ctx, dt: float) -> None:
         self.ctx = ctx
         self.real_t += dt
+        if self.form == "tearing":                       # (M32.5: the walls coming down)
+            self._tear_step(ctx, dt)
+            return
+        if self.form == 2:                               # (the walking city)
+            self._city_step(ctx, dt)
+            super().think(ctx, dt)
+            return
         self._record(ctx, dt)
         fast = dt * self.gaze_haste                     # (the gaze's levels: everything faster)
         if not self.planted:
@@ -285,10 +330,16 @@ class Overseer(Boss):
 
     def on_phase(self, phase: int, ctx) -> None:
         """A signature joins (and keeps on): its name across the screen."""
-        if 0 < phase < len(SIGNATURES):
-            self.banner_req = (SIGNATURES[phase], SIGNATURE_LINES[phase])
-            ctx.effects.append(Effect("toast", self.x, self.y - 4.0, label=SIGNATURES[phase]))
+        names, lines = (CITY_SIGNATURES, CITY_LINES) if self.form == 2 else (SIGNATURES, SIGNATURE_LINES)
+        if 0 < phase < len(names):
+            self.banner_req = (names[phase], lines[phase])
+            ctx.effects.append(Effect("toast", self.x, self.y - 4.0, label=names[phase]))
             ctx.events.append("whistle")
+        if self.form == 2:
+            if phase == 2:
+                self.eye_t = 0.0                         # (the eyes open now)
+            elif phase == 3:
+                self.city_t = 1.0                        # (the city answers)
 
     # --- 1. The gaze ---------------------------------------------------------------------
 
@@ -379,8 +430,10 @@ class Overseer(Boss):
         self.lock = None
         n = config.OVERSEER_CELLS[3]
         ox, oy = math.floor(cx), math.floor(cy)
-        for h in ctx.players:                     # (still in the cell: set in its middle)
-            if h.alive and max(abs(math.floor(h.x) - ox), abs(math.floor(h.y) - oy)) < n:
+        from ..systems.collision import hull_hits_solid
+        for h in ctx.players:                     # (still in the cell: set in its middle, if it's clear)
+            if h.alive and max(abs(math.floor(h.x) - ox), abs(math.floor(h.y) - oy)) < n \
+                    and not hull_hits_solid(ctx.world, ox + 0.5, oy + 0.5, 0.0, h.half, h.half):
                 h.x, h.y = ox + 0.5, oy + 0.5
         cells = _ring_tiles(ctx.world, cx, cy, n,
                             [a for a in ctx.actors if a is not self])   # (never on anyone)
@@ -679,6 +732,8 @@ class Overseer(Boss):
         self.sweep = None
         if self.scan is not None and not self.scan[2]:
             self.scan = None
+        if self.form == 2:
+            self._city_settle()
         super()._end_move()
 
     def on_death(self, ctx) -> None:
@@ -687,4 +742,6 @@ class Overseer(Boss):
                 c.left = True
                 c.hp = 0.0
         self.missiles, self.grid, self.ring, self.lock = [], None, None, None
+        if self.form == 2:
+            self._city_gone(ctx)                    # (M32.5: its eyes close; the walls stay down)
         super().on_death(ctx)

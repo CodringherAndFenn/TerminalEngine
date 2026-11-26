@@ -1727,6 +1727,47 @@ CELL_BARS = TileType(
 MAST_PAD = TileType(
     "mast pad", ("  ", ". ", "_ ", "  "), palette.MAST_PAD_FG, palette.MAST_PAD_BG,
 )
+# M32.5: the hall's walls come down (the walking city tears itself free).
+BROKEN_FLOOR = TileType(
+    # Where the walls stood (and the plaza they fell on).
+    "torn floor", ("  ", ". ", ".,", " ;", "  ", ":."), palette.BROKEN_FLOOR_FG, palette.BROKEN_FLOOR_BG,
+)
+BROKEN_CELL = TileType(
+    # Broken cells from the torn walls: cover (it breaks).
+    "broken cells", ("|%", "%|", "#/"), palette.BROKEN_CELL_FG, palette.BROKEN_CELL_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP,
+    wear=((".%", "%."),),
+    becomes=BROKEN_FLOOR,
+)
+BROKEN_PILLAR = TileType(
+    # A piece the walking city threw, broken where it landed: cover.
+    "broken pillar", ("▓%", "%▓", "▓▓"), palette.HALL_PILLAR_FG, palette.BROKEN_CELL_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP,
+    wear=(("%.", ".%"),),
+    becomes=BROKEN_FLOOR,
+)
+RUBBLE_HEAP = TileType(
+    # The rim of rubble the walls fell into.
+    "rubble heap", ("▓▒", "▒▓", "▓▓", "▒░"), palette.RUBBLE_HEAP_FG, palette.RUBBLE_HEAP_BG,
+    solid=True, blocks_shots=True,
+)
+BREACH = TileType(
+    # A breach in the rubble: the watch pours in from the streets there.
+    "breach", ("/\\", "\\/", "^."), palette.BREACH_FG, palette.RUBBLE_HEAP_BG,
+    solid=True, blocks_shots=True,
+)
+DEAD_JUNCTION = TileType(
+    "cut junction", ("[x", "x]", "[."), palette.DEAD_JUNCTION_FG, palette.BROKEN_FLOOR_BG,
+    solid=True, blocks_shots=True,
+)
+JUNCTION = TileType(
+    # One of the grid's junctions in the broken walls: the walking city plugs
+    # into them. Shoot it and its cables go dead.
+    "junction", ("[#", "#]", "[="), palette.JUNCTION_FG, palette.JUNCTION_BG,
+    solid=True, blocks_shots=True, hp=config.JUNCTION_HP,
+    wear=(("[x", "x]"),),
+    becomes=DEAD_JUNCTION,
+)
 
 # M31.3: the tiles whose breaking the world reports (world.broke, taken by
 # systems/pangaea.step): an egg hatches, amber frees what's in it. M32.1: a

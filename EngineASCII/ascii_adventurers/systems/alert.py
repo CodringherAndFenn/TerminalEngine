@@ -52,6 +52,7 @@ class Alert:
         self.hunters: list = []
         self.lockdowns = 0            # how many times it has gone to lockdown (this run)
         self.dark: list[tuple[float, float]] = []   # M32.4: the blinded masts (MAST_DARK)
+        self.plan = None              # (M32.5: the island's plan, looked up once; False: none)
 
     @property
     def frac(self) -> float:
@@ -73,12 +74,33 @@ def level_of(world) -> int:
 
 def seen(world, rate: float, x: float | None = None, y: float | None = None) -> None:
     """Something (at (x, y)) sees a hero, filling the alert `rate` a second
-    (M32.4: slower near a blinded mast)."""
+    (M32.4: slower near a blinded mast; M32.5: not at all from inside the
+    tower's hall -- the Overseer's adds: it runs its own alert there)."""
     a = alert_of(world)
-    if x is not None and a.dark and dark_at(world, x, y):
-        rate *= config.MAST_DARK[1]
+    if x is not None:
+        if in_tower(world, x, y):
+            return
+        if a.dark and dark_at(world, x, y):
+            rate *= config.MAST_DARK[1]
     if rate > a.rate:
         a.rate = rate
+
+
+def in_tower(world, x: float, y: float) -> bool:
+    """Is (x, y) in the tower's hall of cells (as wide as the walking city
+    leaves it, M32.5)?"""
+    a = alert_of(world)
+    if a.plan is None:
+        a.plan = False
+        layout = getattr(world, "layout", None)
+        z = layout.zone("panopticon") if hasattr(layout, "zone") else None
+        if z is not None:
+            from ..world.zones import plan_of
+            a.plan = plan_of(layout, z) or False
+    if not a.plan:
+        return False
+    grow = config.PANOPTICON_TOWER_WALL + config.WALKER_ARENA[0] + config.WALKER_ARENA[1]
+    return a.plan.in_hall(x, y, grow)
 
 
 def dark_at(world, x: float, y: float) -> bool:

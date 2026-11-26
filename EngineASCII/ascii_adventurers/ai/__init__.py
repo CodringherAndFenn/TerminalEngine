@@ -64,6 +64,9 @@ ai -- enemy behaviour.
   overseer.py   Panopticon's boss, form 1 (M32.4): the Overseer, the eye on its
                 ceiling rail -- the gaze, the cells, the laser grid, the
                 recordings of you
+  walking_city.py  its form 2 (M32.5, a mix-in): the walking city -- the walls
+                come down, armour plates, the grid's junctions, the hundred
+                eyes, the city answering
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -109,6 +112,7 @@ from .pangaea import (AntMound, Bombardier, CaveBear, ClubTail, Dragonfly, FireB
                       Hatchling, Mammoth, Pterosaur, Raptor, SabreTooth, SeaScorpion, Shaman,
                       SpearHunter, Trapper, Tyrant, WoollyRhino)
 from .overseer import Overseer, Recording
+from .walking_city import WalkerEye
 from .panopticon import (Assembler, Butler, Camera, CameraMast, Foreman, Gardener, Hauler, JunkBit, Junker,
                          Magnet, Nanny, RiotRobot, RustSwarm, ScrapColossus, Scrubber, SentryDrone,
                          Spotter, Turret, Warden, Welder)
@@ -349,6 +353,7 @@ KINDS = {
     "camera_mast": CameraMast,
     "overseer": Overseer,
     "recording": Recording,
+    "walker_eye": WalkerEye,                # (M32.5: the walking city's hundred eyes)
 }
 
 

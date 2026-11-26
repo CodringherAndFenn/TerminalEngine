@@ -1416,6 +1416,11 @@ ENEMIES = {
         name="recording", kind="recording", sprite="recording",
         max_hp=24, sight=1, biomes=(), speed=0.0, damage=0, size_px=20, xp=2,
     ),
+    # M32.5: the walking city's hundred eyes (ai/walking_city.WalkerEye).
+    "walker_eye": EnemySpec(
+        name="eye of the city", kind="walker_eye", sprite="walker_eye", scale=2,
+        max_hp=16, sight=24, biomes=(), speed=0.0, damage=0, size_px=12, xp=2,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -4996,6 +5001,9 @@ BESTIARY = {
     "overseer": (10000, "The tower's mind: an eye on a ceiling rail, running the hall. Hide from its gaze; "
                         "it has recorded everything you did."),
     "recording": (1000, "You, a few seconds ago, walking your path and firing your shots. One hit shatters it."),
+    # M32.5
+    "walker_eye": (1500, "One of the walking city's hundred eyes. What it sees it strikes a beat later: "
+                         "shoot it out, or keep out of its sight."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -5704,7 +5712,7 @@ VOICE_SCREEN_REACH = 20
 # middle, sliding round it at [1] tiles/s (reversing every [2] s, give or
 # take), turning to watch you; brought down low (the shock drop) it takes
 # x [3] damage.
-OVERSEER_RAIL = (0.45, 5.0, 9.0, 1.4)
+OVERSEER_RAIL = (0.45, 4.5, 9.0, 1.4)
 # THE GAZE (phase 1 on): its searchlight, a cone [0] degrees wide and [1]
 # tiles long, swings [2] degrees either way of you every [3] s; while it
 # sees you (only the pillars hide you: it reaches across the hall) the
@@ -5717,7 +5725,7 @@ OVERSEER_GAZE = (40.0, 90.0, 60.0, 3.2, 35.0, 2.0, 25.0, 30.0, 1.15, 1.30, 6, 6.
 # comes out (OVERSEER_CELL_WATCH), at most [2] of them out at once. Its
 # move "cell": laser bars ring you [3] tiles out (a cell 3 tiles across),
 # shown [4] s (roll out), then shut for [5] s.
-OVERSEER_CELLS = (14.0, 2, 8, 2, 0.9, 4.0)
+OVERSEER_CELLS = (16.0, 2, 6, 2, 0.9, 4.0)
 OVERSEER_CELL_WATCH = ("sentry_drone", "riot_robot", "sentry_drone")
 # THE LASER GRID (phase 3 on): a pattern of beams across the floor -- lines
 # sweeping across, a turning cross, a closing box -- each [0] s, shown [1]
@@ -5745,6 +5753,71 @@ OVERSEER_DROP = (0.8, 10.0, 14.0, 20.0, 0.4, 0.8, 18.0, 1.6)
 # The floor scan: squares of [0] tiles across the hall, [3] of them lit,
 # shown [1] s; then the lit ones are struck from above, [2] each.
 OVERSEER_SCAN = (4, 1.2, 22.0, 0.5)
+# --- M32.5: the Overseer, form 2: the walking city (OCEAN.md 39.2-39.3; ai/walking_city.py)
+# At 0 the eye tears out of the ceiling: for WALKER_TEAR s it can't be hit
+# while the hall's walls come down (from the middle out) and it builds itself
+# a body out of the hall; then it's the walking city at full health (x
+# WALKER_HP: 14,000 of 12,000), four phases (100-75-50-25%). Numbers mine;
+# damages per hit at level 1.
+WALKER_HP = 14000 / 12000
+WALKER_TEAR = 3.5
+# The walls come down: the floor reaches WALKER_ARENA[0] tiles past the
+# tower wall's outer edge (onto the plaza), ringed by a rim of rubble [1]
+# tiles thick; [2] clumps of broken cells (cover) lie in the broken walls,
+# [3] of the grid's junctions at the wall's middle, each with live cables [4]
+# tiles either way along it; [5] breaches in the rim (where the watch comes in).
+WALKER_ARENA = (6, 2, 16, 6, 6, 4)
+# Its body: hit radius [0] (x its size), drawn at scale [1] (x its size); it
+# walks [2] tiles/s round a loop [3] x the arena's radii round the middle,
+# reversing every [4] s (give or take 3), turning at most [5] rad/s to face you.
+WALKER_BODY = (3.2, 9, 3.0, 0.4, 12.0, 0.9)
+# 1. IT BUILDS ITSELF: armour plates in [0] slots round its body; it starts
+# with [1]. Every [2] s it tears a piece out of the hall (a pillar, broken
+# cells, thrown cover, a fallen plate: the nearest within [3] tiles) and bolts
+# it on on its target's side. A plate has [4] x its max HP and takes every hit
+# on its side; each makes it x(1 + [5]) bigger and x(1 + [6]) as strong.
+WALKER_PLATES = (6, 2, 24.0, 30.0, 0.008, 0.05, 0.04)
+# 2. POWER FROM THE GRID (75%): it plugs into the [0] nearest live junctions
+# within [1] tiles; plugged in it takes x [2] damage (its plates don't) and
+# mends [3] of its max HP a second. A cable longer than [4] tiles pops loose.
+# Cut every cable and the shield is down for [5] s before it walks over to
+# plug in again; a cut junction's power comes back in [6] s.
+WALKER_GRID = (1, 24.0, 0.35, 0.0005, 32.0, 24.0, 40.0)
+JUNCTION_HP = 160
+# 3. A HUNDRED EYES (50%): [0] eyes open on its body and [1] round the hall,
+# [2] more of each every [3] s, up to [4] / [5]. Each watches a cone [6]
+# degrees wide, [7] tiles long (on its body; [8] round the hall); seeing you
+# [9] s it calls a laser strike onto you ([10] s before it can again). The
+# strike's mark follows you [11] s, holds [12] s and strikes [13] tiles round
+# for [14]; at most [15] marks on a hero at once.
+WALKER_EYES = (4, 6, 2, 20.0, 6, 10, 50.0, 18.0, 24.0, 0.4, 3.0, 0.55, 0.35, 1.5, 22.0, 3)
+# 4. THE CITY ANSWERS (25%): every [0] s [1] of the watch (WALKER_CITY_WATCH)
+# pour in through the breaches, at most [2] out; [3] turrets open on its body,
+# each a burst of [4] bolts [5] s apart every [6] s at whoever is within [7]
+# degrees of it and [8] tiles.
+WALKER_CITY = (18.0, 2, 5, 4, 3, 0.14, 2.8, 100.0, 20.0)
+WALKER_CITY_WATCH = ("sentry_drone", "riot_robot", "sentry_drone")
+# Its moves. Stomp: it strides at you at [0] tiles/s, [1] steps [2] s apart,
+# each foot's spot marked [3] s; then a shock ring out to [4] tiles at [5]
+# tiles/s, [6] (roll through it).
+WALKER_STOMP = (4.5, 6, 0.42, 0.55, 4.5, 11.0, 22.0)
+# The great beam: planted, the eye charges [0] s along a shown line [1] tiles
+# either side, fires ([2]) and drags [3] degrees across the hall in [4] s,
+# burning [5] every [6] s (walls and pillars stop it); [7] s more planted.
+# Planted, a hit from within [8] degrees of its front goes into the eye:
+# past the plates, x [9].
+WALKER_BEAM = (1.5, 1.2, 36.0, 75.0, 2.0, 17.0, 0.25, 0.8, 60.0, 1.25)
+# Grab and throw: a hero within [0] tiles is grabbed (an arm along a shown
+# line, [1] s; its hand [2] tiles round), held [3] s and thrown [4] tiles at
+# [5] tiles/s, [6] where they land (roll free while held). Otherwise it tears
+# out the nearest piece of the hall within [7] tiles and throws it at you
+# along a shown line ([8] s): [9] tiles round, [10], and it breaks into
+# cover where it lands.
+WALKER_GRAB = (9.0, 0.75, 1.8, 0.6, 13.0, 22.0, 26.0, 24.0, 0.8, 2.4, 32.0)
+# Arm swing: an arm of chained cell doors [1] tiles long swung [0] degrees,
+# shown [2] s, swept in [3] s: [4] and knocked [6] tiles back, [5] tiles
+# either side of the arm (roll under it).
+WALKER_SWING = (150.0, 13.0, 1.0, 0.55, 34.0, 0.9, 3.5)
 # The machines' shots (M32.2, ai/panopticon.py).
 PANOPTICON_SHOTS = {
     "drone_bolt": ShellSpec(speed=18.0, damage=8, max_range=14.0, damages_terrain=False,
@@ -7345,7 +7418,22 @@ BOSSES = {
             BossPhase(0.25, (("cell", 2), ("sweep", 2), ("salvo", 2), ("drop", 2), ("scan", 2)),
                       rest=1.0),
         ),
-        loot=10000, achievement="overseer", pages=("overseer", "camera_mast", "recording"),
+        loot=10000, achievement="overseer", pages=("overseer", "camera_mast", "recording", "walker_eye"),
+    ),
+    # M32.5: form 2, the walking city (OCEAN.md 39.2; ai/walking_city.py). Four
+    # phases, a signature joining in each (all the fight, not moves): it builds
+    # itself, power from the grid, a hundred eyes, the city answers. Its moves:
+    # stomp, the great beam, grab and throw, arm swing. The reward and pages are
+    # form 1's.
+    "overseer_city": BossSpec(
+        name="The Walking City",
+        phases=(
+            BossPhase(1.0, (("stomp", 2), ("beam", 2), ("throw", 2), ("swing", 2)), rest=1.4),
+            BossPhase(0.75, (("stomp", 2), ("beam", 2), ("throw", 2), ("swing", 2)), rest=1.3),
+            BossPhase(0.5, (("stomp", 2), ("beam", 2), ("throw", 2), ("swing", 2)), rest=1.2),
+            BossPhase(0.25, (("stomp", 2), ("beam", 2), ("throw", 2), ("swing", 2)), rest=1.1),
+        ),
+        loot=0, achievement="overseer", pages=(),
     ),
 }
 BOSS_KEYS = tuple(BOSSES)         # (M28.5: a stable order for the relic drop's seed)

@@ -618,10 +618,12 @@ class ForestTest(_Relic):
         # (the Four Horsemen are the Serene Cavalry's form 2: they drop as it;
         # the hunger is the Host of the Feast's second form: he drops them;
         # the first life is the Ancestor's: it drops them as the Ancestor;
-        # M32.4: the Overseer's come with its second form, M32.5)
+        # M32.4: the Overseer's come once they're drafted, after M32.5; the
+        # walking city is its second form: it drops them as the Overseer)
         self.assertEqual(set(config.BOSS_UNIQUES) | {"necromancer_lich", "conquest", "war",
                                                      "famine", "death", "host_hunger",
-                                                     "ancestor_first_life", "overseer"},
+                                                     "ancestor_first_life", "overseer",
+                                                     "overseer_city"},
                          set(config.BOSSES))
 
     def test_shrinking_dust_shrinks_you_on_a_roll(self):
