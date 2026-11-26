@@ -361,6 +361,7 @@ class Character(Actor):
         self.entranced = 0.0
         self.struck_at = -99.0
         self.dazzled = 0.0                # M30.3: s dazzled by the Vain's mirror (aim wavers)
+        self.rust_until = -1.0            # M32.3: a rust swarm eats your armour until (hero.time)
         self.swept = None                 # M30.4: whose dance an entranced hero is swept into
         self.gilt_until = -1.0            # M30.4: gilded by a caught coin until (hero.time)
         self.swallowed = None             # M30.5: inside the hunger (ai/hunger.py): hidden, held
@@ -487,6 +488,8 @@ class Character(Actor):
             return 0.0
         from ..systems.combat import bonus_armor        # (Tempered, Golden armor, Ramparts)
         armor = st.armor + bonus_armor(self)
+        if self.rust_until > self.time:                 # (M32.3: a rust swarm's mites)
+            armor -= config.RUST[5]
         if armor > 0 and amount <= armor * config.STONESKIN and st.has("juggernaut+L"):
             self.blocked += 1                           # (Mountainhide (L): Stoneskin)
             return 0.0

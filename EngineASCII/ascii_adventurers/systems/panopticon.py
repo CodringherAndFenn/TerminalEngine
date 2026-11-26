@@ -133,10 +133,14 @@ def step(scene, living, dt: float) -> None:
         return
     world = scene.world
     broke = getattr(world, "broke", None)
-    if broke and any(b[2] is tiles.PYLON for b in broke):
+    if broke and any(b[2] in _OURS for b in broke):
         cut = [b for b in broke if b[2] is tiles.PYLON]
-        broke[:] = [b for b in broke if b[2] is not tiles.PYLON]
-        _cut(scene, plan, cut)
+        messes = [b for b in broke if b[2] in _MESS]
+        broke[:] = [b for b in broke if b[2] not in _OURS]
+        if cut:
+            _cut(scene, plan, cut)
+        for tx, ty, _ in messes:
+            mess(scene, tx + 0.5, ty + 0.5)
     city = scene.city
     city.clock += dt
     from .alert import alert_of, step as alert_step
@@ -149,12 +153,48 @@ def step(scene, living, dt: float) -> None:
     sealed = alert_of(world).sealed
     for p in here:
         h = p.hero
+        _soap(scene, h)
         _underfoot(scene, plan, h, world.tile_at(math.floor(h.x), math.floor(h.y)), t, dt)
         _lasers(scene, plan, h, t, dt, sealed)
         _arcs(scene, plan, h, t, dead)
     if here:
         _carry(scene, dt)
     _sweeps(scene, plan, city, here, living, dt)
+
+
+_MESS = frozenset((tiles.SET_TABLE, tiles.MADE_BED, tiles.HEDGE))
+_OURS = _MESS | {tiles.PYLON}
+
+
+def mess(scene, x: float, y: float) -> None:
+    """Something broken in the kept homes (M32.3): every housekeeper within
+    MESS_REACH tiles comes for whoever's nearest (A MESS!)."""
+    from ..ai.panopticon import Keeper
+    heroes = [p.hero for p in scene.players if p.alive]
+    if not heroes:
+        return
+    h = min(heroes, key=lambda q: math.hypot(q.x - x, q.y - y))
+    came = 0
+    for e in scene.enemies:
+        if isinstance(e, Keeper) and e.alive and math.hypot(e.x - x, e.y - y) <= config.MESS_REACH:
+            e.called_to(h)
+            came += 1
+    if came and scene.steps - getattr(scene, "mess_said", -999) > 60:
+        scene.mess_said = scene.steps
+        scene.effects.append(Effect("toast", x, y - 1.0, label="A MESS!"))
+        scene._sounds.append("whistle")
+
+
+def _soap(scene, h) -> None:
+    """A scrubber's soap underfoot (M32.3): you slide (SCRUBBER[5] traction)."""
+    on = any(z.kind == "soap" and math.hypot(h.x - z.x, h.y - z.y) <= z.radius + h.hit_radius * 0.5
+             for z in scene.zones)
+    if on:
+        h.traction = config.SCRUBBER[5]
+        h.soaped = True
+    elif getattr(h, "soaped", False):
+        h.traction = 1.0
+        h.soaped = False
 
 
 def _carry(scene, dt: float) -> None:

@@ -1650,6 +1650,24 @@ BROKEN_CRATE = TileType(
     wear=((",#", "#,"),),
     becomes=SCRAP_BITS,
 )
+CUT_WIRE = TileType(
+    # M32.3: thorned wire cut through.
+    "cut wire", ("x.", ".x", "  "), palette.THORN_WIRE_FG, palette.LAWN_BG,
+)
+THORN_WIRE = TileType(
+    # M32.3: a gardener's hedge of thorned wire grown round you: it stops you,
+    # not shots, until you cut through (it withers in a while).
+    "thorned wire", ("XX", "xX", "Xx"), palette.THORN_WIRE_FG, palette.THORN_WIRE_BG,
+    solid=True, hp=30, becomes=CUT_WIRE,
+)
+BROKEN_PEN = TileType(
+    "broken bars", ("/.", ".\\", "  "), palette.PEN_FG, palette.HOME_FLOOR_BG,
+)
+PLAYPEN = TileType(
+    # M32.3: a nanny's playpen round you (TIME OUT): break a bar to get out.
+    "playpen", ("||", "|#", "#|"), palette.PEN_FG, palette.PEN_BG,
+    solid=True, hp=40, becomes=BROKEN_PEN,
+)
 WRECK = TileType(
     # A dead machine (some aren't quite dead, M32.3): cover.
     "wreck", ("[%", "%]", "&]"), palette.WRECK_FG, palette.WRECK_BG,
@@ -1698,4 +1716,5 @@ MAST_PAD = TileType(
 # M31.3: the tiles whose breaking the world reports (world.broke, taken by
 # systems/pangaea.step): an egg hatches, amber frees what's in it. M32.1: a
 # pylon's lines go dead (systems/panopticon.step takes those).
-REPORT_BREAKS = frozenset((EGG, GIANT_EGG, AMBER, PYLON))
+REPORT_BREAKS = frozenset((EGG, GIANT_EGG, AMBER, PYLON,
+                           SET_TABLE, MADE_BED, HEDGE))     # (M32.3: a mess in the kept homes)

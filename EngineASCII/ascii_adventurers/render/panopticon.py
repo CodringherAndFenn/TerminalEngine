@@ -207,6 +207,9 @@ def _lobs(batch, camera, e) -> None:
         if what == "crate":
             batch.put_c(px, py - lift, "#", palette.CRATE_FLY)
             _ring(batch, camera, x1, y1, config.HAULER[8], "o", _blink(of - s, palette.HAUL_LANE))
+        elif what == "wreck":                            # (M32.3: a colossus's)
+            batch.put_c(px, py - lift, "%", palette.WRECK_FLY)
+            _ring(batch, camera, x1, y1, config.COLOSSUS[4], "o", _blink(of - s, palette.SLAM_RING))
         else:
             batch.put_c(px, py - lift, "@", palette.STUN_RING[0])
             _ring(batch, camera, x1, y1, config.RIOT[8], "o", _blink(of - s, palette.STUN_RING))
@@ -283,6 +286,68 @@ def draw_panopticon_tells(batch, camera, e) -> None:
             _ring(batch, camera, e.x, e.y, r, "o", palette.BARK_RING[0])
     if getattr(e, "hunter", False):
         batch.put_c(x + 12, top, "!", palette.SEEN_EYE[0])
+    _tells_m323(batch, camera, e, x, y)
+
+
+def _tells_m323(batch, camera, e, x, y) -> None:
+    """The housekeepers' and the scrap's (M32.3)."""
+    from ..ai.panopticon import (Butler, Gardener, Junker, Magnet, Nanny, RustSwarm, ScrapColossus,
+                                 Scrubber, Tray)
+    from .pangaea import _shape
+    if isinstance(e, Butler):
+        if e.state == "bow":                             # (the loop its tray will fly)
+            ghost = Tray(e.x, e.y, e.throw_angle(e.target), e.side)
+            col = _blink(e.timer, palette.TRAY)
+            for k in range(1, 16):
+                gx, gy = e.tray_at(ghost, k / 16)
+                px, py = camera.world_to_px(gx, gy)
+                batch.put_c(px, py, ".", col)
+        for tr in e.trays:
+            px, py = camera.world_to_px(tr.x, tr.y)
+            batch.put_c(px, py, "@" if int(tr.t * 12) % 2 else "O", palette.TRAY[0])
+    if isinstance(e, Scrubber) and e.state == "aim":
+        _ray(batch, camera, e.x, e.y, e.dir, 5.0, 1.0, ".", _blink(e.timer, palette.SOAP))
+    if isinstance(e, Gardener):
+        if e.state == "lunge":
+            _shape(batch, camera, "cone", e.x, e.y, e.facing, e.espec.attack_radius,
+                   math.radians(config.GARDENER[1]) / 2, _blink(e.timer, palette.SNIP))
+        if e.state == "grow" and e.grow_at is not None:
+            _ring(batch, camera, *e.grow_at, config.GARDENER[5], "x", _blink(e.timer, palette.WIRE_TELL))
+    if isinstance(e, Nanny):
+        if e.state == "reach":
+            _ring(batch, camera, e.x, e.y, e.espec.attack_radius, ".", _blink(e.timer, palette.NANNY_REACH))
+        if e.state == "sing":                            # (notes drifting out)
+            for k in range(6):
+                a = k * math.tau / 6 + e.clock * 0.8
+                r = 1.5 + (e.clock * 3 + k * 0.7) % config.NANNY[4]
+                px, py = camera.world_to_px(e.x + math.cos(a) * r, e.y + math.sin(a) * r)
+                batch.put_c(px, py, "~" if k % 2 else "*", palette.LULLABY[k % 2])
+        for mx, my, left in e.mended:
+            px, py = camera.world_to_px(mx, my)
+            batch.put_c(px, py - 20 - (0.6 - left) * 20, "+", palette.MEND[0])
+    if isinstance(e, Junker) and e.state == "swing":
+        _shape(batch, camera, "cone", e.x, e.y, e.facing, e.espec.attack_radius, math.radians(45),
+               _blink(e.timer, palette.SNIP))
+    if isinstance(e, Magnet) and e.state == "pull":       # (lines in, scrap flying in)
+        reach = config.MAGNET[1]
+        for k in range(10):
+            a = k * math.tau / 10 + 0.3
+            r = reach * (1.0 - (e.clock * 1.6 + k * 0.37) % 1.0)
+            px, py = camera.world_to_px(e.x + math.cos(a) * r, e.y + math.sin(a) * r)
+            batch.put_c(px, py, "%" if k % 3 == 0 else ".", palette.MAGNET_PULL[k % 2])
+    if isinstance(e, RustSwarm):                          # (the mites, swirling)
+        cloud = config.RUST[0]
+        for k in range(14):
+            a = k * 2.399 + e.clock * (1.5 if k % 2 else -1.1)
+            r = cloud * (0.3 + 0.7 * ((k * 0.618) % 1.0))
+            px, py = camera.world_to_px(e.x + math.cos(a) * r, e.y + math.sin(a) * r)
+            batch.put_c(px, py, "." if k % 3 else ",", palette.RUST_MITES[k % 3])
+    if isinstance(e, ScrapColossus):
+        if e.state == "slam":
+            _ring(batch, camera, e.x, e.y, config.COLOSSUS[9], "o", _blink(e.timer, palette.SLAM_RING))
+        for q in e.quakes:                               # (the ground shaking)
+            _ring(batch, camera, e.x, e.y, config.COLOSSUS[11] * (1.0 - q / 0.5), "~",
+                  palette.SLAM_RING[1], 24)
 
 
 def _warden(batch, camera, e) -> None:

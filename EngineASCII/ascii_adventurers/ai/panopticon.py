@@ -40,6 +40,26 @@ material; the factory's half-built robots start moving when you come close):
   foreman      (elite) orders overtime (the workers near it go faster),
                calls presses down on marked spots, barks a shockwave ring
 
+The housekeepers (M32.3; the kept homes: polite -- keeping house -- until
+you make a mess there, hit one, or the city calls them):
+  butler       bows, then throws its silver tray: a loop out and back; two
+               butlers throw at once, the trays crossing over you
+  scrubber     in groups: each shoots across the floor in a straight line,
+               bouncing off walls, leaving soap that slides you along
+  gardener     a lunging snip with a second right after; grows thorned wire
+               round you that walls you in until you cut through
+  nanny        (elite) TIME OUT: grabs you and pens you in a playpen; its
+               lullaby makes you drowsy; it mends the other housekeepers
+The scrap (the scrapyard; the junkers lie among the wrecks as wrecks):
+  junker       patched from wrecks; killed, it falls apart into pieces that
+               keep crawling at you
+  magnet       pulls you and your shots toward it, then throws all the scrap
+               out at once
+  rust swarm   a cloud of mites: single hits hardly touch it, area damage
+               burns it; inside it, it eats your armour
+  scrap colossus (elite) throws wrecks, takes wrecks up to mend itself,
+               sheds junkers as it's hurt; its slam shakes the ground
+
 Their pictures: render/panopticon_art.py; their tells: render/panopticon.py.
 """
 
@@ -92,10 +112,12 @@ class Machine(PlainsCreature):
     write `turn`; `can_see` is what they see by (a camera's cone, a drone's
     light), and whatever they see feeds the alert."""
 
-    group = "machine"          # "eye" | "watch" | "workers"
+    group = "machine"          # "eye" | "watch" | "workers" | "keepers" | "scrap"
     eye = "machine"            # its config.ALERT_EYES key
     hovers = False             # (a drone: the belts don't carry it)
-    worker = False             # works until you come near
+    worker = False             # works (keeps house) until you come near (or make a mess)
+    notices = True             # a worker stops work when you come near (not a housekeeper)
+    shows_lying = False        # (a junker lying there: drawn as a wreck, and it can be hit)
 
     def __init__(self, *a, **kw) -> None:
         super().__init__(*a, **kw)
@@ -114,12 +136,12 @@ class Machine(PlainsCreature):
 
     @property
     def hittable(self) -> bool:
-        return self.alive and not self.dormant
+        return self.alive and (not self.dormant or self.shows_lying)
 
     def settle(self, world) -> None:
         """Woken on a half-built robot on the factory's line (its tiles under
         it): it lies there as the robot until someone comes close."""
-        if not self.worker:
+        if self.group != "workers":
             return
         tx, ty = math.floor(self.x), math.floor(self.y)
         cells = [(tx + i, ty + j) for j in (-1, 0) for i in (-1, 0)
@@ -156,7 +178,7 @@ class Machine(PlainsCreature):
         if self.seeing is not None:
             alert.seen(ctx.world, config.ALERT_EYES[self.eye])
             self._call(ctx, self.seeing)
-        if self.working:
+        if self.working and self.notices:
             near = self._notice(ctx)
             if near is not None:                # (close enough: you're material now)
                 self.called_to(near)
@@ -205,6 +227,8 @@ class Machine(PlainsCreature):
         dealt = super().take_damage(amount, source, from_angle)
         if source is not None and getattr(source, "faction", "") == "player":
             self.working = False
+        if self.dormant:
+            self.rouse = True                   # (a junker lying there, shot: it gets up)
         return dealt
 
     def wake_up(self, ctx: AIContext) -> None:
@@ -1218,6 +1242,678 @@ class Foreman(Machine):
         self.rings = [r for r in self.rings if r[0] < reach]
 
 
+# --- The housekeepers (M32.3) -------------------------------------------------------------
+
+
+class Keeper(Machine):
+    """A housekeeper: polite (it keeps house, tidying round its home) until
+    you make a mess in the kept homes (systems/panopticon.mess), hit one, or
+    the city calls it. Coming near isn't enough."""
+
+    group = "keepers"
+    worker = True
+    notices = False
+
+    def keep_house(self, ctx: AIContext, dt: float) -> None:
+        """Tidying: pottering about near its home."""
+        hx, hy = self.home
+        if math.hypot(self.x - hx, self.y - hy) > 4.0:
+            self.go(ctx, hx, hy, dt, self.speed * 0.5)
+            return
+        self.go(ctx, *self.wander_goal(dt), dt, self.speed * 0.3)
+
+    def wander_goal(self, dt: float) -> tuple[float, float]:
+        self._wander_timer -= dt
+        if self._wander_goal is None or self._wander_timer <= 0:
+            hx, hy = self.home
+            a = self.rng.uniform(-math.pi, math.pi)
+            r = self.rng.uniform(0.5, 3.0)
+            self._wander_goal = (hx + math.cos(a) * r, hy + math.sin(a) * r)
+            self._wander_timer = self.rng.uniform(2.0, 5.0)
+        return self._wander_goal
+
+
+class Tray:
+    """A butler's silver tray in the air: a loop out along `angle` and back
+    to its butler, bulging to `side`; it hits each hero once."""
+
+    __slots__ = ("x0", "y0", "angle", "side", "t", "hit", "x", "y")
+
+    def __init__(self, x0: float, y0: float, angle: float, side: int) -> None:
+        self.x0, self.y0, self.angle, self.side = x0, y0, angle, side
+        self.t = 0.0
+        self.hit: set[int] = set()
+        self.x, self.y = x0, y0
+
+
+class Butler(Keeper):
+    """Tall and polite (BUTLER): it bows (the tell), then throws its tray,
+    which loops out and back to it; a butler near it bows with it and throws
+    the other way round, the trays crossing over you."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "walk"           # walk | bow
+        self.timer = 0.0
+        self.side = 1
+        self.trays: list[Tray] = []
+
+    def sprite_now(self) -> str:
+        return "butler_bow" if self.state == "bow" else "butler"
+
+    def bow(self, t, side: int) -> None:
+        self.state, self.timer, self.side = "bow", self.espec.windup, side
+        self.facing = self.angle_to(t.x, t.y)
+        self.cooldown = self.espec.cooldown
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        self._trays(ctx, dt)
+        if self.working:
+            self.keep_house(ctx, dt)
+            return
+        t = self.target
+        if self.state == "bow":
+            self.timer -= dt
+            self.tell = max(self.timer, 0.0)
+            if t is not None:
+                self.facing = self.angle_to(t.x, t.y)
+            if self.timer <= 0:
+                self.tell = 0.0
+                self.trays.append(Tray(self.x, self.y, self.throw_angle(t), self.side))
+                ctx.events.append("swing")
+                self.state = "walk"
+            return
+        if t is None or not self.alert:
+            self.roam(ctx, dt)
+            return
+        d = self.dist_to(t)
+        if self.cooldown <= 0 and self.sees_target and d <= config.BUTLER[2] + 1.0 and not self.trays:
+            self.bow(t, 1)
+            ctx.events.append("ui")
+            partner = min((m for m in ctx.actors if isinstance(m, Butler) and m is not self and m.alive
+                           and not m.working and m.state == "walk" and not m.trays
+                           and math.hypot(m.x - self.x, m.y - self.y) <= config.BUTLER[5]),
+                          key=lambda m: math.hypot(m.x - self.x, m.y - self.y), default=None)
+            if partner is not None:
+                partner.bow(t, -1)
+            return
+        self.keep(ctx, t, config.BUTLER[0], config.BUTLER[1], dt)
+
+    def throw_angle(self, t) -> float:
+        """Where to throw so the loop's way out passes through you (the
+        loop bulges to its side, so the throw is turned the other way)."""
+        aim = self.facing if t is None else self.angle_to(t.x, t.y)
+        length, wide = config.BUTLER[2], config.BUTLER[3]
+        d = length - 0.5 if t is None else max(1.0, min(length - 0.5, self.dist_to(t)))
+        th = math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * d / length)))
+        return aim - math.atan2(self.side * wide * math.sin(th), d)
+
+    def tray_at(self, tr: Tray, u: float) -> tuple[float, float]:
+        """Where tray `tr` is `u` (0-1) of the way round its loop: out and
+        back to where its butler is now."""
+        length, wide = config.BUTLER[2], config.BUTLER[3]
+        th = u * math.tau
+        along = length / 2 * (1 - math.cos(th))
+        across = tr.side * wide * math.sin(th)
+        ca, sa = math.cos(tr.angle), math.sin(tr.angle)
+        ox = tr.x0 + (self.x - tr.x0) * u
+        oy = tr.y0 + (self.y - tr.y0) * u
+        return ox + ca * along - sa * across, oy + sa * along + ca * across
+
+    def _trays(self, ctx: AIContext, dt: float) -> None:
+        if not self.trays:
+            return
+        flight = config.BUTLER[4]
+        for tr in self.trays:
+            tr.t += dt
+            tr.x, tr.y = self.tray_at(tr, min(1.0, tr.t / flight))
+            for h in _heroes(ctx):
+                if h.hittable and id(h) not in tr.hit \
+                        and math.hypot(h.x - tr.x, h.y - tr.y) <= 0.6 + h.hit_radius:
+                    tr.hit.add(id(h))
+                    _numbered_hit(h, self.hurt(self.espec.damage), self,
+                                  math.atan2(h.y - tr.y, h.x - tr.x), ctx)
+        self.trays = [tr for tr in self.trays if tr.t < flight]
+
+
+class Scrubber(Keeper):
+    """A low round floor cleaner (SCRUBBER), in groups: each shoots across
+    the floor in a straight line, bouncing off walls, leaving soap that
+    slides you along."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "walk"           # walk | aim | run
+        self.timer = 0.0
+        self.dir = 0.0
+        self.soap_d = 0.0
+        self.scrubbed: set[int] = set()
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        if self.state == "run":
+            self._run(ctx, dt)
+            return
+        if self.state == "aim":
+            self.timer -= dt
+            self.tell = max(self.timer, 0.0)
+            self.facing = self.dir
+            if self.timer <= 0:
+                self.tell = 0.0
+                self.state, self.timer, self.scrubbed = "run", config.SCRUBBER[1], set()
+                ctx.events.append("whistle")
+            return
+        if self.working:
+            self.keep_house(ctx, dt)
+            return
+        t = self.target
+        if t is None or not self.alert:
+            self.roam(ctx, dt)
+            return
+        if self.cooldown <= 0 and self.sees_target:
+            self.state, self.timer = "aim", self.espec.windup
+            self.dir = self.facing = self.angle_to(t.x, t.y) + self.rng.uniform(-0.3, 0.3)
+            return
+        self.go(ctx, t.x, t.y, dt, self.speed)
+
+    def _run(self, ctx: AIContext, dt: float) -> None:
+        from ..systems.collision import hull_hits_solid
+        speed, _, every, wide, life, _ = config.SCRUBBER
+        moved, blocked = _dash(self, ctx, self.dir, speed, dt)
+        if blocked:                                 # (a bounce: off the wall it hit)
+            w = ctx.world
+            cx, cy = math.cos(self.dir), math.sin(self.dir)
+            if hull_hits_solid(w, self.x + cx * 0.4, self.y, 0.0, self.half, self.half):
+                cx = -cx
+            if hull_hits_solid(w, self.x, self.y + cy * 0.4, 0.0, self.half, self.half):
+                cy = -cy
+            self.dir = math.atan2(cy, cx)
+            ctx.events.append("hit")
+        self.facing = self.dir
+        self.soap_d += moved
+        if self.soap_d >= every and ctx.zones is not None:
+            self.soap_d = 0.0
+            ctx.zones.append(Zone("soap", self.x, self.y, wide, life, 999.0, 0.0, self))
+        for h in _heroes(ctx):
+            if h.hittable and id(h) not in self.scrubbed \
+                    and math.hypot(h.x - self.x, h.y - self.y) <= self.hit_radius + h.hit_radius:
+                self.scrubbed.add(id(h))
+                _numbered_hit(h, self.hurt(self.espec.damage), self, self.dir, ctx)
+        self.timer -= dt
+        if self.timer <= 0:
+            self.state, self.cooldown = "walk", self.espec.cooldown
+
+
+def _ring_tiles(world, cx: float, cy: float, r: float, actors) -> list[tuple[int, int]]:
+    """The open tiles in a ring `r` tiles round (cx, cy) that nobody stands on."""
+    out = []
+    n = math.ceil(r) + 1
+    for ty in range(math.floor(cy) - n, math.floor(cy) + n + 1):
+        for tx in range(math.floor(cx) - n, math.floor(cx) + n + 1):
+            if abs(math.hypot(tx + 0.5 - cx, ty + 0.5 - cy) - r) >= 0.5:
+                continue
+            if world.tile_at(tx, ty).solid:
+                continue
+            if any(a.alive and math.hypot(a.x - tx - 0.5, a.y - ty - 0.5) < 0.6 + a.hit_radius
+                   for a in actors):
+                continue
+            out.append((tx, ty))
+    return out
+
+
+def _raise_ring(ctx: AIContext, cells, tile, life: float) -> None:
+    """Put `tile` on each cell for `life` s (then the ground comes back)."""
+    for tx, ty in cells:
+        old = ctx.world.tile_at(tx, ty)
+        ctx.world.set_tile(tx, ty, tile)
+        if ctx.zones is not None:
+            ctx.zones.append(Zone("stake", tx + 0.5, ty + 0.5, 0.0, life, 999.0, 0.0, None,
+                                  restore=(tx, ty, old)))
+
+
+class Gardener(Keeper):
+    """Long hedge shears (GARDENER): a lunging snip with a second right
+    after; it grows thorned wire round you that walls you in until you cut
+    through."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "walk"           # walk | lunge | snip2 | grow
+        self.timer = 0.0
+        self.wire_t = self.rng.uniform(2.0, config.GARDENER[3])
+        self.grow_at: tuple[float, float] | None = None
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        if self.state == "lunge":
+            self.timer -= dt
+            self.tell = max(self.timer, 0.0)
+            if self.timer <= 0:
+                self.tell = 0.0
+                _dash(self, ctx, self.facing, config.GARDENER[0] / max(dt, 1e-3), dt)
+                self._snip(ctx)
+                self.state, self.timer = "snip2", config.GARDENER[2]
+            return
+        if self.state == "snip2":
+            self.timer -= dt
+            if self.timer <= 0:
+                self._snip(ctx)
+                self.state, self.cooldown = "walk", self.espec.cooldown
+            return
+        if self.state == "grow":
+            self.timer -= dt
+            self.tell = max(self.timer, 0.0)
+            if self.timer <= 0:
+                self.tell = 0.0
+                cells = _ring_tiles(ctx.world, *self.grow_at, config.GARDENER[5], ctx.actors)
+                _raise_ring(ctx, cells, tiles.THORN_WIRE, config.GARDENER[6])
+                ctx.events.append("break")
+                self.state, self.grow_at = "walk", None
+            return
+        if self.working:
+            self.keep_house(ctx, dt)
+            return
+        self.wire_t -= dt
+        t = self.target
+        if t is None or not self.alert:
+            self.roam(ctx, dt)
+            return
+        d = self.dist_to(t)
+        if self.wire_t <= 0 and self.sees_target and d <= config.GARDENER[4]:
+            self.wire_t = config.GARDENER[3]
+            self.state, self.timer, self.grow_at = "grow", 0.6, (t.x, t.y)
+            return
+        if self.cooldown <= 0 and d <= self.espec.attack_radius + t.hit_radius:
+            self.state, self.timer = "lunge", self.espec.windup
+            self.facing = self.angle_to(t.x, t.y)
+            return
+        self.go(ctx, t.x, t.y, dt, self.speed)
+
+    def _snip(self, ctx: AIContext) -> None:
+        reach = self.espec.attack_radius - config.GARDENER[0] * 0.5
+        self.hit_area(ctx, "cone", self.x, self.y, self.facing, max(1.6, reach),
+                      math.radians(config.GARDENER[1]) / 2, self.hurt(self.espec.damage))
+        ctx.events.append("swing")
+
+
+class Nanny(Keeper):
+    """Elite (NANNY): TIME OUT -- it grabs you and pens you in a playpen
+    you must break out of; its lullaby makes you drowsy; it mends the other
+    housekeepers."""
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "walk"           # walk | reach | sing
+        self.timer = 0.0
+        self.song_t = self.rng.uniform(2.0, config.NANNY[2])
+        self.mend_t = self.rng.uniform(1.0, config.NANNY[7])
+        self.sung: set[int] = set()
+        self.mended: list[tuple[float, float, float]] = []   # (x, y, s left): sparkles drawn
+
+    def sprite_now(self) -> str:
+        return "nanny_reach" if self.state == "reach" else "nanny"
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        self.mended = [(x, y, s - dt) for x, y, s in self.mended if s > dt]
+        t = self.target
+        if self.state == "reach":
+            self.timer -= dt
+            self.tell = max(self.timer, 0.0)
+            if t is not None:
+                self.facing = self.angle_to(t.x, t.y)
+            if self.timer <= 0:
+                self.tell = 0.0
+                if t is not None and t.alive and t.hittable \
+                        and self.dist_to(t) <= self.espec.attack_radius + t.hit_radius:
+                    self._time_out(ctx, t)
+                self.state, self.cooldown = "walk", self.espec.cooldown
+            return
+        if self.state == "sing":
+            self.timer -= dt
+            for h in _heroes(ctx):
+                if id(h) not in self.sung and math.hypot(h.x - self.x, h.y - self.y) <= config.NANNY[4]:
+                    self.sung.add(id(h))
+                    h.slowed(config.NANNY[5], config.NANNY[6])
+                    ctx.effects.append(Effect("toast", h.x, h.y - 1.5, label="DROWSY"))
+            if self.timer <= 0:
+                self.state = "walk"
+            return
+        if self.working:
+            self.keep_house(ctx, dt)
+            return
+        self._mend(ctx, dt)
+        self.song_t -= dt
+        if t is None or not self.alert:
+            self.roam(ctx, dt)
+            return
+        d = self.dist_to(t)
+        if self.song_t <= 0 and d <= config.NANNY[4]:
+            self.song_t = config.NANNY[2]
+            self.state, self.timer, self.sung = "sing", config.NANNY[3], set()
+            ctx.events.append("chime")
+            return
+        if self.cooldown <= 0 and self.sees_target and d <= self.espec.attack_radius + t.hit_radius:
+            self.state, self.timer = "reach", self.espec.windup
+            self.facing = self.angle_to(t.x, t.y)
+            return
+        self.go(ctx, t.x, t.y, dt, self.speed)
+        self.facing = self.angle_to(t.x, t.y)
+
+    def _time_out(self, ctx: AIContext, h) -> None:
+        """Caught: set down in a playpen ring round where you stand."""
+        _numbered_hit(h, self.hurt(self.espec.damage), self, self.facing, ctx)
+        h.slowed(0.0, 0.4)
+        cx, cy = math.floor(h.x) + 0.5, math.floor(h.y) + 0.5
+        cells = _ring_tiles(ctx.world, cx, cy, config.NANNY[0], [a for a in ctx.actors if a is not h])
+        _raise_ring(ctx, cells, tiles.PLAYPEN, config.NANNY[1])
+        ctx.effects.append(Effect("toast", h.x, h.y - 2.0, label="TIME OUT!"))
+        ctx.events.append("hit")
+
+    def _mend(self, ctx: AIContext, dt: float) -> None:
+        self.mend_t -= dt
+        if self.mend_t > 0:
+            return
+        self.mend_t = config.NANNY[7]
+        for m in ctx.actors:
+            if isinstance(m, Keeper) and m.alive and m.hp < m.max_hp \
+                    and math.hypot(m.x - self.x, m.y - self.y) <= config.NANNY[8]:
+                m.hp = min(m.max_hp, m.hp + m.max_hp * config.NANNY[9])
+                self.mended.append((m.x, m.y, 0.6))
+
+
+# --- The scrap (M32.3) --------------------------------------------------------------------
+
+
+class Junker(Machine):
+    """Patched together from wrecks (JUNKER): it lies among the wrecks as a
+    wreck until you come near (or shoot it); killed, it falls apart into
+    pieces that keep crawling at you."""
+
+    group = "scrap"
+    shows_lying = True
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "walk"           # walk | swing
+        self.timer = 0.0
+
+    def settle(self, world) -> None:
+        """Woken where it lives (rostered, or one of the scrapyard's wrecks:
+        then it *is* that wreck, whose tiles are dirt now), it lies there as a
+        wreck; one a colossus sheds (no spawn id) gets up at once."""
+        if self.spawn_id is None:
+            return
+        self.dormant = True
+        tx, ty = math.floor(self.x), math.floor(self.y)
+        for cx in (tx - 1, tx):
+            if world.tile_at(cx, ty) is tiles.WRECK:
+                world.set_tile(cx, ty, tiles.YARD_DIRT)
+
+    def sprite_now(self) -> str:
+        return "junker_heap" if self.dormant else "junker"
+
+    def wake_up(self, ctx: AIContext) -> None:
+        super().wake_up(ctx)
+        ctx.effects.append(Effect("debris", self.x, self.y))
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        t = self.target
+        if self.state == "swing":
+            self.timer -= dt
+            self.tell = max(self.timer, 0.0)
+            if self.timer <= 0:
+                self.tell = 0.0
+                self.hit_area(ctx, "cone", self.x, self.y, self.facing, self.espec.attack_radius,
+                              math.radians(90) / 2, self.hurt(self.espec.damage), 1.0)
+                ctx.events.append("hit")
+                self.state, self.cooldown = "walk", self.espec.cooldown
+            return
+        if t is None or not self.alert:
+            self.roam(ctx, dt)
+            return
+        if self.cooldown <= 0 and self.dist_to(t) <= self.espec.attack_radius + t.hit_radius:
+            self.state, self.timer = "swing", self.espec.windup
+            self.facing = self.angle_to(t.x, t.y)
+            return
+        self.go(ctx, t.x, t.y, dt, self.speed)
+
+    def on_death(self, ctx: AIContext) -> None:
+        super().on_death(ctx)
+        n = self.rng.randint(config.JUNKER[0], config.JUNKER[1])
+        for k in range(n):
+            a = k * math.tau / n + self.rng.uniform(-0.4, 0.4)
+            ctx.spawned.append(("junk_bit", self.x + math.cos(a) * 0.8, self.y + math.sin(a) * 0.8))
+
+
+class JunkBit(Machine):
+    """A piece of a junker, still crawling at you: a nip when it reaches you."""
+
+    group = "scrap"
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        t = self.target
+        if self.windup > 0:
+            self.windup -= dt
+            self.tell = max(self.windup, 0.0)
+            if self.windup <= 0:
+                self.tell = 0.0
+                self.hit_area(ctx, "circle", self.x + math.cos(self.facing) * 0.5,
+                              self.y + math.sin(self.facing) * 0.5, 0.0, self.espec.attack_radius * 0.7,
+                              0.0, self.hurt(self.espec.damage))
+                self.cooldown = self.espec.cooldown
+            return
+        if t is None:
+            self.roam(ctx, dt)
+            return
+        if self.cooldown <= 0 and self.dist_to(t) <= self.espec.attack_radius + t.hit_radius:
+            self.windup = self.espec.windup
+            self.facing = self.angle_to(t.x, t.y)
+            return
+        self.go(ctx, t.x, t.y, dt, self.speed)
+
+
+class Magnet(Machine):
+    """A walking crane magnet (MAGNET): it pulls you -- and your shots --
+    toward it, then throws all the scrap out at once."""
+
+    group = "scrap"
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "walk"           # walk | pull
+        self.timer = 0.0
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        t = self.target
+        if self.state == "pull":
+            self.timer -= dt
+            self.tell = 0.0
+            self._pull(ctx, dt)
+            if self.timer <= 0:
+                self._burst(ctx)
+                self.state, self.cooldown = "walk", self.espec.cooldown
+            return
+        if t is None or not self.alert:
+            self.roam(ctx, dt)
+            return
+        d = self.dist_to(t)
+        if self.cooldown <= 0 and self.sees_target and d <= config.MAGNET[1]:
+            self.state, self.timer = "pull", config.MAGNET[0]
+            ctx.events.append("hex")
+            return
+        self.keep(ctx, t, 4.0, 8.0, dt)
+
+    def _pull(self, ctx: AIContext, dt: float) -> None:
+        _, reach, rate, shot_reach, bend, _, _, _ = config.MAGNET
+        for h in _heroes(ctx):
+            d = math.hypot(h.x - self.x, h.y - self.y)
+            if 1.4 < d <= reach and not h.rolling:
+                step = min(d - 1.4, rate * dt)
+                combat.push(h, ctx.world, (self.x - h.x) / d * step, (self.y - h.y) / d * step)
+        for p in ctx.projectiles:
+            if not p.alive or getattr(p.owner, "faction", "") != "player":
+                continue
+            if math.hypot(p.x - self.x, p.y - self.y) > shot_reach:
+                continue
+            want = math.atan2(self.y - p.y, self.x - p.x)
+            diff = _wrap(want - p.angle)
+            p.angle = _wrap(p.angle + max(-bend * dt, min(bend * dt, diff)))
+            p.dir_x, p.dir_y = math.cos(p.angle), math.sin(p.angle)
+
+    def _burst(self, ctx: AIContext) -> None:
+        n, reach, push = config.MAGNET[5], config.MAGNET[6], config.MAGNET[7]
+        turn = self.rng.uniform(0.0, math.tau)
+        for k in range(n):
+            a = turn + k * math.tau / n
+            self.shoot(ctx, "shrapnel", a)
+        for h in _heroes(ctx):
+            d = math.hypot(h.x - self.x, h.y - self.y)
+            if h.hittable and 0 < d <= reach + h.hit_radius:
+                combat.push(h, ctx.world, (h.x - self.x) / d * push, (h.y - self.y) / d * push)
+        ctx.effects.append(Effect("debris", self.x, self.y))
+        ctx.events.append("break")
+
+
+class RustSwarm(Machine):
+    """A cloud of tiny rust mites (RUST): single hits hardly touch it, area
+    damage burns it; inside it you're bitten and your armour eaten."""
+
+    group = "scrap"
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.bite_t = 0.0
+
+    def take_damage(self, amount, source, from_angle):
+        amount *= config.RUST[1] if from_angle is not None else config.RUST[2]
+        return super().take_damage(amount, source, from_angle)
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        cloud, _, _, bite, every, _, linger = config.RUST
+        self.bite_t -= dt
+        inside = [h for h in _heroes(ctx)
+                  if h.hittable and math.hypot(h.x - self.x, h.y - self.y) <= cloud + h.hit_radius]
+        for h in inside:
+            fresh = getattr(h, "rust_until", -1.0) <= h.time
+            h.rust_until = h.time + linger
+            if fresh:
+                ctx.effects.append(Effect("toast", h.x, h.y - 1.5, label="RUSTING"))
+        if inside and self.bite_t <= 0:
+            self.bite_t = every
+            for h in inside:
+                _numbered_hit(h, self.hurt(bite), self, math.atan2(h.y - self.y, h.x - self.x), ctx)
+        t = self.target
+        if t is None or not self.alert:
+            self.roam(ctx, dt)
+            return
+        self.go(ctx, t.x, t.y, dt, self.speed)
+
+
+class ScrapColossus(Machine):
+    """Elite (COLOSSUS): a giant built of wrecks. It throws wrecks, takes up
+    wrecks to mend itself, sheds junkers as it's hurt, and its slam shakes
+    the ground."""
+
+    group = "scrap"
+    MENDS = (tiles.WRECK, tiles.LOOSE_SCRAP)
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.state = "walk"           # walk | slam | mend
+        self.timer = 0.0
+        self.throw_t = self.rng.uniform(1.0, config.COLOSSUS[2])
+        self.mend_cd = 0.0
+        self.mend_at: tuple[int, int] | None = None
+        self.shed = 1                 # (the next fifth of its health lost sheds a junker)
+        self.quakes: list[float] = [] # s left on the ground's shaking (drawn)
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        lo, hi, every, flight, _, low, reach, heal, step, slam_r, mult, quake, stumble, s_t = config.COLOSSUS
+        self.throw_t -= dt
+        self.mend_cd -= dt
+        self.quakes = [q - dt for q in self.quakes if q > dt]
+        while self.shed * step < 1.0 and self.hp <= self.max_hp * (1.0 - self.shed * step):
+            self.shed += 1
+            a = self.rng.uniform(0.0, math.tau)
+            ctx.spawned.append(("junker", self.x + math.cos(a) * 2.0, self.y + math.sin(a) * 2.0))
+            ctx.effects.append(Effect("debris", self.x, self.y))
+        t = self.target
+        if self.state == "slam":
+            self.timer -= dt
+            self.tell = max(self.timer, 0.0)
+            if self.timer <= 0:
+                self.tell = 0.0
+                self.hit_area(ctx, "circle", self.x, self.y, 0.0, slam_r, 0.0,
+                              self.hurt(self.espec.damage * mult), 2.0)
+                for h in _heroes(ctx):
+                    if math.hypot(h.x - self.x, h.y - self.y) <= quake:
+                        h.slowed(stumble, s_t)
+                self.quakes.append(0.5)
+                ctx.events.append("boulder")
+                self.state, self.cooldown = "walk", self.espec.cooldown
+            return
+        if self.state == "mend":
+            self.timer -= dt
+            tx, ty = self.mend_at
+            if self.timer <= 0 or ctx.world.tile_at(tx, ty) not in self.MENDS:
+                self.state, self.mend_at = "walk", None
+                return
+            if math.hypot(tx + 0.5 - self.x, ty + 0.5 - self.y) <= self.hit_radius + 1.2:
+                ctx.world.set_tile(tx, ty, tiles.SCRAP_BITS)
+                self.hp = min(self.max_hp, self.hp + self.max_hp * heal)
+                ctx.effects.append(Effect("spark_burst", self.x, self.y, size=1.6))
+                ctx.events.append("zap")
+                self.state, self.mend_at = "walk", None
+                return
+            self.go(ctx, tx + 0.5, ty + 0.5, dt, self.speed)
+            return
+        if t is None or not self.alert:
+            self.roam(ctx, dt)
+            return
+        if self.hp < self.max_hp * low and self.mend_cd <= 0:
+            self.mend_cd = 8.0
+            spot = self._wreck_near(ctx.world, reach)
+            if spot is not None:
+                self.state, self.timer, self.mend_at = "mend", 5.0, spot
+                return
+        d = self.dist_to(t)
+        if self.cooldown <= 0 and d <= self.espec.attack_radius + t.hit_radius:
+            self.state, self.timer = "slam", self.espec.windup
+            self.facing = self.angle_to(t.x, t.y)
+            return
+        if self.throw_t <= 0 and lo <= d <= hi and self.sees_target:
+            self.throw_t = every
+            self.lob(t.x, t.y, flight, "wreck")
+            self.facing = self.angle_to(t.x, t.y)
+            ctx.events.append("swing")
+            return
+        self.go(ctx, t.x, t.y, dt, self.speed)
+
+    def _wreck_near(self, world, reach: float) -> tuple[int, int] | None:
+        best, best_d = None, math.inf
+        r = math.ceil(reach)
+        cx, cy = math.floor(self.x), math.floor(self.y)
+        for ty in range(cy - r, cy + r + 1):
+            for tx in range(cx - r, cx + r + 1):
+                if world.tile_at(tx, ty) in self.MENDS:
+                    d = math.hypot(tx + 0.5 - self.x, ty + 0.5 - self.y)
+                    if d <= reach and d < best_d:
+                        best, best_d = (tx, ty), d
+        return best
+
+    def landed(self, ctx: AIContext, x: float, y: float, what: str) -> None:
+        wide = config.COLOSSUS[4]
+        for h in _heroes(ctx):
+            if h.hittable and math.hypot(h.x - x, h.y - y) <= wide + h.hit_radius:
+                _numbered_hit(h, self.hurt(self.espec.damage), self, math.atan2(h.y - y, h.x - x), ctx)
+        ctx.effects.append(Effect("debris", x, y))
+        ctx.events.append("break")
+        tx, ty = math.floor(x), math.floor(y)
+        under = ctx.world.tile_at(tx, ty)
+        if not under.solid and under not in tiles.BELTS \
+                and not any(math.hypot(a.x - tx - 0.5, a.y - ty - 0.5) < 1.0 + a.hit_radius
+                            for a in ctx.actors if a.alive):
+            ctx.world.set_tile(tx, ty, tiles.LOOSE_SCRAP)     # (the wreck, left there: cover)
+
+
 # --- Where they live ----------------------------------------------------------------------
 
 
@@ -1225,8 +1921,11 @@ def residents(layout, zone) -> list[tuple[str, float, float]]:
     """Panopticon's machines that live at fixed places (rostered with their
     chunks: systems/spawner): a camera at some street corners and a turret
     against some blocks' walls (world/panopticon.Plan.camera_spots,
-    turret_spots; none by the sea wall or the tower: ZONE_QUIET_MARKS), and
-    the factory's crew -- a worker on each half-built
+    turret_spots; none by the sea wall or the tower: ZONE_QUIET_MARKS), the
+    kept homes' staff (M32.3: a butler in every other home, a gardener on
+    every third lawn, three pairs of scrubbers in the street, the nanny), a
+    junker on each of the scrapyard's wrecks and the colossus in its yard,
+    and the factory's crew -- a worker on each half-built
     robot on the line (it starts moving when you come close: Machine.settle),
     a welder at every third robot arm, the foreman on the floor."""
     if zone.key != "panopticon":
@@ -1240,6 +1939,23 @@ def residents(layout, zone) -> list[tuple[str, float, float]]:
 
     out = [("camera", x, y) for x, y, _, _ in p.camera_spots() if clear(x, y)]
     out += [("turret", x, y) for x, y, _, _ in p.turret_spots() if clear(x, y)]
+    homes = next((m for m in p.marks if m.key == "panopticon_homes"), None)
+    if homes is not None:                                # (M32.3: the kept homes' staff)
+        for n, (x, y) in enumerate(homes.props.get("rooms", ())):
+            if n % 2 == 0:
+                out.append(("butler", x, y))
+        for n, (x, y) in enumerate(homes.props.get("lawns", ())):
+            if n % 3 == 1:
+                out.append(("gardener", x, y))
+        hx, hy = p.homes
+        for dx in (-14.0, 0.0, 14.0):
+            out += [("scrubber", hx + dx - 1.5, hy - 1.5), ("scrubber", hx + dx + 1.5, hy - 1.5)]
+        out.append(("nanny", hx + 6.5, hy + 0.5))
+    yard = next((m for m in p.marks if m.key == "panopticon_scrapyard"), None)
+    if yard is not None:                                 # (M32.3: the wrecks that aren't dead)
+        out += [("junker", x, y) for x, y in yard.props.get("wrecks", ())]
+        sx, sy = p.scrapyard
+        out.append(("scrap_colossus", sx + 0.5, sy + 0.5))
     fac = next((m for m in p.marks if m.key == "panopticon_factory"), None)
     if fac is not None:
         crew = ("hauler", "assembler", "welder")

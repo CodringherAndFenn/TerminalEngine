@@ -1024,6 +1024,19 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   turrets where they stand, and the foreman ordering overtime and calling
   presses down on you; the factory's half-built robots get up when you
   come close.
+- **Panopticon's other machines, M32.3** (`design/OCEAN.md` 43): the
+  housekeepers in the kept homes, polite until you make a mess -- break a
+  set table, a made bed or a hedge and they all come: butlers whose silver
+  trays loop out and back (two at once cross over you), scrubbers shooting
+  across the floor and bouncing off the walls in a trail of slippery soap,
+  gardeners with lunging double snips who grow thorned wire round you, and
+  the nanny, who puts you in a playpen ("time out!"), sings you drowsy and
+  mends the others. The scrap in the scrapyard: junkers lying among the
+  wrecks as wrecks until you come near, falling apart into crawling pieces
+  when killed; magnets that pull you and bend your shots, then throw all
+  the scrap out at once; rust swarms that shrug off single hits and eat
+  your armour; and the scrap colossus, throwing wrecks, mending itself with
+  them, shedding junkers and shaking the ground.
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

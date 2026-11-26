@@ -962,7 +962,7 @@ class Plan:
         for j in range(-3, 3):
             for i in range(-27, 28):
                 cells[(hx + i, hy + j)] = tiles.PAVEMENT
-        homes = []
+        homes, rooms, lawns = [], [], []
         for s in (-1, 1):
             for q in range(5):
                 i0 = -26 + q * 11                               # (9 wide, a hedge between)
@@ -988,8 +988,10 @@ class Plan:
                     if q < 4:
                         cells[(hx + i0 + 10, hy + j)] = tiles.HEDGE
                 homes.append((hx + i0 + 4.5, hy + mid + 0.5))
+                rooms.append((hx + i0 + 1.5, hy + mid + 0.5))        # (M32.3: its housekeeper)
+                lawns.append((hx + i0 + 6.5, hy + j_front + s + 0.5))   # (its gardener's lawn)
         return self._mark("panopticon_homes", "zone", "The Kept Homes", cells, hx + 0.5, hy + 0.5,
-                          props={"homes": homes})
+                          props={"homes": homes, "rooms": rooms, "lawns": lawns})
 
     # --- Per chunk ------------------------------------------------------------------------
 

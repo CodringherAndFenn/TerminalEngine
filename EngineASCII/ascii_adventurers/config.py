@@ -1355,6 +1355,53 @@ ENEMIES = {
         max_hp=360, sight=18, biomes=("panopticon",), weight=1, speed=2.6,
         damage=18, windup=0.6, cooldown=6.0, size_px=34, xp=40,
     ),
+    # --- M32.3: the housekeepers (the kept homes; polite until you make a mess)
+    "butler": EnemySpec(
+        name="butler", kind="butler", sprite="butler", scale=4,
+        max_hp=120, sight=16, biomes=("panopticon",), weight=3, speed=3.4,
+        damage=16, windup=0.7, cooldown=3.5, size_px=24, xp=12,
+    ),
+    "scrubber": EnemySpec(
+        name="scrubber", kind="scrubber", sprite="scrubber", group=(2, 3),
+        max_hp=45, sight=14, biomes=("panopticon",), weight=2, speed=3.0,
+        damage=10, windup=0.4, cooldown=1.2, size_px=18, xp=6,
+    ),
+    "gardener": EnemySpec(
+        name="gardener", kind="gardener", sprite="gardener", scale=4,
+        max_hp=130, sight=16, biomes=("panopticon",), weight=2, speed=3.6,
+        damage=18, attack_radius=3.0, windup=0.5, cooldown=2.2, size_px=24, xp=14,
+    ),
+    "nanny": EnemySpec(
+        name="nanny", kind="nanny", sprite="nanny", scale=5, elite=True,
+        max_hp=380, sight=18, biomes=("panopticon",), weight=1, speed=2.8,
+        damage=10, attack_radius=4.0, windup=0.8, cooldown=7.0, size_px=34, xp=40,
+    ),
+    # The scrap (the scrapyard; the junkers lie among the wrecks as wrecks).
+    "junker": EnemySpec(
+        name="junker", kind="junker", sprite="junker", scale=4,
+        max_hp=100, sight=16, biomes=("panopticon",), weight=3, speed=3.4,
+        damage=16, attack_radius=1.8, windup=0.5, cooldown=1.6, size_px=26, xp=12,
+    ),
+    "junk_bit": EnemySpec(
+        name="junk", kind="junk_bit", sprite="junk_bit", scale=2,
+        max_hp=14, sight=16, biomes=(), speed=4.6,
+        damage=6, attack_radius=1.0, windup=0.3, cooldown=1.0, size_px=12, xp=2,
+    ),
+    "magnet": EnemySpec(
+        name="magnet", kind="magnet", sprite="magnet", scale=4,
+        max_hp=200, sight=16, biomes=("panopticon",), weight=2, speed=2.4,
+        damage=10, windup=0.5, cooldown=7.0, size_px=30, xp=16,
+    ),
+    "rust_swarm": EnemySpec(
+        name="rust swarm", kind="rust_swarm", sprite="rust_swarm", scale=3,
+        max_hp=80, sight=14, biomes=("panopticon",), weight=2, speed=3.2,
+        damage=4, size_px=30, xp=10,
+    ),
+    "scrap_colossus": EnemySpec(
+        name="scrap colossus", kind="scrap_colossus", sprite="scrap_colossus", scale=6, elite=True,
+        max_hp=600, sight=18, biomes=("panopticon",), weight=1, speed=2.0,
+        damage=28, attack_radius=4.0, windup=0.9, cooldown=5.5, size_px=46, xp=55,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -4920,6 +4967,16 @@ BESTIARY = {
     "hauler": (2500, "Charges down a shown line, then throws its crate: shrapnel, and cover left."),
     "assembler": (2000, "Left alone, it builds a turret where it stands. Kill it before it's done."),
     "foreman": (4500, "Overtime makes the workers faster. It calls presses down on marked spots."),
+    # M32.3
+    "butler": (2000, "Polite until you make a mess. It bows, then throws a tray that loops back to it."),
+    "scrubber": (1500, "Shoots across the floor, bouncing off walls. Its soap trails slide you along."),
+    "gardener": (2000, "A lunging double snip. It grows thorned wire round you: cut your way out."),
+    "nanny": (4500, "Time out: it grabs you and pens you in. Its lullaby slows you; it mends the others."),
+    "junker": (2000, "Lies among the wrecks as a wreck. Killed, it falls apart into pieces that crawl on."),
+    "junk_bit": (800, "A piece of a junker, still crawling at you. Area damage cleans them up."),
+    "magnet": (2500, "Pulls you and your shots toward it, then throws all the scrap out at once."),
+    "rust_swarm": (2000, "Hard to hit one at a time; inside it, it eats your armour. Burn it with area attacks."),
+    "scrap_colossus": (5000, "Mends itself with wrecks and throws them. Hurt, it sheds junkers. Its slam shakes the ground."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -5495,6 +5552,10 @@ PANOPTICON_DISTRICT_OF = {
     "riot_robot": ("docks",), "warden": ("docks",),
     "welder": ("factory",), "hauler": ("factory",), "assembler": ("factory",),
     "foreman": ("factory",),
+    "butler": ("homes",), "scrubber": ("homes",), "gardener": ("homes",),         # (M32.3)
+    "nanny": ("homes",),
+    "junker": ("scrapyard",), "magnet": ("scrapyard",), "rust_swarm": ("scrapyard",),
+    "scrap_colossus": ("scrapyard",),
 }
 PANOPTICON_PATROLS = ("sentry_drone", "spotter")
 PANOPTICON_PATROL_NEAR = 2.0
@@ -5556,6 +5617,57 @@ ASSEMBLER = (8.0, 12.0, 6.0, 3)
 # round, [10] each. Within [11] tiles its bark (spec windup): a ring out to
 # [12] tiles at [13] tiles/s, pushing [14] (roll through it).
 FOREMAN = (5.0, 9.0, 8.0, 12.0, 1.5, 5.0, 4, 4.0, 1.1, 1.5, 30.0, 5.0, 7.0, 12.0, 2.0)
+# --- M32.3: the housekeepers and the scrap (OCEAN.md 37) ----------------------------------
+# The housekeepers are polite (they keep house) until you make a mess: break
+# a set table, a made bed or a hedge (tiles.REPORT_BREAKS) and every one
+# within MESS_REACH tiles comes for you (A MESS!). Hitting one, or a call in
+# SEARCH, does it too.
+MESS_REACH = 45.0
+# The butler keeps BUTLER[0]-[1] tiles off; it bows (spec windup) and
+# throws its tray: a loop out [2] tiles along its aim and back, [3] tiles
+# to the side at its widest, flown in [4] s, hitting each hero once. A
+# butler within [5] tiles bows with it, throwing the other way round: the
+# trays cross over you.
+BUTLER = (5.0, 9.0, 9.0, 2.2, 1.6, 12.0)
+# The scrubbers shoot across the floor (spec windup to line up): SCRUBBER[0]
+# tiles/s for [1] s, bouncing off walls, hitting each hero once a run; then
+# rest (spec cooldown). Soap every [2] tiles of the way ([3] tiles round,
+# [4] s): standing in it your traction is x [5] (you slide).
+SCRUBBER = (10.0, 2.5, 1.5, 0.8, 6.0, 0.12)
+# The gardener: in reach it lunges GARDENER[0] tiles (spec windup) and snips
+# (a cone [1] degrees out to the spec's attack radius), and again [2] s
+# later. Every [3] s within [4] tiles it grows thorned wire round you: a
+# ring [5] tiles out (a gap or two left where it can't grow), lasting [6] s
+# (the wire breaks: cut your way out).
+GARDENER = (1.4, 70.0, 0.25, 7.0, 8.0, 3.0, 12.0)
+# The nanny (elite). TIME OUT (spec cooldown): its arms reach out (spec
+# windup; the reach shows) and catch a hero within the spec's attack
+# radius: set down there in a playpen ring NANNY[0] tiles round, [1] s
+# (break a bar to get out). Every [2] s its lullaby, [3] s long: heroes
+# within [4] tiles are drowsy (x [5] for [6] s). Every [7] s it mends the
+# housekeepers within [8] tiles, [9] of their max HP.
+NANNY = (2.0, 15.0, 9.0, 2.0, 9.0, 0.6, 3.0, 4.0, 10.0, 0.08)
+# The junker: killed, it falls apart into JUNKER[0]-[1] pieces (junk_bit)
+# that keep crawling at you. It lies among the wrecks as a wreck until a
+# hero comes within WORKER_NOTICE[1] tiles (or hits it, or it's called).
+JUNKER = (2, 3)
+# The magnet: every spec cooldown it pulls MAGNET[0] s: heroes within [1]
+# tiles drawn toward it at [2] tiles/s, the heroes' shots within [3] tiles
+# bent toward it ([4] rad/s); then it throws everything out: [5] shards of
+# shrapnel, and heroes within [6] tiles pushed [7] away.
+MAGNET = (2.5, 10.0, 2.6, 8.0, 2.5, 12, 3.0, 2.5)
+# The rust swarm: a cloud RUST[0] tiles round. A single hit (a shot, a
+# blade) does x [1]; area damage (blasts, zones) x [2]. Inside it a hero
+# is bitten [3] every [4] s and their armour eaten [5] (for [6] s after).
+RUST = (1.6, 0.35, 1.6, 4.0, 0.5, 25.0, 3.0)
+# The scrap colossus (elite): from COLOSSUS[0]-[1] tiles, every [2] s, it
+# throws a wreck ([3] s in the air; where it lands shows): its damage within
+# [4] tiles, and the wreck left there. Under [5] of its health it walks to
+# a wreck within [6] tiles and takes it up: +[7] of its max HP. Every [8]
+# of its health lost it sheds a junker. Within the spec's attack radius it
+# slams (spec windup): [9] tiles round, x [10] its damage, and the ground
+# shakes: heroes within [11] tiles stumble (x [12] for [13] s).
+COLOSSUS = (5.0, 14.0, 5.0, 1.0, 1.8, 0.7, 6.0, 0.12, 0.2, 3.5, 1.4, 7.0, 0.5, 0.6)
 # The machines' shots (M32.2, ai/panopticon.py).
 PANOPTICON_SHOTS = {
     "drone_bolt": ShellSpec(speed=18.0, damage=8, max_range=14.0, damages_terrain=False,

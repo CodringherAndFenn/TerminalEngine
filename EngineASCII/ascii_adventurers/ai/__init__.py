@@ -58,7 +58,9 @@ ai -- enemy behaviour.
   panopticon.py Panopticon's machines (M32.2), every one an eye on the city's
                 alert: cameras, turrets; the watch (sentry drone, spotter,
                 riot robot, warden); the workers (welder, hauler, assembler,
-                foreman)
+                foreman); M32.3 the housekeepers (butler, scrubber, gardener,
+                nanny) and the scrap (junker and its pieces, magnet, rust
+                swarm, scrap colossus)
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -103,8 +105,9 @@ from .pandemonium import (BandDrummer, Beloved, Bouncer, Carver, Cupbearer, Danc
 from .pangaea import (AntMound, Bombardier, CaveBear, ClubTail, Dragonfly, FireBearer, GiantAnt,
                       Hatchling, Mammoth, Pterosaur, Raptor, SabreTooth, SeaScorpion, Shaman,
                       SpearHunter, Trapper, Tyrant, WoollyRhino)
-from .panopticon import (Assembler, Camera, Foreman, Hauler, RiotRobot, SentryDrone, Spotter,
-                         Turret, Warden, Welder)
+from .panopticon import (Assembler, Butler, Camera, Foreman, Gardener, Hauler, JunkBit, Junker,
+                         Magnet, Nanny, RiotRobot, RustSwarm, ScrapColossus, Scrubber, SentryDrone,
+                         Spotter, Turret, Warden, Welder)
 from .paradise import (BowlBearer, CenserBearer, Cherub, Chorister, Dove, Halo, Lamb,
                        Leviathan, Locust, Martyr, Ophan, Seraph, Trumpeter, Watcher,
                        WeepingSaint, Behemoth, LightPillar)
@@ -327,6 +330,16 @@ KINDS = {
     "hauler": Hauler,
     "assembler": Assembler,
     "foreman": Foreman,
+    # M32.3: the housekeepers (polite until you make a mess) and the scrap
+    "butler": Butler,
+    "scrubber": Scrubber,
+    "gardener": Gardener,
+    "nanny": Nanny,
+    "junker": Junker,
+    "junk_bit": JunkBit,
+    "magnet": Magnet,
+    "rust_swarm": RustSwarm,
+    "scrap_colossus": ScrapColossus,
 }
 
 

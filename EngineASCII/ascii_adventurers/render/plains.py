@@ -100,8 +100,8 @@ def draw_plains_tells(text, camera, e) -> None:
 
 def draw_plains(text, bank, camera, e) -> None:
     """A P7 creature: body, tells, health bar."""
-    if getattr(e, "dormant", False):                     # (M32.2: a half-built robot: the tile is it)
-        return
+    if getattr(e, "dormant", False) and not getattr(e, "shows_lying", False):
+        return                                           # (M32.2: a half-built robot: the tile is it)
     x, y = camera.world_to_px(e.x, e.y)
     hurt = e.hurt_flash > 0
     scale = e.espec.scale

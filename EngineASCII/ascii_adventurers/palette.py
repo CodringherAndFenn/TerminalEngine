@@ -1595,3 +1595,26 @@ SLAG = ((255, 150, 40), (150, 60, 20))
 SHOT_LASER_BOLT = ((255, 120, 220), ((255, 60, 190), (140, 30, 110)))
 SHOT_SHRAPNEL = ((220, 200, 170), ((150, 120, 90), (90, 72, 56)))
 SHOT_TETHER = ((160, 250, 255), ((80, 200, 230), (40, 110, 140)))
+
+# --- M32.3: the housekeepers and the scrap ---------------------------------------------
+THORN_WIRE_FG = (170, 176, 186)          # a gardener's thorned wire
+THORN_WIRE_BG = (24, 54, 30)
+PEN_FG = (250, 190, 220)                 # a nanny's playpen, pastel bars
+PEN_BG = (70, 60, 80)
+MAP_TILE.update({"thorned wire": (160, 166, 176), "cut wire": (60, 90, 62),
+                 "playpen": (240, 170, 210), "broken bars": (120, 110, 120)})
+# Their tells (render/panopticon.py): a butler's tray (silver, its glint),
+# soap, the shears' snip, the wire growing, the nanny's reach and her
+# lullaby's notes, her mending, the magnet's pull (lines, the scrap flying
+# in), the rust swarm's mites, a thrown wreck and the colossus's slam.
+TRAY = ((236, 240, 248), (170, 178, 196))
+SOAP = ((150, 200, 225), (90, 130, 160))
+SNIP = ((236, 240, 248), (130, 140, 160))
+WIRE_TELL = ((170, 176, 186), (90, 100, 96))
+NANNY_REACH = ((250, 170, 220), (140, 80, 120))
+LULLABY = ((200, 170, 255), (130, 110, 200))
+MEND = ((120, 255, 170), (60, 160, 100))
+MAGNET_PULL = ((90, 170, 255), (40, 80, 160))
+RUST_MITES = ((200, 90, 40), (140, 60, 30), (230, 140, 70))
+WRECK_FLY = (164, 112, 72)
+SLAM_RING = ((255, 206, 40), (180, 120, 40))

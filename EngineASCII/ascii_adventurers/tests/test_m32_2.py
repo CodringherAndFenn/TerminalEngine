@@ -197,9 +197,10 @@ class SpawnTest(unittest.TestCase):
                         got[p.district_at(ex, ey)].add(key) if p.district_at(ex, ey) in got else None
         self.assertTrue({"riot_robot", "sentry_drone"} <= got[DOCKS], got[DOCKS])
         self.assertTrue({"welder"} <= got[FACTORY], got[FACTORY])
-        for name in (SCRAPYARD, HOMES):                     # (M32.3: their own groups)
+        for name in (SCRAPYARD, HOMES):                     # (the patrols too; M32.3 their own groups)
             self.assertTrue(got[name] & {"sentry_drone", "spotter"}, name)
-            self.assertFalse(got[name] & set(config.PANOPTICON_DISTRICT_OF), name)
+            self.assertFalse(got[name] & {"riot_robot", "warden", "welder", "hauler", "assembler",
+                                          "foreman"}, name)
 
     def test_a_half_built_robot_lies_there_until_you_come_close(self):
         w = ChunkedWorld(31)

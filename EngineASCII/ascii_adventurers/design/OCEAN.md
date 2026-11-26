@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Ocean Zones
 
-Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE. M32 (Panopticon, the east) DRAFTED 2026-11-25 (sections 35-40). M32.1 BUILT (2026-11-25, section 41). M32.2 BUILT (2026-11-26, section 42).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE. M32 (Panopticon, the east) DRAFTED 2026-11-25 (sections 35-40). M32.1 BUILT (2026-11-25, section 41). M32.2 BUILT (2026-11-26, section 42). M32.3 BUILT (2026-11-26, section 43).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -950,7 +950,7 @@ At 0 **the eye tears out of the ceiling and builds a giant from the hall itself*
 |------|---------|
 | M32.1 | **Panopticon's land:** the east zone (Paradise's framework), chrome and neon, the sea wall shore, the wedges round the tower (four districts, street grids, district walls and gates), laser fences, conveyors and presses, live power (pylons, cables, puddles), the cleaning (sweeper lanes), the four landmarks (the sea wall, the factory, the scrapyard, the kept homes), the seven camera masts and their pylons (standing), the tower and the hall of cells (sealed by blast doors), the HUD name and banner. **Built, section 41** |
 | M32.2 | **The alert + the watch and the workers (8):** cameras, the meter and its three levels (calls, turrets waking, gates sealing, the hunter squad, the cleaning on your street), endgame toughness; the sentry drone, spotter, riot robot, Warden; the welder, hauler, assembler, foreman. **Built, section 42** |
-| M32.3 | **The other 8:** the butler, scrubber, gardener, nanny (and the mess in the kept homes); the junker, magnet, rust swarm, scrap colossus (and the wrecks that aren't quite dead) |
+| M32.3 | **The other 8:** the butler, scrubber, gardener, nanny (and the mess in the kept homes); the junker, magnet, rust swarm, scrap colossus (and the wrecks that aren't quite dead). **Built, section 43** |
 | M32.4 | **The quest + form 1:** blinding the seven eyes (the pylons, the masts, the darkened districts), the voice in the screens, opening and sealing the hall; the eye (the ceiling rail, the gaze, the cells, the laser grid, the recordings, four moves) |
 | M32.5 | **Form 2:** the walking city (the walls come down, it builds itself, power from the grid, a hundred eyes, the city answers, four moves), the bot benchmark; then the relics drafted with the user |
 
@@ -1120,4 +1120,83 @@ Tells (`render/panopticon.draw_panopticon_tells`):
 **Tests:** `tests/test_m32_2.py` (27). `test_m32_1`'s "nobody lives here yet" now checks somebody does, and its hazard tests keep the machines away (the land alone).
 
 **For later:** every number wants a play test, the alert's pace most of all. The docks' wardens make lockdown come quickly once one sees you; the 1.2 s mark is the window to break its sight. M32.3 brings the other eight (the housekeepers and the scrap) and the mess in the kept homes; M32.4 darkens the city near each blinded mast (the alert at half speed there; its cameras go dark).
+
+## 43. Built: M32.3 (2026-11-26) -- the housekeepers and the scrap
+
+**Where they live:** the spawner rolls the housekeepers only in the homes district and the scrap only in the scrapyard district (`PANOPTICON_DISTRICT_OF`), like the watch in the docks and the workers in the factory. All sixteen machines are in now, four in each group. The landmarks keep staff of their own (residents):
+- **the kept homes:** a butler in every other home (5), a gardener on every third front lawn (3), three pairs of scrubbers in the street and the nanny (new props `rooms` and `lawns`);
+- **the scrapyard:** **a junker on each of its 16 wrecks** (the wrecks that aren't quite dead) and the scrap colossus in the middle of the yard.
+
+On seed 31, with the patrols: ~100 scrubbers (in twos and threes), ~35 butlers, ~20 gardeners and ~17 nannies; ~40 junkers, ~20 colossi, ~15 rust swarms and ~12 magnets.
+
+**The housekeepers are polite** (`ai/panopticon.Keeper`): they keep house, pottering about near their homes, and **coming near isn't enough**. Even polite, they still see you, and the alert rises.
+- **Making a mess** sets them off: break a set table, a made bed or a hedge (`tiles.REPORT_BREAKS`: `systems/panopticon.mess`). **A MESS!**, and every housekeeper within **45 tiles** comes for whoever's nearest.
+- So does hitting one, or a call in SEARCH (like any machine).
+- With nobody left to fight they go home and keep house again.
+
+**The junkers lie among the wrecks as wrecks** (`Junker.settle`): one placed on a wreck *is* that wreck. The wreck's tiles become dirt and the junker is drawn lying there as a heap of scrap; a rostered one lies the same way, wherever it was placed.
+- **It gets up** when a hero comes within 5 tiles, when it's shot (unlike the factory's half-built robots, **a lying junker can be hit**), or when it's called.
+- **One shed by a colossus gets up at once.**
+- **Lying there, it sees nothing** (the alert doesn't rise).
+
+**The eight** (numbers in `config.py`: `MESS_REACH`, `BUTLER`, `SCRUBBER`, `GARDENER`, `NANNY`, `JUNKER`, `MAGNET`, `RUST`, `COLOSSUS`; base HP before the zone's x2.5):
+
+| Enemy | Base HP | What it does |
+|-------|---------|--------------|
+| **Butler** | 120 | Keeps 5-9 tiles off. **It bows** (0.7 s; the loop its tray will fly shows), then **throws its silver tray**: a loop 9 tiles out and back to it, bulging 2.2 tiles to one side, flown in 1.6 s, 16 to each hero it touches, once. **The throw is turned so the loop's way out passes through you.** A butler within 12 tiles bows with it and throws the other way round, so **the two trays cross over you** |
+| **Scrubber** (in twos and threes) | 45 | It lines up (0.4 s; its line shows), then **shoots across the floor** at 10 tiles/s for 2.5 s, **bouncing off walls** and hitting each hero once a run. **Soap** every 1.5 tiles of the way (0.8 tiles, 6 s): standing in it **your traction is x0.12**, so you slide. Then it rests 1.2 s |
+| **Gardener** | 130 | In reach (3 tiles) **a lunging snip**: it lunges 1.4 tiles (0.5 s, its cone shows) and snips (70 degrees), then **again 0.25 s later**. Every 7 s within 8 tiles **it grows thorned wire round you**: a ring 3 tiles out, shown 0.6 s first (step out of it), on every open tile nobody stands on. It lasts 12 s and **breaks** (30): cut your way out. The wire stops you, not shots |
+| **Nanny** (elite) | 380 | **TIME OUT!** (every 7 s): its long arms reach out (0.8 s; its 4-tile reach shows). Caught, you're set down in **a playpen** ring 2 tiles round you for 15 s: pastel bars that stop you, not shots, and **break** (40). **Its lullaby** (every 9 s, 2 s): heroes within 9 tiles **DROWSY**, x0.6 for 3 s. Every 4 s **it mends** the housekeepers within 10 tiles, 8% of their max HP |
+| **Junker** | 100 | A brawler patched from wrecks: a swing close in (90 degrees, 1.8 tiles). **Killed, it falls apart into 2-3 pieces** (junk, 14 HP) that keep crawling at you and nip |
+| **Magnet** | 200 | Keeps 4-8 tiles off. Every 7 s **it pulls** for 2.5 s: heroes within 10 tiles drawn toward it at 2.6 tiles/s (not mid-roll), and **your shots within 8 tiles bent toward it** (2.5 rad/s). Then it **throws everything out**: 12 shards of shrapnel all round, heroes within 3 tiles pushed 2.5 away |
+| **Rust swarm** | 80 | A cloud of mites 1.6 tiles round, drifting at you. **A single hit (a shot, a blade) does x0.35; area damage (blasts, zones) x1.6**: burn it. Inside it you're bitten (4 every 0.5 s) and **your armour eaten**: 25 less armour while inside and for 3 s after (RUSTING; armour can go negative, so hits hurt more) |
+| **Scrap colossus** (elite) | 600 | A giant of wrecks. From 5-14 tiles, every 5 s, **it throws a wreck** (1 s in the air; its ring shows): its damage within 1.8 tiles, and the wreck left there as loose scrap (cover that breaks). Under 70% health **it walks to a wreck or loose scrap within 6 tiles and takes it up**: +12% of its max HP (the tile becomes scrap bits). **Every fifth of its health lost, it sheds a junker.** Close in **its slam** (0.9 s; the ring shows): 3.5 tiles round, x1.4 its damage, and the ground shakes: heroes within 7 tiles stumble (x0.5 for 0.6 s) |
+
+**New tiles:**
+- **thorned wire** (it breaks into cut wire);
+- **the playpen** (it breaks into broken bars).
+
+Both come back to the ground they were placed on when their time is up (a zone that restores the tile, like a stuck javelin's).
+
+**Look:**
+- **`render/panopticon_art.py`, 12 more pictures:**
+  - the butler in a tailcoat holding up its tray, and bowing;
+  - the scrubber a low disc with a blue skirt;
+  - the gardener in a green sun hat with long shears;
+  - the nanny tall and pink in an apron, and reaching with its long arms;
+  - the junker patched from mismatched rusty parts, and lying as a heap;
+  - a junk piece;
+  - the magnet a crane disc on legs;
+  - the rust swarm a cloud of rust specks;
+  - the scrap colossus a giant of wrecks with a red eye in its chest.
+- **Tells:**
+  - the tray's loop shown while the butler bows, and the trays spinning in the air;
+  - a scrubber's line, and the soap trail (a zone look);
+  - the gardener's snip cone and the wire's ring before it grows;
+  - the nanny's reach, its lullaby's notes, its mending's crosses;
+  - a junker's swing;
+  - the magnet's pull (scrap flying in);
+  - the rust mites swirling;
+  - a thrown wreck and its ring, and the colossus's slam ring and the ground's shaking.
+
+**Measured:** in the kept homes after a mess (50 machines awake, 189 drops of soap down the street) a game step takes 1.4 ms and drawing 1.7 ms. In the scrapyard fighting (48 awake), 1.3 ms and 1.5 ms (M32.2's lockdown in the docks: 0.95 and 2.0).
+
+**Also changed:**
+- `tiles.REPORT_BREAKS` gained the kept homes' set table, made bed and hedge (`test_m31_3` updated);
+- `test_m32_2`'s "the homes and the scrapyard only have patrols" now checks the docks' and factory's own types stay out of them;
+- `Machine` gained `notices` (a housekeeper doesn't stop keeping house when you come near) and `shows_lying` (a lying junker is drawn, and can be hit);
+- `Character.rust_until` and its armour cut.
+
+**Code:**
+- `ai/panopticon.py` (`Keeper`, `Tray`, `Butler`, `Scrubber`, `Gardener`, `Nanny`, `Junker`, `JunkBit`, `Magnet`, `RustSwarm`, `ScrapColossus`; `_ring_tiles` / `_raise_ring`; the residents);
+- `systems/panopticon.py` (`mess`, `_soap`);
+- `world/panopticon.py` (the homes' `rooms` and `lawns`);
+- `world/tiles.py` (`THORN_WIRE`, `CUT_WIRE`, `PLAYPEN`, `BROKEN_PEN`);
+- `entities/character.py` (`rust_until`);
+- `render/panopticon.py` (`_tells_m323`), `render/panopticon_art.py`, `render/spell_fx` (soap), `render/plains` (a lying junker is drawn);
+- config, palette, bestiary pages.
+
+**Tests:** `tests/test_m32_3.py` (16).
+
+**For later:** every number wants a play test, especially the mess's reach (45 tiles takes in the whole street) and how often the colossus sheds. M32.4 brings the quest: blinding the seven eyes, the voice in the screens, and the Overseer's first form.
 

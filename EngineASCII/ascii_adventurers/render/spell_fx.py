@@ -294,6 +294,11 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 a = k * math.tau / 4 + 0.7
                 batch.put_c(x + math.cos(a) * z.radius * 0.7 * tw,
                             y + math.sin(a) * z.radius * 0.7 * th, "o" if k % 2 else ".", col)
+        elif z.kind == "soap":
+            # M32.3: a scrubber's soap trail (you slide on it).
+            col = palette.SOAP[0 if z.age < z.life * 0.7 else 1]
+            batch.put_c(x - tw * 0.25, y, "o" if int(z.x * 3) % 2 else ".", col)
+            batch.put_c(x + tw * 0.3, y + th * 0.2, ".", col)
         elif z.kind == "slag":
             # M32.2: a welder's molten slag, glowing as it cools (it burns).
             col = palette.SLAG[0 if z.age < z.life * 0.6 else 1]
