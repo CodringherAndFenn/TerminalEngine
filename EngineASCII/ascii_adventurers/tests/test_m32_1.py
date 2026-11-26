@@ -113,7 +113,7 @@ class PlanTest(unittest.TestCase):
     def test_the_tower_is_sealed_by_blast_doors_facing_the_sea_wall(self):
         _, _, p = pan()
         tower = next(m for m in p.marks if m.key == "panopticon_tower")
-        self.assertEqual(tower.kind, "court")                # (the quest's lair from M32.4)
+        self.assertEqual(tower.kind, "lair")                 # (the quest's lair since M32.4)
         self.assertGreaterEqual(len(tower.gate), config.PANOPTICON_HALL_GATE)
         gx, gy = p.facing
         for tx, ty in tower.gate:

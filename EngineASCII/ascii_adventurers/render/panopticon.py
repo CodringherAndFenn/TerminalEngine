@@ -224,7 +224,7 @@ def draw_panopticon_tells(batch, camera, e) -> None:
     x, y = camera.world_to_px(e.x, e.y)
     top = y - e.espec.scale * 9 - 10
     seeing = e.seeing
-    if isinstance(e, Camera) and e.base is not None:
+    if isinstance(e, Camera) and e.base is not None and not e.dark:   # (M32.4: dark, it sees nothing)
         cone = math.radians(config.PANOPTICON_CAMERAS[2]) / 2
         _cone(batch, camera, e.x, e.y, e.facing, config.PANOPTICON_CAMERAS[3], cone,
               palette.CAMERA_CONE[1 if seeing is not None else 0])
@@ -287,6 +287,19 @@ def draw_panopticon_tells(batch, camera, e) -> None:
     if getattr(e, "hunter", False):
         batch.put_c(x + 12, top, "!", palette.SEEN_EYE[0])
     _tells_m323(batch, camera, e, x, y)
+    _mast(batch, camera, e)
+
+
+def _mast(batch, camera, e) -> None:
+    """A camera mast (M32.4): its shield while its pylons stand, the cables
+    to them glowing (bright a moment when a hit glances off)."""
+    from ..ai.panopticon import CameraMast
+    if not isinstance(e, CameraMast) or not e.shield:
+        return
+    col = palette.MAST_SHIELD[0 if e.clock - e.said < 0.3 else 1]
+    _ring(batch, camera, e.x, e.y, 3.0, "o" if e.clock - e.said < 0.3 else ".", col, 20)
+    for tx, ty in e.pylons or ():
+        _along(batch, camera, e.x, e.y, tx + 0.5, ty + 0.5, 1.5, ".", palette.MAST_SHIELD[1])
 
 
 def _tells_m323(batch, camera, e, x, y) -> None:

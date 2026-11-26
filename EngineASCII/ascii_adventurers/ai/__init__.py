@@ -61,6 +61,9 @@ ai -- enemy behaviour.
                 foreman); M32.3 the housekeepers (butler, scrubber, gardener,
                 nanny) and the scrap (junker and its pieces, magnet, rust
                 swarm, scrap colossus)
+  overseer.py   Panopticon's boss, form 1 (M32.4): the Overseer, the eye on its
+                ceiling rail -- the gaze, the cells, the laser grid, the
+                recordings of you
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -105,7 +108,8 @@ from .pandemonium import (BandDrummer, Beloved, Bouncer, Carver, Cupbearer, Danc
 from .pangaea import (AntMound, Bombardier, CaveBear, ClubTail, Dragonfly, FireBearer, GiantAnt,
                       Hatchling, Mammoth, Pterosaur, Raptor, SabreTooth, SeaScorpion, Shaman,
                       SpearHunter, Trapper, Tyrant, WoollyRhino)
-from .panopticon import (Assembler, Butler, Camera, Foreman, Gardener, Hauler, JunkBit, Junker,
+from .overseer import Overseer, Recording
+from .panopticon import (Assembler, Butler, Camera, CameraMast, Foreman, Gardener, Hauler, JunkBit, Junker,
                          Magnet, Nanny, RiotRobot, RustSwarm, ScrapColossus, Scrubber, SentryDrone,
                          Spotter, Turret, Warden, Welder)
 from .paradise import (BowlBearer, CenserBearer, Cherub, Chorister, Dove, Halo, Lamb,
@@ -340,6 +344,11 @@ KINDS = {
     "magnet": Magnet,
     "rust_swarm": RustSwarm,
     "scrap_colossus": ScrapColossus,
+    # M32.4: the quest's seven camera masts; Panopticon's boss, form 1 (the
+    # eye), and its recordings of you
+    "camera_mast": CameraMast,
+    "overseer": Overseer,
+    "recording": Recording,
 }
 
 

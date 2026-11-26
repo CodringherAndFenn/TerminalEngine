@@ -1037,6 +1037,22 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   the scrap out at once; rust swarms that shrug off single hits and eat
   your armour; and the scrap colossus, throwing wrecks, mending itself with
   them, shedding junkers and shaking the ground.
+- **Panopticon's quest and boss, M32.4** (`design/OCEAN.md` 44): the voice
+  in the screens -- the city's first, kind program, locked out by the
+  tower -- waits on a cracked screen in the sea wall. Blind the seven
+  eyes: each great camera mast is shielded by its three pylons; cut them
+  and the city goes to lockdown, then bring the mast down, and its part of
+  the city goes dark (the alert fills slower, the cameras there are blind);
+  the voice speaks to you from a screen nearby. The seventh blinds the
+  tower and opens its blast doors: in the hall of cells hangs THE
+  OVERSEER, an eye sliding round a ceiling rail. Its searchlight fills the
+  fight's own alert (hide behind the pillars) and makes it faster; then the
+  cells open and the watch comes out (and laser bars lock you in a cell:
+  roll out), laser grids sweep and turn across the floor, and at last it
+  plays back what you did -- copies of you walking your path and firing
+  your shots. Its moves: a sweeping laser, a missile salvo on marked spots,
+  the shock drop (down low and vulnerable: a ring, then arcs to the pylons)
+  and the floor scan (stand on the dark squares).
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

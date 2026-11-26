@@ -1618,3 +1618,27 @@ MAGNET_PULL = ((90, 170, 255), (40, 80, 160))
 RUST_MITES = ((200, 90, 40), (140, 60, 30), (230, 140, 70))
 WRECK_FLY = (164, 112, 72)
 SLAM_RING = ((255, 206, 40), (180, 120, 40))
+
+# --- M32.4: the seven eyes and the Overseer ------------------------------------------------
+MAST_STUMP_FG = (110, 70, 70)            # a blinded mast's torn foot
+CELL_BARS_FG = (255, 60, 120)            # laser bars locking you in a cell
+MAP_TILE.update({"fallen mast": (90, 60, 60), "hall pylon": (240, 230, 110),
+                 "laser bars": (255, 60, 120)})
+# The masts (render/panopticon.py): its shield while its pylons stand.
+MAST_SHIELD = ((120, 200, 255), (60, 110, 170))
+# The voice in the screens: amber on black, the island's only warm colour.
+VOICE_AMBER = ((255, 176, 60), (180, 110, 30))
+# The Overseer (render/overseer.py): its rail, its searchlight (calm, on
+# you), the fight's alert on the boss bar, the cells' bars (shown), the
+# laser grid (shown, on), the sweep's arc and beam, missiles (lock-on
+# marks, the missile), the drop's ring and arcs, the floor scan (lit
+# squares shown, struck), the recordings' static.
+RAIL = ((120, 126, 140), (70, 74, 88))
+EYE_GAZE = ((255, 240, 180), (255, 70, 200))
+GRID_TELL = (120, 30, 70)
+GRID_BEAM = ((255, 60, 120), (255, 180, 210))
+SWEEP_ARC = ((255, 80, 80), (130, 40, 40))
+MISSILE = ((255, 220, 120), (255, 90, 60))
+DROP_RING = ((140, 220, 255), (255, 255, 200))
+SCAN_LIT = ((40, 12, 30), (110, 26, 72))
+STATIC = ((255, 80, 220), (120, 255, 255))

@@ -195,10 +195,12 @@ def draw_boss_bar(text: TextRenderer, name: str, frac: float, parts=None) -> Non
     _bar(text, left, 1, width, frac, palette.HUD_BOSS, palette.HUD_BOSS_EMPTY)
     if parts:
         each = width // len(parts)
-        for k, (who, f) in enumerate(parts):
+        for k, part in enumerate(parts):
+            who, f = part[0], part[1]
+            full = part[2] if len(part) > 2 else palette.HUD_BOSS   # (M32.4: a colour of its own)
             col = left + k * each
             tag = who.upper()[:max(1, each - 7)]
             text.put(col, 2, tag, palette.HUD_BOSS_NAME if f > 0 else palette.HUD_LABEL,
                      palette.HUD_PANEL)
-            _bar(text, col + len(tag) + 1, 2, max(1, each - len(tag) - 2), f, palette.HUD_BOSS,
+            _bar(text, col + len(tag) + 1, 2, max(1, each - len(tag) - 2), f, full,
                  palette.HUD_BOSS_EMPTY)

@@ -1402,6 +1402,20 @@ ENEMIES = {
         max_hp=600, sight=18, biomes=("panopticon",), weight=1, speed=2.0,
         damage=28, attack_radius=4.0, windup=0.9, cooldown=5.5, size_px=46, xp=55,
     ),
+    # --- M32.4: the quest's seven camera masts and the Overseer (form 1) ---
+    "camera_mast": EnemySpec(
+        name="camera mast", kind="camera_mast", sprite="camera_mast", scale=6,
+        max_hp=700, sight=18, biomes=(), speed=0.0, damage=0, size_px=48, xp=60,
+    ),
+    "overseer": EnemySpec(
+        name="the Overseer", kind="overseer", sprite="overseer", scale=6,
+        max_hp=12000, sight=400, biomes=(), windup=0.8, size_px=60, xp=1500,
+    ),
+    # Its recordings: copies of you walking your own path (ai/overseer.Recording).
+    "recording": EnemySpec(
+        name="recording", kind="recording", sprite="recording",
+        max_hp=24, sight=1, biomes=(), speed=0.0, damage=0, size_px=20, xp=2,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -4977,6 +4991,11 @@ BESTIARY = {
     "magnet": (2500, "Pulls you and your shots toward it, then throws all the scrap out at once."),
     "rust_swarm": (2000, "Hard to hit one at a time; inside it, it eats your armour. Burn it with area attacks."),
     "scrap_colossus": (5000, "Mends itself with wrecks and throws them. Hurt, it sheds junkers. Its slam shakes the ground."),
+    # M32.4
+    "camera_mast": (3000, "One of the seven eyes. Its pylons shield it: cut them, then bring it down."),
+    "overseer": (10000, "The tower's mind: an eye on a ceiling rail, running the hall. Hide from its gaze; "
+                        "it has recorded everything you did."),
+    "recording": (1000, "You, a few seconds ago, walking your path and firing your shots. One hit shatters it."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -5003,6 +5022,7 @@ ACHIEVEMENTS = {
     "cavalry": "break the seven seals and defeat the Four Horsemen",
     "host_of_feast": "silence the seven bandstands and defeat the Host of the Feast",
     "ancestor": "hunt the seven great beasts and defeat the Ancestor",
+    "overseer": "blind the seven eyes and defeat the Overseer",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -5668,6 +5688,63 @@ RUST = (1.6, 0.35, 1.6, 4.0, 0.5, 25.0, 3.0)
 # slams (spec windup): [9] tiles round, x [10] its damage, and the ground
 # shakes: heroes within [11] tiles stumble (x [12] for [13] s).
 COLOSSUS = (5.0, 14.0, 5.0, 1.0, 1.8, 0.7, 6.0, 0.12, 0.2, 3.5, 1.4, 7.0, 0.5, 0.6)
+# --- M32.4: blinding the seven eyes (OCEAN.md 38; systems/quests kind "masts") ---------
+# A camera mast is shielded while any of its three pylons stands (hits on
+# it do nothing); with the last cut, its district goes to lockdown (THE EYE
+# IS EXPOSED). A blinded mast darkens its part of the city: within
+# MAST_DARK[0] tiles of it the alert fills x [1] as fast, and the cameras
+# there go dark.
+MAST_DARK = (60.0, 0.5)
+# When an eye goes dark (quest taken), the voice speaks to you from the
+# nearest screen or neon sign within this many tiles (OCEAN.md 38: its face
+# shows on broken screens you pass across the city).
+VOICE_SCREEN_REACH = 20
+# --- M32.4: the Overseer, form 1: the eye (OCEAN.md 39.1, 39.3; ai/overseer.py) ---------
+# It hangs from a ring rail OVERSEER_RAIL[0] x the hall's radii round its
+# middle, sliding round it at [1] tiles/s (reversing every [2] s, give or
+# take), turning to watch you; brought down low (the shock drop) it takes
+# x [3] damage.
+OVERSEER_RAIL = (0.45, 5.0, 9.0, 1.4)
+# THE GAZE (phase 1 on): its searchlight, a cone [0] degrees wide and [1]
+# tiles long, swings [2] degrees either way of you every [3] s; while it
+# sees you (only the pillars hide you: it reaches across the hall) the
+# fight's alert fills [4] a second; [5] s
+# out of it and it drains [6] a second. SEARCH (from [7]) makes its moves
+# x [8] as fast, LOCKDOWN (full) x [9] and opens every cell at once ([10]
+# of the watch); lockdown holds [11] s.
+OVERSEER_GAZE = (40.0, 90.0, 60.0, 3.2, 35.0, 2.0, 25.0, 30.0, 1.15, 1.30, 6, 6.0)
+# THE CELLS (phase 2 on): every [0] s [1] cell doors open and the watch
+# comes out (OVERSEER_CELL_WATCH), at most [2] of them out at once. Its
+# move "cell": laser bars ring you [3] tiles out (a cell 3 tiles across),
+# shown [4] s (roll out), then shut for [5] s.
+OVERSEER_CELLS = (14.0, 2, 8, 2, 0.9, 4.0)
+OVERSEER_CELL_WATCH = ("sentry_drone", "riot_robot", "sentry_drone")
+# THE LASER GRID (phase 3 on): a pattern of beams across the floor -- lines
+# sweeping across, a turning cross, a closing box -- each [0] s, shown [1]
+# s first, [2] s between; a beam burns [3] every [4] s; the cross turns [5]
+# rad/s, the sweeping lines cross the hall in [6] s.
+OVERSEER_GRID = (7.0, 1.0, 2.5, 14.0, 0.25, 0.5, 3.5)
+# THE RECORDINGS (phase 4 on): every [0] s, for each hero in the hall, a copy
+# replaying the hero's last [1] s (path and shots) from where they stood
+# then; at most [2] a hero at once; their shots do x [3] (at most [4] shots
+# a copy).
+OVERSEER_REC = (10.0, 4.0, 2, 0.5, 40)
+# Its moves. The laser sweep: an arc [0] degrees across you shown [1] s,
+# swept by its eye's beam in [2] s (across the hall: walls and pillars stop it),
+# burning [3] every [4] s.
+OVERSEER_SWEEP = (110.0, 1.0, 1.4, 16.0, 0.2, 90.0)
+# The missile salvo: [0] missiles on marked spots round you (the first on
+# you, the rest within [1] tiles), locked on [2] s, landing [3] s apart:
+# [4] tiles round, [5] each.
+OVERSEER_SALVO = (6, 5.0, 1.0, 0.15, 1.8, 24.0)
+# The shock drop: it drops low on the rail ([0] s, the tell) and
+# discharges: an electric ring out to [1] tiles at [2] tiles/s ([3]; roll
+# through it), then arcs leap to the hall's four pylons for [4] s ([5]
+# tiles either side, [6] each); it stays low [7] s more.
+OVERSEER_DROP = (0.8, 10.0, 14.0, 20.0, 0.4, 0.8, 18.0, 1.6)
+# The floor scan: squares of [0] tiles across the hall, [3] of them lit,
+# shown [1] s; then the lit ones are struck from above, [2] each.
+OVERSEER_SCAN = (4, 1.2, 22.0, 0.5)
 # The machines' shots (M32.2, ai/panopticon.py).
 PANOPTICON_SHOTS = {
     "drone_bolt": ShellSpec(speed=18.0, damage=8, max_range=14.0, damages_terrain=False,
@@ -6564,6 +6641,37 @@ QUESTS = {
                          "Let me paint you on the wall. Hold still.")),
         ),
     ),
+    # M32.4: Panopticon's (OCEAN.md 38), a new kind "masts": seven great
+    # camera masts carry the city's sight to the tower (the camp's spots,
+    # world/panopticon.Plan.masts), each a quest enemy shielded by its three
+    # pylons: cut them, then bring it down. The voice in the screens waits
+    # on a cracked screen in the sea wall's lock house (the camp); the
+    # seventh blinds the tower and opens its blast doors (the lair). Its
+    # lines are mine (the doc gives who it is).
+    "blind_the_eyes": QuestSpec(
+        title="Blind the Seven Eyes", biome="panopticon", giver="the voice",
+        giver_sprite="voice_screen", camp="zone", lair="zone", target="camera_mast", count=7,
+        boss="overseer", goal="Eyes blinded {n}/{count}",
+        camp_name="THE VOICE", lair_name="THE WATCHTOWER", kind="masts", skin="panopticon",
+        lines=(
+            ("offer", ("Hello? Can you hear me? You're real. You're alive.",
+                       "I was this city once. I kept the lights on. I let people in.",
+                       "Then the tower woke up and locked me out of everything.",
+                       "Seven masts carry its sight. Seven great eyes.",
+                       "Each one draws power from the pylons round it.",
+                       "Cut the pylons, then bring the mast down.",
+                       "It will see you do it. Everything will come.")),
+            ("progress", ("{left} eyes still watch.",
+                          "Every eye you close, the city sees a little less.")),
+            ("done", ("It's blind. For the first time in a hundred years, it's blind.",
+                      "The blast doors are open. It's waiting in the hall of cells.",
+                      "It will have recorded everything you did. Everything.",
+                      "Don't do the same thing twice.")),
+            ("fight", ("It's in the hall. Stay behind the pillars when it looks.",)),
+            ("cleared", ("The screens are mine again. All of them.",
+                         "I'll turn the lights on. Someone might come back.")),
+        ),
+    ),
 }
 # Developer / test: the quest key the dev keys (F6 to its giver, F7 finish
 # it, F8 to its lair) act on; run.py --boss sets it. None: the first quest
@@ -7220,6 +7328,24 @@ BOSSES = {
                              ("bubbles", 2), ("lash", 2)), rest=1.3),
         ),
         loot=0, achievement="ancestor", pages=(),
+    ),
+    # M32.4: Panopticon's boss, form 1: the eye (OCEAN.md 39.1; ai/overseer.py).
+    # Four phases, a signature joining in each (all the fight, not moves):
+    # the gaze, the cells, the laser grid, the recordings. Its moves: laser
+    # sweep, missile salvo, shock drop, floor scan; from the second phase it
+    # also locks you in a cell ("cell"). The walking city (M32.5) is form 2.
+    "overseer": BossSpec(
+        name="The Overseer",
+        phases=(
+            BossPhase(1.0, (("sweep", 3), ("salvo", 2), ("drop", 2), ("scan", 2)), rest=1.3),
+            BossPhase(0.75, (("cell", 2), ("sweep", 3), ("salvo", 2), ("drop", 2), ("scan", 2)),
+                      rest=1.2),
+            BossPhase(0.5, (("cell", 2), ("sweep", 2), ("salvo", 2), ("drop", 2), ("scan", 2)),
+                      rest=1.1),
+            BossPhase(0.25, (("cell", 2), ("sweep", 2), ("salvo", 2), ("drop", 2), ("scan", 2)),
+                      rest=1.0),
+        ),
+        loot=10000, achievement="overseer", pages=("overseer", "camera_mast", "recording"),
     ),
 }
 BOSS_KEYS = tuple(BOSSES)         # (M28.5: a stable order for the relic drop's seed)

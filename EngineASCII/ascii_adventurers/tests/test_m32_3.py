@@ -298,8 +298,9 @@ class KeepersTest(unittest.TestCase):
         wire = [(x, y) for y in range(10, 22) for x in range(20, 34)
                 if b.world.tile_at(x, y) is tiles.THORN_WIRE]
         self.assertGreater(len(wire), 10)
-        for x, y in wire:
-            self.assertAlmostEqual(math.hypot(x + 0.5 - hx, y + 0.5 - hy), config.GARDENER[5], delta=1.0)
+        gx, gy = math.floor(h.grow_at[0]) if h.grow_at else math.floor(hx), math.floor(hy)
+        for x, y in wire:                                    # (a closed ring round you)
+            self.assertEqual(max(abs(x - math.floor(hx)), abs(y - math.floor(hy))), config.GARDENER[5])
         self.assertTrue(tiles.THORN_WIRE.solid and tiles.THORN_WIRE.destructible)
         self.assertIs(tiles.THORN_WIRE.becomes, tiles.CUT_WIRE)
         h.hp = 0
@@ -322,8 +323,8 @@ class KeepersTest(unittest.TestCase):
         pen = [(x, y) for y in range(10, 22) for x in range(20, 36)
                if a.world.tile_at(x, y) is tiles.PLAYPEN]
         self.assertGreater(len(pen), 8)
-        for x, y in pen:
-            self.assertAlmostEqual(math.hypot(x + 0.5 - hx, y + 0.5 - hy), config.NANNY[0], delta=0.6)
+        for x, y in pen:                                     # (a closed ring round you)
+            self.assertEqual(max(abs(x - math.floor(hx)), abs(y - math.floor(hy))), config.NANNY[0])
         self.assertTrue(any(getattr(e, "label", "") == "TIME OUT!" for e in a.effects))
         m = awake("nanny", 25.5, 15.5)
         b = arena(m, hero_at=(28.5, 15.5))

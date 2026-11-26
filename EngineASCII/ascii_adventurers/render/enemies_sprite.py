@@ -262,6 +262,15 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
         from .feast import draw_feast_host
         draw_feast_host(text, bank, camera, e)
         return
+    from ..ai.overseer import Overseer, Recording
+    if isinstance(e, Overseer):                # M32.4: the Overseer, the eye
+        from .overseer import draw_overseer
+        draw_overseer(text, bank, camera, e)
+        return
+    if isinstance(e, Recording):               # (its recordings of you)
+        from .overseer import draw_recording
+        draw_recording(text, bank, camera, e)
+        return
     from ..ai.ancestor import Ancestor
     if isinstance(e, Ancestor):                # M31.4: the Ancestor
         from .ancestor import draw_ancestor

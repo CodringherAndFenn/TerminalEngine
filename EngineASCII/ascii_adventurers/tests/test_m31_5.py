@@ -50,7 +50,9 @@ class CatalogTest(unittest.TestCase):
     def test_form_two_its_moves_its_life_and_their_looks(self):
         spec = config.BOSSES["ancestor_first_life"]
         self.assertEqual([p.below for p in spec.phases], [1.0, 0.75, 0.5, 0.25])
-        self.assertEqual(config.BOSS_KEYS[-1], "ancestor_first_life")   # (added last: seeds stay)
+        keys = config.BOSS_KEYS                          # (added after every boss before it:
+        self.assertEqual(keys.index("ancestor_first_life"), keys.index("ancestor") + 1)   # seeds stay;
+        self.assertLess(keys.index("ancestor_first_life"), keys.index("overseer"))    # M32.4's after)
         moves = {m for p in spec.phases for m, _ in p.moves}
         self.assertEqual(moves, set(MOVES))
         b, _ = ancestor()

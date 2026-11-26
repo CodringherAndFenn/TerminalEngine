@@ -176,7 +176,7 @@ class Machine(PlainsCreature):
         self.call_t -= dt
         self.seeing = self.watching(ctx)
         if self.seeing is not None:
-            alert.seen(ctx.world, config.ALERT_EYES[self.eye])
+            alert.seen(ctx.world, config.ALERT_EYES[self.eye], self.x, self.y)
             self._call(ctx, self.seeing)
         if self.working and self.notices:
             near = self._notice(ctx)
@@ -345,6 +345,7 @@ class Camera(Machine):
         super().__init__(*a, **kw)
         self.base: float | None = None
         self.phase = self.rng.uniform(0.0, math.tau)
+        self._dark = False
 
     def _face(self, world) -> None:
         """Which way it faces: the corner's diagonal with the most open ground."""
@@ -358,7 +359,15 @@ class Camera(Machine):
                 best, most = a, n
         self.base = self.facing = best
 
+    @property
+    def dark(self) -> bool:
+        """Near a blinded mast (M32.4): it sees nothing."""
+        return self._dark
+
     def can_see(self, world, other) -> bool:
+        self._dark = alert.dark_at(world, self.x, self.y)
+        if self._dark:
+            return False
         reach, cone = config.PANOPTICON_CAMERAS[3], math.radians(config.PANOPTICON_CAMERAS[2]) / 2
         d = math.hypot(other.x - self.x, other.y - self.y)
         if d > reach:
@@ -1444,20 +1453,31 @@ class Scrubber(Keeper):
 
 
 def _ring_tiles(world, cx: float, cy: float, r: float, actors) -> list[tuple[int, int]]:
-    """The open tiles in a ring `r` tiles round (cx, cy) that nobody stands on."""
+    """The open tiles in a closed square ring `r` tiles round the tile at
+    (cx, cy) (every tile `r` steps from it, diagonals too: nothing slips
+    through) that nobody stands on."""
     out = []
-    n = math.ceil(r) + 1
-    for ty in range(math.floor(cy) - n, math.floor(cy) + n + 1):
-        for tx in range(math.floor(cx) - n, math.floor(cx) + n + 1):
-            if abs(math.hypot(tx + 0.5 - cx, ty + 0.5 - cy) - r) >= 0.5:
+    n = max(1, round(r))
+    ox, oy = math.floor(cx), math.floor(cy)
+    for ty in range(oy - n, oy + n + 1):
+        for tx in range(ox - n, ox + n + 1):
+            if max(abs(tx - ox), abs(ty - oy)) != n:
                 continue
             if world.tile_at(tx, ty).solid:
                 continue
-            if any(a.alive and math.hypot(a.x - tx - 0.5, a.y - ty - 0.5) < 0.6 + a.hit_radius
-                   for a in actors):
+            if any(a.alive and _overlaps(a, tx, ty) for a in actors):
                 continue
             out.append((tx, ty))
     return out
+
+
+def _overlaps(a, tx: int, ty: int) -> bool:
+    """Does actor `a`'s body (its walking hull) overlap tile (tx, ty)?"""
+    tw, th = config.TILE_PX_W, config.TILE_PX_H
+    half = getattr(a, "half", None)
+    hx = half / tw if half is not None else a.hit_radius
+    hy = half / th if half is not None else a.hit_radius
+    return tx < a.x + hx and tx + 1 > a.x - hx and ty < a.y + hy and ty + 1 > a.y - hy
 
 
 def _raise_ring(ctx: AIContext, cells, tile, life: float) -> None:
@@ -1912,6 +1932,90 @@ class ScrapColossus(Machine):
                 and not any(math.hypot(a.x - tx - 0.5, a.y - ty - 0.5) < 1.0 + a.hit_radius
                             for a in ctx.actors if a.alive):
             ctx.world.set_tile(tx, ty, tiles.LOOSE_SCRAP)     # (the wreck, left there: cover)
+
+
+# --- The seven eyes (M32.4) ---------------------------------------------------------------
+
+
+class CameraMast(Machine):
+    """One of the seven eyes (M32.4, the quest "blind_the_eyes"; OCEAN.md 38):
+    a great camera mast on its foot, watching all round. Shielded while any
+    of its three pylons stands -- hits do nothing (SHIELDED): cut them
+    first. With the last one cut its district goes to lockdown (THE EYE IS
+    EXPOSED). Brought down, its part of the city goes dark
+    (systems/alert.dark_at): the alert fills slower there, the cameras see
+    nothing."""
+
+    group = "eye"
+    eye = "camera"
+
+    def __init__(self, *a, **kw) -> None:
+        super().__init__(*a, **kw)
+        self.pylons: list[tuple[int, int]] | None = None   # its shield's pylons (tiles)
+        self.shield = True
+        self.said = -9.0
+
+    def _find_pylons(self, world) -> None:
+        self.pylons = []
+        layout = getattr(world, "layout", None)
+        z = layout.zone("panopticon") if hasattr(layout, "zone") else None
+        if z is None:
+            return
+        from ..world.zones import plan_of
+        p = plan_of(layout, z)
+        if not p.masts:
+            return
+        i = min(range(len(p.masts)), key=lambda k: math.hypot(p.masts[k][0] + 0.5 - self.x,
+                                                              p.masts[k][1] + 0.5 - self.y))
+        if math.hypot(p.masts[i][0] + 0.5 - self.x, p.masts[i][1] + 0.5 - self.y) < 2.0:
+            self.pylons = list(p.mast_pylons[i])
+
+    def shielded(self, world) -> bool:
+        return any(world.tile_at(tx, ty) is tiles.PYLON for tx, ty in self.pylons or ())
+
+    def think(self, ctx: AIContext, dt: float) -> None:
+        if self.pylons is None:
+            self._find_pylons(ctx.world)
+        was = self.shield
+        self.shield = self.shielded(ctx.world)
+        if was and not self.shield:
+            alert.raise_to_lockdown(ctx.world)
+            ctx.effects.append(Effect("toast", self.x, self.y - 4.0, label="THE EYE IS EXPOSED"))
+            ctx.effects.append(Effect("spark_burst", self.x, self.y, size=2.5))
+            ctx.events.append("zap")
+        super().think(ctx, dt)
+
+    def turn(self, ctx: AIContext, dt: float) -> None:
+        h = self.seeing
+        if h is not None:
+            self.turn_to(self.angle_to(h.x, h.y), 2.0, dt)
+        else:
+            self.turn_to(self.facing + 0.6, 0.4, dt)
+
+    def take_damage(self, amount, source, from_angle):
+        if self.shield:
+            if getattr(source, "faction", "") == "player":
+                self.said = self.clock           # (drawn: the hit glancing off its shield)
+            amount = 0.0
+        return super().take_damage(amount, source, from_angle)
+
+    def facing_left(self) -> bool:
+        return math.cos(self.facing) < 0
+
+    def on_death(self, ctx: AIContext) -> None:
+        """Torn down: its foot a wreck, its part of the city dark."""
+        for k in range(5):
+            a = k * math.tau / 5
+            ctx.effects.append(Effect("explosion", self.x + math.cos(a) * 1.6, self.y + math.sin(a)))
+        ctx.effects.append(Effect("explosion", self.x, self.y))
+        ctx.events.append("boulder")
+        tx, ty = math.floor(self.x), math.floor(self.y)
+        if hasattr(ctx.world, "set_tile"):
+            for j in (-1, 0, 1):
+                for i in (-1, 0, 1):
+                    if ctx.world.tile_at(tx + i, ty + j) is tiles.MAST_BASE:
+                        ctx.world.set_tile(tx + i, ty + j, tiles.MAST_STUMP)
+        alert.alert_of(ctx.world).dark.append((self.x, self.y))
 
 
 # --- Where they live ----------------------------------------------------------------------

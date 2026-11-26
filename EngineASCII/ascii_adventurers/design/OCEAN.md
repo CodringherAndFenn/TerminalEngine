@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Ocean Zones
 
-Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE. M32 (Panopticon, the east) DRAFTED 2026-11-25 (sections 35-40). M32.1 BUILT (2026-11-25, section 41). M32.2 BUILT (2026-11-26, section 42). M32.3 BUILT (2026-11-26, section 43).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE. M32 (Panopticon, the east) DRAFTED 2026-11-25 (sections 35-40). M32.1 BUILT (2026-11-25, section 41). M32.2 BUILT (2026-11-26, section 42). M32.3 BUILT (2026-11-26, section 43). M32.4 BUILT (2026-11-26, section 44).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -951,7 +951,7 @@ At 0 **the eye tears out of the ceiling and builds a giant from the hall itself*
 | M32.1 | **Panopticon's land:** the east zone (Paradise's framework), chrome and neon, the sea wall shore, the wedges round the tower (four districts, street grids, district walls and gates), laser fences, conveyors and presses, live power (pylons, cables, puddles), the cleaning (sweeper lanes), the four landmarks (the sea wall, the factory, the scrapyard, the kept homes), the seven camera masts and their pylons (standing), the tower and the hall of cells (sealed by blast doors), the HUD name and banner. **Built, section 41** |
 | M32.2 | **The alert + the watch and the workers (8):** cameras, the meter and its three levels (calls, turrets waking, gates sealing, the hunter squad, the cleaning on your street), endgame toughness; the sentry drone, spotter, riot robot, Warden; the welder, hauler, assembler, foreman. **Built, section 42** |
 | M32.3 | **The other 8:** the butler, scrubber, gardener, nanny (and the mess in the kept homes); the junker, magnet, rust swarm, scrap colossus (and the wrecks that aren't quite dead). **Built, section 43** |
-| M32.4 | **The quest + form 1:** blinding the seven eyes (the pylons, the masts, the darkened districts), the voice in the screens, opening and sealing the hall; the eye (the ceiling rail, the gaze, the cells, the laser grid, the recordings, four moves) |
+| M32.4 | **The quest + form 1:** blinding the seven eyes (the pylons, the masts, the darkened districts), the voice in the screens, opening and sealing the hall; the eye (the ceiling rail, the gaze, the cells, the laser grid, the recordings, four moves). **Built, section 44** |
 | M32.5 | **Form 2:** the walking city (the walls come down, it builds itself, power from the grid, a hundred eyes, the city answers, four moves), the bot benchmark; then the relics drafted with the user |
 
 ## 41. Built: M32.1 (2026-11-25) -- Panopticon's land
@@ -1199,4 +1199,90 @@ Both come back to the ground they were placed on when their time is up (a zone t
 **Tests:** `tests/test_m32_3.py` (16).
 
 **For later:** every number wants a play test, especially the mess's reach (45 tiles takes in the whole street) and how often the colossus sheds. M32.4 brings the quest: blinding the seven eyes, the voice in the screens, and the Overseer's first form.
+
+## 44. Built: M32.4 (2026-11-26) -- blinding the seven eyes, the voice, the Overseer's first form
+
+**The quest** (`config.QUESTS["blind_the_eyes"]`, a new quest kind "masts" in `systems/quests.py`), as drafted (section 38), with these calls of mine:
+- **The seven masts are quest enemies** ("camera mast", 700 base HP, x2.5 like every zone enemy: 1,750 at level 1). They're placed at the plan's mast spots from the start (they wake and sleep like any enemy), and **every one counts, quest taken or not**. Each stands on its 3 x 3 foot and watches all round like a camera (it fills the alert).
+- **The shield:**
+  - **while any of its three pylons stands, a hit on it does nothing** (the hit glances off: its shield ring flashes);
+  - its ring of dots and the cables out to its pylons show it;
+  - **with the last pylon cut: THE EYE IS EXPOSED, and the city goes to lockdown** (the gates of your district seal, the hunter squad, the sweeper on your street: section 42). Then bring it down.
+- **Blinded:**
+  - its foot becomes a fallen mast;
+  - **within 60 tiles of it the alert fills at half speed**, and **the cameras there go dark** (they see nothing and their cones aren't drawn) (`systems/alert.dark_at`);
+  - "EYES BLINDED n/7" comes up if you've taken the quest.
+- **The voice in the screens** (`the voice`, the giver):
+  - an old screen with an amber face, on the floor of the sea wall's lock house beside its cracked screen (the sea wall is the quest's camp now; its spots are the seven masts);
+  - **when an eye goes dark** (quest taken), **it speaks from the nearest neon sign or screen within 20 tiles**: "One eye closed. 6 still watch." Its face shows there (or it speaks from its own screen if there's none near). Its lines are mine (who it was, what the tower took, cut the pylons, it will see you; then that it's blind, that it's recorded everything, "Don't do the same thing twice").
+- **The seventh:** **THE TOWER IS BLIND** -- "the blast doors open -- the Watchtower is open". The tower is the quest's lair now (it was "court"): walk 6 tiles into the hall and the blast doors close behind you, **THE OVERSEER** -- "in the hall of cells"; they open again when it's won.
+- **The hall gained four live pylons** at its edge (`tiles.HALL_PYLON`, props `pylons`), for the shock drop.
+
+**The Overseer, form 1: the eye** (`ai/overseer.py`, 12,000 HP in four phases of 3,000; numbers `OVERSEER_*`), as drafted (39, 39.1), with these calls of mine:
+- **The ceiling rail:**
+  - a ring 0.45 of the hall's radii round its middle (drawn as a dotted ring);
+  - the eye slides round it at 5 tiles/s, reversing every ~9 s (give or take 2), turning to watch you;
+  - it hangs from it (its cable drawn up to the rail, its shadow on the floor).
+  - **The shock drop brings it down low** (the picture drops, crackling, a "!" while it comes down): planted, and **it takes x1.4 damage down there**.
+- **The gaze** (phase 1 on):
+  - its searchlight (40 degrees; its two edges drawn) swings 60 degrees either way across you every 3.2 s and **reaches across the hall: only the pillars hide you**;
+  - while it sees you (an eye over you) **the fight's own alert** fills 35 a second; 2 s out of it, it drains 25 a second;
+  - **SEARCH from 30: everything it does x1.15 as fast; LOCKDOWN at 100: x1.3, and every cell opens at once (6 of the watch)**, holding 6 s;
+  - the alert shows **under its health bar** in its level's colour (cyan, amber, magenta; the boss bar's parts can have a colour of their own now).
+- **The cells** (phase 2 on, "THE CELLS -- the watch comes out of the cells"):
+  - every 14 s two cell doors round the hall open and the watch comes out: sentry drones and riot robots, never more than 8 out;
+  - **its move "cell"**: laser bars ring you, a cell 3 tiles across. The ring shows 0.9 s (**roll out**), then the bars shut for 4 s. A hero still inside is set in the middle, and the bars never land on anyone, so nobody is stuck in them.
+- **The laser grid** (phase 3 on): a pattern every ~10.5 s: shown faint 1 s, on for 7 s, 2.5 s between, burning 14 every 0.25 s:
+  - three lines sweeping across the hall and back (3.5 s across);
+  - a cross through the middle turning at 0.5 rad/s;
+  - a box closing on the middle and opening again.
+- **The recordings** (phase 4 on, "IT HAS RECORDED YOU"):
+  - it keeps each hero's last 4 s in the hall: their path, and their shots (not lobbed, returning or chaining ones);
+  - every 10 s, for each hero (at most two at once each), **a copy walks that path from where you stood 4 s ago, firing your shots back at x0.5** (they hurt you, never the eye);
+  - drawn as your own picture in **magenta and cyan static**, its scanlines flickering;
+  - **one or two hits shatter it** (24 base HP); played out, it fizzles (no kill).
+- **Its moves** (every phase; from the second, "cell" too):
+  - **laser sweep**: a 110-degree arc across you shown 1 s, then its eye's beam sweeps it in 1.4 s **as it keeps sliding**, across the hall but stopped by walls and pillars, burning 16 every 0.2 s;
+  - **missile salvo**: 6 marked rings round you (the first on you, the rest within 5 tiles), locked on 1 s, then struck 0.15 s apart, 24 each within 1.8 tiles;
+  - **shock drop**: 0.8 s coming down (the tell), then **an electric ring** out to 10 tiles at 14 tiles/s (20; roll through it), **then arcs to the hall's four pylons** (18 to whoever's within 0.8 tiles of an arc), then 1.6 s more down low (x1.4 damage), then it rises;
+  - **floor scan**: squares of 4 tiles across the hall in a pattern (checker, rows, columns or rings: half of them), lit (light added to the floor) 1.2 s, then **the lit ones are struck**, 22; the dark ones are safe.
+- **At 0** it dies and the quest is won (loot, a rare+ card, the achievement "blind the seven eyes and defeat the Overseer"). **M32.5 makes the walking city tear itself out of the hall instead**, then its relics; until then it drops none (`test_m28_5` lets it), like the Ancestor before M31.5.
+
+**Measured:** in the fourth phase in lockdown (15 awake: the watch out of the cells, a recording walking, the closing box on), a game step takes 0.65 ms (at most 1.2) and drawing 2.1 ms (p95 2.6; once ~18 ms, baking a picture the first time it's seen).
+
+**Rings that close:** the gardener's wire, the nanny's playpen and the cell's bars are **closed square rings** (every tile so many steps out, the diagonals too). M32.3's round rings left gaps beside you (and a cell 1 tile out was just its 4 corners); a ring tile is skipped only where a body's walking hull overlaps it.
+
+**Look:**
+- **`render/panopticon_art.py`**:
+  - the camera mast (a tall pole, a big camera head with a red eye);
+  - the voice's screen (an old monitor, an amber face);
+  - the Overseer (a great eye ringed by camera arms, magenta and cyan), and the same brought down low, crackling with its arms spread.
+- **`render/overseer.py`**:
+  - the rail, the cable, the shadow;
+  - the searchlight's edges and the eye over you;
+  - the cell's ring, the grid (faint, then on), the sweep's arc and beam;
+  - the salvo's rings and missiles, the drop's ring and arcs;
+  - the scan's lit squares;
+  - the recordings in static.
+- **The masts' shields:** `render/panopticon._mast`.
+- **New tiles:** `MAST_STUMP` (a fallen mast), `HALL_PYLON`, `CELL_BARS`.
+
+**Also changed:**
+- `systems/alert.seen` takes where the eye is (half as fast near a blinded mast);
+- `raise_to_lockdown`;
+- `ai/panopticon._ring_tiles` (closed rings, hull overlap) and `_overlaps`;
+- `ui/hud.draw_boss_bar` (a part's own colour);
+- `test_m32_1` (the tower is the lair), `test_m28_5` (the Overseer's relics come with M32.5);
+- `test_m32_3` (the rings are square).
+
+**Code:**
+- `ai/overseer.py` (`Overseer`, `Recording`); `ai/panopticon.py` (`CameraMast`);
+- `systems/quests.py` (kind "masts": placing the masts, the kills, the pins "EYE", `_voice` and `screens`, the banners, the dev finish darkens every eye); `systems/alert.py` (`dark`, `dark_at`, `raise_to_lockdown`);
+- `world/panopticon.py` (`mast_pylons`; the sea wall the camp, the tower the lair, the hall's pylons);
+- `render/overseer.py`, `render/panopticon.py` (`_mast`; dark cameras), `render/panopticon_art.py`, `render/enemies_sprite.py`; `scenes/game` (the voice's screens drawn);
+- config (`QUESTS["blind_the_eyes"]`, `MAST_DARK`, `VOICE_SCREEN_REACH`, `OVERSEER_*`, the boss last in `BOSSES`, the enemies, pages, achievement), palette.
+
+**Tests:** `tests/test_m32_4.py` (15).
+
+**For later:** the bot benchmark comes with form 2 (M32.5). Play-test the gaze above all: in the open it reaches lockdown in ~9 s, and only six pillars hide you in a hall 104 tiles across. Also the recordings' shots: your own build at x0.5 could hurt a lot.
 

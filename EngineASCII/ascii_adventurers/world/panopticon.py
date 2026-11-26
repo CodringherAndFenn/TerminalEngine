@@ -662,11 +662,14 @@ class Plan:
                 made += 1
                 self._runs(pts, ok, rng, inward)
         r = config.PANOPTICON_MAST_PYLONS
+        self.mast_pylons: list[list[tuple[int, int]]] = []   # (M32.4: each mast's shield)
         for x, y, _ in self.masts:
             a0 = rng.uniform(0, _TAU)
+            self.mast_pylons.append([])
             for q in range(3):
                 ang = a0 + q * _TAU / 3
                 t = (x + round(math.cos(ang) * r), y + round(math.sin(ang) * r))
+                self.mast_pylons[-1].append(t)
                 i = len(self.pylons)
                 self.pylons.append(t)
                 self.pylon_at[t] = i
@@ -801,13 +804,20 @@ class Plan:
                 for di in (-1, 0, 1):
                     cells[(math.floor(px) + di, math.floor(py) + dj)] = tiles.HALL_PILLAR
             pillars.append((math.floor(px) + 0.5, math.floor(py) + 0.5))
+        # Four live pylons at the hall's edge (M32.4: the shock drop's arcs).
+        hall_pylons = []
+        for q in range(4):
+            ang = self.phi + math.pi / 4 + q * math.pi / 2
+            px, py = math.floor(cx + math.cos(ang) * a * 0.86), math.floor(cy + math.sin(ang) * b * 0.86)
+            cells[(px, py)] = tiles.HALL_PYLON
+            hall_pylons.append((px + 0.5, py + 0.5))
         # (the quest's lair, M32.4: the blast doors open when the seventh eye
         # goes dark, close behind you for the fight, open when it's won; the
         # eye hangs in the middle)
-        return self._mark("panopticon_tower", "court", "The Watchtower", cells, cx, cy,
+        return self._mark("panopticon_tower", "lair", "The Watchtower", cells, cx, cy,
                           gate=gate_tiles, radii=(a, b), floor=tiles.CELL_FLOOR,
                           props={"seal": tiles.BLAST_DOOR, "barred": True, "facing": (gx, gy),
-                                 "pillars": pillars},
+                                 "pillars": pillars, "pylons": hall_pylons},
                           quest=self.quest, spots=[(cx, cy)])
 
     def _sea_wall(self):
@@ -850,10 +860,11 @@ class Plan:
                 sp = (round(gtx + ux * -(half + 1) + vx * d), round(gty + uy * -(half + 1) + vy * d))
                 cells[sp] = tiles.VOICE_SCREEN
                 screen = (sp[0] + 0.5 + ux, sp[1] + 0.5 + uy)
-        # (M32.4: the voice's camp: its screen in the lock house, the seven
-        # masts its spots)
-        return self._mark("panopticon_sea_wall", "zone", "The Sea Wall", cells, gtx + 0.5, gty + 0.5,
-                          land_only=True, props={"screen": screen, "gate": self.gate})
+        # (M32.4: the quest's camp: the voice on its screen in the lock
+        # house; the seven masts are its spots)
+        return self._mark("panopticon_sea_wall", "camp", "The Sea Wall", cells, gtx + 0.5, gty + 0.5,
+                          land_only=True, npc=screen, props={"screen": screen, "gate": self.gate},
+                          quest=self.quest, spots=[(x + 0.5, y + 0.5) for x, y, _ in self.masts])
 
     def _factory(self, rng: random.Random):
         """The factory: an assembly hall, belts along its length (presses on

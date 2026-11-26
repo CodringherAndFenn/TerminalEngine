@@ -51,6 +51,7 @@ class Alert:
         self.sealed: dict[int, float] = {}
         self.hunters: list = []
         self.lockdowns = 0            # how many times it has gone to lockdown (this run)
+        self.dark: list[tuple[float, float]] = []   # M32.4: the blinded masts (MAST_DARK)
 
     @property
     def frac(self) -> float:
@@ -70,11 +71,30 @@ def level_of(world) -> int:
     return CALM if a is None else a.level
 
 
-def seen(world, rate: float) -> None:
-    """Something sees a hero, filling the alert `rate` a second."""
+def seen(world, rate: float, x: float | None = None, y: float | None = None) -> None:
+    """Something (at (x, y)) sees a hero, filling the alert `rate` a second
+    (M32.4: slower near a blinded mast)."""
     a = alert_of(world)
+    if x is not None and a.dark and dark_at(world, x, y):
+        rate *= config.MAST_DARK[1]
     if rate > a.rate:
         a.rate = rate
+
+
+def dark_at(world, x: float, y: float) -> bool:
+    """Is (x, y) in a part of the city darkened by a blinded mast (M32.4)?"""
+    a = getattr(world, "city_alert", None)
+    if a is None or not a.dark:
+        return False
+    reach = config.MAST_DARK[0]
+    return any(math.hypot(x - mx, y - my) <= reach for mx, my in a.dark)
+
+
+def raise_to_lockdown(world) -> None:
+    """Straight to lockdown (M32.4: a mast's last pylon cut)."""
+    a = alert_of(world)
+    a.meter = config.PANOPTICON_ALERT[0]
+    a.quiet = 0.0
 
 
 def hold(world, seconds: float = 0.5) -> None:

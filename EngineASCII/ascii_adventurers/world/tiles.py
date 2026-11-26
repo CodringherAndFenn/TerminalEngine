@@ -1709,6 +1709,21 @@ MAST_BASE = TileType(
     "camera mast", ("[]", "##", "[#"), palette.MAST_FG, palette.MAST_BG,
     solid=True, blocks_shots=True,
 )
+MAST_STUMP = TileType(
+    # M32.4: a blinded mast's foot, the mast torn down.
+    "fallen mast", ("%#", "#%", "%."), palette.MAST_STUMP_FG, palette.MAST_BG,
+    solid=True, blocks_shots=True,
+)
+HALL_PYLON = TileType(
+    # M32.4: a live pylon at the hall of cells' edge (the eye's arcs leap to it).
+    "hall pylon", ("/\\", "|\\", "/|"), palette.PYLON_FG, palette.CELL_FLOOR_BG,
+    solid=True, blocks_shots=True,
+)
+CELL_BARS = TileType(
+    # M32.4: laser bars round you: the eye has locked you in a cell.
+    "laser bars", ("||", "|!", "!|"), palette.CELL_BARS_FG, palette.CELL_FLOOR_BG,
+    solid=True,
+)
 MAST_PAD = TileType(
     "mast pad", ("  ", ". ", "_ ", "  "), palette.MAST_PAD_FG, palette.MAST_PAD_BG,
 )

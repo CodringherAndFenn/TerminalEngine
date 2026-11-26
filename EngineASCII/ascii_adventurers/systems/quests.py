@@ -197,6 +197,7 @@ class Quests:
                 self._place_targets(s)
         self.banner: Banner | None = None
         self.dev_key: str | None = None             # dev mode: the quest F5 picked
+        self.screens: list[Npc] = []                # M32.4: the voice speaking on a screen near you
 
     # --- Queries --------------------------------------------------------------------
 
@@ -323,7 +324,7 @@ class Quests:
                             s.spec.camp_name or s.spec.giver.upper()))
             if s.stage == "hunt" and (s.taken or every_target):
                 label = {"light": "BRAZIER", "collect": "CARGO", "survive": "SEAL",
-                         "seals": "SEAL", "bandstands": "BAND",
+                         "seals": "SEAL", "bandstands": "BAND", "masts": "EYE",
                          "escort": "BEACON", "rescue": "CAPTIVE",
                          "fetch": "PIECE", "cleanse": "SHRINE",
                          "destroy": "CACHE", "fell": "MARKED",
@@ -351,7 +352,7 @@ class Quests:
     def open_targets(self, s: QuestState) -> list[tuple[int, float, float]]:
         """A quest's targets still to do, as (spot, x, y): a hunt's living
         quarry, the other kinds' spots not done yet (s.lit)."""
-        if s.spec.kind != "hunt":
+        if s.spec.kind not in ("hunt", "masts"):
             return [(i, x, y) for i, (x, y) in enumerate(s.camp.spots) if i not in s.lit]
         sp = self.scene.spawner
         return [(i, x, y) for i, (x, y) in enumerate(s.camp.spots)
@@ -364,6 +365,9 @@ class Quests:
         run each quest's stage."""
         for npc in self.npcs:
             npc.update(dt)
+        for npc in self.screens:                    # (M32.4: the voice on a screen near you)
+            npc.update(dt)
+        self.screens = [n for n in self.screens if n.speech]
         for e in self.scene.enemies:
             if getattr(e, "fresh", False):          # a quest enemy appearing
                 e.fresh = False
@@ -438,7 +442,7 @@ class Quests:
         sp = self.scene.spawner
         if sp is None:
             return
-        if s.spec.kind == "hunt":
+        if s.spec.kind in ("hunt", "masts"):       # (M32.4: the seven camera masts)
             for i, (x, y) in enumerate(s.camp.spots):
                 sp.place((QUEST_SID, s.qid, i, 0), self.target_of(s, i), x, y)
         elif s.spec.kind == "seals":
@@ -485,10 +489,12 @@ class Quests:
     def on_death(self, enemy, killer) -> None:
         """An enemy died (`killer`: the player who killed it, or None)."""
         for s in self.states.values():
-            if s.stage == "hunt" and s.spec.kind == "hunt" and self.is_target(s, enemy):
+            if s.stage == "hunt" and s.spec.kind in ("hunt", "masts") and self.is_target(s, enemy):
                 if s.spec.targets:                       # (M31.4: painted on the wall)
                     self._paint_kill(s, enemy.spawn_id[2])
                 self._found(s, killer.hero if killer is not None else enemy)
+                if s.spec.kind == "masts" and s.taken and s.stage == "hunt":
+                    self._voice(s, killer.hero if killer is not None else enemy)
             elif s.stage == "fight" and enemy is s.boss:
                 self._win(s, killer)
 
@@ -506,6 +512,9 @@ class Quests:
             elif s.biome == "pangaea":               # (M31.4: the wall is full)
                 self.banner = Banner("THE LAST GREAT BEAST FALLS",
                                      "the curtain of fire parts -- the caldera is open")
+            elif s.spec.kind == "masts":             # (M32.4: the seventh eye)
+                self.banner = Banner("THE TOWER IS BLIND",
+                                     "the blast doors open -- the Watchtower is open")
             else:
                 self.banner = Banner("SOMETHING STIRS...",
                                      f"{place_name(s.lair.name)} is marked on your map")
@@ -517,6 +526,30 @@ class Quests:
                 "toast", at.x, at.y - 1,
                 label=s.spec.goal.format(n=s.found, count=s.spec.count).upper()))
             self.scene._sounds.append("chime")
+
+    def _voice(self, s: QuestState, at) -> None:
+        """An eye goes dark (M32.4): the voice speaks to you from the nearest
+        screen or sign within VOICE_SCREEN_REACH tiles (its own screen at the
+        sea wall if there's none)."""
+        reach = config.VOICE_SCREEN_REACH
+        best = None
+        tx0, ty0 = math.floor(at.x), math.floor(at.y)
+        for ty in range(ty0 - reach, ty0 + reach + 1):
+            for tx in range(tx0 - reach, tx0 + reach + 1):
+                if self.world.tile_at(tx, ty) in (tiles.NEON_SIGN, tiles.VOICE_SCREEN, tiles.CELL_SCREEN):
+                    d = math.hypot(tx + 0.5 - at.x, ty + 0.5 - at.y)
+                    if best is None or d < best[0]:
+                        best = (d, tx + 0.5, ty + 1.2)
+        left = s.spec.count - s.found
+        lines = (f"One eye closed. {left} still watch.",
+                 "It felt that. Keep going.") if left > 1 else \
+                ("One eye left. Then it's blind.",)
+        if best is None:
+            s.npc.say(lines)
+            return
+        npc = Npc(s.spec.giver, s.spec.giver_sprite, best[1], best[2], s.biome)
+        npc.say(lines)
+        self.screens.append(npc)
 
     def _paint_kill(self, s: QuestState, i: int) -> None:
         """M31.4: great beast i is painted on the painted caves' deepest wall
@@ -1052,7 +1085,8 @@ class Quests:
         # A swarm boss (M22) fights with many bodies: they join the enemies.
         self.scene.enemies.extend(getattr(boss, "parts", ()))
         where = {"pandemonium": "at the bottom of Pandemonium",          # (M30.4: a pit)
-                 "pangaea": "in the heart of the volcano"}.get(            # (M31.4)
+                 "pangaea": "in the heart of the volcano",                 # (M31.4)
+                 "panopticon": "in the hall of cells"}.get(                # (M32.4)
             s.biome, f"on the summit of {s.biome.capitalize()}")
         self.banner = Banner(boss.espec.name.upper(),
                              where if s.biome in config.ZONE_PLACES else "guardian of the " + s.biome)
@@ -1242,6 +1276,9 @@ class Quests:
         if s.spec.kind == "bandstands":            # (M30.4: every band silenced)
             for i, (x, y) in enumerate(s.camp.spots):
                 self._smash_band(i, x, y)
+        if s.spec.kind == "masts":                 # (M32.4: every eye dark)
+            from .alert import alert_of
+            alert_of(self.world).dark.extend(s.camp.spots)
         if s.spec.kind == "fetch":
             s.bear = self.scene.me.index           # (dev: the bear's yours)
         for i in range(len(s.camp.spots) if s.spec.targets else 0):

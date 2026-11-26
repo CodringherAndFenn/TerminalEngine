@@ -1512,7 +1512,7 @@ class GameScene(Scene):
                                              and y0 - margin <= e.y <= y1 + margin):
                 draw_enemy(text, self.sprites, cam, self.world, e)
         talk_to = self.quests.npc_near(me.hero) if me.alive else None
-        for npc in self.quests.npcs:
+        for npc in self.quests.npcs + self.quests.screens:     # (M32.4: the voice on a screen)
             if x0 - margin <= npc.x <= x1 + margin and y0 - margin <= npc.y <= y1 + margin:
                 draw_npc(text, self.sprites, cam, npc, me.hero.x, npc is talk_to)
         draw_braziers(text, cam, self.quests, self.steps / config.SIM_HZ)
