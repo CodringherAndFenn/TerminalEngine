@@ -108,6 +108,7 @@ def draw_relics(text, bank: SpriteBank, camera: Camera, players, enemies, steps:
                 batch.put_c(x, y, "*" if (k + steps // 10) % 2 else "+", palette.FROST_GATHER)
         _draw_5c(batch, camera, h, st, steps)
         _draw_swarms(batch, camera, h, steps)
+        _draw_overseers(batch, camera, h, st, steps)
     _draw_marks(batch, camera, players, enemies, steps)
     batch.flush()
     for x, y, left, hurt in bears:
@@ -223,3 +224,37 @@ def _draw_marks(batch, camera: Camera, players, enemies, steps: int) -> None:
         marks = e.__dict__.get("lich_marks")
         if marks and any(id(h) in marks for h in me):
             batch.put_c(x, top - 8, "<O>", palette.LICH[0])
+        seen = e.__dict__.get("seen_by")                 # (M32.5: the Overseer's Eye: SEEN)
+        if seen and any(seen.get(id(h), -1.0) > h.time for h in me):
+            batch.put_c(x, top - 16, "(o)", palette.SEEN_MARK[(steps // 12) % 2])
+
+
+def _draw_overseers(batch, camera: Camera, h, st, steps: int) -> None:
+    """M32.5: the Overseer's relics on a hero: the searchlight sweeping
+    along the aim (the Overseer's Eye), the Cell Key ready (a key by you),
+    the Black Box recording (a red dot while it holds what hurt you), the
+    Scrap Plating's plates round you."""
+    tw, th = config.TILE_PX_W, config.TILE_PX_H
+    if h.eye_sweep > 0:
+        _, _, _, deg, long, _, _ = config.U_EYE
+        half = math.radians(deg) / 2
+        for side in (-1, 1):
+            a = h.aim_angle + side * half
+            for k in range(1, int(long / 1.2) + 1):
+                d = k * 1.2
+                x, y = camera.world_to_px(h.x + math.cos(a) * d, h.y + math.sin(a) * d)
+                batch.put_c(x, y, ".", palette.RELIC_SEARCHLIGHT[0])
+        n = 10
+        for k in range(n + 1):
+            a = h.aim_angle - half + 2 * half * k / n
+            x, y = camera.world_to_px(h.x + math.cos(a) * long, h.y + math.sin(a) * long)
+            batch.put_c(x, y, "o" if k % 2 else ".", palette.RELIC_SEARCHLIGHT[1])
+    x, y = camera.world_to_px(h.x, h.y)
+    if h.cell_ready and st.has("cell_key"):
+        batch.put_c(x + tw * 0.9, y - th * 1.1, "o-", palette.CELL_KEY_READY)
+    if h.box_log and st.has("black_box"):
+        batch.put_c(x - tw * 0.9, y - th * 1.1, "*" if (steps // 15) % 2 else ".", palette.BLACK_BOX_REC[0])
+    for k in range(h.scrap_plates):
+        a = k * math.tau / max(1, h.scrap_plates) + steps * 0.02
+        batch.put_c(x + math.cos(a) * tw * 1.0, y + math.sin(a) * th * 0.7, "[#]",
+                    palette.SCRAP_PLATE[k % 2])

@@ -405,3 +405,139 @@ class DrawTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# --- The Overseer's relics (user's picks, 2026-11-26) -------------------------------------
+
+from ascii_adventurers.render.gear_looks import CHEST_LOOKS, HEAD_LOOKS   # noqa: E402
+from ascii_adventurers.systems import combat, relics                      # noqa: E402
+from ascii_adventurers.tests.test_m28_5 import BASE, _Relic, mover        # noqa: E402
+
+
+class RelicsTest(_Relic):
+    """One per thing it does to you: Overseer's Eye (watching), Cell Key
+    (locking up), Black Box (recording), Scrap Plating (building itself)."""
+
+    def test_four_relics_in_four_slots(self):
+        keys = config.BOSS_UNIQUES["overseer"]
+        self.assertEqual(set(keys), {"overseers_eye", "cell_key", "black_box", "scrap_plating"})
+        self.assertEqual(sorted(config.GEAR[k].slot for k in keys), ["chest", "head", "off", "trinket"])
+        for k in keys:
+            self.assertEqual(config.CARDS[k].rarity, "legendary")
+            self.assertEqual(config.CARDS[k].unlock, "U:overseer")
+            self.assertLessEqual(len(config.GEAR[k].name), 16)
+        self.assertNotIn("overseer_city", config.BOSS_UNIQUES)      # (it's the Overseer)
+        self.assertIn("overseers_eye", HEAD_LOOKS)
+        self.assertIn("scrap_plating", CHEST_LOOKS)
+
+    def test_the_overseers_eye_sweeps_and_what_it_lights_takes_more(self):
+        s, h = self.setup("overseers_eye")
+        lit = mover(26.5, 20.5)                               # (along your aim)
+        dark = mover(20.5, 27.5)                              # (beside you: not in the light)
+        self.place(lit, dark)
+        h.eye_t = 0.0
+        self.go(DT * 2)
+        self.assertGreater(h.eye_sweep, 0)
+        self.assertIn(id(h), lit.seen_by)
+        self.assertNotIn("seen_by", dark.__dict__)
+        a = combat.strike(lit, 100.0, h, 0.0, s.effects)
+        b = combat.strike(dark, 100.0, h, 0.0, s.effects)
+        self.assertAlmostEqual(a / b, 1.2, delta=0.01)        # (SEEN: +20% from you)
+        lit.boss = True
+        a = combat.strike(lit, 100.0, h, 0.0, s.effects)
+        self.assertAlmostEqual(a / b, 1 + 0.2 * config.U_EYE[6], delta=0.01)
+        lit.boss = False
+        self.go(config.U_EYE[2] + config.U_EYE[5] + 0.2)      # (the sweep's over, the mark fades)
+        h.eye_t = 99.0
+        a = combat.strike(lit, 100.0, h, 0.0, s.effects)
+        self.assertAlmostEqual(a / b, 1.0, delta=0.01)
+
+    def test_the_cell_key_locks_your_next_hit_in_laser_bars(self):
+        s, h = self.setup("cell_key")
+        e = mover(28.5, 20.5)
+        self.place(e)
+        h.cell_t = 0.0
+        self.go(DT * 2)
+        self.assertTrue(h.cell_ready)
+        combat.strike(e, 10.0, h, 0.0, s.effects)
+        self.assertFalse(h.cell_ready)
+        self.go(DT * 2)
+        n = config.U_CELL[1]
+        ox, oy = math.floor(e.x), math.floor(e.y)
+        ring = [(ox + dx, oy + dy) for dx in range(-n, n + 1) for dy in range(-n, n + 1)
+                if max(abs(dx), abs(dy)) == n]
+        self.assertTrue(all(s.world.tile_at(*t) is tiles.CELL_BARS for t in ring))   # (closed)
+        self.assertTrue(any(ev.kind == "toast" and ev.label == "LOCKED UP!" for ev in s.effects))
+        combat.strike(e, 10.0, h, 0.0, s.effects)             # (not ready again yet)
+        self.assertIsNone(h.cell_lock)
+        self.go(3.0 + 0.3)                                    # (the power's 3 s)
+        self.assertTrue(all(s.world.tile_at(*t) is not tiles.CELL_BARS for t in ring))   # (gone)
+        boss = mover(32.5, 20.5)
+        boss.boss = True
+        self.place(boss)
+        h.cell_ready = True
+        combat.strike(boss, 10.0, h, 0.0, s.effects)
+        self.go(DT * 2)
+        self.assertGreater(boss.status.bound, 0.0)            # (a boss is held, briefly)
+        self.assertLessEqual(boss.status.bound, config.U_CELL[4])
+
+    def test_the_black_box_rewinds_what_hurt_you(self):
+        s, h = self.setup("black_box")
+        e = self.place(mover(28.5, 20.5))[0]
+        h.hp = h.max_hp
+        h.box_t = 99.0
+        h.take_damage(30.0, e, None)
+        lost = h.max_hp - h.hp
+        self.assertGreater(lost, 0)
+        self.assertEqual(len(h.box_log), 1)
+        h.box_t = DT
+        self.go(DT * 2)
+        self.assertAlmostEqual(h.max_hp - h.hp, lost * (1 - 0.4), delta=0.5)   # (REWIND)
+        self.assertEqual(h.box_log, [])
+        self.assertGreater(h.box_t, config.U_BOX[0] - 1.0)
+        h.box_t = config.U_BOX[0] - config.U_BOX[1] - 0.1     # (5 s since it rewound)
+        h.hp = h.max_hp * 0.5                                 # (dropping below 30%: at once)
+        h.take_damage(h.max_hp * 0.3, e, None)
+        hp = h.hp
+        self.assertLess(hp, h.max_hp * config.U_BOX[2])
+        self.go(DT * 2)
+        self.assertGreater(h.hp, hp)
+        h.hp = h.max_hp * 0.35                                # (dropping below again so soon:
+        h.take_damage(h.max_hp * 0.1, e, None)                # it waits)
+        self.go(1.0)
+        self.assertEqual(len(h.box_log), 1)
+
+    def test_scrap_plating_kills_bolt_plates_that_block_a_hit_each(self):
+        s, h = self.setup("scrap_plating")
+        e = self.place(mover(28.5, 20.5))[0]
+        b = combat.strike(e, 100.0, h, 0.0, s.effects)
+        for _ in range(config.U_PLATES + 2):
+            relics.on_kill(s, s.me, e)
+        self.assertEqual(h.scrap_plates, config.U_PLATES)
+        a = combat.strike(e, 100.0, h, 0.0, s.effects)
+        self.assertAlmostEqual(a / b, 1 + 0.04 * config.U_PLATES, delta=0.01)   # (+4% a plate)
+        hp = h.hp
+        self.assertEqual(h.take_damage(40.0, e, None), 0.0)  # (a plate takes it)
+        self.assertEqual(h.hp, hp)
+        self.assertEqual(h.scrap_plates, config.U_PLATES - 1)
+        self.go(DT)
+        self.assertTrue(any(ev.kind == "toast" and ev.label == "PLATE OFF!" for ev in s.effects))
+        h.status_tick = True                                  # (a status tick goes by them)
+        h.take_damage(5.0, e, None)
+        h.status_tick = False
+        self.assertLess(h.hp, hp)
+        self.assertEqual(h.scrap_plates, config.U_PLATES - 1)
+        h.take_damage(5.0, None, None)                        # (and so does the land)
+        self.assertEqual(h.scrap_plates, config.U_PLATES - 1)
+
+    def test_their_things_draw(self):
+        s, h = self.setup("overseers_eye")
+        e = mover(26.5, 20.5)
+        self.place(e)
+        h.eye_t = 0.0
+        self.go(0.2)
+        h.cell_ready, h.box_log, h.scrap_plates = True, [(h.time, 5.0)], 3
+        s.me.camera.center_on(h.x, h.y)
+        s.me.minimap = None
+        s.draw(s.manager.text)
+        self.assertGreater(h.eye_sweep, 0)

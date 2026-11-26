@@ -114,6 +114,14 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
         n = sum(1 for t in fed if t > source.time)
         if n and source.stats is not None:
             mult *= 1 + source.stats.uniques.get("gluttons_bib", 0.05) * n
+    seen = getattr(victim, "seen_by", None)           # (M32.5: the Overseer's Eye: SEEN)
+    if seen and source is not None and seen.get(id(source), -1.0) > getattr(source, "time", 0.0) \
+            and getattr(source, "stats", None) is not None:
+        bonus = source.stats.uniques.get("overseers_eye", 0.2)
+        mult *= 1 + bonus * (config.U_EYE[6] if getattr(victim, "boss", False) else 1.0)
+    plates = getattr(source, "scrap_plates", 0)       # (M32.5: Scrap Plating, a plate worn)
+    if plates and getattr(source, "stats", None) is not None:
+        mult *= 1 + source.stats.uniques.get("scrap_plating", 0.04) * plates
     if getattr(source, "duel", None) is not None:     # (M29.5: in a duel ring, War's or
         mult *= config.HM_DUEL[3]                     # the Ring of Blood's: you hit twice as
     if source is not None and getattr(victim, "duel", None) is source:   # hard -- and so
@@ -269,6 +277,9 @@ def _relic_on_hit(victim, source, stats, pet: bool) -> None:
             getattr(victim, "espec", None), "elite", False)):
         from .relics import toss_coin              # (M30.5: a coin tossed out)
         toss_coin(source, victim)
+    if not pet and stats.has("cell_key") and getattr(source, "cell_ready", False):
+        source.cell_ready = False                  # (M32.5: the Cell Key: locked up next step)
+        source.cell_lock = victim
 
 
 def _ring_on_hit(victim, source, stats, dealt: float, on_hit: bool) -> None:

@@ -47,6 +47,15 @@ M31.5 (the Ancestor's, one per age and one for the first life):
   Swarm Ring                a river of stinging insects along your aim
   Echo Conch                your attacks fire again 3 s later, faded, from
                             where you stood (conch_record: GameScene._attack)
+M32.5 (the Overseer's, one per thing it does to you):
+  Overseer's Eye            a searchlight sweeps along your aim: the enemies it
+                            lights are SEEN, taking more from you (combat.strike)
+  Cell Key                  your next hit locks the enemy in a cell of laser
+                            bars (the hit: combat._relic_on_hit; the cell here)
+  Black Box                 it records what hurts you (Character.take_damage)
+                            and rewinds: heals a share of it back
+  Scrap Plating             kills bolt plates on (on_kill); each blocks a hit
+                            (Character.take_damage) and adds damage (combat.strike)
 And per hit (combat._relic_on_hit): the Fly Agaric Cap's trip (wander) and
 the Lawyer's Wig's scrawls (bound); the scene moves wandering enemies and
 holds bound ones (wander, after flee; `Statuses.bound`).
@@ -186,6 +195,21 @@ def tick(scene, p, dt: float) -> None:
         _swarm_ring(scene, hero, st, dt)
     if hero.conch:
         _conch(scene, hero, st, dt)
+    # (M32.5: the Overseer's)
+    if st.has("overseers_eye") or hero.eye_sweep > 0:
+        _overseers_eye(scene, hero, st, dt)
+    if st.has("cell_key") or hero.cell_lock is not None:
+        _cell_key(scene, hero, st, dt)
+    if st.has("black_box"):
+        _black_box(scene, hero, st, dt)
+    elif hero.box_log:
+        hero.box_log = []
+    if hero.plate_lost:
+        scene.effects.append(Effect("toast", hero.x, hero.y - 2.0, label="PLATE OFF!"))
+        scene.effects.append(Effect("debris", hero.x, hero.y))
+        hero.plate_lost = 0
+    if hero.scrap_plates and not st.has("scrap_plating"):
+        hero.scrap_plates = 0
 
 
 # --- The dung ball ---------------------------------------------------------------------
@@ -515,6 +539,9 @@ def on_kill(scene, p, enemy) -> None:
         hero.pale.append({"x": enemy.x, "y": enemy.y, "facing": 0.0, "walked": 0.0,
                           "life": st.uniques.get("pale_riders_cloak", 6.0), "bite": 0.0})
         scene.effects.append(Effect("unveil", enemy.x, enemy.y, size=1.0))
+    if st.has("scrap_plating") and hero.scrap_plates < config.U_PLATES:   # (M32.5: a plate)
+        hero.scrap_plates += 1
+        scene.effects.append(Effect("spark_burst", hero.x, hero.y, size=0.8))
     if st.has("gluttons_bib") and not getattr(enemy, "boss", False):   # (M30.5: a scrap)
         hero.bib_scraps = (hero.bib_scraps + [[enemy.x, enemy.y, config.U_BIB[3]]])[
             -config.U_BIB[5]:]
@@ -1171,3 +1198,97 @@ def _conch(scene, hero, st, dt: float) -> None:
             combat.pulse(hero, scene.world, scene._actors(), scene.effects, mult=mult * power,
                          reach_mult=reach_mult, origin=(x, y))
     hero.conch = keep
+
+
+# --- M32.5: the Overseer's relics --------------------------------------------------------
+
+def _overseers_eye(scene, hero, st, dt: float) -> None:
+    """Overseer's Eye: every U_EYE[0] s (an enemy within [1]) a searchlight
+    sweeps along your aim for [2] s, a cone [3] degrees and [4] tiles long;
+    every enemy it lights (nothing between) is SEEN [5] s: it takes the
+    power's share more from you (a boss x[6] of it: combat.strike)."""
+    from .raycast import first_hit
+    every, reach, secs, deg, long, seen_s, _ = config.U_EYE
+    if hero.eye_sweep > 0:
+        hero.eye_sweep = max(0.0, hero.eye_sweep - dt)
+        half = math.radians(deg) / 2
+        until = hero.time + seen_s
+        for e in _foes(scene):
+            if math.hypot(e.x - hero.x, e.y - hero.y) > long + e.hit_radius:
+                continue
+            off = (math.atan2(e.y - hero.y, e.x - hero.x) - hero.aim_angle + math.pi) % math.tau - math.pi
+            if abs(off) > half or first_hit(scene.world.tile_at, hero.x, hero.y, e.x, e.y) is not None:
+                continue
+            e.__dict__.setdefault("seen_by", {})[id(hero)] = until
+        return
+    if st.has("overseers_eye") and _due(scene, hero, "eye_t", every, reach, dt):
+        hero.eye_sweep = secs
+        scene._sounds.append("hex")
+
+
+def _cell_key(scene, hero, st, dt: float) -> None:
+    """Cell Key: every U_CELL[0] s it's ready, and your next hit (combat.
+    _relic_on_hit) locks the enemy in a closed square ring of laser bars
+    [1] tiles round ([2] for one bigger than [3] tiles) for the power's s:
+    it can't get out, nothing gets in (the bars never land on anyone). A
+    boss is held in place [4] s."""
+    every, small, big, bigger, hold = config.U_CELL
+    e = hero.cell_lock
+    if e is not None:
+        hero.cell_lock = None
+        if e.alive:
+            _lock_up(scene, hero, e, st)
+    if not hero.cell_ready and st.has("cell_key"):
+        hero.cell_t -= dt
+        if hero.cell_t <= 0:
+            hero.cell_ready = True
+            hero.cell_t = every
+
+
+def _lock_up(scene, hero, e, st) -> None:
+    every, small, big, bigger, hold = config.U_CELL
+    if getattr(e, "boss", False):
+        s = statuses_of(e)
+        s.bound = max(s.bound, hold)
+        scene.effects.append(Effect("toast", e.x, e.y - e.hit_radius - 1.0, label="HELD!"))
+        return
+    from ..ai.panopticon import _ring_tiles
+    from ..world import tiles
+    w = scene.world
+    if not hasattr(w, "set_tile"):
+        return
+    n = big if e.hit_radius > bigger else small
+    actors = [p.hero for p in scene.players if p.alive] + [q for q in scene.enemies if q.alive]
+    life = st.uniques.get("cell_key", 3.0) if st is not None else 3.0
+    for tx, ty in _ring_tiles(w, e.x, e.y, n, actors):
+        old = w.tile_at(tx, ty)
+        w.set_tile(tx, ty, tiles.CELL_BARS)
+        scene.zones.append(Zone("stake", tx + 0.5, ty + 0.5, 0.0, life, 999.0, 0.0, None,
+                                restore=(tx, ty, old)))
+    scene.effects.append(Effect("toast", e.x, e.y - 1.5, label="LOCKED UP!"))
+    scene._sounds.append("zap")
+
+
+def _black_box(scene, hero, st, dt: float) -> None:
+    """Black Box: it keeps what hurt you in the last U_BOX[1] s (Character.
+    take_damage); every [0] s -- or at once when you drop below [2] of your
+    max HP (if it hasn't rewound in the last [1] s), the clock starting
+    again -- it rewinds: you heal the power's share of it (once: what's
+    healed is forgotten)."""
+    every, window, low = config.U_BOX
+    hero.box_log = [(t, a) for t, a in hero.box_log if hero.time - t <= window]
+    below = hero.hp < hero.max_hp * low
+    dropped = below and not hero.box_low and hero.box_t <= every - window
+    hero.box_low = below
+    hero.box_t -= dt
+    if hero.box_t > 0 and not dropped:
+        return
+    hero.box_t = every
+    got = sum(a for _, a in hero.box_log)
+    hero.box_log = []
+    if got <= 0:
+        return
+    healed = hero.heal(got * st.uniques.get("black_box", 0.4))
+    if healed > 0:
+        scene.effects.append(Effect("toast", hero.x, hero.y - 2.0, label=f"REWIND +{round(healed)}"))
+        scene.effects.append(Effect("spark_burst", hero.x, hero.y, size=1.0))

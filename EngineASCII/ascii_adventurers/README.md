@@ -1070,10 +1070,15 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   great beam (planted, the eye charging along a shown line -- and open to
   your shots from the front), grab and throw (you, or a piece of the hall
   that breaks into cover where it lands) and the arm swing (an arm of
-  chained cell doors: roll under it).
+  chained cell doors: roll under it). It drops one of four relics, one per
+  thing it does to you: the Overseer's Eye (a searchlight along your aim:
+  what it lights takes more from you), the Cell Key (your next hit locks
+  the enemy in a cell of laser bars), the Black Box (it rewinds, healing
+  back part of what just hurt you) and Scrap Plating (kills bolt plates on
+  you that each block a hit and add damage). Panopticon -- and with it the
+  four ocean zones -- is complete.
 
-Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
-and boss), M33 the kill order and the final bosses, M34 extra quests (NPC
+Next up (agreed order, `design/BOSSES.md` section 8): M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in
 `design/BOSSES.md` section 31), and last, M36 an art spec so custom pixel
 art can replace the drawn sprites.

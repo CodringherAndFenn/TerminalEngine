@@ -2171,6 +2171,10 @@ Pandemonium's boss (the Host of the Feast, then the hunger) drops one of four, o
 
 Pangaea's boss (the Ancestor, then the first life) drops one of four, one per age and one for the first life, picked by the user from three proposals each: **Spirit Herd** (trinket), **Tyrant Skull** (head), **Swarm Ring** (ring), **Echo Conch** (off-hand). Powers and code: OCEAN.md section 34.1. 50 uniques now (U47-U50).
 
+### 21.10 M32.5: the Overseer's relics (2026-11-26)
+
+Panopticon's boss (the Overseer, the eye, then the walking city) drops one of four, one per thing it does to you, picked by the user from three proposals each: **Overseer's Eye** (head), **Cell Key** (off-hand), **Black Box** (trinket), **Scrap Plating** (chest). Powers and code: OCEAN.md section 45.1. 54 uniques now (U51-U54).
+
 ## 22. Built: M28.6 (2026-11-21) -- gear on the heroes
 
 The heroes are 14 x 18 letter sprites (`render/characters.ART`), not painted figures as section 9 assumed, so the docs said nothing about how each piece looks. **User picks (2026-11-21):** the head = **shape + colour**; the chest = **body colour**; the main hand = **accent colour**; extras: **the hero on the gear screen** and **a legendary glint**.

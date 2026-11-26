@@ -3235,6 +3235,28 @@ CARDS = {
         "where you stood, at 40% damage",
         (("echo_conch", "flag", 1), ("echo_conch", "power", 0.4)),
         rarity="legendary", max_stacks=1, unlock="U:ancestor", code="U50"),
+    # M32.5: the Overseer's relics, one per thing it does to you: watching,
+    # locking up, recording, building itself (user's picks, 2026-11-26).
+    "overseers_eye": CardSpec(
+        "Overseer's Eye", "every 12 s (once an enemy is within 10 tiles) a searchlight sweeps "
+        "along your aim for 3 s: the enemies it lights are SEEN for 4 s and take +20% damage "
+        "from you (bosses +8%)", (("overseers_eye", "flag", 1), ("overseers_eye", "power", 0.20)),
+        rarity="legendary", max_stacks=1, unlock="U:overseer", code="U51"),
+    "cell_key": CardSpec(
+        "Cell Key", "every 10 s your next hit locks the enemy in a cell: laser bars ring it for "
+        "3 s (it can't get out, nothing gets in); a boss is held in place 0.6 s",
+        (("cell_key", "flag", 1), ("cell_key", "power", 3.0)),
+        rarity="legendary", max_stacks=1, unlock="U:overseer", code="U52"),
+    "black_box": CardSpec(
+        "Black Box", "it records what hurts you: every 15 s (or at once when you drop below 30% "
+        "HP) it rewinds, healing 40% of the damage you took in the last 5 s",
+        (("black_box", "flag", 1), ("black_box", "power", 0.40)),
+        rarity="legendary", max_stacks=1, unlock="U:overseer", code="U53"),
+    "scrap_plating": CardSpec(
+        "Scrap Plating", "each kill bolts a scrap plate onto you (up to 4): each blocks one hit "
+        "entirely, then falls off; each plate you wear gives +4% damage",
+        (("scrap_plating", "flag", 1), ("scrap_plating", "power", 0.04)),
+        rarity="legendary", max_stacks=1, unlock="U:overseer", code="U54"),
     "retaliation": CardSpec("Retaliation", "when hit: a shockwave deals 30 and pushes (3 s)",
                             (("retaliation", "flag", 1),), rarity="uncommon", max_stacks=1,
                             code="R03"),
@@ -4549,6 +4571,15 @@ GEAR = {
                            affixes=("affliction", "lingering", "quickened")),
     "echo_conch": GearSpec("Echo Conch", "off", unique="ancestor",
                            affixes=("quick_hands", "keen_eye", "sharpened")),
+    # (M32.5: the Overseer's -- Panopticon's boss -- one per thing it does to you)
+    "overseers_eye": GearSpec("Overseer's Eye", "head", unique="overseer",
+                              affixes=("keen_eye", "brutal", "long_reach")),
+    "cell_key": GearSpec("Cell Key", "off", unique="overseer",
+                         affixes=("lingering", "quick_hands", "thick_hide")),
+    "black_box": GearSpec("Black Box", "trinket", unique="overseer",
+                          affixes=("second_wind", "iron_skin", "vampiric")),
+    "scrap_plating": GearSpec("Scrap Plating", "chest", unique="overseer",
+                              affixes=("thick_hide", "iron_skin", "sharpened")),
 }
 # Each boss's relics, in a fixed order (the drop picks by index).
 BOSS_UNIQUES: dict = {}
@@ -6179,6 +6210,19 @@ U_SWARM = (12.0, 12.0, 12.0, 1.5, 3.0, 0.5)   # Swarm Ring: every s (once an ene
                                         # far); the river this long, this far either side, this
                                         # many s; a sting every s
 U_CONCH = (3.0, 12)                     # Echo Conch: s later; attacks waiting at most
+# M32.5: the Overseer's relics, one per thing it does to you (the powers grow +10% a level).
+U_EYE = (12.0, 10.0, 3.0, 40.0, 10.0, 4.0, 0.4)   # Overseer's Eye: every s (once an enemy is within
+                                        # this far) a searchlight sweeps along your aim this many
+                                        # s, a cone this many degrees, this long; lit enemies are
+                                        # SEEN this many s (+ the power's damage from you; a boss
+                                        # x this much of it)
+U_CELL = (10.0, 2, 3, 1.2, 0.6)         # Cell Key: every s your next hit locks the enemy in a
+                                        # cell of laser bars this many tiles round (this many for
+                                        # one bigger than this many tiles); a boss is held this long
+U_BOX = (15.0, 5.0, 0.30)               # Black Box: rewinds every s, healing the power's share of
+                                        # the damage taken in the last s; at once below this share
+                                        # of your max HP
+U_PLATES = 4                            # Scrap Plating: plates worn at most
 
 # Start: the tile nearest the centre (searched every SPAWN_SEARCH_STEP
 # tiles) that isn't in a lake and has dry land connecting it to at least

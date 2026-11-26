@@ -207,6 +207,21 @@ class Character(Actor):
         self.swarm_t = config.U_SWARM[0] * 0.5
         self.swarms: list = []
         self.conch: list = []
+        # M32.5: the Overseer's relics: the Overseer's Eye's s to the next sweep
+        # and s of it left; the Cell Key's s to the next lock, whether it's ready
+        # and the enemy it's locking; the Black Box's s to the next rewind, what
+        # it recorded ([(time, damage)]) and whether you were below its share;
+        # Scrap Plating's plates worn and plates knocked off (to show).
+        self.eye_t = config.U_EYE[0] * 0.5
+        self.eye_sweep = 0.0
+        self.cell_t = config.U_CELL[0] * 0.5
+        self.cell_ready = False
+        self.cell_lock = None
+        self.box_t = config.U_BOX[0]
+        self.box_log: list = []
+        self.box_low = False
+        self.scrap_plates = 0
+        self.plate_lost = 0
         self.last_crit = False
         self.bestiary: set[str] = set()
         self.idle = 0.0                   # seconds since the last attack (Capacitor)
@@ -486,6 +501,12 @@ class Character(Actor):
         if st.evasion > 0 and self.rng.random() < st.evasion:
             self.evaded += 1
             return 0.0
+        if self.scrap_plates > 0 and amount > 0 and source is not None and source is not self \
+                and not getattr(self, "status_tick", False) and st.has("scrap_plating"):
+            self.scrap_plates -= 1                      # (M32.5: Scrap Plating: a plate takes it,
+            self.plate_lost += 1                        # then falls off)
+            self.blocked += 1
+            return 0.0
         from ..systems.combat import bonus_armor        # (Tempered, Golden armor, Ramparts)
         armor = st.armor + bonus_armor(self)
         if self.rust_until > self.time:                 # (M32.3: a rust swarm's mites)
@@ -580,6 +601,8 @@ class Character(Actor):
             amount = self._last_stand(amount)               # Wolfpelt +9 (Last stand)
         if st.has("heavy_plate+L"):
             amount = self._anvil(amount)                    # Anvil Plate (L): Anvil
+        if st.has("black_box") and amount > 0:
+            self.box_log.append((self.time, amount))        # (M32.5: the Black Box records it)
         return super().take_damage(amount, source, from_angle)
 
     def _anvil(self, amount: float) -> float:

@@ -241,7 +241,9 @@ class Statuses:
                     < _crit_chance(source):                              # Venom sacs
                 amount *= source.stats.crit_damage
                 tone = "crit"
+            owner.status_tick = True       # (M32.5: a tick, not a hit: Scrap Plating lets it by)
             dealt = owner.take_damage(amount, source, None)
+            owner.status_tick = False
             if dealt > 0:
                 effects.append(Effect("number", owner.x, owner.y - owner.hit_radius, 0.0,
                                       value=max(1, round(dealt)), tone=tone))

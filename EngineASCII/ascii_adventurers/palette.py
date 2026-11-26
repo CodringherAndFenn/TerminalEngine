@@ -1680,3 +1680,11 @@ WALKER_SWING_ARC = ((255, 80, 80), (130, 40, 40))
 WALKER_EYE_CONE = ((120, 60, 110), (255, 70, 200))
 WALKER_STRIKE = ((255, 60, 120), (255, 220, 240))
 WALKER_TURRET = (255, 206, 40)
+# M32.5: the Overseer's relics (render/relics.py): the Overseer's Eye's
+# searchlight (edges, rim) and the SEEN eye over an enemy; the Cell Key
+# ready; the Black Box recording; the Scrap Plating's plates.
+RELIC_SEARCHLIGHT = ((255, 240, 180), (255, 70, 200))
+SEEN_MARK = ((255, 70, 200), (120, 255, 255))
+CELL_KEY_READY = (120, 230, 255)
+BLACK_BOX_REC = ((255, 50, 60), (120, 20, 30))
+SCRAP_PLATE = ((214, 112, 52), (170, 180, 194))

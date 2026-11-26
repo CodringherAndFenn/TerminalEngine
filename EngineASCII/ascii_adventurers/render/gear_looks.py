@@ -63,6 +63,7 @@ HEAD_LOOKS: dict[str, tuple] = {
     "lichs_gaze": ("lich", "c", "C", "o"),            # Lich's Gaze: a dark cowl, glowing eyes
     "crown_of_conquest": ("crown", "y", "Y", "r"),    # Crown of Conquest: gold, a red stone
     "tyrant_skull": ("helm", "d", "D", "r"),          # Tyrant Skull (M31.5): old bone, red eyes
+    "overseers_eye": ("mask", "1", "2", "5"),         # Overseer's Eye (M32.5): magenta, a cyan eye
 }
 
 # Chest: key -> (light, dark), the body's colours.
@@ -86,6 +87,7 @@ CHEST_LOOKS: dict[str, tuple[str, str]] = {
     "hermits_furs": ("d", "D"),      # (the Frost Hermit) grey furs
     "pale_riders_cloak": ("i", "I"), # (the Four Horsemen) pale
     "gluttons_bib": ("w", "R"),      # (the Host of the Feast) a white bib, wine-stained
+    "scrap_plating": ("a", "3"),     # (the Overseer) rusted plates on dark chrome
 }
 
 # Main hand: key -> (light, dark), the weapon's accent.
