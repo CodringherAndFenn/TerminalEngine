@@ -55,6 +55,10 @@ ai -- enemy behaviour.
   first_life.py Pangaea's boss, form 2 (M31.5): the first life, in the
                 flooded caldera's tide (a mix-in of the Ancestor); the first
                 life crawling out of the sea that evolves if left alone
+  panopticon.py Panopticon's machines (M32.2), every one an eye on the city's
+                alert: cameras, turrets; the watch (sentry drone, spotter,
+                riot robot, warden); the workers (welder, hauler, assembler,
+                foreman)
   forest.py     the haunted forest's P8 enemies: skeletons (and bone piles),
                 bats, banshee, phantom, grave digger, headless knight (and
                 its head), centipede, giant spider, cultist (and candles),
@@ -99,6 +103,8 @@ from .pandemonium import (BandDrummer, Beloved, Bouncer, Carver, Cupbearer, Danc
 from .pangaea import (AntMound, Bombardier, CaveBear, ClubTail, Dragonfly, FireBearer, GiantAnt,
                       Hatchling, Mammoth, Pterosaur, Raptor, SabreTooth, SeaScorpion, Shaman,
                       SpearHunter, Trapper, Tyrant, WoollyRhino)
+from .panopticon import (Assembler, Camera, Foreman, Hauler, RiotRobot, SentryDrone, Spotter,
+                         Turret, Warden, Welder)
 from .paradise import (BowlBearer, CenserBearer, Cherub, Chorister, Dove, Halo, Lamb,
                        Leviathan, Locust, Martyr, Ophan, Seraph, Trumpeter, Watcher,
                        WeepingSaint, Behemoth, LightPillar)
@@ -309,6 +315,18 @@ KINDS = {
     "hatchling": Hatchling,
     "first_blob": FirstBlob,               # M31.5: the first life's, out of the sea
     "first_crawler": FirstCrawler,
+    # M32.2: Panopticon's eyes, the watch and the workers (every machine
+    # raises the city's alert: ai/panopticon.Machine)
+    "camera": Camera,
+    "turret": Turret,
+    "sentry_drone": SentryDrone,
+    "spotter": Spotter,
+    "riot_robot": RiotRobot,
+    "warden": Warden,
+    "welder": Welder,
+    "hauler": Hauler,
+    "assembler": Assembler,
+    "foreman": Foreman,
 }
 
 

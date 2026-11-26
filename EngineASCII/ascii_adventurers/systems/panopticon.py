@@ -139,17 +139,36 @@ def step(scene, living, dt: float) -> None:
         _cut(scene, plan, cut)
     city = scene.city
     city.clock += dt
+    from .alert import alert_of, step as alert_step
+    alert_step(scene, plan, living, dt)             # (M32.2: the city's alert)
     here = [p for p in living if not p.ghost and _on_panopticon(scene, p.hero.x, p.hero.y)]
     if not here and not city.sweeps:
         return
     t = city.clock
     dead = dead_spans(world)
+    sealed = alert_of(world).sealed
     for p in here:
         h = p.hero
         _underfoot(scene, plan, h, world.tile_at(math.floor(h.x), math.floor(h.y)), t, dt)
-        _lasers(scene, plan, h, t, dt)
+        _lasers(scene, plan, h, t, dt, sealed)
         _arcs(scene, plan, h, t, dead)
+    if here:
+        _carry(scene, dt)
     _sweeps(scene, plan, city, here, living, dt)
+
+
+def _carry(scene, dt: float) -> None:
+    """The belts carry the machines along too (M32.2; none of the rest
+    touches them: they know the city's patterns)."""
+    from ..ai.panopticon import Machine
+    from .combat import push
+    world = scene.world
+    for e in scene.enemies:
+        if not isinstance(e, Machine) or e.hovers or e.espec.speed <= 0 or not e.alive:
+            continue
+        belt = tiles.BELTS.get(world.tile_at(math.floor(e.x), math.floor(e.y)))
+        if belt is not None:
+            push(e, world, belt[0] * config.PANOPTICON_BELT * dt, belt[1] * config.PANOPTICON_BELT * dt)
 
 
 def _underfoot(scene, plan, h, tile, t: float, dt: float) -> None:
@@ -178,11 +197,23 @@ def _underfoot(scene, plan, h, tile, t: float, dt: float) -> None:
                 scene._sounds.append("boulder")
 
 
-def _lasers(scene, plan, h, t: float, dt: float) -> None:
+def fence_state(plan, i: int, t: float, sealed=None):
+    """Fence i at time t, sealed or not (M32.2: a district's gates in
+    lockdown): ("sealed", its beam) or fence_now's."""
+    if sealed and i in sealed:
+        f = plan.fences[i]
+        return "sealed", (f.x0, f.y0, f.x1, f.y1)
+    return fence_now(plan.fences[i], t)
+
+
+def _lasers(scene, plan, h, t: float, dt: float, sealed=None) -> None:
     from .combat import strike
     touching = False
     for i in plan.near(plan._fence_idx, h.x, h.y):
-        state, seg = fence_now(plan.fences[i], t)
+        state, seg = fence_state(plan, i, t, sealed)
+        if state == "sealed":
+            touching = _bar(scene, h, seg) or touching
+            continue
         if state == "on" and _seg_dist(h.x, h.y, *seg) < 0.55:
             touching = True
             break
@@ -194,6 +225,27 @@ def _lasers(scene, plan, h, t: float, dt: float) -> None:
         h.laser_t = config.PANOPTICON_LASER[1]
         strike(h, hazard(scene, config.PANOPTICON_LASER[0]), None, None, scene.effects)
         scene._sounds.append("fizzle")
+
+
+def _bar(scene, h, seg) -> bool:
+    """A sealed gate's fence: it burns like any beam, and nobody gets
+    through it -- a hero touching it is put back on the side they're on.
+    True if they touched it."""
+    from .combat import push
+    x0, y0, x1, y1 = seg
+    if _seg_dist(h.x, h.y, x0, y0, x1, y1) >= 0.7:
+        return False
+    dx, dy = x1 - x0, y1 - y0
+    ll = math.hypot(dx, dy) or 1.0
+    nx, ny = -dy / ll, dx / ll
+    s = (h.x - x0) * nx + (h.y - y0) * ny
+    if abs(s) < 1e-3:                        # (right on it: back the way it came)
+        s = -(h.vx * nx + h.vy * ny) or 1.0
+    side = 1.0 if s > 0 else -1.0
+    gap = 0.75 - abs((h.x - x0) * nx + (h.y - y0) * ny)
+    if gap > 0:
+        push(h, scene.world, nx * side * gap, ny * side * gap)
+    return True
 
 
 def _arcs(scene, plan, h, t: float, dead: set) -> None:

@@ -301,6 +301,120 @@ class Plan:
                     return x, y
         return None
 
+    def district_gates(self, name: str) -> list[int]:
+        """The fences across a district's gates (M32.2: they seal round you
+        in lockdown): those of the walls either side of it."""
+        k = self.k_of.get(name)
+        if k is None:
+            return []
+        return self.wall_fences[k] + self.wall_fences[(k - 1) % 4]
+
+    def _closeness(self, X, Y):
+        """1 at the tower's plaza's edge down to 0 at the shore (arrays)."""
+        cx, cy, a, b = self.hall
+        inner = (a + b) / 2 + self.plaza
+        r = np.hypot(X - cx, Y - cy)
+        return np.clip(1.0 - (r - inner) / max(1.0, self.zone.radius - inner), 0.0, 1.0)
+
+    def _lot(self, k, u, v):
+        """Is the block holding grid coordinates (u, v) of district k an
+        empty lot (paint's own dice; arrays)?"""
+        P = np.take(np.array(self.pitch), k)
+        u0 = np.take(np.array(self.u0), k)
+        bu = np.floor_divide(u - u0, P)
+        bv = np.floor_divide(v, P)
+        return _mix((bu * 0x9E3779B1 + bv * 0x85EBCA77 + k * 0xC2B2AE3D + self.seed * 31)
+                    & 0xFFFFFFFF) < config.PANOPTICON_LOTS
+
+    def _grid_spots(self, salt: int, pick):
+        """Spots on every district's grid (M32.2): `pick(k, i, j, uc, vc,
+        hu, hv, rng)` lists candidates (k, u, v, facing u, facing v) round
+        crossing (i, j) (its centre (uc, vc), half-widths hu across the
+        cross street, hv across the street along the axis); those on open
+        ground are kept, by the PANOPTICON_CAMERAS-style chance the caller
+        folds in. Returns [(x, y, fx, fy)] (tile middles, a unit facing)."""
+        rng = random.Random(hash_coords(self.seed, salt, self.zone.salt))
+        cand = []
+        for k in range(4):
+            p, street = self.pitch[k], self.grid[k][1]
+            hu = street // 2
+            n_u = int((self.shore_u[k] - self.u0[k]) / p) + 1
+            for i in range(n_u):
+                uc = self.u0[k] + i * p
+                jn = int(uc / p) + 1
+                for j in range(-jn, jn + 1):
+                    hv = config.PANOPTICON_AVENUE if j == 0 else hu
+                    cand += pick(k, i, j, uc, j * p, hu, hv, rng)
+        if not cand:
+            return []
+        out = []
+        for k in range(4):
+            mine = [c for c in cand if c[0] == k]
+            if not mine:
+                continue
+            ax, ay = self.axes[k]
+            tx = np.array([self._tile_of(k, c[1], c[2])[0] for c in mine])
+            ty = np.array([self._tile_of(k, c[1], c[2])[1] for c in mine])
+            ok = self._open(tx, ty, k, margin=0.0)
+            for c, x, y, good in zip(mine, tx.tolist(), ty.tolist(), ok.tolist()):
+                if good and (x, y) not in self._claims:
+                    fu, fv = c[3], c[4]
+                    out.append((x + 0.5, y + 0.5, fu * ax - fv * ay, fu * ay + fv * ax))
+        return out
+
+    def camera_spots(self) -> list[tuple[float, float, float, float]]:
+        """The cameras' poles (M32.2): at one corner of a street crossing, a
+        chance of PANOPTICON_CAMERAS[0] by the plaza down to [1] at the
+        shore; each faces the crossing (diagonally). Cached."""
+        got = getattr(self, "_cameras", None)
+        if got is not None:
+            return got
+        near, far = config.PANOPTICON_CAMERAS[0], config.PANOPTICON_CAMERAS[1]
+
+        def pick(k, i, j, uc, vc, hu, hv, rng):
+            x, y = self._tile_of(k, uc, vc)
+            chance = far + (near - far) * float(self._closeness(np.float64(x), np.float64(y)))
+            if rng.random() >= chance:
+                return []
+            su, sv = rng.choice((-1, 1)), rng.choice((-1, 1))
+            return [(k, uc + su * hu, vc + sv * hv, -su / math.sqrt(2), -sv / math.sqrt(2))]
+
+        self._cameras = self._grid_spots(0x9A72, pick)
+        return self._cameras
+
+    def turret_spots(self) -> list[tuple[float, float, float, float]]:
+        """The turrets (M32.2): on the pavement against a block's wall
+        (never an empty lot's), halfway along it, a chance of
+        PANOPTICON_TURRETS[0] a side by the plaza down to [1] at the
+        shore; each faces the street. Cached."""
+        got = getattr(self, "_turrets", None)
+        if got is not None:
+            return got
+        near, far = config.PANOPTICON_TURRETS[0], config.PANOPTICON_TURRETS[1]
+
+        def pick(k, i, j, uc, vc, hu, hv, rng):
+            p = self.pitch[k]
+            out = []
+            for s in (-1, 1):
+                # along the axis street (j), the block's side between crossings i and i+1
+                u, v = uc + p // 2, vc + s * hv
+                if not bool(self._lot(np.int64(k), np.int64(u), np.int64(v + s))):
+                    out.append((k, u, v, 0.0, -float(s)))
+                # along the cross street (i), between crossings j and j+1
+                u, v = uc + s * hu, vc + p // 2
+                if not bool(self._lot(np.int64(k), np.int64(u + s), np.int64(v))):
+                    out.append((k, u, v, -float(s), 0.0))
+            keep = []
+            for c in out:
+                x, y = self._tile_of(k, c[1], c[2])
+                chance = far + (near - far) * float(self._closeness(np.float64(x), np.float64(y)))
+                if rng.random() < chance:
+                    keep.append(c)
+            return keep
+
+        self._turrets = self._grid_spots(0x9A73, pick)
+        return self._turrets
+
     def lanes_near(self, x: float, y: float) -> list[tuple[float, float, float, float, float]]:
         """The streets nearest (x, y) a sweeper could wash: (x, y) on its
         middle line near the point, the line's direction, its half-width --
@@ -382,11 +496,14 @@ class Plan:
         period = laser[3] + laser[4]
         cx, cy = self.cx + 0.5, self.cy + 0.5
         half = config.PANOPTICON_GATE_W / 2
+        self.wall_fences: list[list[int]] = []          # (M32.2: each wall's gates' fences)
         for wx, wy, _, _, gates in self.walls:
+            self.wall_fences.append([])
             for g in gates:
                 a0, a1 = g - half + 0.5, g + half - 0.5
                 f = Fence("blink", cx + wx * a0, cy + wy * a0, cx + wx * a1, cy + wy * a1,
                           phase=rng.uniform(0, period))
+                self.wall_fences[-1].append(len(self.fences))
                 self.fences.append(f)
                 self._track(f.x0, f.y0, f.x1, f.y1)
                 for end in (g - half - 0.5, g + half + 0.5):
@@ -750,7 +867,7 @@ class Plan:
                 door = (j in (-19, 18) and abs(i) <= 2) or (i in (-33, 32) and -2 <= j <= 2)
                 cells[(fx + i, fy + j)] = tiles.SHED_WALL if edge and not door else tiles.FACTORY_FLOOR
         rows = ((-14, -13), (-7, -6), (5, 6), (12, 13))
-        chassis = []
+        chassis, arms = [], []
         for q, (r0, r1) in enumerate(rows):
             east = q % 2 == 0
             belt = tiles.BELT_E if east else tiles.BELT_W
@@ -768,7 +885,9 @@ class Plan:
                 self.presses.append((fx + pc + 0.5, fy + r1 + 0.0,
                                      rng.uniform(0.0, config.PANOPTICON_PRESS[0])))
             for ac in (-14, -2, 10, 22):
-                cells[(fx + ac, fy + (r0 - 1 if (ac + q) % 2 else r1 + 1))] = tiles.ROBOT_ARM
+                up = (ac + q) % 2
+                cells[(fx + ac, fy + (r0 - 1 if up else r1 + 1))] = tiles.ROBOT_ARM
+                arms.append((fx + ac + 0.5, fy + (r0 - 2 if up else r1 + 2) + 0.5))   # (its welder's spot)
             end = 29 if east else -31
             for di in (0, 1):
                 for j in (r0, r1):
@@ -780,7 +899,7 @@ class Plan:
                     cells[(fx + ic + di, fy + j)] = tiles.CHASSIS
             chassis.append((fx + ic + 1.0, fy + 0.0))
         return self._mark("panopticon_factory", "zone", "The Factory", cells, fx + 0.5, fy + 0.5,
-                          props={"chassis": chassis})
+                          props={"chassis": chassis, "arms": arms})
 
     def _scrapyard(self, rng: random.Random):
         """The scrapyard: a chain fence round a yard of oily dirt, mountains

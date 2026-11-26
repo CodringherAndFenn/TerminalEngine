@@ -1557,3 +1557,41 @@ MAP_TILE.update({
 })
 PIN_GIVER["panopticon"] = ((255, 176, 60), (22, 12, 4))           # amber on black
 
+
+# --- M32.2: Panopticon's machines (ai/panopticon.py, render/panopticon_art.py) ---------
+# Sprite letters (the letters are all taken): 1/2 neon magenta, 3/4 dark and
+# bright chrome, 5 a lens's cyan glow, 6 hazard yellow.
+SPRITE_COLORS.update({
+    "1": (255, 60, 210), "2": (160, 30, 140),
+    "3": (58, 64, 80), "4": (226, 234, 246),
+    "5": (90, 240, 255), "6": (250, 206, 40),
+})
+CRATE_FG = (200, 150, 80)               # a broken crate (a hauler's)
+CRATE_BG = (82, 58, 34)
+MAP_TILE["broken crate"] = (170, 124, 70)
+# The alert (systems/alert.py): the HUD's meter by level (calm, search,
+# lockdown) and the screen's edge in lockdown (pulsing: bright, dim).
+ALERT_BAR = ((80, 220, 240), (255, 176, 40), (255, 50, 200))
+LOCKDOWN_EDGE = ((255, 40, 190), (120, 20, 96))
+# The machines' tells (render/panopticon.py): a camera's cone (calm, seeing
+# you), a drone's searchlight (calm, on you), the eye over a machine that
+# sees you, a sealed gate's beam, a stun charge's ring, the warden's beam
+# and tether, a welder's torch, a hauler's lane and crate, an assembler's
+# build bar, the foreman's presses (shadow, its marks) and bark, slag.
+CAMERA_CONE = ((60, 150, 170), (255, 70, 200))
+SEARCHLIGHT = ((200, 230, 255), (255, 90, 210))
+SEEN_EYE = ((255, 60, 210), (255, 200, 245))
+SEALED_BEAM = ((255, 40, 120), (255, 200, 220))
+STUN_RING = ((120, 200, 255), (40, 90, 160))
+WARDEN_BEAM = ((255, 60, 90), (255, 190, 200))
+TETHER = ((120, 240, 255), (40, 120, 150))
+TORCH = ((255, 240, 180), (255, 140, 40))
+HAUL_LANE = ((255, 206, 40), (130, 100, 20))
+CRATE_FLY = (200, 150, 80)
+BUILD_BAR = ((90, 240, 255), (40, 60, 70))
+FOREMAN_DROP = ((70, 58, 20), (240, 200, 40))
+BARK_RING = ((255, 206, 40), (200, 120, 30))
+SLAG = ((255, 150, 40), (150, 60, 20))
+SHOT_LASER_BOLT = ((255, 120, 220), ((255, 60, 190), (140, 30, 110)))
+SHOT_SHRAPNEL = ((220, 200, 170), ((150, 120, 90), (90, 72, 56)))
+SHOT_TETHER = ((160, 250, 255), ((80, 200, 230), (40, 110, 140)))

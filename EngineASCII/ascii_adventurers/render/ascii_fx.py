@@ -191,6 +191,10 @@ SHOT_LOOKS = {
     "carving": ("/", ("'", " "), palette.FEAST_CUTLERY),        # M30.4: his carving set
     "shriek": ("o", (":", "."), palette.SHOT_SHRIEK),     # M29.3: a chorister's rings
     "crown": (None, (None, None), palette.SHOT_CROWN),    # M29.5: Conquest's (an arrow)
+    # M32.2: Panopticon's machines
+    "laser_bolt": ("-", ("-", "."), palette.SHOT_LASER_BOLT),
+    "shrapnel": ("%", (",", None), palette.SHOT_SHRAPNEL),
+    "tether": ("@", ("-", "-"), palette.SHOT_TETHER),
 }
 # A thrown axe's head turns through these glyphs, one step every
 # AXE_SPIN_TILES of flight (so faster throws spin faster).

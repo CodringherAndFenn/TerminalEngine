@@ -36,6 +36,7 @@ from ..render.glyphs import loot_glyph
 from ..meta.run_stats import format_time
 
 BAR = 24                 # HP / XP bar cells
+_ALERT_NAMES = ("CALM", "SEARCH", "LOCKDOWN")   # (M32.2: the alert meter's level, at its end)
 PANEL_W = BAR + 9        # "HP " + bar + " 100" + margins
 ROLL_BAR = BAR - 2       # "ROLL " + bar + " RDY"
 
@@ -59,7 +60,8 @@ class HudInfo:
     shield: float = 0.0          # Ward Charm / Aegis: shown in blue after the HP
     roll: tuple | None = None    # (charges ready, most charges, 0..1 toward the next)
     meter: tuple | None = None   # a boss's meter on you (M24.1 rads, M24.2 chill): (label,
-                                 # 0..1 full, alarm) or None
+                                 # 0..1 full, alarm) or None; M32.2 the city's alert adds
+                                 # its level's name, shown at the end
 
 
 # The last top-left panel drawn: key -> image.
@@ -105,7 +107,9 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
         ready, most, frac = info.roll
         roll_key = (ready, most, round(frac * ROLL_BAR) if ready < most else ROLL_BAR)
     meter_row = 3 + (info.roll is not None) if info.meter is not None else None
-    meter_key = ((info.meter[0], round(info.meter[1] * (BAR - 1)), info.meter[2])
+    tag = info.meter[3] if info.meter is not None and len(info.meter) > 3 else None
+    m_width = BAR - 1 if tag is None else BAR - 2 - len(_ALERT_NAMES[-1])
+    meter_key = ((info.meter[0], round(max(0.0, min(1.0, info.meter[1])) * m_width), info.meter[2], tag)
                  if info.meter is not None else None)
     rows = 3 + (info.roll is not None) + (info.meter is not None) + bool(info.gear)
     area = pygame.Rect(0, 0, PANEL_W * d.cell_w, rows * d.cell_h)
@@ -135,15 +139,20 @@ def _draw_status(text: TextRenderer, info: HudInfo) -> None:
     if roll_key is not None:
         _roll_meter(text, roll_row, *roll_key)
     if meter_key is not None:
-        label, cells, alarm = meter_key
-        colors = {"CHL": palette.CHILL_BAR, "MNT": palette.MOUNT_BAR,
-                  "PHX": palette.PHOENIX_BAR}.get(label, palette.RADS_BAR)
-        col = colors[2] if alarm else colors[1] if cells > BAR * 0.75 else colors[0]
+        label, cells, alarm, tag = meter_key
+        if tag in _ALERT_NAMES:                  # (M32.2: the city's alert, by its level)
+            col = palette.ALERT_BAR[_ALERT_NAMES.index(tag)]
+        else:
+            colors = {"CHL": palette.CHILL_BAR, "MNT": palette.MOUNT_BAR,
+                      "PHX": palette.PHOENIX_BAR}.get(label, palette.RADS_BAR)
+            col = colors[2] if alarm else colors[1] if cells > BAR * 0.75 else colors[0]
         text.put(1, meter_row, label, palette.HUD_LABEL, palette.HUD_PANEL)
         text.put(5, meter_row, "▄" * cells, col, palette.HUD_PANEL)
-        text.put(5 + cells, meter_row, "▄" * (BAR - 1 - cells) if cells < BAR - 1 else "",
+        text.put(5 + cells, meter_row, "▄" * (m_width - cells) if cells < m_width else "",
                  palette.HUD_ROLL_EMPTY, palette.HUD_PANEL)
-        if alarm:
+        if tag is not None:
+            text.put(PANEL_W - 1 - len(tag), meter_row, tag, col, palette.HUD_PANEL)
+        elif alarm:
             text.put(PANEL_W - 4, meter_row, "!!!", col, palette.HUD_PANEL)
     if info.gear:
         col = 1

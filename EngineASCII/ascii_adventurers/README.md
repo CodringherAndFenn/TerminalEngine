@@ -1005,7 +1005,25 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   broken pylon kills its lines; and every so often a sweeper washes a street
   near you with a burning spray down a lane marked first. The factory, the
   scrapyard, the kept homes and seven great camera masts stand in the
-  districts. Nobody's home yet (M32.2-3: the machines).
+  districts.
+- **Panopticon's machines, M32.2** (`design/OCEAN.md` 42): the city
+  watches. Every machine that sees you fills one ALERT meter for the whole
+  island (on the HUD with its level: CALM, SEARCH, LOCKDOWN); break their
+  sight and it cools. In SEARCH the machines that see you call the others
+  near them and the turrets in the walls open; at LOCKDOWN your district's
+  gates seal (their lasers bar the way), a hunter squad comes for you, a
+  sweeper comes down your street and the screen's edge pulses magenta.
+  Cameras pan across the street corners, more of them nearer the tower.
+  The watch in the docks: sentry drones that see only what's in their
+  searchlight, spotters that watch from afar and hide when you come,
+  riot robots behind shields that block everything from the front, and
+  the warden, whose eye marks you for lockdown and whose tether chains you
+  until you roll free. The workers in the factory, who work until you come
+  near: welders dragging torches and leaving slag, haulers charging down a
+  shown line and throwing crates that leave cover, assemblers building
+  turrets where they stand, and the foreman ordering overtime and calling
+  presses down on you; the factory's half-built robots get up when you
+  come close.
 
 Next up (agreed order, `design/BOSSES.md` section 8): M29-M32 the four ocean zones (each with its own enemies, quest
 and boss), M33 the kill order and the final bosses, M34 extra quests (NPC

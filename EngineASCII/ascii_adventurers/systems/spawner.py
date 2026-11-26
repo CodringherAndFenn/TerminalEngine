@@ -30,9 +30,13 @@ its elites more common.
 Pangaea (M31.2): each of its enemies is rolled only on its own ring of
 ages (config.PANGAEA_RING_OF: the chunk's middle picks the type, and its
 spot must be on that ring too).
+Panopticon (M32.2): each of its enemies is rolled only in its own
+district (config.PANOPTICON_DISTRICT_OF), the patrols likelier nearer the
+tower.
 Residents (M29.3): some of a zone's enemies live at fixed places (the
 choristers at Paradise's choir rings, the leviathans in its river of
-blood); they're added to their chunk's roster and live like the rest.
+blood; M32.2 Panopticon's cameras, turrets and the factory's crew); they're
+added to their chunk's roster and live like the rest.
 
 Fixed spawns (M17): the quest system adds its own enemies (the
 psychedelic frogs) with `place`; they wake, sleep and stay dead like
@@ -105,6 +109,8 @@ class Spawner:
         if biome == "pangaea":                  # (M31.2: each on its own ring of ages)
             ring = self._ring(mx, my)
             choices = [c for c in choices if config.PANGAEA_RING_OF.get(c[0], ring) == ring]
+        elif biome == "panopticon":             # (M32.2: each in its own district)
+            choices = self._districts(choices, mx, my)
         elites = [c for c in choices if config.ENEMIES[c[0]].elite]
         out = []
         for k in range(count):
@@ -143,13 +149,13 @@ class Spawner:
         scorpions in its pools), rostered like the rest:
         ids (cx, cy, RESIDENT_ID + j)."""
         if self._residents is None:
-            from ..ai import pandemonium, pangaea, paradise
+            from ..ai import pandemonium, pangaea, panopticon, paradise
             self._residents = {}
             layout = getattr(self.world, "layout", None)
             n = config.CHUNK_SIZE
             for z in getattr(layout, "zones", ()):
                 for key, x, y in (paradise.residents(layout, z) + pandemonium.residents(layout, z)
-                                  + pangaea.residents(layout, z)):
+                                  + pangaea.residents(layout, z) + panopticon.residents(layout, z)):
                     self._residents.setdefault((math.floor(x) // n, math.floor(y) // n),
                                                []).append((key, x, y))
         return [((cx, cy, RESIDENT_ID + j), key, x, y)
@@ -186,6 +192,9 @@ class Spawner:
             # (the ring after the landmarks: it's the dearer test, M31.4)
             if biome == "pangaea" and config.PANGAEA_RING_OF.get(key, -1) not in (-1, self._ring(x, y)):
                 continue
+            if biome == "panopticon" and key in config.PANOPTICON_DISTRICT_OF \
+                    and self._district(x, y) not in config.PANOPTICON_DISTRICT_OF[key]:
+                continue
             if spec.kind == "tower" and not self._near_wall(tx, ty):
                 continue
             if spec.kind in ("puffer", "burrower"):
@@ -194,6 +203,36 @@ class Spawner:
             if not hull_hits_solid(self.world, x, y, 0.0, half, half):
                 return x, y
         return None
+
+    def _panopticon(self):
+        layout = getattr(self.world, "layout", None)
+        z = layout.zone("panopticon") if hasattr(layout, "zone") else None
+        if z is None:
+            return None
+        from ..world.zones import plan_of
+        return plan_of(layout, z)
+
+    def _district(self, x: float, y: float) -> str:
+        """Panopticon's district at (x, y) ("docks" on a world without the plan)."""
+        plan = self._panopticon()
+        return "docks" if plan is None else plan.district_at(x, y)
+
+    def _districts(self, choices: list, x: float, y: float) -> list:
+        """Panopticon's choices at a chunk's middle (M32.2): each type only in
+        its own district (PANOPTICON_DISTRICT_OF), the patrols likelier the
+        nearer the tower (x PANOPTICON_PATROL_NEAR by its plaza)."""
+        plan = self._panopticon()
+        here = "docks" if plan is None else plan.district_at(x, y)
+        near = 0.0
+        if plan is not None:
+            near = float(plan._closeness(x, y))
+        boost = 1.0 + (config.PANOPTICON_PATROL_NEAR - 1.0) * near
+        out = []
+        for k, w in choices:
+            if here not in config.PANOPTICON_DISTRICT_OF.get(k, (here,)):
+                continue
+            out.append((k, w * boost if k in config.PANOPTICON_PATROLS else w))
+        return out
 
     def _ring(self, x: float, y: float) -> int:
         """Pangaea's ring of ages at (x, y) (0 the heart, 1 the middle, 2 the
@@ -321,6 +360,8 @@ class Spawner:
         if rng is None:
             rng = random.Random(hash_coords(self.seed, 0xA1, *sid))
         e = make_enemy(name, x, y, rng, sid)
+        if hasattr(e, "settle"):                 # (M32.2: what it wakes on: a half-built robot)
+            e.settle(self.world)
         e.scale_to_level(self.level + self.level_bonus)
         if self.hp_mult != 1.0 and hasattr(e, "toughen"):
             e.toughen(self.hp_mult)

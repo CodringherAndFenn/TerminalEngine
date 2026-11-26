@@ -1293,6 +1293,68 @@ ENEMIES = {
         max_hp=32, sight=40, biomes=(), speed=3.4, damage=10, attack_radius=1.0,
         windup=0.35, cooldown=1.0, size_px=18, xp=4,
     ),
+    # --- M32.2: Panopticon's eyes, the watch and the workers (OCEAN.md 36-37;
+    # ai/panopticon.py). Every machine can see you and raise the city's alert
+    # (systems/alert.py). Each is rolled only in its own district
+    # (PANOPTICON_DISTRICT_OF); the cameras, the turrets and the factory's
+    # half-built robots and crew live at fixed places (ai/panopticon.residents).
+    # On top of these: ZONE_TOUGH.
+    "camera": EnemySpec(
+        name="camera", kind="camera", sprite="camera", scale=3,
+        max_hp=30, sight=11, biomes=(), speed=0.0, damage=0, size_px=16, xp=3,
+    ),
+    "turret": EnemySpec(
+        name="turret", kind="turret", sprite="turret", scale=3,
+        max_hp=90, sight=15, biomes=(), speed=0.0, damage=0, windup=0.5, cooldown=2.2,
+        size_px=20, xp=6,
+    ),
+    "built_turret": EnemySpec(
+        name="assembled turret", kind="turret", sprite="built_turret", scale=3,
+        max_hp=70, sight=15, biomes=(), speed=0.0, damage=0, windup=0.5, cooldown=2.0,
+        size_px=20, xp=4,
+    ),
+    # The watch (the docks; the drones and spotters patrol everywhere).
+    "sentry_drone": EnemySpec(
+        name="sentry drone", kind="sentry_drone", sprite="sentry_drone",
+        max_hp=40, sight=16, biomes=("panopticon",), weight=3, speed=4.4,
+        damage=0, windup=0.35, cooldown=1.8, size_px=18, xp=6,
+    ),
+    "spotter": EnemySpec(
+        name="spotter", kind="spotter", sprite="spotter", scale=4,
+        max_hp=60, sight=18, biomes=("panopticon",), weight=2, speed=4.6,
+        damage=0, size_px=22, xp=10,
+    ),
+    "riot_robot": EnemySpec(
+        name="riot robot", kind="riot_robot", sprite="riot_robot", scale=4,
+        max_hp=220, sight=16, biomes=("panopticon",), weight=3, speed=2.6,
+        damage=18, attack_radius=2.6, windup=0.5, cooldown=1.8, size_px=30, xp=18,
+    ),
+    "warden": EnemySpec(
+        name="warden", kind="warden", sprite="warden", scale=5, elite=True,
+        max_hp=420, sight=20, biomes=("panopticon",), weight=1, speed=2.2,
+        damage=20, attack_radius=3.0, windup=1.0, cooldown=6.0, size_px=36, xp=45,
+    ),
+    # The workers (the factory district).
+    "welder": EnemySpec(
+        name="welder", kind="welder", sprite="welder", group=(1, 2),
+        max_hp=90, sight=16, biomes=("panopticon",), weight=3, speed=4.4,
+        damage=16, attack_radius=2.6, windup=0.4, cooldown=1.8, size_px=22, xp=10,
+    ),
+    "hauler": EnemySpec(
+        name="hauler", kind="hauler", sprite="hauler", scale=4,
+        max_hp=200, sight=16, biomes=("panopticon",), weight=2, speed=3.0,
+        damage=22, attack_radius=2.2, windup=0.9, cooldown=2.0, size_px=32, xp=18,
+    ),
+    "assembler": EnemySpec(
+        name="assembler", kind="assembler", sprite="assembler",
+        max_hp=110, sight=16, biomes=("panopticon",), weight=2, speed=3.8,
+        damage=0, windup=4.0, cooldown=1.0, size_px=22, xp=12,
+    ),
+    "foreman": EnemySpec(
+        name="foreman", kind="foreman", sprite="foreman", scale=5, elite=True,
+        max_hp=360, sight=18, biomes=("panopticon",), weight=1, speed=2.6,
+        damage=18, windup=0.6, cooldown=6.0, size_px=34, xp=40,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -4846,6 +4908,18 @@ BESTIARY = {
     # M31.5
     "first_blob": (800, "The first life, crawling out of the first sea. Left alone it evolves."),
     "first_crawler": (1000, "A blob that was left alone. Kill it before it becomes a beast."),
+    # M32.2: Panopticon (every machine raises the city's alert when it sees you)
+    "camera": (800, "Watches a street corner, panning. Seen, the alert rises fast: shoot it first."),
+    "turret": (1200, "Asleep in the wall until the city searches; then it fires at what it sees."),
+    "built_turret": (800, "An assembler's work. It fires at you until it's destroyed."),
+    "sentry_drone": (1500, "Patrols with a searchlight. Stay out of the light, or shoot it down."),
+    "spotter": (2000, "Never fights: it watches, and the alert rises. It hides when you come. Kill it first."),
+    "riot_robot": (2500, "Its shield blocks everything from the front, and its charges daze. Get behind it."),
+    "warden": (5000, "Marks you: lockdown while it lives. Drones, a slow beam, a tether: roll free."),
+    "welder": (2000, "Drags its torch across you and leaves burning slag."),
+    "hauler": (2500, "Charges down a shown line, then throws its crate: shrapnel, and cover left."),
+    "assembler": (2000, "Left alone, it builds a turret where it stands. Kill it before it's done."),
+    "foreman": (4500, "Overtime makes the workers faster. It calls presses down on marked spots."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -4926,7 +5000,8 @@ REV1_PRICES = {
 BIOME_ENEMY_DENSITY = {"plains": 0.35, "forest": 1.0, "desert": 1.0, "ruins": 1.3,
                        "swamp": 0.9, "mushroom": 1.1,
                        "paradise": 1.0,     # (M29.2, mine; packs are bigger there: ZONE_TOUGH)
-                       "pangaea": 1.0}      # (M31.2, mine; each type on its own ring)
+                       "pangaea": 1.0,      # (M31.2, mine; each type on its own ring)
+                       "panopticon": 1.0}   # (M32.2, mine; each type in its own district)
 # Scales every biome at once (0.5 = half as many enemies everywhere).
 # 2.0 on 2026-09-30 (user: "increase around 2x"), then 1.6 the same day
 # (user: "a bit too hard, dial down the difficulty a bit").
@@ -5386,6 +5461,112 @@ PANOPTICON_ARC = (3.6, 1.2, 0.6, 18.0, 1.0, 2.0)
 # street near each hero: its lane marked [2] s, then it drives down it at
 # [3] tiles/s, [4] tiles long: [5] to anyone it sprays.
 PANOPTICON_SWEEP = (24.0, 6.0, 2.0, 15.0, 46.0, 32.0)
+
+# --- M32.2: the city's alert (design/OCEAN.md 36; systems/alert.py) -------------------
+# One meter for the whole island (the city's alarm, not yours): 0 to
+# PANOPTICON_ALERT[0]; SEARCH from [1], LOCKDOWN once it's full. While
+# anything sees a hero it rises by the fastest eye on them (ALERT_EYES, a
+# second); after [2] s with nothing seeing anyone it drains [3] a second.
+# Lockdown holds at least [4] s (the meter stays full) and seals the gates of
+# each hero's district for [5] s. In SEARCH and LOCKDOWN a machine that sees
+# you calls every machine within [6] tiles to where you are (every [7] s).
+PANOPTICON_ALERT = (100.0, 30.0, 3.0, 15.0, 10.0, 15.0, 14.0, 0.5)
+# How fast each eye fills it, a second: a camera, the watch, the spotter
+# (it's all it does), any other machine (mine, from the draft's ~20 and ~6).
+ALERT_EYES = {"camera": 20.0, "watch": 20.0, "spotter": 30.0, "machine": 6.0}
+# The hunter squad sent at lockdown: PANOPTICON_SQUAD[1], from [0] tiles out
+# round the hero; never more than [2] hunters out at once.
+PANOPTICON_SQUAD = (25.0, ("riot_robot", "riot_robot", "sentry_drone", "sentry_drone"), 4)
+# Cameras (mine) on poles at the street corners, a chance of [0] at a
+# crossing by the tower's plaza down to [1] at the shore; each watches a
+# cone [2] degrees wide and [3] tiles long, panning [4] degrees either way
+# every [5] s. Seeing you, it stops panning and follows you.
+PANOPTICON_CAMERAS = (0.45, 0.10, 60.0, 11.0, 50.0, 5.0)
+# Turrets (mine) on the pavement against the blocks' walls, a chance of [0]
+# a block side by the plaza down to [1] at the shore; asleep until SEARCH,
+# then a burst of [2] shots [3] s apart (spec windup first, every spec
+# cooldown) at whoever they see.
+PANOPTICON_TURRETS = (0.12, 0.03, 3, 0.15)
+# Where each is rolled (world/panopticon.Plan.district_at, the chunk's
+# middle and the spot both): the rest go anywhere, the tower's plaza too.
+# The patrols (PANOPTICON_PATROLS) are x [PATROL_NEAR] as likely by the
+# plaza as at the shore: the nearer the tower, the more watched.
+PANOPTICON_DISTRICT_OF = {
+    "riot_robot": ("docks",), "warden": ("docks",),
+    "welder": ("factory",), "hauler": ("factory",), "assembler": ("factory",),
+    "foreman": ("factory",),
+}
+PANOPTICON_PATROLS = ("sentry_drone", "spotter")
+PANOPTICON_PATROL_NEAR = 2.0
+# The sentry drone hovers up and down a street, DRONE[0] tiles either way of
+# its home; its searchlight, a cone [1] degrees wide and [2] tiles long,
+# swings [3] degrees either way every [4] s, and it sees only what's in the
+# light. Seeing you, it keeps [5]-[6] tiles off with the light on you and
+# fires bursts of [7] shots [8] s apart (spec windup, every spec cooldown);
+# [9] s out of the light and it has lost you.
+DRONE = (12.0, 44.0, 10.0, 35.0, 2.6, 5.0, 9.0, 3, 0.12, 2.0)
+# The spotter keeps SPOTTER[0]-[1] tiles off where it can see you; within
+# [2] tiles, or hurt, it runs to hide behind a block ([4]-[5] tiles off, out
+# of your sight) for [3] s, then comes back to look.
+SPOTTER = (10.0, 15.0, 7.0, 3.0, 5.0, 10.0)
+# The riot robot: hits from within RIOT[0] degrees of its front are blocked
+# by its shield; it turns at most [1] rad/s. In reach a shield shove (spec
+# windup): a cone [2] degrees out to the spec's attack radius, pushing [3].
+# From [4]-[5] tiles, every [6] s, a stun charge, lobbed ([7] s; where it
+# lands shows): it bursts [8] tiles round for [9], and whoever it catches is
+# dazed [10] s (rooted, aim wavering).
+RIOT = (70.0, 1.6, 100.0, 3.5, 4.0, 12.0, 4.5, 0.9, 1.8, 14.0, 0.8)
+# The warden (elite). Seeing you WARDEN_MARK s, it marks you (TARGET MARKED): while it
+# lives the alert is held at lockdown. Every WARDEN[0] s it calls in [1]
+# sentry drones ([2] tiles off; not while [3] are near it). Every spec
+# cooldown, its beam: an arc of [4] degrees across you (shown first, spec
+# windup), swept in [5] s, [6] tiles long (walls stop it), burning [7] every
+# [8] s. Every [9] s within [10] tiles, a tether (a shot): caught, you're
+# chained to the spot ([11] tiles of slack) until you roll free or [12] s
+# pass. Close in a backhand (the spec's attack radius): [13] degrees,
+# pushing [14].
+WARDEN = (9.0, 2, 10.0, 4, 90.0, 1.6, 14.0, 14.0, 0.25, 6.0, 12.0, 1.5, 4.0, 120.0, 2.0)
+# (mine) Its eye must hold on you this long to mark you (its gaze shows):
+# break its sight first and you're not marked.
+WARDEN_MARK = 1.2
+# The workers work until a hero comes within WORKER_NOTICE[0] tiles (or
+# hits one, or it's called): then they treat you as material. The
+# factory's half-built robots start moving within [1] tiles.
+WORKER_NOTICE = (7.0, 5.0)
+# The welder rushes in at x WELDER[0]; in reach it flares (spec windup) and
+# drags its torch across you: [1] degrees out to the spec's attack radius,
+# swept in [2] s; [3] puddles of slag along the sweep ([4] tiles round, [5]
+# s), burning [6] every [7] s.
+WELDER = (1.3, 100.0, 0.4, 2, 0.9, 6.0, 6.0, 0.4)
+# The hauler, carrying a crate, from HAULER[0]-[1] tiles lines up (spec
+# windup; its lane shows) and charges [2] tiles at [3] tiles/s (tossing you
+# [4]; a wall stops it, dazed [5] s); then throws the crate at you ([6] s in
+# the air; where it lands shows): [7] shards of shrapnel and [8] tiles
+# round for x [9] its damage, and a broken crate left there (cover). It
+# fetches another in [10] s; without one, a shove close in.
+HAULER = (6.0, 14.0, 14.0, 12.0, 3.0, 1.0, 0.8, 8, 1.4, 0.8, 5.0)
+# The assembler, fighting, builds a turret where it stands (spec windup s:
+# kill it before it's done), then runs ASSEMBLER[0]-[1] tiles off (keeping
+# [2] from you) to build the next; not while [3] turrets are near it.
+ASSEMBLER = (8.0, 12.0, 6.0, 3)
+# The foreman (elite) keeps FOREMAN[0]-[1] tiles off. Every [2] s,
+# OVERTIME!: every worker within [3] tiles works x [4] as fast for [5] s.
+# Every spec cooldown it calls presses down on [6] marked spots round you
+# (the first on you, the rest within [7] tiles), shown [8] s: [9] tiles
+# round, [10] each. Within [11] tiles its bark (spec windup): a ring out to
+# [12] tiles at [13] tiles/s, pushing [14] (roll through it).
+FOREMAN = (5.0, 9.0, 8.0, 12.0, 1.5, 5.0, 4, 4.0, 1.1, 1.5, 30.0, 5.0, 7.0, 12.0, 2.0)
+# The machines' shots (M32.2, ai/panopticon.py).
+PANOPTICON_SHOTS = {
+    "drone_bolt": ShellSpec(speed=18.0, damage=8, max_range=14.0, damages_terrain=False,
+                            look="laser_bolt", sound="bolt"),
+    "turret_bolt": ShellSpec(speed=16.0, damage=10, max_range=16.0, damages_terrain=False,
+                             look="laser_bolt", sound="bolt"),
+    "shrapnel": ShellSpec(speed=12.0, damage=10, max_range=6.0, damages_terrain=False,
+                          look="shrapnel", sound="spark"),
+    "tether": ShellSpec(speed=15.0, damage=6, max_range=12.0, damages_terrain=False,
+                        look="tether", sound="zap"),
+}
 
 # Pangaea's enemies' shots (M31.2, ai/pangaea.py); each "_echo" is the same
 # shot played again by an echo, drawn faded.

@@ -1643,6 +1643,13 @@ CHAIN_FENCE = TileType(
 YARD_DIRT = TileType(
     "oily dirt", (". ", " ,", "  ", ",.", "  "), palette.YARD_FG, palette.YARD_BG,
 )
+BROKEN_CRATE = TileType(
+    # M32.2: a hauler's thrown crate, burst where it landed: cover (it breaks).
+    "broken crate", ("#]", "[#", "%]"), palette.CRATE_FG, palette.CRATE_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP // 2,
+    wear=((",#", "#,"),),
+    becomes=SCRAP_BITS,
+)
 WRECK = TileType(
     # A dead machine (some aren't quite dead, M32.3): cover.
     "wreck", ("[%", "%]", "&]"), palette.WRECK_FG, palette.WRECK_BG,

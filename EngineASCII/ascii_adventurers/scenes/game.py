@@ -96,7 +96,7 @@ from ..render.gear_looks import look_of
 from ..render.pandemonium import draw_entranced
 from ..render.feast import draw_drunk, draw_feast_marks
 from ..render.pangaea import draw_pangaea
-from ..render.panopticon import draw_panopticon
+from ..render.panopticon import draw_lockdown, draw_panopticon
 from ..render.relics import draw_relics
 from ..render.enemies_sprite import draw_enemy
 from ..render.fallen import draw_groves
@@ -1479,6 +1479,10 @@ class GameScene(Scene):
             return ("CHL", hero.chill / config.CHILL_FULL, hero.encased > 0)
         if hero.temptation > 0 or hero.entranced > 0:   # (M30.2: Pandemonium's temptation)
             return ("TMP", hero.temptation / config.TEMPT[0], hero.entranced > 0)
+        alert_hud = getattr(hero, "alert_hud", None)   # (M32.2: Panopticon's alert, the city's)
+        if alert_hud is not None:
+            from ..systems.alert import LOCKDOWN, NAMES
+            return ("ALR", alert_hud[1], alert_hud[0] == LOCKDOWN, NAMES[alert_hud[0]])
         if hero.shrunk > 0:                   # (M25.1: tiny, until a growcap or this runs out)
             return ("TNY", hero.shrunk / config.SHRINK[0], True)
         wait = mount.meter(hero)              # (P6: the whistle, or the wait after a fall)
@@ -1551,6 +1555,7 @@ class GameScene(Scene):
         draw_pale_allies(self.sprites, cam, [p.hero for p in self.players if p.alive])
         draw_horsemen_marks(text, cam, [p.hero for p in self.players], self.enemies)   # (M29.5)
         self._sky(d, cam)                                 # (M29.4: Paradise reddening)
+        draw_lockdown(d.canvas, self, me.hero)            # (M32.2: Panopticon's lockdown)
         others = [(p.hero.x, p.hero.y, p.color) for p in self.players if p is not me and p.alive]
         pins = self.quests.pins((me.hero.x, me.hero.y)) + self._blood_pins(me) + self._drop_pins() \
             + self.chests.pins()

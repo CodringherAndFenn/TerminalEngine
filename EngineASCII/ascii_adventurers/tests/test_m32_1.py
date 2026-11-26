@@ -259,9 +259,9 @@ class TilesTest(unittest.TestCase):
             self.assertIs(t.becomes, left)
         self.assertIn(tiles.PYLON, tiles.REPORT_BREAKS)
 
-    def test_nobody_lives_here_yet(self):
-        # (M32.2-3: the machines)
-        self.assertEqual(config.BIOME_ENEMY_DENSITY.get("panopticon", 0.0), 0.0)
+    def test_somebody_lives_here_now(self):
+        # (M32.2: the machines; test_m32_2)
+        self.assertGreater(config.BIOME_ENEMY_DENSITY.get("panopticon", 0.0), 0.0)
 
 
 class MapTest(unittest.TestCase):
@@ -295,6 +295,7 @@ class HazardTest(unittest.TestCase):
     def setUpClass(cls):
         cls.m, cls.s = _game()
         cls.p = plan_of(cls.s.world.layout, cls.s.world.layout.zone("panopticon"))
+        cls.s.spawner.update_views = lambda *a, **kw: None   # (the land alone: no machines, M32.2)
 
     def setUp(self):
         s = self.s

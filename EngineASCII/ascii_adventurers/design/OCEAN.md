@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Ocean Zones
 
-Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE. M32 (Panopticon, the east) DRAFTED 2026-11-25 (sections 35-40). M32.1 BUILT (2026-11-25, section 41).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M29 (Paradise) DRAFTED with the user, 2026-11-21. M29.1 BUILT (2026-11-21, section 8). M29.2 BUILT (2026-11-21, section 9). M29.3 BUILT (2026-11-21, section 10). M29.4 BUILT (2026-11-22, section 11). M29.5 BUILT (2026-11-22, section 12). M29 (Paradise) COMPLETE. M30 (Pandemonium, the south) DRAFTED 2026-11-22 (sections 13-18). M30.1 BUILT (2026-11-22, section 19). M30.2 BUILT (2026-11-23, section 20). M30.3 BUILT (2026-11-23, section 21). M30.4 BUILT (2026-11-23, section 22). M30.5 BUILT (2026-11-23, section 23: the hunger and his relics). M30 (Pandemonium) COMPLETE. M31 (Pangaea, the west) DRAFTED 2026-11-23 (sections 24-29). M31.1 BUILT (2026-11-23, section 30). M31.2 BUILT (2026-11-24, section 31). M31.3 BUILT (2026-11-24, section 32). M31.4 BUILT (2026-11-24, section 33). M31.5 BUILT (2026-11-24, section 34: the first life; its relics 2026-11-25, 34.1). M31 (Pangaea) COMPLETE. M32 (Panopticon, the east) DRAFTED 2026-11-25 (sections 35-40). M32.1 BUILT (2026-11-25, section 41). M32.2 BUILT (2026-11-26, section 42).** These are M29-M32 in `BOSSES.md` section 8. The user may change anything here after playing it ("leave the design docs so I can change them later after testing"). Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -949,7 +949,7 @@ At 0 **the eye tears out of the ceiling and builds a giant from the hall itself*
 | Step | Content |
 |------|---------|
 | M32.1 | **Panopticon's land:** the east zone (Paradise's framework), chrome and neon, the sea wall shore, the wedges round the tower (four districts, street grids, district walls and gates), laser fences, conveyors and presses, live power (pylons, cables, puddles), the cleaning (sweeper lanes), the four landmarks (the sea wall, the factory, the scrapyard, the kept homes), the seven camera masts and their pylons (standing), the tower and the hall of cells (sealed by blast doors), the HUD name and banner. **Built, section 41** |
-| M32.2 | **The alert + the watch and the workers (8):** cameras, the meter and its three levels (calls, turrets waking, gates sealing, the hunter squad, the cleaning on your street), endgame toughness; the sentry drone, spotter, riot robot, Warden; the welder, hauler, assembler, foreman |
+| M32.2 | **The alert + the watch and the workers (8):** cameras, the meter and its three levels (calls, turrets waking, gates sealing, the hunter squad, the cleaning on your street), endgame toughness; the sentry drone, spotter, riot robot, Warden; the welder, hauler, assembler, foreman. **Built, section 42** |
 | M32.3 | **The other 8:** the butler, scrubber, gardener, nanny (and the mess in the kept homes); the junker, magnet, rust swarm, scrap colossus (and the wrecks that aren't quite dead) |
 | M32.4 | **The quest + form 1:** blinding the seven eyes (the pylons, the masts, the darkened districts), the voice in the screens, opening and sealing the hall; the eye (the ceiling rail, the gaze, the cells, the laser grid, the recordings, four moves) |
 | M32.5 | **Form 2:** the walking city (the walls come down, it builds itself, power from the grid, a hundred eyes, the city answers, four moves), the bot benchmark; then the relics drafted with the user |
@@ -1026,4 +1026,98 @@ All of it **scales like the zone's enemies' damage** (`systems/pangaea.hazard`).
 - `render/panopticon.py`, effect `spark_burst`.
 
 **Tests:** `tests/test_m32_1.py` (27); `test_m29_1` (every place has its zone now) and `test_m31_1` (the east is Panopticon) updated.
+
+## 42. Built: M32.2 (2026-11-26) -- the alert, the watch and the workers
+
+**The alert** (`systems/alert.py`, as drafted in section 36; numbers mine, `PANOPTICON_ALERT`, `ALERT_EYES`):
+- **One meter for the whole island** (on the world: every hero on it shares it), 0-100. **SEARCH from 30, LOCKDOWN at 100.**
+- **It rises by the fastest eye on anyone, not the sum:**
+  - 20 a second for a camera or one of the watch;
+  - **30 for a spotter** (watching is all it does);
+  - 6 for any other machine.
+- **It cools:** after **3 s** with nothing seeing anyone, it drains 15 a second.
+- **Lockdown holds at least 10 s** with the meter full.
+- **Every machine** reports what it sees each step; a machine sees you with its own sight and line of sight, a camera only in its cone, a drone only in its searchlight.
+- **SEARCH:**
+  - a machine that sees you **calls every machine within 14 tiles** to where you are (every 0.5 s); the workers stop work and the half-built robots get up;
+  - **the turrets open**.
+- **LOCKDOWN** (each time it's reached):
+  - **the gates of each hero's district seal for 15 s**: their fences stay on (drawn doubled and bright), and a hero touching one is burnt and put back on their own side, so nobody gets through. The district stays open to the tower's plaza;
+  - **the hunter squad**: 2 riot robots and 2 sentry drones, ~25 tiles out round the hero, knowing where they are, never more than 4 out at once;
+  - **a sweeper comes for your street** at once (the cleaning, `PANOPTICON_SWEEP`).
+- **On the HUD**, for a hero on the island: the **ALR** meter with its level's name at its end (CALM cyan, SEARCH amber, LOCKDOWN magenta). In lockdown **the screen's edge pulses magenta**.
+
+**The eyes** (residents, `ai/panopticon.residents`, worked out once per seed by `world/panopticon.Plan.camera_spots` / `turret_spots`):
+- **Cameras** (188 on seed 31, 165-200 over three seeds) on poles at a corner of a street crossing. The chance is 45% by the tower's plaza, down to 10% at the shore: the nearer the tower, the more watched.
+  - Each watches a cone 60 degrees wide and 11 tiles long, panning 50 degrees either way across the crossing every 5 s.
+  - **Seeing you, it stops and follows you** (its cone turns magenta) until you leave its reach or its sight.
+  - Base HP 30, a few hits.
+- **Turrets** (~190) on the pavement against a block's wall, halfway along it, never an empty lot's. The chance is 12% a side by the plaza, down to 3% at the shore.
+  - **Shut until SEARCH**; then bursts of 3 bolts every 2.2 s at whoever they see.
+  - Base HP 90.
+- Both are enemies like any other (they can be shot, and the zone's toughness applies), but **they live at fixed places and stay dead once killed**. None stand by the sea wall or the tower (`ZONE_QUIET_MARKS`, like every enemy).
+
+**Who lives where:** the spawner rolls each kind only in its own district (`PANOPTICON_DISTRICT_OF`): the riot robots and wardens in the docks, the four workers in the factory district. The **patrols** (sentry drones and spotters) go anywhere, the tower's plaza too, and are up to twice as likely by the plaza as at the shore. The factory keeps a crew (residents):
+- **a worker lies on each of its nine half-built robots** (`Machine.settle`: a hauler, an assembler or a welder). It's the robot's tile until a hero comes within 5 tiles or it's called; then **it gets up** (sparks, a 0.6 s tell), and the robot's tiles become factory floor for good;
+- **a welder at every third robot arm**;
+- **the foreman on the floor**.
+
+The density is 1.0, like the other zones', with the zone's endgame toughness. On seed 31: ~250 sentry drones and ~170 spotters, then the docks' ~30 riot robots and ~20 wardens, and the factory district's ~90 welders, ~25 haulers, ~20 assemblers and ~13 foremen. The homes and the scrapyard have only the patrols until M32.3 brings their own.
+
+**The workers work until you come near**: within **7 tiles**, if you hit one, or if it's called. Then they treat you as material. With nobody to fight they go home and back to work. **The machines know the city's patterns**: none of the land's dangers touch them, but **the belts carry them too** (not the drones, which hover).
+
+**The eight** (numbers in `config.py`: `DRONE`, `SPOTTER`, `RIOT`, `WARDEN`, `WARDEN_MARK`, `WELDER`, `HAULER`, `ASSEMBLER`, `FOREMAN`, `WORKER_NOTICE`; base HP before the zone's x2.5):
+
+| Enemy | Base HP | What it does |
+|-------|---------|--------------|
+| **Sentry drone** | 40 | Hovers up and down the street it woke on, 12 tiles either way. **Its searchlight** (44 degrees, 10 tiles) swings 35 degrees either way ahead of it, and **it sees only what's in the light**. Caught in it: it keeps 5-9 tiles off with the light on you and fires bursts of 3 bolts (0.35 s tell, every 1.8 s). 2 s out of the light and it has lost you |
+| **Spotter** | 60 | Never fights (no damage). It keeps 10-15 tiles off where it can see you (a magenta line from its lens to you), the alert rising fastest. **Within 7 tiles, or hurt, it runs to hide behind a block** (5-10 tiles off, out of your sight) for 3 s, then comes back to look |
+| **Riot robot** | 220 | **Its shield blocks every hit from within 70 degrees of its front** (sparks), and it turns at most 1.6 rad/s: get round behind it. Close in, a shield shove (100 degrees, pushing 3.5). From 4-12 tiles, every 4.5 s, **a stun charge** lobbed (0.9 s; its ring shows): 14 within 1.8 tiles, and **dazed 0.8 s** (rooted, aim wavering, **DAZED!**) |
+| **Warden** (elite) | 420 | **Its eye on you 1.2 s** (a magenta line, blinking faster): **TARGET MARKED**, and while it lives the alert is held at lockdown. Break its sight first and you aren't marked. Every 9 s it calls in 2 sentry drones (not while 4 are near it). Every 6 s **its beam**: the arc shows 1 s, then it sweeps 90 degrees across you in 1.6 s, 14 tiles long (walls stop it), burning 14 every 0.25 s. Every 6 s within 12 tiles **a tether** (a shot): caught, you're chained to the spot (1.5 tiles of slack) until you **roll free** or 4 s pass. Close in, a backhand (120 degrees) |
+| **Welder** | 90 | Rushes in at x1.3; in reach it flares (0.4 s, the cone shows) and **drags its torch across you** (100 degrees in 0.4 s, each hero hit once), leaving **2 puddles of slag** (0.9 tiles, 6 s, burning 6 every 0.4 s) |
+| **Hauler** | 200 | Carrying a crate, from 6-14 tiles it **lines up** (0.9 s; its lane shows) and **charges** 14 tiles at 12 tiles/s (tossing you 3; a wall stops it, dazed 1 s), **then throws the crate at you** (0.8 s; its ring shows): **8 shards of shrapnel**, 0.8 of its damage within 1.4 tiles, and **a broken crate left there**. The crate is cover: a new tile, solid, it stops shots and breaks (40). Closer than 6 it throws straight away. It fetches another crate in 5 s; without one, a shove |
+| **Assembler** | 110 | Fighting, **it builds a turret where it stands, 4 s** (a build bar over it; it can't be stopped, only killed), then runs 8-12 tiles off (keeping 6 from you) to build the next; not while 3 of its turrets are near. **The assembled turret** (70) is always open and fires at you until destroyed |
+| **Foreman** (elite) | 360 | Keeps 5-9 tiles back. Every 8 s **OVERTIME!**: every worker within 12 tiles runs x1.5 as fast for 5 s (its whole clock: moving and attacking). Every 6 s **it calls presses down**: 4 marked spots (the first on you, the rest within 4 tiles), their shadows growing 1.1 s, then 30 each within 1.5 tiles. Within 5 tiles **its bark**: a ring out to 7 tiles at 12 tiles/s, pushing 2 (roll through it) |
+
+**Look** (`render/panopticon_art.py`, 14 pictures):
+- the camera on its pole, its lens cyan;
+- a turret shut (a slit) and open (its barrel out, a red eye), and an assembler's on a tripod in hazard stripes;
+- the sentry drone a hovering disc with rotors;
+- the spotter a camera on three long legs;
+- the riot robot bulky behind its riot shield;
+- the warden tall and armoured, one great cyan eye;
+- the welder in a welding mask, its torch out;
+- the hauler a loader with a crate on its forks (and without);
+- the assembler with many small arms;
+- the foreman in a yellow hard hat with a megaphone (and shouting into it).
+
+New sprite letters: digits, since all 52 letters were taken (`1`/`2` neon magenta, `3`/`4` dark and bright chrome, `5` a lens's cyan, `6` hazard yellow).
+
+Tells (`render/panopticon.draw_panopticon_tells`):
+- the cameras' cones and the drones' searchlights (cyan, magenta once they're on you);
+- **a magenta eye over every machine that sees you**, and a "!" over the hunters;
+- charges and crates in the air with their rings;
+- the shield's sparks;
+- the warden's marking gaze, its beam's arc and the beam, its tether;
+- the welder's torch, the hauler's lane, the assembler's build bar and spot;
+- the foreman's press marks (growing) and its bark ring;
+- the slag;
+- shots `laser_bolt`, `shrapnel`, `tether`.
+
+**Measured:** in lockdown in the docks with 41 machines awake (cameras, turrets, the watch and the hunter squad), a game step takes 0.95 ms (at most 1.6) and drawing 2.0 ms (Pangaea's: 1.4 and 2.1 with 28). A Panopticon chunk's roster takes ~1.3 ms (the district is looked up per spot). The cameras and turrets of a seed are worked out once, ~80 ms.
+
+**Code:**
+- `ai/panopticon.py` (`Machine`; `Camera`, `Turret`; `SentryDrone`, `Spotter`, `RiotRobot`, `Warden`; `Welder`, `Hauler`, `Assembler`, `Foreman`; `residents`);
+- `systems/alert.py` (`Alert`, `alert_of`, `seen`, `hold`, `step`, the lockdown);
+- `systems/panopticon.py`: `fence_state`, sealed gates barring the way (`_bar`), the belts carrying the machines (`_carry`), the alert's step;
+- `world/panopticon.py` (`district_gates`, `camera_spots`, `turret_spots`, the factory's `arms`);
+- `world/tiles.BROKEN_CRATE`;
+- `systems/spawner` (each in its district: `_districts`; the residents; `settle` when woken);
+- `render/panopticon.py` (`draw_panopticon_tells`, `draw_lockdown`, the sealed beams), `render/panopticon_art.py`, `render/plains.py` (calls them; a half-built robot lying there isn't drawn), `render/spell_fx` (slag), `render/ascii_fx` (the shots);
+- `ui/hud.py` (a meter can show its level's name), `scenes/game` (the ALR meter, the edge);
+- config (the numbers above, `PANOPTICON_SHOTS`, `BIOME_ENEMY_DENSITY["panopticon"]`, bestiary pages), palette.
+
+**Tests:** `tests/test_m32_2.py` (27). `test_m32_1`'s "nobody lives here yet" now checks somebody does, and its hazard tests keep the machines away (the land alone).
+
+**For later:** every number wants a play test, the alert's pace most of all. The docks' wardens make lockdown come quickly once one sees you; the 1.2 s mark is the window to break its sight. M32.3 brings the other eight (the housekeepers and the scrap) and the mess in the kept homes; M32.4 darkens the city near each blinded mast (the alert at half speed there; its cameras go dark).
 

@@ -27,7 +27,8 @@ from .characters import draw_character
 from .mounts import draw_rider, gallop_frame
 from .pangaea import draw_beast, draw_spirit_painting
 from . import (desert_art, forest_art, mushroom_art, pandemonium_art, pangaea_art,  # noqa: F401
-               paradise_art, plains_art, ruins_art, swamp_art)   # (they add the pictures to ART)
+               panopticon_art, paradise_art, plains_art, ruins_art,
+               swamp_art)                                         # (they add the pictures to ART)
 
 
 def _frame(e) -> int:
@@ -83,6 +84,7 @@ def draw_plains_tells(text, camera, e) -> None:
     from .paradise import draw_paradise_tells             # (M29.2: Paradise's)
     from .pandemonium import draw_pandemonium_tells       # (M30.2: Pandemonium's)
     from .pangaea import draw_pangaea_tells               # (M31.2: Pangaea's)
+    from .panopticon import draw_panopticon_tells         # (M32.2: Panopticon's)
     from .forest import draw_forest_tells                 # (P8: the haunted forest's)
     draw_forest_tells(batch, camera, e)
     draw_desert_tells(batch, camera, e)
@@ -92,11 +94,14 @@ def draw_plains_tells(text, camera, e) -> None:
     draw_paradise_tells(batch, camera, e)
     draw_pandemonium_tells(batch, camera, e)
     draw_pangaea_tells(batch, camera, e)
+    draw_panopticon_tells(batch, camera, e)
     batch.flush()
 
 
 def draw_plains(text, bank, camera, e) -> None:
     """A P7 creature: body, tells, health bar."""
+    if getattr(e, "dormant", False):                     # (M32.2: a half-built robot: the tile is it)
+        return
     x, y = camera.world_to_px(e.x, e.y)
     hurt = e.hurt_flash > 0
     scale = e.espec.scale

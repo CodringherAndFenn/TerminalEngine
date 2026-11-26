@@ -294,6 +294,14 @@ def draw_summons(text, camera: Camera, players, zones, steps: int) -> None:
                 a = k * math.tau / 4 + 0.7
                 batch.put_c(x + math.cos(a) * z.radius * 0.7 * tw,
                             y + math.sin(a) * z.radius * 0.7 * th, "o" if k % 2 else ".", col)
+        elif z.kind == "slag":
+            # M32.2: a welder's molten slag, glowing as it cools (it burns).
+            col = palette.SLAG[0 if z.age < z.life * 0.6 else 1]
+            for k in range(5):
+                a = k * math.tau / 5 + 0.3
+                batch.put_c(x + math.cos(a) * z.radius * 0.6 * tw,
+                            y + math.sin(a) * z.radius * 0.6 * th, "o" if k % 2 else ".", col)
+            batch.put_c(x, y, "*" if int(z.age * 5) % 2 else "o", col)
         elif z.kind == "wine_puddle":
             # M30.2: a drunkard's shattered bottle: a puddle of wine (slows,
             # tempts), glass glinting in it.
