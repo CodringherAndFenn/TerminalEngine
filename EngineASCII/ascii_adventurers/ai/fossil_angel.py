@@ -3,7 +3,8 @@ ai/fossil_angel.py -- THE FOSSIL ANGEL, the final of heaven and the past
 (M33.1, design/FINALS.md 8-9): an angel that fell on the first day and has
 lain in the rock ever since, a vast skeleton of stone feathers and bone in
 amber. Form 1 here: ITS BONES WALK, wrapped in jungle and fire, under a
-halo of lava. (Form 2, the first angel unveiling, is M33.2.)
+halo of lava. Form 2, THE FIRST ANGEL UNVEILS (M33.2), is ai/first_angel.py,
+a mix-in: one body, two forms.
 
 It hunts you across the whole map like every final (ai/finals.Final: the
 walk, the leap, its trail of cloud, marble, ash and ferns, the cherubs and
@@ -47,6 +48,7 @@ from ..systems.zones import Zone
 from ..world import tiles
 from .bosses import Boss
 from .finals import Final
+from .first_angel import PHASE_BANNERS_2, FirstAngel
 from .pangaea import Echoing
 
 _TAU = math.tau
@@ -56,7 +58,8 @@ PHASE_BANNERS = {
     3: ("IT WEEPS AMBER", "the resin holds you -- roll free"),
 }
 # Its own: what its trail and moves never stamp over, and what's left of it.
-FIXTURES = frozenset((tiles.FEATHER_SPIKE, tiles.RESIN, tiles.AMBER_WALL))
+FIXTURES = frozenset((tiles.FEATHER_SPIKE, tiles.RESIN, tiles.AMBER_WALL, tiles.RED_RESIN,
+                      tiles.RED_AMBER))
 
 
 class LavaHalo(Actor):
@@ -100,8 +103,11 @@ class LavaHalo(Actor):
         pass
 
 
-class FossilAngel(Echoing, Final):
-    """The Fossil Angel, form 1 (see the module's docstring)."""
+class FossilAngel(FirstAngel, Echoing, Final):
+    """The Fossil Angel, form 1 (see the module's docstring; form 2:
+    ai/first_angel.FirstAngel)."""
+
+    FIXTURES = FIXTURES
 
     GROUNDS = ((tiles.CLOUD, tiles.CLOUD_DRIFT, tiles.MARBLE_RUBBLE),     # heaven
                (tiles.ASH, tiles.BASALT, tiles.FERN_MEADOW))              # the past
@@ -124,22 +130,34 @@ class FossilAngel(Echoing, Final):
         self.walls: list[list] = []       # [tx, ty, the tile under it, s left]
         self.held: dict = {}              # id(hero) -> [hero, s left] (caught in running resin)
         self.banner_req: tuple | None = None
+        self._init_first_angel()
 
     # --- Being the Fossil Angel ----------------------------------------------------------
 
     @property
     def bar_label(self) -> str:
+        if self.form == 2:
+            return "The First Angel -- unveiled"
+        if self.form == "unveiling":
+            return "The Fossil Angel -- it unveils"
         return "The Fossil Angel -- its bones walk"
 
     @property
     def has_halo(self) -> bool:
-        return self.wheel is None and self.halo_lost <= 0
+        return self.wheel is None and self.halo_lost <= 0 and not self.wheels
 
     def victims(self, ctx) -> list:
         return Final.victims(self, ctx)
 
     def sprite_now(self) -> str:
-        return "fossil_angel_beat" if self.pose in ("beat", "halo", "weep") else "fossil_angel"
+        if self.form == "unveiling":                  # (flickering into flesh, faster as it comes)
+            left = self.unveil_t / config.FOSSIL_UNVEIL
+            return "fossil_angel_flesh" if int(self.time * (5.0 + 18.0 * (1.0 - left))) % 2 \
+                else "fossil_angel"
+        up = self.pose in ("beat", "halo", "weep", "word", "rake")
+        if self.form == 2:
+            return "fossil_angel_flesh_beat" if up else "fossil_angel_flesh"
+        return "fossil_angel_beat" if up else "fossil_angel"
 
     def hurt(self, base: float) -> float:
         return base * self.damage_mult
@@ -149,8 +167,9 @@ class FossilAngel(Echoing, Final):
 
     @property
     def echoing(self) -> bool:
-        """Its third signature: its attacks echo from this phase on."""
-        return self.phase >= config.FOSSIL_ECHO_PHASE
+        """Its third signature: its attacks echo from this phase on (form 1's
+        only: the first angel doesn't echo)."""
+        return self.form == 1 and self.phase >= config.FOSSIL_ECHO_PHASE
 
     def _record(self, kind: str, tell, data: dict) -> None:
         if self.echoing:
@@ -160,11 +179,18 @@ class FossilAngel(Echoing, Final):
 
     def think(self, ctx, dt: float) -> None:
         self.ctx = ctx
+        if self.form == "unveiling":                  # (M33.2: its flesh growing back)
+            self._unveil_step(ctx, dt)
+            return
         self.play_echoes(ctx, dt)
         self._tick_halo(ctx, dt)
         self._tick_spikes(ctx, dt)
         self._tick_amber(ctx, dt)
+        if self.form == 2:
+            self._first_angel_step(ctx, dt)
         Final.think(self, ctx, dt)
+        if self.form == 2:
+            self.place_eyes()                         # (where it walked to this step)
 
     def clear_tells(self) -> None:
         self.planted = False
@@ -180,6 +206,7 @@ class FossilAngel(Echoing, Final):
             self.wheel.hp = 0.0
         self.wheel = None
         self.rivers = []
+        self.beating = None
 
     def _start(self, name: str) -> None:
         self.clear_tells()
@@ -190,7 +217,7 @@ class FossilAngel(Echoing, Final):
         Boss._end_move(self)
 
     def on_phase(self, phase: int, ctx) -> None:
-        req = PHASE_BANNERS.get(phase)
+        req = (PHASE_BANNERS_2 if self.form == 2 else PHASE_BANNERS).get(phase)
         if req is not None:
             self.banner_req = req
         ctx.effects.append(Effect("toast", self.x, self.y - self.hit_radius - 2,
@@ -418,12 +445,12 @@ class FossilAngel(Echoing, Final):
             else:
                 self.held[key][1] = left
 
-    def _hold_hero(self, ctx, h, hold: float, dmg: float) -> None:
+    def _hold_hero(self, ctx, h, hold: float, dmg: float, label: str = "CAUGHT IN AMBER!") -> None:
         h.slowed(0.0, hold)
         self.held[id(h)] = [h, hold]
         if dmg:
             self.hit(h, self.hurt(dmg), self.facing)
-        ctx.effects.append(Effect("toast", h.x, h.y - 1.5, label="CAUGHT IN AMBER!"))
+        ctx.effects.append(Effect("toast", h.x, h.y - 1.5, label=label))
 
     # --- The moves --------------------------------------------------------------------------
 
@@ -536,6 +563,9 @@ class FossilAngel(Echoing, Final):
         yield 0.3
 
     def landed(self, ctx, x: float, y: float, what: str, echo: bool) -> None:
+        if what == "blood":                           # (M33.2: the blood rain)
+            self._blood_landed(ctx, x, y)
+            return
         if what != "star":
             return
         _, _, _, _, rad, dmg, _, _ = config.FOSSIL_STARS

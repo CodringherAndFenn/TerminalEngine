@@ -283,6 +283,9 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
         from .fossil_angel import draw_lava_halo
         draw_lava_halo(text, camera, e)
         return
+    from ..ai.first_angel import AngelEye
+    if isinstance(e, AngelEye):                # (M33.2: drawn on the first angel's flesh)
+        return
     from ..ai.ancestor import Ancestor
     if isinstance(e, Ancestor):                # M31.4: the Ancestor
         from .ancestor import draw_ancestor

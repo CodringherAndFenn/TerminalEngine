@@ -1433,6 +1433,18 @@ ENEMIES = {
         name="the lava halo", kind="lava_halo", sprite="lava_halo", scale=3,
         max_hp=500, sight=1, biomes=(), speed=0.0, damage=0, size_px=26, xp=0,
     ),
+    # M33.2: form 2, the first angel unveiled (ai/first_angel.py). The eyes
+    # open in its flesh (hit one to close it: FOSSIL_EYES; its health is
+    # scaled like the angel's), and the drops of its blood that crawl at you
+    # and, left alone, grow into small unveiled angels (FOSSIL_DROPS).
+    "angel_eye": EnemySpec(
+        name="an eye in its flesh", kind="angel_eye", sprite="angel_eye", scale=2,
+        max_hp=220, sight=1, biomes=(), speed=0.0, damage=0, size_px=12, xp=0,
+    ),
+    "blood_drop": EnemySpec(
+        name="a drop of its blood", kind="blood_drop", sprite="blood_drop", scale=2,
+        max_hp=24, sight=40, biomes=(), speed=3.2, damage=0, size_px=12, xp=2,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -5053,6 +5065,11 @@ BESTIARY = {
                             "everything it does echoes."),
     "lava_halo": (1500, "The Fossil Angel's halo, rolled out as a burning wheel. Hit it and it cools "
                         "to stone."),
+    # M33.2
+    "angel_eye": (1500, "An eye open in the first angel's raw flesh, sweeping its gaze across the "
+                        "land. Hit it and it closes, and the angel flinches."),
+    "blood_drop": (800, "A drop of the first angel's blood, crawling. Left alone it grows into an "
+                        "angel."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -5914,6 +5931,11 @@ PANGAEA_SHOTS = {
                              look="bone_shard", sound="bow"),
     "stone_shard_echo": ShellSpec(speed=12.0, damage=14, max_range=12.0, damages_terrain=False,
                                   look="bone_shard_echo", sound="bow"),
+    # M33.2: the first angel's six wings, each beat a volley of bloody feathers.
+    "blood_feather": ShellSpec(speed=14.0, damage=12, max_range=16.0, damages_terrain=False,
+                               look="blood_feather", sound="bow"),
+    "blood_feather_echo": ShellSpec(speed=14.0, damage=12, max_range=16.0, damages_terrain=False,
+                                    look="bone_shard_echo", sound="bow"),
 }
 # The angels' shots (M29.2, ai/paradise.py): serene, slow notes, rings and
 # orbs of light; unveiled, the seraph's spirals of blood and fire.
@@ -7546,7 +7568,29 @@ BOSSES = {
             BossPhase(0.25, (("amber", 3), ("halo", 2), ("feathers", 2), ("sweep", 2),
                              ("dive", 2), ("breath", 2), ("stars", 2)), rest=1.8),
         ),
-        loot=40000, achievement="fossil_angel", pages=("fossil_angel", "lava_halo"),
+        loot=40000, achievement="fossil_angel",
+        pages=("fossil_angel", "lava_halo", "angel_eye", "blood_drop"),
+    ),
+    # M33.2: form 2, the first angel unveils (FINALS.md 9.2; ai/first_angel.py).
+    # Four phases, a signature joining in each: eyes in the flesh, life from
+    # its blood (all the form, not moves), red amber (its pools hold you; and
+    # "walls", a move), six wings (all the form). Its moves: claw rake, the
+    # first word, blood rain, halo wheels; its stone feathers still fall now
+    # and then (the cover the first word needs: FINALS.md 9.2, mine). The
+    # reward and pages are form 1's.
+    "fossil_angel_unveiled": BossSpec(
+        name="The First Angel",
+        phases=(
+            BossPhase(1.0, (("rake", 3), ("word", 2), ("rain", 2), ("wheels", 2), ("feathers", 1)),
+                      rest=1.5),
+            BossPhase(0.75, (("rake", 2), ("word", 2), ("rain", 2), ("wheels", 2),
+                             ("feathers", 1)), rest=1.4),
+            BossPhase(0.5, (("walls", 3), ("rake", 2), ("word", 2), ("rain", 2), ("wheels", 2),
+                            ("feathers", 1)), rest=1.4),
+            BossPhase(0.25, (("walls", 2), ("rake", 2), ("word", 2), ("rain", 2), ("wheels", 2),
+                             ("feathers", 1)), rest=1.5),
+        ),
+        loot=0, achievement="fossil_angel", pages=(),
     ),
 }
 BOSS_KEYS = tuple(BOSSES)         # (M28.5: a stable order for the relic drop's seed)
@@ -7624,6 +7668,74 @@ FOSSIL_BREATH = (0.8, 60, 12.0, 22, 4, 1.1, 4.0, 6)
 # [3] s, [4] tiles round, [5] damage, within [6] tiles of you, [7] s apart
 # in a chain.
 FOSSIL_STARS = (0.6, 2, 4, 1.3, 1.8, 24, 7.0, 0.35)
+
+# M33.2: THE FOSSIL ANGEL, form 2, the first angel unveils (design/FINALS.md
+# 9.2; ai/first_angel.py). At 0 it stands FOSSIL_UNVEIL s where it is (it
+# can't be hit) while its flesh grows back, red and raw, then it's back at
+# full health x FOSSIL_UNVEILED_HP (18,000 of 15,000) and hunts on. Its
+# echoes were form 1's: form 2 doesn't echo (mine). Numbers mine.
+FOSSIL_UNVEILED_HP = 18000 / 15000
+FOSSIL_UNVEIL = 3.0
+FOSSIL_UNVEILED_HIT_RADIUS = 2.6
+# Its trail's creatures come x FOSSIL_BROOD_SLOWER as seldom in form 2 (its
+# blood brings its own: mine, after the bench).
+FOSSIL_BROOD_SLOWER = 2.0
+# Signature 1, eyes in the flesh: [0] of its [1] eyes open when it unveils;
+# a closed one opens again [2] s later. An eye has [3] HP at level 1 (scaled
+# like the angel). Between gazes it rests [4]-[5] s; a gaze shows [6] s (its
+# line where it starts), then sweeps [7] degrees in [8] s across where you
+# are, [9] tiles long (cut short by anything that stops shots), [10] tiles
+# either side, [11] damage (once a sweep). Hit to 0, an eye closes and the
+# angel flinches: [12] x its max health.
+FOSSIL_EYES = (4, 6, 12.0, 220, 2.5, 4.0, 0.8, 100, 1.6, 16.0, 0.45, 18, 0.02)
+# Where its eyes sit (tiles from its middle, +y down): on its shoulders and
+# its wings, out past its body (FOSSIL_UNVEILED_HIT_RADIUS) -- an eye inside
+# it could never be hit: a shot meets the body first.
+FOSSIL_EYE_SLOTS = ((-1.7, -2.6), (1.7, -2.6), (-3.1, -0.9), (3.1, -0.9), (-3.2, 0.7), (3.2, 0.7))
+# Signature 2, life from its blood: every [0] s it drips [1] drops [2]-[3]
+# tiles from it, while fewer than [4] are about. A drop crawls at you (it
+# can't hurt you yet); left alone [5] s it grows into a small angel of
+# FOSSIL_DROP_ANGELS, unveiled at once (as tough as anywhere: not the
+# trail's endgame toughness -- mine, after the bench). Kill them early.
+FOSSIL_DROPS = (10.0, 2, 3.0, 7.0, 3, 12.0)
+FOSSIL_DROP_ANGELS = ("dove", "cherub", "dove")
+# Signature 3, red amber: from its third phase its blood pools (RED_RESIN,
+# the blood rain's) hold you: stepping into one (not mid-roll) holds you [0]
+# s or until you roll ([1] damage), and not again for [2] s after. Before
+# that a pool slows you to x[3].
+FOSSIL_RED_AMBER = (2.0, 8, 3.0, 0.6)
+# ...and its move "walls": red amber walls rise across your path: [0] s
+# shown (the resin running first), [1] walls [2] tiles long, one across your
+# path [3] tiles ahead of you (a second would rise between you and it);
+# RED_AMBER tiles (never on anyone), standing [4] s. (Mine, after the bench:
+# one wall, not two -- the second blocked the bot's shots a fifth of the
+# fight; the first word drops its own cover.)
+FOSSIL_WALLS = (0.9, 1, 7, 4.0, 10.0)
+# Signature 4, six wings: every [0] s the next of its six wings beats, in
+# turn (raised [1] s first): a push wave in a [2]-degree cone [3] tiles out
+# from the wing at you ([4] damage, pushing [5]) and a volley of [6] bloody
+# feathers [7] degrees wide.
+FOSSIL_WINGS = (2.2, 0.5, 100, 8.0, 10, 4.0, 5, 40)
+# Claw rake: [0] s shown, [1] raking lines [2] tiles long, [3] tiles apart
+# (the middle one at you), [4] tiles either side, [5] damage, pushing [6].
+FOSSIL_RAKE = (0.9, 3, 14.0, 3.6, 0.6, 30, 1.5)
+# The first word: it speaks [0] s (planted), and first [4] stone feathers
+# fall round each hero with no cover within [5] tiles, [6]-[7] tiles from
+# them (each two spikes wide); then a ring of white light spreads [1]
+# tiles/s out to [2] tiles. Caught in the open (nothing that stops shots
+# between you and where it spoke), [3] damage; sheltered, nothing.
+FOSSIL_WORD = (1.6, 16.0, 45.0, 60, 2, 8.0, 3.5, 6.5)
+# Blood rain: [0] s shaking its wings, then blood falls on [1] marked
+# circles within [2] tiles of you (one on you), each marked [3] s, [4]
+# tiles round, [5] damage, leaving a pool (RED_RESIN) [6] tiles round for
+# [7] s.
+FOSSIL_RAIN = (0.7, 6, 8.0, 1.2, 1.6, 20, 1.6, 8.0)
+# Halo wheels: [0] s shown, then its halo splits into [1] burning wheels (one
+# at you, the rest spread round) racing out at [2] tiles/s, [3] tiles round,
+# for [4] s or [5] bounces off what's solid; [6] damage (pushing [7]), each
+# body at most once every [8] s; fire every [9] tiles they roll ([10] s,
+# [11] a tick).
+FOSSIL_WHEELS = (0.9, 4, 12.0, 1.2, 4.5, 3, 24, 2.0, 0.8, 2.5, 3.0, 6)
 
 # Khepri the Dung Emperor (ai/bosses.Khepri): a giant dung beetle with his
 # ball. Damages are per hit at level 1 (x the enemy damage scaling).

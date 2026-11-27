@@ -1716,3 +1716,20 @@ FOSSIL_RESIN = ((255, 220, 120), (230, 150, 40))
 # pedestal's "???".
 TROPHY = (255, 214, 110)
 TROPHY_EMPTY = (110, 104, 96)
+# --- M33.2: the Fossil Angel, form 2, the first angel (ai/first_angel.py) -----------------
+# Red amber: its blood pooling (it slows you; from the third phase it holds
+# you) and hardening into walls across your path.
+RED_RESIN_FG = (240, 70, 70)
+RED_RESIN_BG = (98, 12, 20)
+RED_AMBER_FG = (220, 44, 50)
+RED_AMBER_BG = (84, 8, 14)
+MAP_TILE.update({"red resin": (240, 70, 70), "red amber": (220, 44, 50)})
+# Its eyes (the white, the iris; a closed one's lid), a gaze's tell and its
+# beam; the first word's light (white, holy); the blood falling; the
+# wings' tells; the halo's wheels burn like form 1's halo (FOSSIL_FIRE).
+FOSSIL_EYE = ((255, 250, 240), (220, 30, 40), (120, 30, 36))
+FOSSIL_GAZE = ((220, 235, 255), (150, 180, 255))
+FOSSIL_WORD = ((255, 255, 255), (255, 246, 196), (200, 190, 150))
+FOSSIL_BLOOD = ((236, 40, 50), (130, 16, 28))
+SHOT_BLOOD_FEATHER = ((250, 220, 214), ((220, 40, 50), (120, 16, 28)))
+SPRITE_COLORS.update({"7": (232, 104, 96), "8": (168, 44, 52)})   # raw flesh, its shade

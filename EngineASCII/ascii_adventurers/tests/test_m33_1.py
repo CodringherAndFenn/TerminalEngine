@@ -501,6 +501,12 @@ class WakeTest(unittest.TestCase):
         s.hero.invulnerable = True
         b.take_damage(b.hp + 5, s.hero, 0.0)
         step(s, 2)
+        self.assertEqual(f.stage, "fight")              # (M33.2: its bones fall -- it unveils)
+        self.assertEqual(b.form, "unveiling")
+        step(s, round((config.FOSSIL_UNVEIL + 0.2) * 60))
+        self.assertEqual(b.form, 2)
+        b.take_damage(b.hp + 5, s.hero, 0.0)
+        step(s, 2)
         self.assertEqual(f.stage, "cleared")
         self.assertTrue(s.stats.victory)
         self.assertEqual(s.stats.final, "fossil_angel")

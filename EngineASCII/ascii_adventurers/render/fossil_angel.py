@@ -14,6 +14,9 @@ again; the falling stars too); and its tells: the feathers' lines, the wing
 sweep's and the ash breath's cones, the dive's line, a "!" while it's
 planted. The resin it weeps shows as RESIN tiles; ahead of a river's front
 the way it will run blinks. The wheel (LavaHalo): a spinning ring of fire.
+
+M33.2: while it unveils, its bones and wings flicker into flesh; form 2's
+wings, eyes, gazes, word and wheels are render/first_angel.py's.
 """
 
 from __future__ import annotations
@@ -23,11 +26,12 @@ import math
 from .. import config, palette
 from ..ai.fossil_angel import FossilAngel, LavaHalo
 from . import finals_art  # noqa: F401  (adds the pictures to ART)
+from . import first_angel
 from .ascii_fx import _Batch
 from .characters import ART_H, ART_W, draw_character
 from .pangaea import _blink, _dots, _shape, draw_echoes
 
-_WINGS = ("beat", "halo", "weep")
+_WINGS = ("beat", "halo", "weep", "word")
 
 
 def draw_leap(batch, camera, b) -> float:
@@ -58,10 +62,15 @@ def draw_fossil_angel(text, bank, camera, b: FossilAngel) -> None:
     batch = _Batch(text)
     lift = draw_leap(batch, camera, b)
     tell = _blink(clock % 0.5, palette.FOSSIL_TELL)
-    for x0, y0, a, length, half in b.lines:               # (the feathers' lines)
+    rake = b.pose == "rake"                                # (M33.2: the claw rake's, in blood)
+    lcol = _blink(clock % 0.5, palette.FOSSIL_BLOOD) if rake else tell
+    for x0, y0, a, length, half in b.lines:               # (the feathers' lines, the rake's)
         for side in (-1, 1):
-            _dots(batch, camera, x0, y0, a, length, tell, off=side * half)
-        _dots(batch, camera, x0, y0, a, length, palette.FOSSIL_TELL[1], step=2.0)
+            _dots(batch, camera, x0, y0, a, length, lcol, off=side * half)
+        _dots(batch, camera, x0, y0, a, length,
+              palette.FOSSIL_BLOOD[1] if rake else palette.FOSSIL_TELL[1], step=2.0)
+    if b.form == 2:
+        first_angel.draw_tells(batch, camera, b)
     if b.cone is not None:
         x, y, a, reach, half = b.cone
         _shape(batch, camera, "cone", x, y, a, reach, half, tell)
@@ -82,11 +91,15 @@ def draw_fossil_angel(text, bank, camera, b: FossilAngel) -> None:
     by = y - lift + (6 if b.pose == "crouch" or (b.leap is not None and b.leap[0] == "crouch")
                      else 0)
     up = b.pose in _WINGS or (b.leap is not None and b.leap[0] == "air")
-    wing = "fossil_wing_up" if up else "fossil_wing"
-    off = ART_W * scale * 0.62
-    wy = ART_H * scale * (0.18 if up else 0.08)
-    draw_character(bank, x + off, by - wy, wing, scale, False, 0, hurt)
-    draw_character(bank, x - off, by - wy, wing, scale, True, 0, hurt)
+    flesh = b.form == 2 or (b.form == "unveiling" and b.sprite_now() == "fossil_angel_flesh")
+    if flesh:
+        first_angel.draw_wings(bank, b, x, by, scale, hurt, up)
+    else:
+        wing = "fossil_wing_up" if up else "fossil_wing"
+        off = ART_W * scale * 0.62
+        wy = ART_H * scale * (0.18 if up else 0.08)
+        draw_character(bank, x + off, by - wy, wing, scale, False, 0, hurt)
+        draw_character(bank, x - off, by - wy, wing, scale, True, 0, hurt)
     frame = int(b.walked * 1.2) % 2
     draw_character(bank, x, by, b.sprite_now(), scale, math.cos(b.facing) < 0, frame, hurt)
     batch = _Batch(text)
@@ -100,6 +113,8 @@ def draw_fossil_angel(text, bank, camera, b: FossilAngel) -> None:
     if (b.planted or (b.leap is not None and b.leap[0] == "crouch")) and int(clock * 8) % 2:
         batch.put_c(x, by - ART_H * scale / 2 - 28, "!", palette.PLAINS_TELL[0])
     batch.flush()
+    if b.form == 2:
+        first_angel.draw_over(text, camera, b, lift)
 
 
 def draw_lava_halo(text, camera, w: LavaHalo) -> None:

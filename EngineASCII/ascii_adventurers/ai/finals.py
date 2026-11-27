@@ -218,11 +218,11 @@ class Final(Boss):
 
     def _brood_step(self, ctx, dt: float) -> None:
         """Its realms' creatures crawl out of the trail behind it."""
-        every, most, at_once, near, far = config.FINAL_BROOD
+        _, most, at_once, near, far = config.FINAL_BROOD
         self.brood_cd -= dt
         if self.brood_cd > 0 or self.recruit is None:
             return
-        self.brood_cd = every
+        self.brood_cd = self.brood_every()
         self.brood = [e for e in self.brood
                       if e.alive and math.hypot(e.x - self.x, e.y - self.y) < 90]
         keys = config.FINAL_BROODS.get(getattr(self, "BROOD", self.espec.kind), ())
@@ -239,6 +239,10 @@ class Final(Boss):
                 return
             self.own(e)
             ctx.effects.append(Effect("nova", e.x, e.y, size=2.0))
+
+    def brood_every(self) -> float:
+        """s between its creatures crawling out (a form may bring fewer)."""
+        return config.FINAL_BROOD[0]
 
     def own(self, e) -> None:
         """`e` is one of its own creatures: endgame tough (like on its

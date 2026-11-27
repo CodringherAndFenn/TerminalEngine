@@ -1449,13 +1449,28 @@ FEATHER_SPIKE = TileType(
     becomes=MARBLE_RUBBLE,
 )
 RESIN = TileType(
-    "resin", ("~~", "~-", "-~", "~ "), palette.RESIN_FG, palette.RESIN_BG,
+    "resin", ("=-", "-=", "--", "= "), palette.RESIN_FG, palette.RESIN_BG,
 )
 AMBER_WALL = TileType(
     "amber wall", ("▓▓", "▒▓", "▓▒"), palette.AMBER_WALL_FG, palette.AMBER_WALL_BG,
     solid=True, blocks_shots=True, hp=config.WALL_HP,
     wear=(("▒░", "░▒"),),
     becomes=AMBER_SHARDS,
+)
+
+# M33.2: the first angel's red amber (ai/first_angel.py, design/FINALS.md
+# 9.2): its blood pooling (the blood rain's; you walk it, but it slows you
+# and, from the third phase, holds you: the angel's step) and walls of it
+# rising across your path (they stop you and shots, and break; cover from
+# the first word).
+RED_RESIN = TileType(
+    "red resin", ("-=", "=-", "░-", "-░"), palette.RED_RESIN_FG, palette.RED_RESIN_BG,
+)
+RED_AMBER = TileType(
+    "red amber", ("▓▓", "▒▓", "▓▒"), palette.RED_AMBER_FG, palette.RED_AMBER_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP,
+    wear=(("▒░", "░▒"),),
+    becomes=BLOOD_TRICKLE,
 )
 
 # M31.5: the first sea flooding the caldera (ai/first_life.py): shallows at

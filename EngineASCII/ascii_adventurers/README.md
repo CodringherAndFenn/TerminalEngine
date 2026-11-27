@@ -1101,6 +1101,15 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   realms fell in, its journal entry, and its trophy in the Guild hall.
   (Until the other three are built, every kill order wakes the Fossil
   Angel.) Dev: `--boss fossil_angel`, then F7 wakes it next to you.
+- **The first angel unveils, M33.2** (`design/FINALS.md` 17): the Fossil
+  Angel's form 2. At 0 its flesh grows back where it stands (3 s, it can't
+  be hit), and the first angel hunts on with 18,000 more: eyes open on its
+  shoulders and wings and sweep gaze beams (shoot one to close it, and it
+  flinches), drops of its blood crawl at you and grow into angels if left
+  alone, red amber pools hold you until you roll and walls of it rise
+  across your path, and at the end six wings beat in turn. Its moves: the
+  claw rake, the first word (a ring of light across the land: hide behind
+  stone), blood rain and halo wheels that bounce off walls.
 
 Next up (agreed order, `design/BOSSES.md` section 8): M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

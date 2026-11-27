@@ -9,6 +9,12 @@ round its bones (g/G); its stone wings (m/M feathers edged in bone, drawn
 either side of the body by render/fossil_angel.py, folded or beating up).
 Its trophy for the Guild hall: a stone feather set in amber on a gold cup
 (y/Y).
+
+M33.2, form 2 (the first angel unveils): the same bones with their flesh
+grown back, red and raw (7/8), the old bone showing (d/D), eyes of holy
+light (Z), clotted blood where the vines were (z); its wings the stone
+wings' shape in raw flesh with white feathers (7/8/w). A drop of its blood
+(r/R), crawling.
 """
 
 from __future__ import annotations
@@ -116,6 +122,24 @@ FINALS_ART = {
         "..kkyYYYykk",
     ]),
 }
+
+# M33.2: form 2 -- the same shapes, their flesh grown back.
+_FLESH = str.maketrans({"d": "7", "D": "8", "f": "Z", "F": "Z", "a": "d", "A": "D", "g": "z",
+                        "G": "z"})
+_FLESH_WING = str.maketrans({"m": "7", "M": "8", "d": "w"})
+for _src, _dst, _tr in (("fossil_angel", "fossil_angel_flesh", _FLESH),
+                        ("fossil_angel_beat", "fossil_angel_flesh_beat", _FLESH),
+                        ("fossil_wing", "flesh_wing", _FLESH_WING),
+                        ("fossil_wing_up", "flesh_wing_up", _FLESH_WING)):
+    FINALS_ART[_dst] = [row.translate(_tr) for row in FINALS_ART[_src]]
+FINALS_ART["blood_drop"] = _pad([   # a drop of its blood, crawling
+    "....kkk",
+    "..kkrrrk",
+    ".krRrrwrk",
+    ".krrRrrrk",
+    "..kkrrrkk",
+    "...k...k",
+])
 
 assert all(len(r) == 14 for name, rows in FINALS_ART.items() for r in rows), "rows are 14 wide"
 assert all(len(rows) == 18 for rows in FINALS_ART.values()), "pictures are 18 tall"

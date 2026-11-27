@@ -181,6 +181,8 @@ SHOT_LOOKS = {
     # M31.4: the Ancestor's spit fans (and their echoes)
     "bone_shard": ("^", ("'", None), palette.SHOT_BONE_SHARD),
     "bone_shard_echo": ("^", ("'", None), palette.SHOT_BONE_SHARD_ECHO),
+    # M33.2: the first angel's bloody feathers (its six wings' volleys)
+    "blood_feather": ("/", ("'", None), palette.SHOT_BLOOD_FEATHER),
     "boiling_spit": ("@", ("o", "."), palette.SHOT_BOILING_SPIT),
     "boiling_spit_echo": ("@", ("o", "."), palette.SHOT_BOILING_SPIT_ECHO),
     "acid_spit": ("*", (".", None), palette.SHOT_ACID_SPIT),

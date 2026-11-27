@@ -55,6 +55,10 @@ ai -- enemy behaviour.
   fossil_angel.py  the final of heaven and the past (M33.1): stone feathers,
                 the lava halo, echoes, amber; the wing sweep, the stone
                 dive, ash breath, falling stars
+  first_angel.py   its form 2 (M33.2), the first angel unveiled (a mix-in of
+                the Fossil Angel): eyes in the flesh, life from its blood,
+                red amber, six wings; claw rake, the first word, blood rain,
+                halo wheels
   ancestor.py   Pangaea's boss, form 1 (M31.4): the Ancestor, the ages (the
                 great mammal, the tyrant lizard, the giant insect), moulting
                 into husks that echo; everything it does echoes
@@ -120,6 +124,7 @@ from .pangaea import (AntMound, Bombardier, CaveBear, ClubTail, Dragonfly, FireB
 from .overseer import Overseer, Recording
 from .walking_city import WalkerEye
 from .fossil_angel import FossilAngel
+from .first_angel import BloodDrop
 from .panopticon import (Assembler, Butler, Camera, CameraMast, Foreman, Gardener, Hauler, JunkBit, Junker,
                          Magnet, Nanny, RiotRobot, RustSwarm, ScrapColossus, Scrubber, SentryDrone,
                          Spotter, Turret, Warden, Welder)
@@ -363,6 +368,7 @@ KINDS = {
     "walker_eye": WalkerEye,                # (M32.5: the walking city's hundred eyes)
     # M33.1: the finals (they hunt you across the map: ai/finals.Final)
     "fossil_angel": FossilAngel,
+    "blood_drop": BloodDrop,                # (M33.2: its form 2's blood, crawling)
 }
 
 

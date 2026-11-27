@@ -622,7 +622,8 @@ class ForestTest(_Relic):
         self.assertEqual(set(config.BOSS_UNIQUES) | {"necromancer_lich", "conquest", "war",
                                                      "famine", "death", "host_hunger",
                                                      "ancestor_first_life", "overseer_city",
-                                                     "fossil_angel"},     # (M33.2: its relics)
+                                                     "fossil_angel",       # (M33.2: its relics)
+                                                     "fossil_angel_unveiled"},
                          set(config.BOSSES))
 
     def test_shrinking_dust_shrinks_you_on_a_roll(self):

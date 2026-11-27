@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Kill Order and the Final Bosses
 
-Status: **rev 0 — M33 DRAFTED with the user, 2026-11-27 (rounds 1-8). Build plan in section 15. M33.1 BUILT (2026-11-27, section 16: the framework and the Fossil Angel's form 1).** This is M33 in `BOSSES.md` section 8: the order the four ocean bosses (`OCEAN.md`) fall in picks the final boss, tier IV in `BOSSES.md` section 2 ("map-wide fights, decided by the cardinal kill order"). The user may change anything here after playing it. Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M33 DRAFTED with the user, 2026-11-27 (rounds 1-8). Build plan in section 15. M33.1 BUILT (2026-11-27, section 16: the framework and the Fossil Angel's form 1). M33.2 form 2 BUILT (2026-11-27, section 17: the first angel unveils).** This is M33 in `BOSSES.md` section 8: the order the four ocean bosses (`OCEAN.md`) fall in picks the final boss, tier IV in `BOSSES.md` section 2 ("map-wide fights, decided by the cardinal kill order"). The user may change anything here after playing it. Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -254,3 +254,36 @@ Beating a final ends the run (section 7), so its reward is for **later runs and 
 **Tests:** `tests/test_m33_1.py` (25). Changed on purpose: test_m15 (four trophy stations), test_m22_6 (the journal lists the finals after the quests), test_m27 (a final isn't a guardian), test_m28_5 (the Fossil Angel has no relics until M33.2), test_m32_4 (the finals come after the walking city in `BOSSES`).
 
 **Next: M33.2** -- the Fossil Angel's form 2 (the first angel unveils, 18,000), then its relics drafted with you and the relics-for-later-runs system.
+
+## 17. Built: M33.2 (2026-11-27) -- the first angel unveils (the Fossil Angel's form 2)
+
+**The unveiling** (`ai/first_angel.py`, a mix-in of the Fossil Angel: one body, two forms, like the Ancestor's first life). At 0 its bones fall and its flesh grows back where it stands: for **3 s** (`FOSSIL_UNVEIL`) it can't be hit, its bones and wings flickering into raw flesh (banner THE FIRST ANGEL UNVEILS). Whatever it was doing stops: its wheel rolls back up, its resin stops running, its echoes go (**(mine)** form 2 doesn't echo: the echoes were form 1's signature; what's in the air still comes down). Then it's back at full health, **18,000** (x `FOSSIL_UNVEILED_HP`), and hunts on as before: the walk, the leap, the trail (**(mine, after the bench)** its trail's creatures half as often, since its blood brings its own: `FOSSIL_BROOD_SLOWER`). Its bar reads "The First Angel -- unveiled"; the phases' banners are ITS BLOOD CRAWLS, ITS BLOOD HARDENS and SIX WINGS. Its picture is form 1's bones with the flesh grown back, red and raw, eyes of holy light; its wings are the stone wings' shape in raw flesh with white feathers.
+
+- **Eyes in the flesh:** 4 of its 6 eyes open as it unveils, out on its shoulders and its wings (`FOSSIL_EYE_SLOTS`; **(mine)** past the edge of its body, or a shot would always meet the body first). A closed eye opens again 12 s later. An eye (`AngelEye`, 220 HP at level 1, scaled like the angel) rests 2.5-4 s, shows its gaze 0.8 s (its line where it starts, faint where it ends), then sweeps 100 degrees across where you are in 1.6 s: a beam 16 tiles long, cut short by anything that stops shots, 18 damage once a sweep. Hit to 0 it closes and **the angel flinches: 2% of its health**.
+- **Life from its blood** (from the second phase): every 10 s it drips 2 drops 3-7 tiles from it, while fewer than 3 are about (`BloodDrop`, 24 HP; they crawl at you and can't hurt you). Left alone 12 s, a drop grows into a dove or a cherub, unveiled at once (**(mine, after the bench)** as tough as on Paradise, not with the trail's endgame toughness).
+- **Red amber** (from the third phase): its blood pools (`RED_RESIN`, the blood rain's) slow you to x0.6 before this phase. From this phase on, stepping into one holds you 2 s (8 damage) or until you roll, and not again for 3 s after. **Walls** (a move): a red amber wall 7 tiles long rises across your path 4 tiles ahead of you, after 0.9 s of resin shown ("#" blinking). It's `RED_AMBER` (it stops you and shots and breaks; never on anyone), standing 10 s. **(mine, after the bench)** One wall: a second, between you and it, blocked the bot's shots a fifth of the fight, and the first word drops its own cover.
+- **Six wings** (the last phase): six wings of raw flesh and feathers (the top pair raised over it, the low pair small). Every 2.2 s the next one beats in turn, raised 0.5 s first with its cone shown: a push wave in a 100-degree cone 8 tiles out at you (10 damage, pushing 4) and a volley of 5 bloody feathers 40 degrees wide (12 each).
+- **Moves** (it keeps walking through all of them but the word):
+  - **Claw rake:** 3 lines 14 tiles long, 3.6 tiles apart, the middle one at you, shown 0.9 s in blood red; 30 damage, pushing 1.5.
+  - **The first word:** it speaks 1.6 s, planted. First, round each hero with nothing that stops shots within 8 tiles, 2 stone feathers fall 3.5-6.5 tiles away, two spikes wide each. Then a ring of white light spreads at 16 tiles/s out to 45 tiles: in the open it does 60; behind anything that stops shots (its stone, red amber, a rock, a tree) you're "SHELTERED". A roll goes through it like any blow.
+  - **Blood rain:** 6 circles within 8 tiles of you, one on you, marked 1.2 s; 20 damage, each leaving a pool 1.6 tiles round for 8 s.
+  - **Halo wheels:** shown 0.9 s, then its halo splits into 4 burning wheels, one at you, racing 12 tiles/s for 4.5 s or 3 bounces off what's solid; 24 damage, pushing 2, each body at most once every 0.8 s; fire every 2.5 tiles (3 s, 6 a tick).
+  - Its stone feathers still fall now and then (weight 1): the cover the word needs.
+
+**Its fall** (form 2 at 0) is the true victory (section 16). Its eyes close (no kill) and its red amber melts away.
+
+**Bot bench** (`tools/bench_fossil.py`; `BENCH_FORM=2` starts at form 2; seeds 31, 7, 12): **form 2 6:04-6:47**, 1,460-1,640 damage a minute. The bot is on adds 30-33% of the time and without a line of sight 15-17%; it closes an eye every ~16 s by accident (22-25 a fight, so the flinches are ~45% of form 2's health); 3-10 drops grow. A whole fight (seed 31, one tuning step earlier): form 1 6:00, form 2 7:16. **What I changed after the first runs** (8:42 and 1,658 a minute, 63 drops grown, the bot on adds half the time and held in red amber 113 s):
+- drops every 10 s, 3 at most, growing in 12 s, crawling faster (3.2 tiles/s, so they come to you), grown angels not endgame tough;
+- red amber holds 2 s and not again for 3 s; 6 blood circles, pools 8 s; one wall standing 10 s; 2 cover spikes per word;
+- its trail's creatures half as often;
+- the eyes moved out past its body (they couldn't be shot), the flinch 2%.
+
+Health not cut (policy). **To play-test:** the bot never hides from the first word (about 400 of its damage a minute) and never rolls out of red amber.
+
+**Perf** (`tools/perf_first_angel.py`, its last phase, six eyes and six wings): a step 0.73 ms (p95 0.89), a frame 2.4 ms (p95 3.1).
+
+**Fixed:** M33.1's resin tile was drawn with "~", which VT323 draws like an "N"; it's "=" and "-" now.
+
+**Tests:** `tests/test_m33_2.py` (15). Changed on purpose: test_m33_1 (its fall in form 1 unveils form 2; the victory comes with form 2's fall), test_m28_5 (form 2's key has no relics of its own, like the walking city's).
+
+**Next:** the Fossil Angel's relics, drafted with you, and the relics-for-later-runs system (section 14).
