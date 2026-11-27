@@ -1109,7 +1109,11 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   alone, red amber pools hold you until you roll and walls of it rise
   across your path, and at the end six wings beat in turn. Its moves: the
   claw rake, the first word (a ring of light across the land: hide behind
-  stone), blood rain and halo wheels that bounce off walls.
+  stone), blood rain and halo wheels that bounce off walls. Its relics
+  (protections and buffs): Feather Ward, Molten Crown, Amber Heart and Eyes
+  in Flesh. A final doesn't drop them: beating it unlocks them, and in later
+  runs the four ocean bosses can drop them (the archivist's relics shelf
+  shows them: ??? until then).
 
 Next up (agreed order, `design/BOSSES.md` section 8): M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

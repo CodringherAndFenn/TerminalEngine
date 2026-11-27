@@ -375,5 +375,158 @@ class MovesTest(unittest.TestCase):
         self.assertTrue(a.has_halo)
 
 
+# --- The Fossil Angel's relics, and relics for later runs (FINALS.md 14) ------------------
+
+from ascii_adventurers.entities.projectile import Projectile          # noqa: E402
+from ascii_adventurers.meta.guild import Guild                         # noqa: E402
+from ascii_adventurers.render.gear_looks import CHEST_LOOKS, HEAD_LOOKS   # noqa: E402
+from ascii_adventurers.systems import combat, finals, relics          # noqa: E402
+from ascii_adventurers.tests.test_m28_5 import _Relic, mover           # noqa: E402
+
+KEYS = {"feather_ward", "molten_crown", "amber_heart", "eyes_in_the_flesh"}
+
+
+class RelicsTest(_Relic):
+    """One per thing it does (user's picks: protections and buffs): Feather
+    Ward (its stone feathers), Molten Crown (its lava halo), Amber Heart (its
+    amber), Eyes in Flesh (the first angel)."""
+
+    def test_four_relics_in_four_slots(self):
+        keys = config.BOSS_UNIQUES["fossil_angel"]
+        self.assertEqual(set(keys), KEYS)
+        self.assertEqual(sorted(config.GEAR[k].slot for k in keys), ["chest", "head", "off", "trinket"])
+        for k in keys:
+            self.assertEqual(config.CARDS[k].rarity, "legendary")
+            self.assertEqual(config.CARDS[k].unlock, "U:fossil_angel")
+            self.assertLessEqual(len(config.GEAR[k].name), 16)
+        self.assertNotIn("fossil_angel_unveiled", config.BOSS_UNIQUES)   # (it's the Fossil Angel)
+        self.assertIn("molten_crown", HEAD_LOOKS)
+        self.assertIn("amber_heart", CHEST_LOOKS)
+
+    def test_feather_ward_stops_a_shot_with_a_stone_feather(self):
+        s, h = self.setup("feather_ward")
+        e = self.place(mover(28.5, 20.5))[0]
+        shell = config.WEAPONS["cactus_spines"].shell
+        q = Projectile(h.x + 1.0, h.y, math.pi, shell, owner=e, damage=10)
+        s.projectiles.append(q)
+        hp = h.hp
+        self.go(0.2)
+        self.assertEqual(h.hp, hp)                          # (stopped)
+        self.assertFalse(q.alive)
+        self.assertGreater(h.ward_t, config.U_WARD[0] - 1.0)
+        tx, ty = math.floor(h.x + config.U_WARD[1]), math.floor(h.y)
+        self.assertIs(s.world.tile_at(tx, ty), tiles.FEATHER_SPIKE)   # (between it and you)
+        q2 = Projectile(h.x + 1.0, h.y + 0.2, math.pi, shell, owner=e, damage=10)
+        s.projectiles.append(q2)
+        self.go(0.2)
+        self.assertLess(h.hp, hp)                           # (not ready again yet)
+        self.go(3.2)                                        # (the power's 3 s)
+        self.assertIsNot(s.world.tile_at(tx, ty), tiles.FEATHER_SPIKE)
+
+    def test_molten_crown_burns_who_hurts_you_and_cools_them_to_stone(self):
+        s, h = self.setup("molten_crown")
+        e = self.place(mover(24.5, 20.5))[0]
+        h.take_damage(10.0, e, 0.0)
+        self.assertTrue(e.status is not None and e.status.has("burn"))
+        e.hp = 0.0
+        relics.on_kill(s, s.me, e)
+        tx, ty = math.floor(e.x), math.floor(e.y)
+        self.assertIs(s.world.tile_at(tx, ty), tiles.BASALT_BOULDER)
+        self.go(4.0 + 0.3)                                  # (the power's 4 s)
+        self.assertIsNot(s.world.tile_at(tx, ty), tiles.BASALT_BOULDER)
+        cold = self.place(mover(26.5, 22.5))[0]             # (not burning: nothing)
+        cold.hp = 0.0
+        relics.on_kill(s, s.me, cold)
+        self.assertIsNot(s.world.tile_at(math.floor(cold.x), math.floor(cold.y)), tiles.BASALT_BOULDER)
+
+    def test_amber_heart_seals_you_instead_of_a_low_blow(self):
+        s, h = self.setup("amber_heart")
+        e = self.place(mover(h.x + 1.6, h.y))[0]
+        h.hp = h.max_hp * 0.5
+        self.assertEqual(h.take_damage(h.max_hp * 0.4, e, 0.0), 0.0)   # (it'd take you to 10%)
+        self.assertEqual(h.hp, h.max_hp * 0.5)
+        self.assertGreater(h.sealed, 0)
+        self.assertFalse(h.hittable)                        # (untouchable)
+        self.go(config.U_AMBER_HEART[2] + 0.1)
+        self.assertAlmostEqual(h.hp, h.max_hp * 0.7, delta=h.max_hp * 0.02)   # (+20%)
+        self.assertGreater(e.status.bound, 0.0)             # (it touched the amber: held)
+        self.assertTrue(any(ev.kind == "toast" and ev.label == "SEALED IN AMBER!" for ev in s.effects))
+        h.hp = h.max_hp * 0.3
+        h.take_damage(h.max_hp * 0.2, e, 0.0)               # (once a minute)
+        self.assertLess(h.hp, h.max_hp * 0.3)
+
+    def test_eyes_in_flesh_open_while_you_fight_and_close_when_hit(self):
+        s, h = self.setup("eyes_in_the_flesh")
+        e = self.place(mover(28.5, 20.5))[0]
+        base = combat.strike(e, 100.0, h, 0.0, s.effects)
+        chance = combat.crit_chance(h.stats, h)
+        h.flesh_t = 0.0
+        self.go(config.U_FLESH_EYES[0] * 7 + 0.5)
+        self.assertEqual(h.flesh_eyes, config.U_FLESH_EYES[1])      # (up to 6)
+        e.hp = e.max_hp
+        a = combat.strike(e, 100.0, h, 0.0, s.effects)
+        self.assertAlmostEqual(a / base, 1 + 0.05 * 6, delta=0.01)
+        self.assertAlmostEqual(combat.crit_chance(h.stats, h) - chance, 0.03 * 6, delta=1e-6)
+        h.take_damage(5.0, e, 0.0)
+        self.assertEqual(h.flesh_eyes, config.U_FLESH_EYES[1] - 1)   # (a hit closes one)
+
+
+class LaterRunsTest(unittest.TestCase):
+    """Beating a final unlocks its relics: in later runs the ocean bosses
+    drop them too; the archivist's relics shelf shows them."""
+
+    def test_unlocked_by_beating_it(self):
+        g = Guild()
+        self.assertEqual(finals.relics_open(g), ())
+        self.assertFalse(finals.beaten(g, "fossil_angel"))
+        g.record_quest("fossil_angel", ["wizard"], 700.0)
+        self.assertEqual(set(finals.relics_open(g)), KEYS)
+        self.assertEqual(finals.ocean_bosses(), {"cavalry", "host_of_feast", "ancestor", "overseer"})
+        self.assertIn("fossil_angel", finals.final_bosses())
+
+    def test_the_ocean_bosses_drop_them_in_later_runs(self):
+        from ascii_adventurers.tests.test_m33_1 import game
+        seen = {False: set(), True: set()}
+        for won in (False, True):
+            for seed in (31, 7):
+                m, s = game(seed)
+                if won:
+                    s.app.guild.record_quest("fossil_angel", ["wizard"], 700.0)
+                p = s.me
+                for boss in ("overseer", "ancestor", "host_of_feast", "cavalry", "froggy"):
+                    d = s._drop_unique(p, boss, s.hero.x, s.hero.y)
+                    seen[won].add((boss, d.piece.key if d is not None else None))
+                    p.uniques_dropped.discard(boss)
+                    for k in range(1, 12):                  # (other players' picks too)
+                        p.index = k
+                        d = s._drop_unique(p, boss, s.hero.x, s.hero.y)
+                        seen[won].add((boss, d.piece.key))
+                        p.uniques_dropped.discard(boss)
+                    p.index = 0
+        dropped = {k for _, k in seen[True]}
+        self.assertFalse({k for _, k in seen[False]} & KEYS)    # (not before it's beaten)
+        self.assertTrue(dropped & KEYS)                         # (after: from the ocean bosses)
+        self.assertFalse({k for b, k in seen[True] if b == "froggy"} & KEYS)   # (only theirs)
+
+    def test_the_relics_shelf(self):
+        from ascii_adventurers.tests.test_players import make_manager
+        from ascii_adventurers.ui.guild_panel import GuildPanel
+        m = make_manager()
+        g = Guild()
+        panel = GuildPanel(m, g, "archive", "wizard")
+        rows = {r.key: r for r in panel._relics_rows()}
+        for k in KEYS:
+            self.assertEqual(rows[k].name, "???")
+            self.assertEqual(rows[k].column, "A FINAL")      # (its final unnamed)
+        g.record_quest("fossil_angel", ["wizard"], 700.0)
+        rows = {r.key: r for r in panel._relics_rows()}
+        for k in KEYS:
+            self.assertEqual(rows[k].state, "UNLOCKED")
+            self.assertEqual(rows[k].name, config.GEAR[k].name)
+        g.uniques.add("amber_heart")
+        rows = {r.key: r for r in panel._relics_rows()}
+        self.assertEqual(rows["amber_heart"].state, "FOUND")
+
+
 if __name__ == "__main__":
     unittest.main()

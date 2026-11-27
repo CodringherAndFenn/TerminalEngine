@@ -614,15 +614,16 @@ class ForestTest(_Relic):
     def test_every_boss_has_its_relics(self):
         for boss, keys in LAST.items():
             self.assertEqual(config.BOSS_UNIQUES[boss], keys)
-        self.assertEqual(len(uniques()), 54)                  # (M29.5, M30.5, M31.5, M32.5: +4 each)
+        self.assertEqual(len(uniques()), 58)    # (M29.5, M30.5, M31.5, M32.5, M33.2: +4 each)
         # (the Four Horsemen are the Serene Cavalry's form 2: they drop as it;
         # the hunger is the Host of the Feast's second form: he drops them;
         # the first life is the Ancestor's: it drops them as the Ancestor;
-        # the walking city is the Overseer's: it drops them as the Overseer)
+        # the walking city is the Overseer's: it drops them as the Overseer;
+        # the first angel is the Fossil Angel's -- a final's, unlocked by
+        # beating it: test_m33_2)
         self.assertEqual(set(config.BOSS_UNIQUES) | {"necromancer_lich", "conquest", "war",
                                                      "famine", "death", "host_hunger",
                                                      "ancestor_first_life", "overseer_city",
-                                                     "fossil_angel",       # (M33.2: its relics)
                                                      "fossil_angel_unveiled"},
                          set(config.BOSSES))
 

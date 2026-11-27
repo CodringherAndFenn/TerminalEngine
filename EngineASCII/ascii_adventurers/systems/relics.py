@@ -56,6 +56,17 @@ M32.5 (the Overseer's, one per thing it does to you):
                             and rewinds: heals a share of it back
   Scrap Plating             kills bolt plates on (on_kill); each blocks a hit
                             (Character.take_damage) and adds damage (combat.strike)
+M33.2 (the Fossil Angel's -- a final's: unlocked by beating it, dropped by
+the ocean bosses in later runs; protections and buffs, user):
+  Feather Ward              a shot about to hit you is stopped (combat: the
+                            hit) and a stone feather springs up in its way
+  Molten Crown              enemies that hurt you burn (Character.take_damage);
+                            a burning enemy you kill cools to a boulder (on_kill)
+  Amber Heart               a hit that would take you low seals you in amber
+                            instead (Character._amber_seal): untouchable, healing;
+                            enemies touching it are held
+  Eyes in the Flesh         eyes open on you while you fight: damage (combat.
+                            strike) and crit (combat.crit_chance); a hit closes one
 And per hit (combat._relic_on_hit): the Fly Agaric Cap's trip (wander) and
 the Lawyer's Wig's scrawls (bound); the scene moves wandering enemies and
 holds bound ones (wander, after flee; `Statuses.bound`).
@@ -210,6 +221,13 @@ def tick(scene, p, dt: float) -> None:
         hero.plate_lost = 0
     if hero.scrap_plates and not st.has("scrap_plating"):
         hero.scrap_plates = 0
+    # (M33.2: the Fossil Angel's)
+    if st.has("feather_ward") or hero.ward_at is not None:
+        _feather_ward(scene, hero, st, dt)
+    if hero.sealed > 0 or hero.amber_t > 0:
+        _amber_heart(scene, hero, dt)
+    if st.has("eyes_in_the_flesh") or hero.flesh_eyes or hero.eyes_shut:
+        _flesh_eyes(scene, hero, st, dt)
 
 
 # --- The dung ball ---------------------------------------------------------------------
@@ -542,6 +560,9 @@ def on_kill(scene, p, enemy) -> None:
     if st.has("scrap_plating") and hero.scrap_plates < config.U_PLATES:   # (M32.5: a plate)
         hero.scrap_plates += 1
         scene.effects.append(Effect("spark_burst", hero.x, hero.y, size=0.8))
+    if st.has("molten_crown") and not getattr(enemy, "boss", False) \
+            and enemy.status is not None and enemy.status.has("burn"):
+        _cool_to_stone(scene, hero, st, enemy)          # (M33.2: Molten Crown: a boulder)
     if st.has("gluttons_bib") and not getattr(enemy, "boss", False):   # (M30.5: a scrap)
         hero.bib_scraps = (hero.bib_scraps + [[enemy.x, enemy.y, config.U_BIB[3]]])[
             -config.U_BIB[5]:]
@@ -1292,3 +1313,110 @@ def _black_box(scene, hero, st, dt: float) -> None:
     if healed > 0:
         scene.effects.append(Effect("toast", hero.x, hero.y - 2.0, label=f"REWIND +{round(healed)}"))
         scene.effects.append(Effect("spark_burst", hero.x, hero.y, size=1.0))
+
+
+# --- M33.2: the Fossil Angel's relics ------------------------------------------------------
+
+def _stone_at(scene, hero, x: float, y: float, life: float) -> bool:
+    """A stone (FEATHER_SPIKE or a boulder) put up at (x, y) for `life` s --
+    on open ground with nobody on it; a zone puts the old tile back."""
+    from ..world import tiles
+    from .collision import WATERY
+    w = scene.world
+    if not hasattr(w, "set_tile"):
+        return False
+    tx, ty = math.floor(x), math.floor(y)
+    old = w.tile_at(tx, ty)
+    if old is None or old.solid or old.name in WATERY:
+        return False
+    bodies = [p.hero for p in scene.players if p.alive] + [e for e in scene.enemies if e.alive]
+    if any(abs(a.x - tx - 0.5) < a.hit_radius + 0.5 and abs(a.y - ty - 0.5) < a.hit_radius + 0.5
+           for a in bodies):
+        return False
+    return old
+
+
+def _feather_ward(scene, hero, st, dt: float) -> None:
+    """Feather Ward: ready every U_WARD[0] s; then the next enemy shot about
+    to hit you is stopped (combat: the hit sets hero.ward_at, the way it
+    came from) and a stone feather springs up U_WARD[1] tiles that way,
+    standing the power's s (cover)."""
+    from ..world import tiles
+    hero.ward_t = max(0.0, hero.ward_t - dt)
+    at = hero.ward_at
+    if at is None:
+        return
+    hero.ward_at = None
+    x, y = hero.x + at[0] * config.U_WARD[1], hero.y + at[1] * config.U_WARD[1]
+    scene.effects.append(Effect("debris", x, y))
+    scene.effects.append(Effect("toast", hero.x, hero.y - 2.0, label="WARDED!"))
+    scene._sounds.append("boulder")
+    old = _stone_at(scene, hero, x, y, 0.0)
+    if not old:
+        return
+    tx, ty = math.floor(x), math.floor(y)
+    scene.world.set_tile(tx, ty, tiles.FEATHER_SPIKE)
+    scene.zones.append(Zone("ward", x, y, 0.4, st.uniques.get("feather_ward", 3.0), 99.0, 0.0,
+                            hero, restore=(tx, ty, old)))
+
+
+def _cool_to_stone(scene, hero, st, enemy) -> None:
+    """Molten Crown: a burning enemy you killed cools to stone -- a boulder
+    where it fell for the power's s (cover)."""
+    from ..world import tiles
+    old = _stone_at(scene, hero, enemy.x, enemy.y, 0.0)
+    if not old:
+        return
+    tx, ty = math.floor(enemy.x), math.floor(enemy.y)
+    scene.world.set_tile(tx, ty, tiles.BASALT_BOULDER)
+    scene.zones.append(Zone("cooled", enemy.x, enemy.y, 0.4, st.uniques.get("molten_crown", 4.0),
+                            99.0, 0.0, hero, restore=(tx, ty, old)))
+    scene.effects.append(Effect("debris", enemy.x, enemy.y))
+
+
+def _amber_heart(scene, hero, dt: float) -> None:
+    """Amber Heart: its clock; while you're sealed (Character._amber_seal)
+    you heal the share it set over U_AMBER_HEART[2] s, and every enemy
+    within [5] tiles of the amber is held [3] s (a boss [4] s), once."""
+    every, _, secs, hold, boss_hold, reach = config.U_AMBER_HEART
+    hero.amber_t = max(0.0, hero.amber_t - dt)
+    if hero.sealed <= 0:
+        return
+    if hero.sealed_new:
+        hero.sealed_new = False
+        scene.effects.append(Effect("toast", hero.x, hero.y - 2.0, label="SEALED IN AMBER!"))
+        scene.effects.append(Effect("nova", hero.x, hero.y, size=1.5))
+        scene._sounds.append("hex")
+    step = min(dt, hero.sealed)
+    hero.sealed = max(0.0, hero.sealed - dt)
+    hero.heal(hero.amber_heal * step / secs)
+    for e in _foes(scene):
+        if id(e) in hero.amber_held:
+            continue
+        if math.hypot(e.x - hero.x, e.y - hero.y) <= hero.hit_radius + e.hit_radius + reach:
+            hero.amber_held.add(id(e))
+            s = statuses_of(e)
+            s.bound = max(s.bound, boss_hold if getattr(e, "boss", False) else hold)
+            scene.effects.append(Effect("toast", e.x, e.y - e.hit_radius - 1.0, label="HELD!"))
+
+
+def _flesh_eyes(scene, hero, st, dt: float) -> None:
+    """Eyes in the Flesh: while you fight (an enemy within U_FLESH_EYES[3]
+    tiles) an eye opens every [0] s, up to [1]; a hit closes one
+    (Character.take_damage). Each open eye: the power's share of damage
+    (combat.strike) and [2] crit chance (combat.crit_chance)."""
+    every, most, _, reach = config.U_FLESH_EYES
+    if hero.eyes_shut:
+        n = hero.eyes_shut
+        hero.eyes_shut = 0
+        scene.effects.append(Effect("toast", hero.x, hero.y - 2.0,
+                                    label="AN EYE CLOSES" if n == 1 else f"{n} EYES CLOSE"))
+    if not st.has("eyes_in_the_flesh"):
+        hero.flesh_eyes = 0
+        return
+    if hero.flesh_eyes >= most:
+        hero.flesh_t = every
+        return
+    if _due(scene, hero, "flesh_t", every, reach, dt):
+        hero.flesh_eyes += 1
+        scene.effects.append(Effect("gore", hero.x, hero.y - 1.0))

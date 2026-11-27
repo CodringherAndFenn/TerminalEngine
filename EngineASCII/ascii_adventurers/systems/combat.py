@@ -119,6 +119,9 @@ def strike(victim: Actor, base: float, source: Actor | None, angle: float | None
             and getattr(source, "stats", None) is not None:
         bonus = source.stats.uniques.get("overseers_eye", 0.2)
         mult *= 1 + bonus * (config.U_EYE[6] if getattr(victim, "boss", False) else 1.0)
+    eyes = getattr(source, "flesh_eyes", 0)           # (M33.2: Eyes in the Flesh, each open eye)
+    if eyes and getattr(source, "stats", None) is not None:
+        mult *= 1 + source.stats.uniques.get("eyes_in_the_flesh", 0.05) * eyes
     plates = getattr(source, "scrap_plates", 0)       # (M32.5: Scrap Plating, a plate worn)
     if plates and getattr(source, "stats", None) is not None:
         mult *= 1 + source.stats.uniques.get("scrap_plating", 0.04) * plates
@@ -518,6 +521,8 @@ def crit_chance(stats, source: Actor) -> float:
         chance += stats.steady_crit
     if stats.has("fleet_strike"):
         chance += max(0.0, stats.move) / 4
+    if stats.has("eyes_in_the_flesh"):                 # (M33.2: each open eye)
+        chance += config.U_FLESH_EYES[2] * getattr(source, "flesh_eyes", 0)
     return chance
 
 
@@ -2243,6 +2248,16 @@ def _hit_actor(p: Projectile, victim: Actor, hx: float, hy: float, world,
         # from in front.
         p.alive = False
         victim.blocked += 1
+        effects.append(Effect("impact", hx, hy, p.angle))
+        return []
+    if vst is not None and vst.has("feather_ward") and victim.ward_t <= 0 \
+            and getattr(owner, "faction", None) != "player" and not p.spec.lob:
+        # Feather Ward (M33.2): a stone feather springs up in its way
+        # (systems/relics._feather_ward puts it in the world).
+        p.alive = False
+        victim.blocked += 1
+        victim.ward_t = config.U_WARD[0]
+        victim.ward_at = (-p.dir_x, -p.dir_y)
         effects.append(Effect("impact", hx, hy, p.angle))
         return []
     if vst is not None and vst.has("juggernaut+3") and getattr(owner, "faction", None) != "player":

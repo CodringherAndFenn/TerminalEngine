@@ -109,6 +109,7 @@ def draw_relics(text, bank: SpriteBank, camera: Camera, players, enemies, steps:
         _draw_5c(batch, camera, h, st, steps)
         _draw_swarms(batch, camera, h, steps)
         _draw_overseers(batch, camera, h, st, steps)
+        _draw_fossil(batch, camera, h, st, steps)
     _draw_marks(batch, camera, players, enemies, steps)
     batch.flush()
     for x, y, left, hurt in bears:
@@ -258,3 +259,24 @@ def _draw_overseers(batch, camera: Camera, h, st, steps: int) -> None:
         a = k * math.tau / max(1, h.scrap_plates) + steps * 0.02
         batch.put_c(x + math.cos(a) * tw * 1.0, y + math.sin(a) * th * 0.7, "[#]",
                     palette.SCRAP_PLATE[k % 2])
+
+
+def _draw_fossil(batch, camera: Camera, h, st, steps: int) -> None:
+    """M33.2: the Fossil Angel's relics on a hero: Feather Ward ready (a
+    stone feather by you), sealed in amber (a ring of it round you, Amber
+    Heart), the eyes open on you (Eyes in the Flesh, a row over your head).
+    The feathers and boulders they put up are tiles."""
+    tw, th = config.TILE_PX_W, config.TILE_PX_H
+    x, y = camera.world_to_px(h.x, h.y)
+    if st.has("feather_ward") and h.ward_t <= 0:
+        batch.put_c(x - tw * 0.9, y - th * 0.2, "/|", palette.FEATHER_SPIKE_FG)
+    if h.sealed > 0:
+        r = h.hit_radius + 0.35
+        for k in range(12):
+            a = k * math.tau / 12
+            batch.put_c(x + math.cos(a) * r * tw, y + math.sin(a) * r * th * 0.9,
+                        "#" if k % 2 else "=", palette.AMBER_WALL_FG if k % 2 else palette.RESIN_FG)
+    n = h.flesh_eyes
+    for k in range(n):
+        batch.put_c(x + (k - (n - 1) / 2) * 9, y - th * 1.3, "o",
+                    palette.FOSSIL_EYE[1] if (k + steps // 20) % 3 else palette.FOSSIL_EYE[0])

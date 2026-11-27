@@ -222,6 +222,21 @@ class Character(Actor):
         self.box_low = False
         self.scrap_plates = 0
         self.plate_lost = 0
+        # M33.2: the Fossil Angel's relics: Feather Ward's s until it's ready and
+        # the way the shot it stopped came from (a feather springs up there);
+        # Amber Heart's s until it's ready, s left sealed (and whether to tell),
+        # the health still to heal and the enemies it held; Eyes in the Flesh's
+        # eyes open, s to the next and eyes closed by hits (to show).
+        self.ward_t = 0.0
+        self.ward_at: tuple | None = None
+        self.amber_t = 0.0
+        self.sealed = 0.0
+        self.sealed_new = False
+        self.amber_heal = 0.0
+        self.amber_held: set = set()
+        self.flesh_eyes = 0
+        self.flesh_t = config.U_FLESH_EYES[0]
+        self.eyes_shut = 0
         self.last_crit = False
         self.bestiary: set[str] = set()
         self.idle = 0.0                   # seconds since the last attack (Capacitor)
@@ -581,9 +596,20 @@ class Character(Actor):
                 inflict(source, "bleed", self, config.BARBS)
             if dealt > 0 and st.has("thorn_mail+9"):
                 self.hedge.append((source, dealt))          # (Wild hedge: run_rules)
+        if amount > 0 and st.has("amber_heart") and self.amber_t <= 0 \
+                and self.hp - amount < self.max_hp * config.U_AMBER_HEART[1]:
+            self._amber_seal()                          # (M33.2: Amber Heart: sealed instead)
+            return 0.0
         if amount <= 0:
             self.hurt_flash = 0.12
             return 0.0
+        if st.has("molten_crown") and source is not None and source is not self \
+                and getattr(source, "faction", None) == "enemy" and source.alive:
+            from ..systems.statuses import inflict         # (M33.2: Molten Crown: it burns)
+            inflict(source, "burn", self, config.U_MOLTEN)
+        if self.flesh_eyes > 0:                         # (M33.2: Eyes in the Flesh: one closes)
+            self.flesh_eyes -= 1
+            self.eyes_shut += 1
         if st.has("blight_thorn_ring") and source is not None and source is not self \
                 and getattr(source, "faction", None) == "enemy" and source.alive:
             source.blighted = (self.time + config.U_BLIGHT_THORN,     # (M28.5c)
@@ -615,6 +641,19 @@ class Character(Actor):
         if amount > 0:
             self.lost.append((self.time, amount))
         return amount
+
+    def _amber_seal(self) -> None:
+        """Amber Heart (M33.2): sealed in amber -- untouchable and still for
+        U_AMBER_HEART[2] s, healing the power's share of max HP over it
+        (systems/relics._amber_heart heals it and holds who touches it)."""
+        every, _, secs, *_ = config.U_AMBER_HEART
+        self.amber_t = every
+        self.sealed = secs
+        self.sealed_new = True
+        self.untouchable = max(self.untouchable, secs)
+        self.slowed(0.0, secs)
+        self.amber_heal = self.max_hp * self.stats.uniques.get("amber_heart", 0.2)
+        self.amber_held = set()
 
     def _last_stand(self, amount: float) -> float:
         """Wolfpelt +9: dropping below LAST_STAND[0] of max HP starts it (if

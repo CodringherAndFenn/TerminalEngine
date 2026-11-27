@@ -17,6 +17,14 @@ The quests (systems/quests.py) keep the order (`Quests.order`) and wake the
 final when the fourth ocean boss falls; a final has no arena -- its "lair"
 is a `Roaming` one that goes wherever its boss is -- and hunts you across
 the whole map (ai/finals.py).
+
+RELICS FOR LATER RUNS (FINALS.md 14, M33.2). Every final has relics like
+every boss (config.GEAR, unique=its boss key), but beating it ends the run,
+so it doesn't drop them: beating it UNLOCKS them (the Guild's journal has
+it). In later runs each of the four ocean bosses' drop is then one of its
+own relics or one of the unlocked finals' (`relics_open`,
+scenes/game.GameScene._drop_unique); the archivist's relics shelf lists the
+finals' relics, ??? until their final is beaten.
 """
 
 from __future__ import annotations
@@ -131,6 +139,33 @@ class Roaming:
 
     def tile_at(self, tx: int, ty: int):
         return None
+
+
+def ocean_bosses() -> frozenset:
+    """The four ocean zones' bosses (their quests' bosses): the ones that
+    drop the unlocked finals' relics."""
+    return frozenset(q.boss for q in config.QUESTS.values() if q.biome in config.ZONE_PLACES)
+
+
+def final_bosses() -> frozenset:
+    """The built finals' bosses (their relics are the finals' relics)."""
+    return frozenset(q.boss for q in config.FINALS.values())
+
+
+def beaten(guild, key: str) -> bool:
+    """Has this guild beaten final `key` (a config.FINALS key) in any run?"""
+    e = getattr(guild, "journal", {}).get(key) if guild is not None else None
+    return bool(e) and e.get("wins", 0) > 0
+
+
+def relics_open(guild) -> tuple:
+    """The finals' relics this guild has unlocked: every relic of each final
+    it has beaten, in a fixed order (the drop's seed picks by index)."""
+    out: list = []
+    for key, q in config.FINALS.items():
+        if beaten(guild, key):
+            out.extend(config.BOSS_UNIQUES.get(q.boss, ()))
+    return tuple(out)
 
 
 def is_final(s) -> bool:

@@ -62,10 +62,10 @@ class CardDataTest(unittest.TestCase):
         # + 6 wizard cards (M20), - Arcane Mastery and Weapons Master (M28.1)
         # + the 38 boss relics (M28.5, "U" codes), + the Four Horsemen's 4 (M29.5)
         # + the Host of the Feast's 4 (M30.5), + the Ancestor's 4 (M31.5)
-        # + the Overseer's 4 (M32.5)
-        self.assertEqual(len(codes), 179)
-        self.assertEqual(len(set(codes)), 179)
-        self.assertEqual(sum(c.startswith("U") for c in codes), 54)
+        # + the Overseer's 4 (M32.5), + the Fossil Angel's 4 (M33.2)
+        self.assertEqual(len(codes), 183)
+        self.assertEqual(len(set(codes)), 183)
+        self.assertEqual(sum(c.startswith("U") for c in codes), 58)
         for prefix, n in (("G", 21), ("T", 12), ("S", 12), ("C", 8), ("X", 6), ("R", 6),
                           ("E", 3), ("K", 6), ("V", 6), ("M", 5)):
             self.assertEqual(sum(c.startswith(prefix) for c in codes), n, prefix)

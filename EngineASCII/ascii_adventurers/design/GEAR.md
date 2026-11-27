@@ -2175,6 +2175,10 @@ Pangaea's boss (the Ancestor, then the first life) drops one of four, one per ag
 
 Panopticon's boss (the Overseer, the eye, then the walking city) drops one of four, one per thing it does to you, picked by the user from three proposals each: **Overseer's Eye** (head), **Cell Key** (off-hand), **Black Box** (trinket), **Scrap Plating** (chest). Powers and code: OCEAN.md section 45.1. 54 uniques now (U51-U54).
 
+### 21.11 M33.2: the Fossil Angel's relics (2026-11-27)
+
+The first final's (heaven + the past): one per thing it does, picked by the user -- protections and buffs, not attacks: **Feather Ward** (off-hand), **Molten Crown** (head), **Amber Heart** (chest), **Eyes in Flesh** (trinket). A final doesn't drop them (beating it ends the run): it unlocks them, and in later runs the four ocean bosses drop them too. Powers and code: FINALS.md section 17.1. 58 uniques now (U55-U58).
+
 ## 22. Built: M28.6 (2026-11-21) -- gear on the heroes
 
 The heroes are 14 x 18 letter sprites (`render/characters.ART`), not painted figures as section 9 assumed, so the docs said nothing about how each piece looks. **User picks (2026-11-21):** the head = **shape + colour**; the chest = **body colour**; the main hand = **accent colour**; extras: **the hero on the gear screen** and **a legendary glint**.

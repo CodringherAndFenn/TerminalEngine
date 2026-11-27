@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Kill Order and the Final Bosses
 
-Status: **rev 0 — M33 DRAFTED with the user, 2026-11-27 (rounds 1-8). Build plan in section 15. M33.1 BUILT (2026-11-27, section 16: the framework and the Fossil Angel's form 1). M33.2 form 2 BUILT (2026-11-27, section 17: the first angel unveils).** This is M33 in `BOSSES.md` section 8: the order the four ocean bosses (`OCEAN.md`) fall in picks the final boss, tier IV in `BOSSES.md` section 2 ("map-wide fights, decided by the cardinal kill order"). The user may change anything here after playing it. Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M33 DRAFTED with the user, 2026-11-27 (rounds 1-8). Build plan in section 15. M33.1 BUILT (2026-11-27, section 16: the framework and the Fossil Angel's form 1). M33.2 BUILT (2026-11-27, section 17: the first angel unveils; 17.1: its relics and relics for later runs).** This is M33 in `BOSSES.md` section 8: the order the four ocean bosses (`OCEAN.md`) fall in picks the final boss, tier IV in `BOSSES.md` section 2 ("map-wide fights, decided by the cardinal kill order"). The user may change anything here after playing it. Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -286,4 +286,21 @@ Health not cut (policy). **To play-test:** the bot never hides from the first wo
 
 **Tests:** `tests/test_m33_2.py` (15). Changed on purpose: test_m33_1 (its fall in form 1 unveils form 2; the victory comes with form 2's fall), test_m28_5 (form 2's key has no relics of its own, like the walking city's).
 
-**Next:** the Fossil Angel's relics, drafted with you, and the relics-for-later-runs system (section 14).
+### 17.1 The Fossil Angel's relics, and relics for later runs (user's picks, 2026-11-27)
+
+One per thing it does, a slot each so one hero can wear all four (`GEAR.md` 21.1's rules: legendary, the power +10% a level). The user picked protections and buffs over attacks ("attacks shouldn't be part of the relics unless I change my mind"), and asked for a buff for the fourth that isn't like Feather Ward (shots, cover):
+
+| What it does | Relic | Slot | Power (at +0) |
+|--------------|-------|------|---------------|
+| Stone feathers | **Feather Ward** | off-hand | every 8 s, the next enemy shot about to hit you is stopped by a stone feather that springs up 1.8 tiles that way; **the feather stands 3 s** as cover (a FEATHER_SPIKE tile, never on anyone; lobbed shots go over) |
+| The lava halo | **Molten Crown** | head | enemies that hurt you burn (2 stacks); a burning enemy you kill cools to stone: **a boulder stands 4 s** where it fell, as cover |
+| Amber | **Amber Heart** | chest | once every 60 s, a hit that would take you below 25% HP seals you in amber instead: 1.5 s untouchable and still while you **heal 20%** of your max HP; enemies within 0.8 tiles of the amber are held 1 s (bosses 0.3 s) |
+| The first angel | **Eyes in Flesh** | trinket | while you fight (an enemy within 12 tiles) an eye opens on you every 3 s, up to 6: **each +5% damage** and +3% crit chance; each hit you take closes one |
+
+The power that grows: the feather's seconds, the boulder's seconds, the share healed, the damage an eye. Looks: the Molten Crown a crown of cooled stone with molten gems, Amber Heart the body in amber (`render/gear_looks`); a stone feather "/|" by you while the ward is ready; a ring of amber round you while sealed; the open eyes in a row over your head. "Eyes in the Flesh" is "Eyes in Flesh" on the cards (16 letters at most). Affixes: Ward -- thick hide, quick hands, lingering; Crown -- affliction, iron skin, lingering; Heart -- second wind, thick hide, iron skin; Eyes -- keen eye, sharpened, brutal. Code: `systems/relics.py` (`_feather_ward`, `_cool_to_stone` from `on_kill`, `_amber_heart`, `_flesh_eyes`), `combat` (the ward stops the shot where the Lace Parasol does; the eyes in `strike` and `crit_chance`), `Character.take_damage` (the seal, the crown's burn, an eye closing), `render/relics._draw_fossil`, config `U_WARD`, `U_MOLTEN`, `U_AMBER_HEART`, `U_FLESH_EYES`. 58 boss uniques now (U55-U58).
+
+**Relics for later runs** (section 14; `systems/finals.py`): beating a final ends the run, so it drops nothing -- it **unlocks its relics** (the Guild's journal has it). In every later run the four ocean bosses' drop is then one of their own relics or one of the unlocked finals' (`relics_open`, `scenes/game.GameScene._drop_unique`; picked by the seed, the boss and the player like before). **(mine)** The archivist's existing **Relics** shelf lists the finals' relics after the bosses': "???" with its final unnamed ("A FINAL") until it's beaten, then **UNLOCKED** (its power shown: "the ocean bosses can drop it now"), then **FOUND** like any relic.
+
+**Tests:** `tests/test_m33_2.py` (23 in all: 5 for the relics, 3 for later runs). Changed on purpose: test_cards (183 cards, 58 "U"), test_m28_5 (58 uniques; the Fossil Angel has its relics).
+
+**M33.2 done. Next: M33.3, the Recording Angel's form 1** (section 10.1) -- when you say go.

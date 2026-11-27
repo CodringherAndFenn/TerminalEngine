@@ -49,7 +49,8 @@ SHELF_BLURBS = {"cards": "Gear bought here can be offered on level-ups.",
                 "bestiary": f"A page is yours after {config.BESTIARY_KILLS} kills, or bought: "
                             f"+{round(config.BESTIARY_BONUS * 100)}% damage to that enemy.",
                 "journal": "Every quest whose guardian you have beaten.",
-                "relics": "Each boss drops one of its relics when it falls. Found ones are listed."}
+                "relics": "Each boss drops one of its relics when it falls; a beaten final's "
+                          "join the ocean bosses' drops. Found ones are listed."}
 _UP = (pygame.K_UP, pygame.K_w)
 _DOWN = (pygame.K_DOWN, pygame.K_s)
 _LEFT = (pygame.K_LEFT, pygame.K_a)
@@ -160,15 +161,31 @@ class GuildPanel:
         return out
 
     def _relics_rows(self) -> list[Row]:
-        """M28.5: the boss uniques, FOUND or ???, by boss."""
+        """M28.5: the boss uniques, FOUND or ???, by boss. M33.2: the finals'
+        relics too: ??? (and their final unnamed) until it's beaten, then
+        UNLOCKED (the ocean bosses can drop them), then FOUND."""
         from ..players.gear import affix_text, boss_of, power_text
         out = []
+        unlocked = set(finals.relics_open(self.guild))
+        of_finals = finals.final_bosses()
         for key, g in config.GEAR.items():
             if g.unique is None:
                 continue
             found = key in self.guild.uniques
             boss = boss_of(key)
             slot = config.GEAR_SLOT_NAMES[g.slot].lower()
+            if g.unique in of_finals and not found:
+                if key in unlocked:
+                    lines = "; ".join(affix_text(a, "legendary") for a in g.affixes)
+                    out.append(Row(key, g.name, boss.upper()[:NAME_W], f"{slot}: {power_text(key)}",
+                                   None, "UNLOCKED", f"{g.name} ({slot}, from {boss}): "
+                                   f"{power_text(key)}. The ocean bosses can drop it now. {lines}.",
+                                   column_color=palette.CARD_RARITY["legendary"]))
+                else:
+                    out.append(Row(key, "???", "A FINAL", f"{slot}: ???", None, "",
+                                   "A relic of one of the finals. Beat it to unlock it: in later "
+                                   "runs the ocean bosses can drop it."))
+                continue
             if found:
                 lines = "; ".join(affix_text(a, "legendary") for a in g.affixes)
                 out.append(Row(key, g.name, boss.upper()[:NAME_W], f"{slot}: {power_text(key)}",

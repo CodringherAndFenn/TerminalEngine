@@ -3281,6 +3281,30 @@ CARDS = {
         "entirely, then falls off; each plate you wear gives +4% damage",
         (("scrap_plating", "flag", 1), ("scrap_plating", "power", 0.04)),
         rarity="legendary", max_stacks=1, unlock="U:overseer", code="U54"),
+    # M33.2: the Fossil Angel's relics, one per thing it does: its stone
+    # feathers, its lava halo, its amber, the first angel (user's picks,
+    # 2026-11-27: protections and buffs, no attacks). Beating it unlocks them;
+    # in later runs the ocean bosses drop them (systems/finals.relics_open).
+    "feather_ward": CardSpec(
+        "Feather Ward", "every 8 s, an enemy shot about to hit you is stopped by a stone feather "
+        "that springs up in its way; the feather stands 3 s as cover",
+        (("feather_ward", "flag", 1), ("feather_ward", "power", 3.0)),
+        rarity="legendary", max_stacks=1, unlock="U:fossil_angel", code="U55"),
+    "molten_crown": CardSpec(
+        "Molten Crown", "enemies that hurt you burn; a burning enemy you kill cools to stone: a "
+        "boulder stands 4 s where it fell, as cover",
+        (("molten_crown", "flag", 1), ("molten_crown", "power", 4.0)),
+        rarity="legendary", max_stacks=1, unlock="U:fossil_angel", code="U56"),
+    "amber_heart": CardSpec(
+        "Amber Heart", "once every 60 s, a hit that would take you below 25% HP seals you in amber "
+        "instead: 1.5 s untouchable while you heal 20% of your max HP; enemies touching the amber "
+        "are held 1 s", (("amber_heart", "flag", 1), ("amber_heart", "power", 0.20)),
+        rarity="legendary", max_stacks=1, unlock="U:fossil_angel", code="U57"),
+    "eyes_in_the_flesh": CardSpec(
+        "Eyes in Flesh", "while you fight, an eye opens on you every 3 s, up to 6: each gives "
+        "+5% damage and +3% crit chance; each hit you take closes one",
+        (("eyes_in_the_flesh", "flag", 1), ("eyes_in_the_flesh", "power", 0.05)),
+        rarity="legendary", max_stacks=1, unlock="U:fossil_angel", code="U58"),
     "retaliation": CardSpec("Retaliation", "when hit: a shockwave deals 30 and pushes (3 s)",
                             (("retaliation", "flag", 1),), rarity="uncommon", max_stacks=1,
                             code="R03"),
@@ -4604,6 +4628,16 @@ GEAR = {
                           affixes=("second_wind", "iron_skin", "vampiric")),
     "scrap_plating": GearSpec("Scrap Plating", "chest", unique="overseer",
                               affixes=("thick_hide", "iron_skin", "sharpened")),
+    # (M33.2: the Fossil Angel's -- a final's: unlocked by beating it, then
+    # dropped by the ocean bosses in later runs)
+    "feather_ward": GearSpec("Feather Ward", "off", unique="fossil_angel",
+                             affixes=("thick_hide", "quick_hands", "lingering")),
+    "molten_crown": GearSpec("Molten Crown", "head", unique="fossil_angel",
+                             affixes=("affliction", "iron_skin", "lingering")),
+    "amber_heart": GearSpec("Amber Heart", "chest", unique="fossil_angel",
+                            affixes=("second_wind", "thick_hide", "iron_skin")),
+    "eyes_in_the_flesh": GearSpec("Eyes in Flesh", "trinket", unique="fossil_angel",
+                                  affixes=("keen_eye", "sharpened", "brutal")),
 }
 # Each boss's relics, in a fixed order (the drop picks by index).
 BOSS_UNIQUES: dict = {}
@@ -6269,6 +6303,17 @@ U_BOX = (15.0, 5.0, 0.30)               # Black Box: rewinds every s, healing th
                                         # the damage taken in the last s; at once below this share
                                         # of your max HP
 U_PLATES = 4                            # Scrap Plating: plates worn at most
+# M33.2: the Fossil Angel's relics (systems/relics.py).
+U_WARD = (8.0, 1.8)                     # Feather Ward: ready every s; the feather springs up
+                                        # this many tiles from you toward the shot
+U_MOLTEN = 2                            # Molten Crown: burn stacks on an enemy that hurts you
+U_AMBER_HEART = (60.0, 0.25, 1.5, 1.0, 0.3, 0.8)   # Amber Heart: once every s, a hit that would
+                                        # take you below this share seals you this many s
+                                        # (untouchable, still; healing the power's share of
+                                        # your max HP over it); enemies within this many tiles
+                                        # of you held s (bosses s)
+U_FLESH_EYES = (3.0, 6, 0.03, 12.0)     # Eyes in the Flesh: an eye opens every s (an enemy
+                                        # within [3] tiles), up to; crit chance each
 
 # Start: the tile nearest the centre (searched every SPAWN_SEARCH_STEP
 # tiles) that isn't in a lake and has dry land connecting it to at least

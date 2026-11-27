@@ -107,7 +107,7 @@ from ..render.spell_fx import (draw_gems, draw_ghost_sight, draw_overcast, draw_
 from ..render.sprites import SpriteBank
 from ..render.terrain import TerrainRenderer
 from ..ai.plains import drum_haste, tick_drum
-from ..systems import combat, mount, pangaea, panopticon, relics, roll, temptation
+from ..systems import combat, finals, mount, pangaea, panopticon, relics, roll, temptation
 from ..systems.chests import Chests
 from ..systems.quests import Banner, Quests, free_spot
 from ..systems.spawner import Spawner
@@ -1349,6 +1349,8 @@ class GameScene(Scene):
         picked by the seed, the boss and the player, once a run per player,
         laid by the body."""
         keys = config.BOSS_UNIQUES.get(boss_key, ())
+        if boss_key in finals.ocean_bosses():       # (M33.2: the beaten finals' relics join them)
+            keys = keys + finals.relics_open(self.app.guild)
         if not keys or boss_key in p.uniques_dropped or p.ghost:
             return None
         p.uniques_dropped.add(boss_key)
