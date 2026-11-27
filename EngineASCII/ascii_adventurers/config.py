@@ -1421,6 +1421,18 @@ ENEMIES = {
         name="eye of the city", kind="walker_eye", sprite="walker_eye", scale=2,
         max_hp=16, sight=24, biomes=(), speed=0.0, damage=0, size_px=12, xp=2,
     ),
+    # --- M33.1: the final bosses (design/FINALS.md; ai/finals.py) -----------------
+    # The Fossil Angel (heaven + the past), form 1: its bones walk
+    # (ai/fossil_angel.py). It hunts you across the whole map.
+    "fossil_angel": EnemySpec(
+        name="the Fossil Angel", kind="fossil_angel", sprite="fossil_angel", scale=7,
+        max_hp=15000, sight=400, biomes=(), windup=0.8, size_px=64, xp=3000,
+    ),
+    # Its halo, rolled out as a burning wheel (hit it until it cools to stone).
+    "lava_halo": EnemySpec(
+        name="the lava halo", kind="lava_halo", sprite="lava_halo", scale=3,
+        max_hp=500, sight=1, biomes=(), speed=0.0, damage=0, size_px=26, xp=0,
+    ),
     # M12. No ambushers: every one of these can be seen and hit from range.
     "dust_devil": EnemySpec(
         name="dust devil", kind="devil", max_hp=40, sight=16,
@@ -5035,6 +5047,12 @@ BESTIARY = {
     # M32.5
     "walker_eye": (1500, "One of the walking city's hundred eyes. What it sees it strikes a beat later: "
                          "shoot it out, or keep out of its sight."),
+    # M33.1: the finals
+    "fossil_angel": (15000, "An angel that fell on the first day and lay in the rock ever since. It "
+                            "hunts you across the land, leaping when you run. From halfway down, "
+                            "everything it does echoes."),
+    "lava_halo": (1500, "The Fossil Angel's halo, rolled out as a burning wheel. Hit it and it cools "
+                        "to stone."),
 }
 
 # Achievements (they unlock "A:" cards).
@@ -5062,6 +5080,7 @@ ACHIEVEMENTS = {
     "host_of_feast": "silence the seven bandstands and defeat the Host of the Feast",
     "ancestor": "hunt the seven great beasts and defeat the Ancestor",
     "overseer": "blind the seven eyes and defeat the Overseer",
+    "fossil_angel": "defeat the Fossil Angel, the final of heaven and the past",
 }
 ACHIEVEMENT_BURST = (15, 1.0)   # chain_reaction: this many kills within this many seconds
 
@@ -5890,6 +5909,11 @@ PANGAEA_SHOTS = {
                        look="spray", sound="orb"),
     "spray_echo": ShellSpec(speed=11.0, damage=12, max_range=11.0, damages_terrain=False,
                             look="spray_echo", sound="orb"),
+    # M33.1: the Fossil Angel's shower of stone where its dive lands.
+    "stone_shard": ShellSpec(speed=12.0, damage=14, max_range=12.0, damages_terrain=False,
+                             look="bone_shard", sound="bow"),
+    "stone_shard_echo": ShellSpec(speed=12.0, damage=14, max_range=12.0, damages_terrain=False,
+                                  look="bone_shard_echo", sound="bow"),
 }
 # The angels' shots (M29.2, ai/paradise.py): serene, slow notes, rings and
 # orbs of light; unveiled, the seraph's spirals of blood and fire.
@@ -6790,6 +6814,32 @@ QUESTS = {
         ),
     ),
 }
+
+# M33 (design/FINALS.md): THE KILL ORDER AND THE FINAL BOSSES. The four ocean
+# zones are two pairs (FINAL_PAIRS: heaven against hell, the past against
+# the future); in each pair the one whose boss falls LAST wins, and the
+# final is the two winners fused (FINAL_OF). The rule is hidden (user): no
+# giver hints at it, the quest log doesn't show it. The final wakes the
+# moment the fourth ocean boss falls; it has no arena and hunts you across
+# the whole map (ai/finals.py). Each built final is a quest-like entry here
+# (kind "final", no giver, no camp, no lair: systems/quests.py runs it with a
+# lair that follows its boss). Until a final is built, an order that picks
+# it wakes FINAL_STAND_IN instead (M33.1: only the Fossil Angel exists).
+FINAL_PAIRS = (("paradise", "pandemonium"), ("pangaea", "panopticon"))
+FINAL_OF = {("paradise", "pangaea"): "fossil_angel",
+            ("paradise", "panopticon"): "recording_angel",
+            ("pandemonium", "pangaea"): "golden_calf",
+            ("pandemonium", "panopticon"): "the_feed"}
+FINAL_NAMES = {"fossil_angel": "The Fossil Angel", "recording_angel": "The Recording Angel",
+               "golden_calf": "The Golden Calf", "the_feed": "The Feed"}
+FINAL_STAND_IN = "fossil_angel"
+FINALS = {
+    "fossil_angel": QuestSpec(
+        title="Heaven and the Past", biome="final", giver="", giver_sprite="",
+        camp="none", lair="none", target="", count=0, boss="fossil_angel", goal="",
+        camp_name="", lair_name="THE FOSSIL ANGEL", kind="final", lines=(),
+    ),
+}
 # Developer / test: the quest key the dev keys (F6 to its giver, F7 finish
 # it, F8 to its lair) act on; run.py --boss sets it. None: the first quest
 # not beaten yet.
@@ -7479,8 +7529,101 @@ BOSSES = {
         ),
         loot=0, achievement="overseer", pages=(),
     ),
+    # M33.1: THE FOSSIL ANGEL, form 1, its bones walk (FINALS.md 9.1;
+    # ai/fossil_angel.py). Four phases, a signature added in each: stone
+    # feathers, the lava halo, its echoes (all its moves, not a move), amber.
+    # Its moves: wing sweep, stone dive, ash breath, falling stars. It
+    # hunts you meanwhile (ai/finals.py). The loot is the final's payout.
+    "fossil_angel": BossSpec(
+        name="The Fossil Angel",
+        phases=(
+            BossPhase(1.0, (("feathers", 3), ("sweep", 2), ("dive", 2), ("breath", 2),
+                            ("stars", 2)), rest=1.5),
+            BossPhase(0.75, (("halo", 3), ("feathers", 2), ("sweep", 2), ("dive", 2),
+                             ("breath", 2), ("stars", 2)), rest=1.4),
+            BossPhase(0.5, (("halo", 2), ("feathers", 2), ("sweep", 2), ("dive", 2),
+                            ("breath", 2), ("stars", 2)), rest=1.9),
+            BossPhase(0.25, (("amber", 3), ("halo", 2), ("feathers", 2), ("sweep", 2),
+                             ("dive", 2), ("breath", 2), ("stars", 2)), rest=1.8),
+        ),
+        loot=40000, achievement="fossil_angel", pages=("fossil_angel", "lava_halo"),
+    ),
 }
 BOSS_KEYS = tuple(BOSSES)         # (M28.5: a stable order for the relic drop's seed)
+
+# M33.1: THE HUNT (design/FINALS.md 3-5; ai/finals.py), every final's. It has
+# no arena: it walks at the nearest hero at FINAL_WALK[0] tiles/s (x[2] while
+# a move is on), circling once it's within [1] tiles; it smashes what's
+# solid in its way. It LEAPS once the nearest hero is more than FINAL_LEAP[0]
+# tiles off (over water too): a [1] s crouch, then the landing is marked [2]
+# s before it comes down, [3]-[4] tiles from that hero; the impact is a ring
+# of [5] tiles ([6] damage, pushing [7]); [8] s getting up. Woken, it comes
+# ashore and stands FINAL_WAKE_GRACE s before its first leap.
+FINAL_WALK = (4.0, 7.0, 0.5)
+FINAL_LEAP = (60.0, 1.0, 1.5, 6.0, 12.0, 5.0, 40, 4.0, 0.8)
+FINAL_WAKE_GRACE = 10.0
+# Its trail: the ground within FINAL_TRAIL[0] tiles of where it walks turns to
+# its two realms' land (a stamp every [1] tile walked; never on water); a
+# landing leaves a crater of it FINAL_CRATER tiles round. Its realms'
+# creatures crawl out of it (FINAL_BROOD: every [0] s, while fewer than [1]
+# are about, [2] at a time, somewhere on its path [3]-[4] tiles from it and
+# at least [3] from every hero), endgame tough like on their islands
+# (ZONE_TOUGH).
+FINAL_TRAIL = (3.0, 1.0)
+FINAL_CRATER = 4.0
+FINAL_BROOD = (14.0, 3, 2, 8.0, 30.0)
+FINAL_BROODS = {"fossil_angel": ("cherub", "dove", "halo", "lamb", "raptor", "sabre_tooth",
+                                 "dragonfly", "spear_hunter")}
+# Where it comes ashore: the main island's coast between its two realms (a
+# direction: north is -y).
+FINAL_ASHORE = {"fossil_angel": (-1.0, -1.0)}
+# The world kept loaded round it (half-size in tiles), the sky over the
+# whole map while it hunts (a colour the view is multiplied by), and how long
+# after it falls the victory comes up.
+FINAL_STREAM = (24.0, 16.0)
+FINAL_SKY = {"fossil_angel": (255, 222, 190)}
+FINAL_VICTORY_DELAY = 4.0
+
+# M33.1: THE FOSSIL ANGEL, form 1 (design/FINALS.md 9.1; ai/fossil_angel.py).
+# Numbers mine; damages per hit at level 1 (x the enemy damage scaling,
+# BOSS_DMG_MULT). Its echoes (from the third phase, ECHO[0] s later, at full
+# damage) are Pangaea's (ai/pangaea.Echoing).
+FOSSIL_HIT_RADIUS = 2.4
+FOSSIL_ECHO_PHASE = 2
+# Signature 1, stone feathers: it beats its wings [0] s (the lines shown),
+# and feathers rain down along [1] lines in a fan [2] degrees wide toward
+# you, [3] tiles long, [4] tiles either side, [5] damage; a stone spike
+# sticks up every [6] tiles along each line (cover: FEATHER_SPIKE tiles,
+# not where anyone stands), crumbling [7] s later.
+FOSSIL_FEATHERS = (1.0, 5, 70, 16.0, 0.7, 22, 4.0, 15.0)
+# Signature 2, the lava halo: it lifts its halo [0] s, and it rolls out as a
+# burning wheel circling it, from [1] to [2] tiles out over its [3] s, a
+# round every [4] s; the wheel ([5] tiles round) hits for [6] (pushing
+# [7]) and leaves fire every [8] tiles it rolls ([9] s, [10] a tick, [11]
+# tiles round). Hit it ([12] HP at level 1) and it cools to stone and falls
+# (a boulder: cover).
+FOSSIL_HALO = (1.0, 3.0, 18.0, 10.0, 3.2, 1.3, 26, 2.0, 2.0, 4.0, 6, 1.1, 500)
+# Signature 4, amber: it weeps [0] s, and resin runs out along [1] rivers
+# (one at you, the rest spread round), [2] tiles long, [3] tiles wide,
+# flowing [4] tiles/s; running resin holds whoever it catches ([5] s, or
+# until they roll; [6] damage); it hardens [7] s after it reaches a tile,
+# into amber walls (AMBER_WALL tiles, not where anyone stands) that stand
+# [8] s.
+FOSSIL_AMBER = (0.9, 3, 14.0, 1.0, 9.0, 3.0, 8, 2.0, 18.0)
+# The moves. Wing sweep: [0] s shown, a [1]-degree arc [2] tiles out, [3]
+# damage, pushing [4].
+FOSSIL_SWEEP = (0.8, 150, 7.5, 30, 3.5)
+# Stone dive: a hop [0] s up, its line shown [1] s, [2] tiles at [3]
+# tiles/s, [4] tiles either side, [5] damage, pushing [6]; it lands in a
+# shower of [7] stone shards.
+FOSSIL_DIVE = (0.4, 0.8, 16.0, 22.0, 1.8, 34, 2.5, 10)
+# Ash breath: [0] s shown, a [1]-degree cone [2] tiles long, [3] damage;
+# [4] embers left burning in it ([5] tiles round, [6] s, [7] a tick).
+FOSSIL_BREATH = (0.8, 60, 12.0, 22, 4, 1.1, 4.0, 6)
+# Falling stars: [0] s to call them; [1] chains of [2] stars, each marked
+# [3] s, [4] tiles round, [5] damage, within [6] tiles of you, [7] s apart
+# in a chain.
+FOSSIL_STARS = (0.6, 2, 4, 1.3, 1.8, 24, 7.0, 0.35)
 
 # Khepri the Dung Emperor (ai/bosses.Khepri): a giant dung beetle with his
 # ball. Damages are per hit at level 1 (x the enemy damage scaling).

@@ -27,6 +27,8 @@ class RunStats:
     loot: float = 0.0                    # found this run (kept however it ends)
     difficulty: int = 0                  # P5: the run's difficulty level
     victory: bool = False                # M27: Adventurer's Glory won (the plains boss)
+    final: str = ""                      # M33: the final beaten (config.FINALS key), if any
+    order: list[str] = field(default_factory=list)    # M33: the ocean zones, as their bosses fell
 
     @property
     def total_kills(self) -> int:

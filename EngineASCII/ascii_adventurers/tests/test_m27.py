@@ -140,7 +140,7 @@ def win_guardians(s):
     """A boss beaten in each ring biome (one quest of each)."""
     done = set()
     for st in s.quests.states.values():
-        if st.spec.kind != "finale" and st.biome not in done \
+        if st.spec.kind not in ("finale", "final") and st.biome not in done \
                 and st.biome not in config.ZONE_PLACES:     # (M29.4: not a guardian)
             st.stage = "cleared"
             done.add(st.biome)

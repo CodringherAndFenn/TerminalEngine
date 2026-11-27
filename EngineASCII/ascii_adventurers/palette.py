@@ -1688,3 +1688,31 @@ SEEN_MARK = ((255, 70, 200), (120, 255, 255))
 CELL_KEY_READY = (120, 230, 255)
 BLACK_BOX_REC = ((255, 50, 60), (120, 20, 30))
 SCRAP_PLATE = ((214, 112, 52), (170, 180, 194))
+
+# --- M33.1: the finals (ai/finals.py) and the Fossil Angel (ai/fossil_angel.py) ------------
+# What it leaves: a stone feather stuck in the ground, running resin, amber
+# walls (darker than Pangaea's outcrops, nothing frozen in them).
+FEATHER_SPIKE_FG = (214, 206, 186)
+FEATHER_SPIKE_BG = (70, 66, 62)
+RESIN_FG = (255, 206, 90)
+RESIN_BG = (120, 70, 14)
+AMBER_WALL_FG = (240, 150, 30)
+AMBER_WALL_BG = (110, 56, 8)
+MAP_TILE.update({"stone feather": (214, 206, 186), "resin": (255, 206, 90),
+                 "amber wall": (240, 150, 30)})
+# The hunt: its leap's landing mark (flashing as it comes; marked), its
+# shadow, the crouch's "!"; the map pin and the edge arrow.
+FINAL_LEAP_MARK = ((255, 236, 170), (255, 120, 60))
+FINAL_SHADOW = (24, 20, 18)
+FINAL_PIN = (255, 210, 120)
+# The Fossil Angel's tells: the feathers' lines, the sweep's arc, the dive's
+# line, the breath's cone, the stars' marks (flashing; marked); the halo
+# wheel's fire; resin running (two shades, flowing).
+FOSSIL_TELL = ((255, 244, 214), (220, 170, 110))
+FOSSIL_STAR = ((255, 250, 220), (200, 180, 255))
+FOSSIL_FIRE = ((255, 220, 120), (255, 120, 40), (190, 60, 20))
+FOSSIL_RESIN = ((255, 220, 120), (230, 150, 40))
+# The trophies in the Guild hall (one per final beaten): its gold; an empty
+# pedestal's "???".
+TROPHY = (255, 214, 110)
+TROPHY_EMPTY = (110, 104, 96)

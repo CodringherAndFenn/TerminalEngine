@@ -274,6 +274,15 @@ def draw_enemy(text, bank: SpriteBank, camera: Camera, world, e) -> None:
     from ..ai.walking_city import WalkerEye
     if isinstance(e, WalkerEye) and e.on_body:  # (M32.5: drawn on the walking city's body)
         return
+    from ..ai.fossil_angel import FossilAngel, LavaHalo
+    if isinstance(e, FossilAngel):             # M33.1: the Fossil Angel (a final)
+        from .fossil_angel import draw_fossil_angel
+        draw_fossil_angel(text, bank, camera, e)
+        return
+    if isinstance(e, LavaHalo):                # (its halo, rolling as a burning wheel)
+        from .fossil_angel import draw_lava_halo
+        draw_lava_halo(text, camera, e)
+        return
     from ..ai.ancestor import Ancestor
     if isinstance(e, Ancestor):                # M31.4: the Ancestor
         from .ancestor import draw_ancestor

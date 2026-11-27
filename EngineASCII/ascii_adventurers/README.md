@@ -1085,6 +1085,22 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   the Feed. A final has no arena: it hunts you across the map, leaping to you
   when you get away, its realms spreading along its path. Beating it is the
   true victory. Build plan M33.1-M33.8.
+- **The hunt and the Fossil Angel, M33.1** (`design/FINALS.md` 16): the kill
+  order is kept as the ocean bosses fall, and the moment the fourth falls
+  the final it picks wakes: the sky changes over the whole map, it comes
+  ashore between its two realms, and then it hunts you. It walks at you,
+  leaps to you when you get away (its landing marked first), turns the land
+  it walks into its realms' ground and its creatures crawl out of the trail;
+  the island's monsters it hurts turn on it. While it hunts, the whole map is
+  its arena: no mounts, no changing gear. The Fossil Angel (heaven and the
+  past), form 1: stone feathers that stick in the ground as cover, its halo
+  rolling out as a burning wheel (hit it and it cools to stone), its attacks
+  echoing from halfway down, and amber that holds you until you roll; the
+  wing sweep, the stone dive, ash breath and falling stars. Beating a final
+  is the true victory: a victory screen that names it and the order the
+  realms fell in, its journal entry, and its trophy in the Guild hall.
+  (Until the other three are built, every kill order wakes the Fossil
+  Angel.) Dev: `--boss fossil_angel`, then F7 wakes it next to you.
 
 Next up (agreed order, `design/BOSSES.md` section 8): M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in

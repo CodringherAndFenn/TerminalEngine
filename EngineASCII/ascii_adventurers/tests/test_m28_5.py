@@ -621,7 +621,8 @@ class ForestTest(_Relic):
         # the walking city is the Overseer's: it drops them as the Overseer)
         self.assertEqual(set(config.BOSS_UNIQUES) | {"necromancer_lich", "conquest", "war",
                                                      "famine", "death", "host_hunger",
-                                                     "ancestor_first_life", "overseer_city"},
+                                                     "ancestor_first_life", "overseer_city",
+                                                     "fossil_angel"},     # (M33.2: its relics)
                          set(config.BOSSES))
 
     def test_shrinking_dust_shrinks_you_on_a_roll(self):

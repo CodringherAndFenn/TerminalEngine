@@ -64,6 +64,14 @@ What the giver says depends on the stage (QuestSpec.lines); their words
 hang over their head a line at a time. The main quest counts guardians
 (biomes with a cleared quest) toward config.GUARDIANS.
 
+M33, the kill order and the final bosses (systems/finals.py,
+design/FINALS.md): every ocean zone's boss that falls goes on the kill order
+(`order`); when the fourth falls, the final the order picks wakes at once
+-- a quest of its own (config.FINALS, kind "final": no giver, no camp) whose
+lair goes wherever its boss is (finals.Roaming): it comes ashore and hunts
+you across the map (ai/finals.py). Beating it is the true victory (the
+scene's victory screen names it and the kill order).
+
 All of it runs inside the simulation step, from the players' inputs and
 the game state only (deterministic).
 """
@@ -78,6 +86,7 @@ from .. import config
 from ..entities.effects import Effect
 from ..world import tiles
 from ..world.rng import hash_coords
+from . import finals
 from .collision import hull_hits_solid
 
 # Spawn ids of quest enemies: (QUEST_SID, quest id, i, 0) -- four ints, so
@@ -87,6 +96,8 @@ QUEST_SID = 0x51E57
 
 
 def quest_id(key: str) -> int:
+    if key in config.FINALS:                     # (M33: the finals, after every quest)
+        return len(config.QUESTS) + list(config.FINALS).index(key) + 1
     return list(config.QUESTS).index(key) + 1
 
 
@@ -195,6 +206,13 @@ class Quests:
                 npc = Npc(spec.giver, spec.giver_sprite, *camp.npc, spec.biome, quest=key)
                 s = self.states[key] = QuestState(key, spec, camp, lair, npc)
                 self._place_targets(s)
+        if layout is not None:                      # (M33: the finals, asleep until the order
+            from ..world.landmarks import Landmark  # picks one)
+            for key, spec in config.FINALS.items():
+                stand_in = Landmark("none", "camp", spec.biome, "", 0, 0, [])
+                self.states[key] = QuestState(key, spec, stand_in,
+                                              finals.Roaming(spec.lair_name), None)
+        self.order: list[str] = []                  # M33: the ocean zones, as their bosses fell
         self.banner: Banner | None = None
         self.dev_key: str | None = None             # dev mode: the quest F5 picked
         self.screens: list[Npc] = []                # M32.4: the voice speaking on a screen near you
@@ -211,7 +229,7 @@ class Quests:
         """Ring biomes with a boss beaten (one per biome counts; not the
         plains boss)."""
         return len({s.biome for s in self.states.values()
-                    if s.stage == "cleared" and s.spec.kind != "finale"
+                    if s.stage == "cleared" and s.spec.kind not in ("finale", "final")
                     and s.biome not in config.ZONE_PLACES})       # (an ocean zone's isn't one)
 
     @property
@@ -239,7 +257,10 @@ class Quests:
         going on (for the boss bar and the off-screen pointer)."""
         fights = self.fights
         for s in fights:
-            if s.lair.inside(hero.x, hero.y):
+            if not finals.is_final(s) and s.lair.inside(hero.x, hero.y):
+                return s
+        for s in fights:                            # (M33: a final's fight is everywhere)
+            if finals.is_final(s):
                 return s
         return min(fights, key=lambda s: math.hypot(s.lair.cx - hero.x, s.lair.cy - hero.y),
                    default=None)
@@ -265,6 +286,10 @@ class Quests:
         boss roams all of its arena, often far from the players' screens)."""
         out = []
         for s in self.fights:
+            if finals.is_final(s):                  # (M33: round the final, while it's about)
+                if s.boss is not None and s.boss.alive and s.boss.hunting:
+                    out.append((s.boss.x, s.boss.y, *config.FINAL_STREAM))
+                continue
             a, b = s.lair.radii
             out.append((s.lair.cx, s.lair.cy, a + config.LAIR_WALL, b + config.LAIR_WALL))
         return out
@@ -283,6 +308,10 @@ class Quests:
         out = [glory]
         for s in self.states.values():
             if s.spec.kind == "finale":
+                continue
+            if finals.is_final(s):                  # (M33: the final, while it hunts you)
+                if s.stage == "fight":
+                    out.append(("FINAL", f"defeat {config.BOSSES[s.spec.boss].name}", False))
                 continue
             if s.crying is not None and not s.gifted:            # (M24.3)
                 out.append((s.biome.upper(), "give Fragile her bear", False))
@@ -316,6 +345,10 @@ class Quests:
         dev = self.dev_quest() if every_target else None
         found = getattr(self.world, "found_zones", ())
         for s in self.states.values():
+            if finals.is_final(s):                  # (M33: where it is, while it hunts)
+                if s.stage == "fight" and s.boss is not None and s.boss.alive:
+                    out.append((s.lair.cx, s.lair.cy, "lair", s.lair.name))
+                continue
             if s.biome in config.ZONE_PLACES and s.biome not in found:
                 continue                        # (M29.4: an ocean zone's, until it's found)
             giver_done = s.stage == "cleared"
@@ -1139,6 +1172,9 @@ class Quests:
         if s.spec.kind == "finale":
             self._win_glory(s, killer)
             return
+        if finals.is_final(s):                      # (M33: the true victory)
+            self._win_final(s, killer)
+            return
         first = s.biome not in {o.biome for o in self.states.values() if o.stage == "cleared"}
         s.stage = "cleared"
         self._open_gate(s)
@@ -1184,6 +1220,10 @@ class Quests:
         if scene.app.dev:
             print(f"[dev] {boss.espec.name}: beaten in {s.fight_time:.1f} s, "
                   f"max hp {boss.max_hp}, level {boss.level}")
+        if s.biome in config.ZONE_PLACES and s.biome not in self.order:
+            self.order.append(s.biome)              # (M33: the kill order)
+            if finals.final_for(self.order) is not None:
+                self.wake_final()
 
     def _win_glory(self, s: QuestState, killer) -> None:
         """M27: the plains boss is beaten for good. Adventurer's Glory: every
@@ -1233,6 +1273,98 @@ class Quests:
             print(f"[dev] {boss.espec.name}: beaten in {s.fight_time:.1f} s, "
                   f"max hp {boss.max_hp}, level {boss.level}")
 
+    # --- M33: the finals -------------------------------------------------------------
+
+    @property
+    def final(self) -> QuestState | None:
+        """The final that's awake or beaten this run (M33), if any."""
+        return next((s for s in self.states.values()
+                     if finals.is_final(s) and s.stage != "hunt"), None)
+
+    def wake_final(self, key: str | None = None, near: tuple[float, float] | None = None
+                   ) -> QuestState | None:
+        """The fourth ocean boss has fallen: the final the kill order picks
+        wakes, comes ashore between its realms (or, `near`: dev mode, right
+        there, without coming ashore) and hunts you."""
+        key = finals.built(key or finals.final_for(self.order))
+        s = self.states.get(key)
+        if s is None or s.stage != "hunt" or self.final is not None:
+            return None
+        layout = getattr(self.world, "layout", None)
+        if near is not None:
+            x, y = near
+        elif layout is not None:
+            x, y = finals.ashore(layout, key)
+        else:
+            x, y = 0.0, 0.0
+        rng = random.Random(hash_coords(getattr(self.world, "seed", 0) or 0, 0xF1A1, s.qid))
+        sp = self.scene.spawner
+        if sp is not None:
+            boss = sp.wake(s.spec.boss, x, y, None, rng)
+        else:
+            from ..ai import make_enemy
+            boss = make_enemy(s.spec.boss, x, y, rng)
+        boss.scale_for(sum(1 for p in self.scene.players if not p.ghost))
+        boss.lair = s.lair
+        s.lair.boss = boss
+        boss.recruit = self._recruiter(rng)
+        boss.order = list(self.order)
+        if near is not None:
+            boss.grace = min(boss.grace, 2.0)
+        s.boss, s.stage, s.fight_time, s.taken = boss, "fight", 0.0, True
+        self.scene.enemies.append(boss)
+        name = config.BOSSES[s.spec.boss].name
+        dx, dy = config.FINAL_ASHORE.get(key, (0.0, -1.0))
+        where = ("north" if dy < 0 else "south" if dy > 0 else "") + \
+            ("-" if dx and dy else "") + ("west" if dx < 0 else "east" if dx > 0 else "")
+        self.banner = Banner(name.upper(), f"it comes ashore in the {where} -- and it hunts you"
+                             if near is None else "it hunts you")
+        self.banner.duration = config.BOSS_BANNER_TIME * 1.6
+        self.scene._sounds.append("boulder")
+        return s
+
+    def _win_final(self, s: QuestState, killer) -> None:
+        """M33: the final falls -- the run is won (the true victory). Every
+        player gets its loot; the journal keeps the kill order that led to
+        it (and its trophy in the Guild hall); the scene puts up the victory
+        screen a moment later."""
+        s.stage = "cleared"
+        boss = s.boss
+        spec = config.BOSSES[s.spec.boss]
+        scene = self.scene
+        order = list(getattr(boss, "order", None) or self.order)
+        self.banner = Banner(f"{spec.name.upper()} FALLS", "the run is won")
+        self.banner.duration = config.BOSS_BANNER_TIME * 1.6
+        scene._sounds.append("chime")
+        level = getattr(scene, "difficulty", 0)
+        loot = round(spec.loot * (1 + config.DIFFICULTY_LOOT * level))
+        guild = scene.app.guild
+        for p in scene.players:
+            if p.ghost:
+                continue
+            p.stats.loot += loot
+            p.stats.victory = True
+            p.stats.final = s.key
+            p.stats.order = order
+            scene.effects.append(Effect("loot", boss.x, boss.y, target=p.hero, value=loot))
+            scene.rules.award(p, spec.achievement)
+            if p.hero.bestiary is not None:
+                p.hero.bestiary.update(spec.pages)
+        guild.pages.update(spec.pages)
+        if guild.open_difficulty(level):
+            name = config.DIFFICULTIES[guild.difficulty_open].upper()
+            scene.effects.append(Effect("toast", boss.x, boss.y - 3,
+                                        label=f"DIFFICULTY {name} UNLOCKED"))
+        guild.record_quest(s.key, [p.stats.hero for p in scene.players if not p.ghost],
+                           s.fight_time)
+        guild.record_order(s.key, order)
+        scene.app.save_guild()
+        if hasattr(scene, "on_final"):
+            scene.on_final(s)
+        if scene.app.dev:
+            print(f"[dev] {boss.espec.name}: beaten in {s.fight_time:.1f} s, "
+                  f"max hp {boss.max_hp}, level {boss.level}, {boss.leaps} leaps")
+
     # --- Developer mode ---------------------------------------------------------------
 
     def dev_quest(self) -> QuestState | None:
@@ -1261,6 +1393,15 @@ class Quests:
         s = self.dev_quest()
         if s is None or s.stage != "hunt":
             return False
+        if finals.is_final(s):                     # (M33: it wakes here, hunting you; the
+            if self.final is not None:             # kill order made to lead to it)
+                return False
+            if finals.final_for(self.order) != s.key:
+                self.order = finals.order_for(s.key)
+            h = self.scene.hero
+            a = getattr(h, "aim_angle", 0.0)
+            return self.wake_final(s.key, (h.x + math.cos(a) * 18.0,
+                                           h.y + math.sin(a) * 14.0)) is not None
         if s.spec.kind == "finale":                # (M27: the gate opens, as if the
             self._unseal(s)                        # guardians had fallen)
             return True
@@ -1310,6 +1451,10 @@ class Quests:
         target still to do nearest `near` (P2), or just outside its lair's
         gate."""
         s = self.dev_quest()
+        if s is not None and finals.is_final(s):   # (M33: next to the final, if it's out)
+            if which == "lair" and s.boss is not None and s.boss.alive:
+                return s.boss.x + 16.0, s.boss.y
+            return None
         if s is not None:
             if which == "giver" and s.npc is not None:
                 return s.npc.x, s.npc.y         # (free_spot finds room beside them)

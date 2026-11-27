@@ -1,6 +1,6 @@
 # AsciiAdventurers — The Kill Order and the Final Bosses
 
-Status: **rev 0 — M33 DRAFTED with the user, 2026-11-27 (rounds 1-8). Build plan in section 15.** This is M33 in `BOSSES.md` section 8: the order the four ocean bosses (`OCEAN.md`) fall in picks the final boss, tier IV in `BOSSES.md` section 2 ("map-wide fights, decided by the cardinal kill order"). The user may change anything here after playing it. Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
+Status: **rev 0 — M33 DRAFTED with the user, 2026-11-27 (rounds 1-8). Build plan in section 15. M33.1 BUILT (2026-11-27, section 16: the framework and the Fossil Angel's form 1).** This is M33 in `BOSSES.md` section 8: the order the four ocean bosses (`OCEAN.md`) fall in picks the final boss, tier IV in `BOSSES.md` section 2 ("map-wide fights, decided by the cardinal kill order"). The user may change anything here after playing it. Picks are the user's unless marked **(mine)**: routine calls made where the user said nothing, open to change.
 
 ---
 
@@ -220,3 +220,37 @@ Beating a final ends the run (section 7), so its reward is for **later runs and 
 | **M33.3-M33.4** | **The Recording Angel**: form 1, then form 2 + its relics. |
 | **M33.5-M33.6** | **The Golden Calf**: form 1, then form 2 + its relics. |
 | **M33.7-M33.8** | **The Feed**: form 1, then form 2 + its relics. M33 complete. |
+
+## 16. Built: M33.1 (2026-11-27) -- the kill order, the hunt, the Fossil Angel's first form
+
+**The kill order** (`systems/finals.py`; `Quests.order` in `systems/quests.py`). Every ocean boss that falls goes on the order; the pair rule (`config.FINAL_PAIRS`, `FINAL_OF`) picks the final when the fourth falls -- six orders lead to each final. Nothing shows it (the rule is hidden): no log line, no hint. **Until a final is built, an order that picks it wakes the Fossil Angel instead** (`FINAL_STAND_IN`; the victory screen names what you fought, the journal keeps the real order). Each built final is a quest-like entry, `config.FINALS` (kind `"final"`: no giver, no camp), asleep and invisible until the order wakes it.
+
+**Waking** (`Quests.wake_final`): the moment the fourth ocean boss falls -- the banner (**THE FOSSIL ANGEL**, "it comes ashore in the north-west -- and it hunts you"), the quest log's **FINAL** line, a map pin that follows it, its bar on the HUD and the edge arrow, and **the sky over the whole map** turns its colour (warm amber for the Fossil Angel: `FINAL_SKY`). It comes ashore **14 tiles inland from the main island's coast between its realms** (`FINAL_ASHORE`, `finals.ashore`) and stands there **10 s** (`FINAL_WAKE_GRACE`), then leaps to you.
+
+**The hunt** (`ai/finals.Final`, every final's): its "lair" (`finals.Roaming`) is wherever it is, so the boss bar, the pin and the quest machinery work unchanged; the world is kept loaded round it (`FINAL_STREAM`, not while it comes ashore or flies). **(mine)** Because every hero is in its fight wherever they are, **the arena rules apply everywhere while it hunts: no mounts, no changing gear** (`systems/mount.in_arena`) -- like any boss fight, just map-wide.
+- **The walk:** 4 tiles/s at the nearest hero (2 while a move is on), circling at ~7 tiles; it walks over water and through everything.
+- **The leap:** when the nearest hero is more than 60 tiles off (90 mid-move): a 1 s crouch ("!" over it), then the landing ring shows 1.5 s ahead, 6-12 tiles from you, tightening and flashing; it can't be hit in the air; the impact is a 5-tile ring (40, pushing 4), then 0.8 s getting up.
+- **The trail:** every tile it walks, the ground within 3 tiles turns to its realms' land (the Fossil Angel's: cloud, cloud drift and marble rubble; ash, basalt and fern meadow -- in patches of each), solid things smashed, water left alone; a 4-tile crater where it lands. The world remembers it for the rest of the run.
+- **Its creatures:** **(mine, after the bench)** every 14 s, while fewer than 3 are about, 2 crawl out of its trail 8-30 tiles from it and from every hero (the Fossil Angel's: cherubs, doves, halos, lambs, raptors, sabre-tooths, dragonflies, spear hunters), endgame tough like on their islands.
+- **Friendly fire:** an island monster its blows hurt turns on it at once (`ai/brain.py`); its own creatures it never hurts (`systems/combat._may_hurt`), and they never turn on it.
+
+**The Fossil Angel, form 1** (`ai/fossil_angel.py`, drawn by `render/fossil_angel.py`, pictures in `render/finals_art.py`): 15,000 HP, four phases (100-75-50-25%), its body with a stone wing either side (folded, or beating up), a halo of lava ringing over its skull. The phases' banners: ITS HALO KINDLES, IT REMEMBERS, IT WEEPS AMBER.
+- **Stone feathers:** 5 lines in a 70-degree fan, 16 tiles, shown 1 s; 22 a line; a stone spike every 4 tiles along each (`FEATHER_SPIKE`: cover, it breaks; never on a hero), standing 15 s.
+- **The lava halo:** shown 1 s, then a burning wheel (`LavaHalo`, 500 HP at level 1, scaled like the angel) circles it, 3 to 18 tiles out over 10 s, a round every 3.2 s; it hits for 26 (pushing 2) and leaves fire every 2 tiles (4 s, 6 a tick). Hit to 0 it cools to stone (a boulder where it fell) and the halo is gone 8 s; otherwise it rolls back up at the end.
+- **Echoes** (from the third phase): everything it does echoes 3 s later from where it stood (Pangaea's machinery, `ai/pangaea.Echoing`): the feathers' lines, the sweep, the breath, the dive (a ghost running its line), the shards, the stars. The wheel, the fire, the resin don't (they're the land, not attacks).
+- **Amber:** it weeps 0.9 s, then resin runs out along 3 rivers (one at you), 14 tiles long, 2 wide, at 9 tiles/s; the running front holds whoever it catches 3 s (8 damage) unless they roll free; the resin hardens 2 s after it reaches a tile into amber walls (`AMBER_WALL`, not round a hero) standing 18 s.
+- **Moves:** the wing sweep (a 150-degree cone 7.5 tiles out, 30, push 3.5, its tell following you 0.8 s); the stone dive (its line shown 0.8 s, a 0.4 s hop, 16 tiles at 22 tiles/s, 34, then a ring of 10 stone shards); ash breath (a 60-degree cone 12 tiles, 22, 4 embers burning 4 s); falling stars (2 chains of 4 stars round you, each marked 1.3 s, 1.8 tiles, 24).
+
+**The true victory** (`Quests._win_final`, `ui/overlays.FinalVictoryPanel`): "THE FOSSIL ANGEL FALLS -- the run is won"; every player's loot (40,000 x the difficulty's bonus), the achievement, the bestiary pages; 4 s later the victory screen, **VICTORY - THE FOSSIL ANGEL**, with "The realms fell: ..." under the run's line. **(M33.1: form 1's fall wins the run; M33.2 adds form 2.)** The run records keep `final` and `order`.
+
+**The journal and the trophies:** the journal entry of a final keeps each kill order that led to it (up to 6: `Guild.record_order`), shown on the archivist's journal shelf after the quests ("It woke when the realms fell in this order: ..."; `???` before). **The Guild hall** has four trophy pedestals either side of the carpet in the great hall (`h`-`k` in `assets/maps/guild_hall.txt`): an empty pedestal ("???") until that final is beaten, then its trophy (the Fossil Angel's: a stone feather set in amber on a gold cup) and its name; walking up shows how many times.
+
+**Dev:** `run.py --boss fossil_angel` makes it the dev quest; **F7 wakes it next to you** (the kill order set to lead to it; 2 s, not 10, before it hunts), F8 jumps next to it.
+
+**Bot bench** (`tools/bench_fossil.py`, untracked; the M29.5 bot): **form 1 6:00-6:19** (seeds 31, 7, 12), **920-980 damage a minute**, moving 87% of the fight, the bot on its creatures 18-29% of the time and without a line of sight 11-18%. Over the ~4-5 min target, but by policy no health is cut. **What I changed after the first runs** (8:05-10:05, ~1,700 a minute; the bot without a line of sight up to 39%): its creatures every 14 s, 3 at most (was 8 s, 6); feather spikes every 4 tiles for 15 s (2.5, 22); amber 3 rivers 2 wide standing 18 s (4, 3 wide, 30); halo fire every 2 tiles, 4 s, 6 a tick (1.6, 6 s, 8); breath 4 embers for 4 s; stars 2 chains at 24 (3 at 30); the echo phases rest 0.3 s longer. **To play-test:** the bot never rolls (the amber holds it its full 3 s, and it stands in the feathers' lines), so it takes more than a player would; it never left the angel's side, so the leap was never seen in the bench (the tests and the screenshots cover it).
+
+**Perf** (`tools/perf_fossil_angel.py`, the last phase, hero circling): a step 0.54 ms (p95 0.68), a frame 2.0 ms (p95 3.1).
+
+**Tests:** `tests/test_m33_1.py` (25). Changed on purpose: test_m15 (four trophy stations), test_m22_6 (the journal lists the finals after the quests), test_m27 (a final isn't a guardian), test_m28_5 (the Fossil Angel has no relics until M33.2), test_m32_4 (the finals come after the walking city in `BOSSES`).
+
+**Next: M33.2** -- the Fossil Angel's form 2 (the first angel unveils, 18,000), then its relics drafted with you and the relics-for-later-runs system.

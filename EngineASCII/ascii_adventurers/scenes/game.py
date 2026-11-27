@@ -124,7 +124,7 @@ from ..ui.hud import HudInfo, draw_hud
 from ..render.horsemen import draw_horsemen_marks, draw_pale_allies
 from ..ui.maps import BigMap, Minimap
 from ..ui.quest_log import draw_quest_log
-from ..ui.overlays import GameOverPanel, PauseMenu, VictoryPanel
+from ..ui.overlays import FinalVictoryPanel, GameOverPanel, PauseMenu, VictoryPanel
 from ..ui.settings_panel import SettingsPanel
 from ..world import make_world
 from ..world.rng import hash_coords
@@ -197,6 +197,8 @@ class GameScene(Scene):
         self.overlay = None               # None | PauseMenu | SettingsPanel | GameOverPanel
         self._pause_menu = None
         self.game_over_for = -1.0         # seconds since every human fell; <0: someone's alive
+        self.final_won_for = -1.0         # (M33) s since the final fell; <0: it hasn't
+        self._final_shown = False
         self.fps = 60.0
         self.steps = 0                    # simulation steps run so far
         self._acc = 0.0                   # real time not yet simulated
@@ -349,6 +351,23 @@ class GameScene(Scene):
         seed = getattr(self.world, "seed", None)
         return (f"{biome}   {dist:.0f} tiles out" + (f"   seed {seed}" if seed is not None else "")
                 + f"   {self.diff['name'].upper()}")
+
+    def on_final(self, s) -> None:
+        """M33: the final boss has fallen: the true victory comes up
+        FINAL_VICTORY_DELAY s later (the fall is seen first)."""
+        self.final_won_for = 0.0
+        self._pause_menu = None
+
+    def _final_victory(self) -> None:
+        """M33: the run is won -- the victory screen, naming the final and
+        the order the realms fell in."""
+        self._final_shown = True
+        self.stats.victory = True
+        self._end_run()
+        self._set_overlay(FinalVictoryPanel(
+            self.manager, self.stats, self.app.records, self.broken,
+            again=self._restart, change_hero=self._change_hero, title=self._abandon,
+            guild_hall=self._guild_hall, purse=self.app.guild.loot))
 
     def on_glory(self) -> None:
         """M27: Adventurer's Glory won -- the pause menu gets its victory."""
@@ -622,7 +641,11 @@ class GameScene(Scene):
         else:
             self._sync_picker()      # (multiplayer: choices land with the next step)
 
-        if self.game_over_for >= _GAME_OVER_DELAY and self.overlay is None:
+        if self.final_won_for >= config.FINAL_VICTORY_DELAY and not self._final_shown \
+                and self.overlay is None:
+            self._final_victory()                      # (M33: the true victory)
+        if self.game_over_for >= _GAME_OVER_DELAY and self.overlay is None \
+                and not self._final_shown:
             self._set_overlay(GameOverPanel(
                 self.manager, self.stats, self.app.records, self.broken,
                 again=self._restart, change_hero=self._change_hero, title=self._abandon,
@@ -802,6 +825,8 @@ class GameScene(Scene):
                 p.dead_for += dt
         if self.game_over_for >= 0:
             self.game_over_for += dt
+        if self.final_won_for >= 0:
+            self.final_won_for += dt
 
         # Enemies wake near players (as tough as the highest human's level)
         # and sleep far from all of them.
@@ -1455,7 +1480,14 @@ class GameScene(Scene):
     def _sky(self, d, cam) -> None:
         """M29.4: over an ocean zone with seals broken, the whole view tints
         toward red, SKY_TINT_STEP a seal (each broken seal turns the sky a
-        shade redder)."""
+        shade redder). M33: while a final hunts, the sky over the whole map
+        is its own (FINAL_SKY)."""
+        f = self.quests.final
+        if f is not None and f.stage == "fight":
+            tint = config.FINAL_SKY.get(f.key)
+            if tint is not None:
+                d.canvas.fill(tint, pygame.Rect(0, 0, round(cam.view_w), round(cam.view_h)),
+                              special_flags=pygame.BLEND_RGB_MULT)
         zone_at = getattr(getattr(self.world, "layout", None), "zone_at", None)
         if zone_at is None:
             return
@@ -1610,7 +1642,8 @@ class GameScene(Scene):
                        palette.HUB_PROMPT, bg=palette.HUD_PANEL)
         if self.app.dev and not self.map_open:
             dq = self.quests.dev_quest()
-            name = f"{dq.biome.upper()} {dq.spec.camp_name or dq.spec.giver.upper()}" if dq else "-"
+            name = f"{dq.biome.upper()} {dq.spec.camp_name or dq.spec.giver.upper() or dq.spec.lair_name}" \
+                if dq else "-"
             text.put(0, d.rows - 1, f" DEV  L: level up  F4: all targets "
                                     f"{'on' if self.dev_targets else 'off'}  F5: quest [{name}]  "
                                     "F6: giver  F7: finish  F8: lair  F9: target  F3: zone ",

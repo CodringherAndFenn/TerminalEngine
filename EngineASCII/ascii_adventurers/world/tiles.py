@@ -1437,6 +1437,27 @@ HUSK = TileType(
     solid=True, blocks_shots=True,
 )
 
+# M33.1: what the Fossil Angel leaves (ai/fossil_angel.py, design/FINALS.md
+# 9.1). A stone feather stuck in the ground: cover (it breaks; it smashes
+# through them). Resin running out of it: you can walk it, but it holds you
+# (the angel's step). Amber walls where the resin hardened: they stop you
+# and shots, and break (nothing frozen in these: not REPORT_BREAKS).
+FEATHER_SPIKE = TileType(
+    "stone feather", ("/|", "|\\", "/'", "'|"), palette.FEATHER_SPIKE_FG, palette.FEATHER_SPIKE_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP,
+    wear=(("/.", ".|"),),
+    becomes=MARBLE_RUBBLE,
+)
+RESIN = TileType(
+    "resin", ("~~", "~-", "-~", "~ "), palette.RESIN_FG, palette.RESIN_BG,
+)
+AMBER_WALL = TileType(
+    "amber wall", ("▓▓", "▒▓", "▓▒"), palette.AMBER_WALL_FG, palette.AMBER_WALL_BG,
+    solid=True, blocks_shots=True, hp=config.WALL_HP,
+    wear=(("▒░", "░▒"),),
+    becomes=AMBER_SHARDS,
+)
+
 # M31.5: the first sea flooding the caldera (ai/first_life.py): shallows at
 # low tide (you walk them), the deep at high tide (you wade it slowly: it
 # swims), the rocks that stand above it (the lava lakes quenched among them).

@@ -871,6 +871,8 @@ def _may_hurt(source: Actor | None, target: Actor) -> bool:
         return False
     if source is not None and getattr(target, "part_of", None) is source:
         return False                                  # a swarm's own shots pass its bodies
+    if source is not None and getattr(target, "final_own", None) is source:
+        return False                                  # (M33: a final's own creatures)
     return not (source is not None and source.faction == "player" and target.faction == "player")
 
 

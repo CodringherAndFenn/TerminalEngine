@@ -185,6 +185,8 @@ def lob_radius(what: str) -> float:
         return config.ANCESTOR_ROCKS[3]
     if what == "bomb":
         return config.ANCESTOR_ERUPTION[3]
+    if what == "star":                                    # (M33.1: the Fossil Angel's)
+        return config.FOSSIL_STARS[4]
     return config.FIREB[3]
 
 
@@ -240,12 +242,13 @@ def draw_echoes(text, bank, camera, e, scale: int) -> None:
         q = min(1.0, s / flight)
         cols = palette.ECHO_TELL if echo else palette.BEAST_TELL
         _shape(batch, camera, "circle", x1, y1, 0.0, lob_radius(what), 0.0, _blink(flight - s, cols))
-        if what in ("rock", "bomb"):                      # (M31.4: falling out of the sky)
+        if what in ("rock", "bomb", "star"):              # (M31.4: falling out of the sky)
             if q > 0.3:
                 f = (q - 0.3) / 0.7
                 px, py = camera.world_to_px(x1, y1)
                 col = palette.ECHO_TELL[0] if echo else (
-                    palette.ANCESTOR_ROCK if what == "rock" else palette.LAVA_BOMB_FG)
+                    palette.ANCESTOR_ROCK if what == "rock" else palette.FOSSIL_STAR[0]
+                    if what == "star" else palette.LAVA_BOMB_FG)
                 batch.put_c(px + (1.0 - f) * 30, py - (1.0 - f) * _FALL_PX, "@", col)
             continue
         px, py = camera.world_to_px(x0 + (x1 - x0) * q, y0 + (y1 - y0) * q)

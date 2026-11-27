@@ -15,6 +15,8 @@ Legend:
     g  the guildmaster (shared upgrades)    t  the trainer (hero upgrades)
     a  the archivist (card unlocks)         d  the dungeon gate (start a run)
     1-5  the heroes' statues, in config.HEROES order (play as that hero)
+    h-k  the finals' trophies (M33), in config.FINAL_OF order: each shows
+         once you've beaten that final, an empty pedestal till then
   NPCs and statues stand on tiles you can't walk through.
 """
 
@@ -58,7 +60,9 @@ LEGEND = {
     "t": replace(FLAGSTONE, name="trainer", solid=True),
     "d": CARPET,
     **{str(i + 1): PEDESTAL for i in range(len(config.HEROES))},
+    **{ch: PEDESTAL for ch in "hijk"},                      # (M33: the trophies)
 }
+TROPHIES = "hijk"
 
 # Station marker -> (kind, NPC sprite or None).
 _PEOPLE = {"g": ("guild", "guildmaster"), "t": ("hero", "trainer"), "a": ("cards", "archivist"),
@@ -67,11 +71,11 @@ _PEOPLE = {"g": ("guild", "guildmaster"), "t": ("hero", "trainer"), "a": ("cards
 
 @dataclass
 class Station:
-    kind: str            # guild | hero | cards | gate | statue
+    kind: str            # guild | hero | cards | gate | statue | trophy (M33)
     x: float             # tile centre, world tiles
     y: float
     sprite: str | None = None    # an NPC's or statue's picture (render/characters.ART)
-    hero: str | None = None      # statues: whose
+    hero: str | None = None      # statues: whose; trophies: the final's (config.FINAL_OF)
 
 
 def load_hub(name: str = HUB_MAP) -> tuple[TestMap, list[Station]]:
@@ -83,6 +87,9 @@ def load_hub(name: str = HUB_MAP) -> tuple[TestMap, list[Station]]:
             if ch in _PEOPLE:
                 kind, sprite = _PEOPLE[ch]
                 stations.append(Station(kind, tx + 0.5, ty + 0.5, sprite))
+            elif ch in TROPHIES:
+                final = list(config.FINAL_OF.values())[TROPHIES.index(ch)]
+                stations.append(Station("trophy", tx + 0.5, ty + 0.5, f"trophy_{final}", final))
             elif ch.isdigit() and 0 < int(ch) <= len(heroes):
                 hero = heroes[int(ch) - 1]
                 stations.append(Station("statue", tx + 0.5, ty + 0.5, hero, hero))

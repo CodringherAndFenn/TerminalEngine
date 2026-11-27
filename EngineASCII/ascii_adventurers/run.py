@@ -107,10 +107,11 @@ def force_boss(boss: str | None) -> None:
     if not boss:
         return
     from ascii_adventurers import config
-    quest = next((k for k, q in config.QUESTS.items() if q.boss == boss), None)
+    quests = {**config.QUESTS, **config.FINALS}          # (M33: a final too: F7 wakes it)
+    quest = next((k for k, q in quests.items() if q.boss == boss), None)
     if quest is None:
         sys.exit(f"--boss: no quest leads to {boss!r} "
-                 f"(try: {', '.join(sorted({q.boss for q in config.QUESTS.values()}))})")
+                 f"(try: {', '.join(sorted({q.boss for q in quests.values()}))})")
     config.QUEST_FOCUS = quest
 
 

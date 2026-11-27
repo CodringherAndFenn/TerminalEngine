@@ -32,6 +32,7 @@ from .. import config, palette
 from ..meta.guild import Guild, card_price
 from ..players.cards import card_text, rarities_of, spell_of
 from ..render.glyphs import loot_glyph
+from ..systems import finals
 from ..systems.run_rules import pact_totals
 from .frame import center, draw_box
 
@@ -196,6 +197,20 @@ class GuildPanel:
             out.append(Row(key, q.title, q.biome.upper(), f"{boss}{fastest}", None,
                            f"x{e['wins']}",
                            f"The {q.giver}: \"{story}\" Beaten by: {heroes}."))
+        for key, q in config.FINALS.items():         # (M33: the finals, and what led to them)
+            e = self.guild.journal.get(key)
+            if e is None:
+                out.append(Row(key, "???", "FINAL", "???", None, "",
+                               "Not met yet. Something waits beyond the four realms."))
+                continue
+            boss = config.BOSSES[q.boss].name
+            best = e["best"]
+            fastest = f"   fastest {int(best // 60)}:{int(best % 60):02d}" if best else ""
+            heroes = ", ".join(h.upper() for h in e["heroes"])
+            orders = "; ".join(finals.order_text(o) for o in e.get("orders", []))
+            out.append(Row(key, q.title, "FINAL", f"{boss}{fastest}", None, f"x{e['wins']}",
+                           f"It woke when the realms fell in this order: {orders or '-'}. "
+                           f"Beaten by: {heroes}."))
         return out
 
     def _gate_rows(self) -> list[Row]:

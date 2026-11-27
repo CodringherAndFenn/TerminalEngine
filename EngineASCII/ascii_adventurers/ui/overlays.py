@@ -157,5 +157,22 @@ class VictoryPanel(GameOverPanel):
     heading = ("VICTORY - ADVENTURER'S GLORY", palette.RECORD)
 
 
+class FinalVictoryPanel(GameOverPanel):
+    """M33: the final boss beaten -- the true victory. The heading names the
+    final; under the run's line, the order the four realms fell in."""
+
+    def __init__(self, manager, stats: RunStats, records: Records, broken: set[str], **kw) -> None:
+        super().__init__(manager, stats, records, broken, **kw)
+        name = config.FINAL_NAMES.get(stats.final, stats.final).upper()
+        self.heading = (f"VICTORY - {name}", palette.RECORD)
+
+    def draw(self, text: TextRenderer) -> None:
+        super().draw(text)
+        left, top, width, _ = self.geometry()
+        from ..systems.finals import order_text
+        center(text, top + 3, _fit("The realms fell: " + order_text(self.stats.order), width - 6),
+               palette.TROPHY, left, width)
+
+
 def _fit(s: str, width: int) -> str:
     return s if len(s) <= width else s[: width - 2] + ".."

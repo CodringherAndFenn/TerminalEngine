@@ -251,6 +251,16 @@ class Guild:
             e["best"] = round(seconds, 1)
         e["heroes"] = sorted(set(e["heroes"]) | set(heroes))
 
+    def record_order(self, key: str, order) -> None:
+        """M33: the kill order that led to final `key` (each order once), in
+        its journal entry (after record_quest)."""
+        e = self.journal.get(key)
+        if e is None or not order:
+            return
+        orders = e.setdefault("orders", [])
+        if list(order) not in orders and len(orders) < ORDERS_KEPT:
+            orders.append(list(order))
+
     def meta_steps(self, hero: str) -> list[tuple[str, str, float]]:
         """Everything bought, as card-style steps for the run's hero."""
         steps = []
@@ -288,7 +298,7 @@ def _journal(data) -> dict:
         return {}
     out = {}
     for key, e in data.items():
-        if key not in config.QUESTS or not isinstance(e, dict):
+        if (key not in config.QUESTS and key not in config.FINALS) or not isinstance(e, dict):
             continue
         wins = e.get("wins")
         if not isinstance(wins, int) or isinstance(wins, bool) or wins <= 0:
@@ -299,4 +309,15 @@ def _journal(data) -> dict:
         heroes = e.get("heroes") if isinstance(e.get("heroes"), list) else []
         out[key] = {"wins": wins, "best": best,
                     "heroes": sorted({h for h in heroes if h in config.HEROES})}
+        orders = e.get("orders")                     # (M33: a final's kill orders)
+        if key in config.FINALS and isinstance(orders, list):
+            zones = set(config.ZONE_PLACES)
+            out[key]["orders"] = [list(o) for o in orders[:ORDERS_KEPT]
+                                  if isinstance(o, list) and len(o) == len(zones)
+                                  and set(o) == zones]
     return out
+
+
+# M33: how many different kill orders a final's journal entry keeps (there
+# are six that lead to each final).
+ORDERS_KEPT = 6

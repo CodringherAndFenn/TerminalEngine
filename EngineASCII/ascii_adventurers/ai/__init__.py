@@ -49,6 +49,12 @@ ai -- enemy behaviour.
                 club-tail, pterosaur; dragonfly, bombardier beetle, ant mound
                 (and its ants), sea scorpion; hatchlings; M31.4 the great
                 hunt's seven great beasts are these, bigger and named
+  finals.py     every final boss's hunt (M33): no arena; it walks at the
+                nearest hero, leaps when you get away, lays its realms' land
+                on its path and its creatures crawl out of it
+  fossil_angel.py  the final of heaven and the past (M33.1): stone feathers,
+                the lava halo, echoes, amber; the wing sweep, the stone
+                dive, ash breath, falling stars
   ancestor.py   Pangaea's boss, form 1 (M31.4): the Ancestor, the ages (the
                 great mammal, the tyrant lizard, the giant insect), moulting
                 into husks that echo; everything it does echoes
@@ -113,6 +119,7 @@ from .pangaea import (AntMound, Bombardier, CaveBear, ClubTail, Dragonfly, FireB
                       SpearHunter, Trapper, Tyrant, WoollyRhino)
 from .overseer import Overseer, Recording
 from .walking_city import WalkerEye
+from .fossil_angel import FossilAngel
 from .panopticon import (Assembler, Butler, Camera, CameraMast, Foreman, Gardener, Hauler, JunkBit, Junker,
                          Magnet, Nanny, RiotRobot, RustSwarm, ScrapColossus, Scrubber, SentryDrone,
                          Spotter, Turret, Warden, Welder)
@@ -354,6 +361,8 @@ KINDS = {
     "overseer": Overseer,
     "recording": Recording,
     "walker_eye": WalkerEye,                # (M32.5: the walking city's hundred eyes)
+    # M33.1: the finals (they hunt you across the map: ai/finals.Final)
+    "fossil_angel": FossilAngel,
 }
 
 

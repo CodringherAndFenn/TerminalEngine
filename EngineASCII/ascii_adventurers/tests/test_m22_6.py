@@ -77,7 +77,7 @@ class JournalShelfTest(unittest.TestCase):
         while SHELVES[panel.shelf] != "journal":
             self.s.handle_event(key(pygame.K_RIGHT))
         rows = panel.rows()
-        self.assertEqual([r.key for r in rows], list(config.QUESTS))
+        self.assertEqual([r.key for r in rows], list(config.QUESTS) + list(config.FINALS))
         known = {r.key: r for r in rows}["leech_doctor"]
         self.assertEqual(known.name, "Bad Blood")
         self.assertEqual(known.state, "x1")

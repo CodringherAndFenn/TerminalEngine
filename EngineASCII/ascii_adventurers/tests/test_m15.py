@@ -255,7 +255,8 @@ class HallTest(unittest.TestCase):
         from ascii_adventurers.world.hub import load_hub
         world, stations = load_hub()
         kinds = Counter(s.kind for s in stations)
-        self.assertEqual(kinds, Counter(guild=1, hero=1, cards=1, gate=1, statue=5))
+        self.assertEqual(kinds, Counter(guild=1, hero=1, cards=1, gate=1, statue=5,
+                                        trophy=4))        # (M33: the finals' trophies)
         self.assertEqual({s.hero for s in stations if s.kind == "statue"}, set(config.HEROES))
         sx, sy = world.spawn_point()
         self.assertFalse(world.tile_at(int(sx), int(sy)).solid)

@@ -11,7 +11,9 @@ someone and press E or Enter (gamepad A) to talk:
   * the heroes' statues (north): walk up to one to play as that hero
     (your own pedestal stands empty);
   * the dungeon gate (south): switch pacts on or off, then off to a run
-    (hero select / island seed).
+    (hero select / island seed);
+  * the finals' trophies (M33, either side of the carpet): one for each
+    final boss you've beaten (an empty pedestal for the rest).
 Esc leaves for the title screen. The shops are ui/guild_panel.py; what's
 bought is saved straight away (meta/guild.py).
 
@@ -32,7 +34,8 @@ from ..app import app_of
 from ..engine_ext.camera import Camera
 from ..engine_ext.input import move_axes
 from ..entities.character import Character
-from ..render.characters import draw_body, draw_character
+from ..render import finals_art  # noqa: F401  (the trophies' pictures)
+from ..render.characters import ART, draw_body, draw_character
 from ..render.glyphs import loot_glyph
 from ..render.terrain import TerrainRenderer
 from ..ui.frame import center, dim_canvas
@@ -101,6 +104,7 @@ class GuildHallScene(Scene):
                                     on_buy=lambda ok: self.app.save_guild(), enter=self._enter)
         elif station.kind == "statue":
             self.become(station.hero)
+        # (a trophy is only to look at)
 
     def _enter(self) -> None:
         from .new_run import NewRunScene
@@ -183,6 +187,14 @@ class GuildHallScene(Scene):
                     draw_character(self.sprites, x, y - 14, s.sprite, 3, False, 0, False)
                 self._label(text, x, y - 66, s.hero.upper(),
                             palette.HUB_LABEL if s is self.near else colors.GREY)
+            elif s.kind == "trophy":                   # (M33: a final beaten)
+                if self.trophy_won(s.hero):
+                    if s.sprite in ART:
+                        draw_character(self.sprites, x, y - 14, s.sprite, 3, False, 0, False)
+                    self._label(text, x, y - 62, config.FINAL_NAMES[s.hero].upper(),
+                                palette.TROPHY)
+                else:
+                    self._label(text, x, y - 30, "???", palette.TROPHY_EMPTY)
             elif s.sprite is not None:
                 draw_character(self.sprites, x, y - 8, s.sprite, 3, s.x > self.hero.x, 0, False)
                 self._label(text, x, y - 56, NAMES[s.kind], palette.HUB_LABEL)
@@ -199,10 +211,24 @@ class GuildHallScene(Scene):
             return
         if self.near is not None:
             s = self.near
-            what = f"play as the {s.hero}" if s.kind == "statue" else PROMPTS[s.kind]
-            center(text, d.rows - 4, f"  E / Enter: {what}  ", palette.HUB_PROMPT,
-                   bg=palette.HUD_PANEL)
+            if s.kind == "trophy":                     # (only to look at)
+                line = f"  {self._trophy_text(s.hero)}  "
+            else:
+                what = f"play as the {s.hero}" if s.kind == "statue" else PROMPTS[s.kind]
+                line = f"  E / Enter: {what}  "
+            center(text, d.rows - 4, line, palette.HUB_PROMPT, bg=palette.HUD_PANEL)
         center(text, d.rows - 2, HINT, colors.GREY, bg=palette.HUD_PANEL)
+
+    def trophy_won(self, final: str) -> bool:
+        """M33: has final `final` been beaten (its journal entry)?"""
+        e = self.app.guild.journal.get(final)
+        return e is not None and e.get("wins", 0) > 0
+
+    def _trophy_text(self, final: str) -> str:
+        if not self.trophy_won(final):
+            return "an empty pedestal"
+        n = self.app.guild.journal[final]["wins"]
+        return f"{config.FINAL_NAMES[final]}, beaten {n} time{'s' if n != 1 else ''}"
 
     @staticmethod
     def _label(text: TextRenderer, x: float, y: float, s: str, color) -> None:

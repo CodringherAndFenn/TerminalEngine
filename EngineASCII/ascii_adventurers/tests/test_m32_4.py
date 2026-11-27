@@ -60,7 +60,8 @@ class CatalogTest(unittest.TestCase):
         b = config.BOSSES["overseer"]
         keys = list(config.BOSSES)                                 # (after every older one: the
         self.assertEqual(keys.index("overseer"), keys.index("ancestor_first_life") + 1)   # relic seeds
-        self.assertEqual(keys[-1], "overseer_city")                # stay; M32.5's form 2 after it)
+        self.assertEqual(keys.index("overseer_city"), keys.index("overseer") + 1)   # stay; M32.5's
+                                                                   # form 2 after it; M33's finals after)
         self.assertEqual([ph.below for ph in b.phases], [1.0, 0.75, 0.5, 0.25])
         for ph in b.phases:
             moves = {m for m, _ in ph.moves}

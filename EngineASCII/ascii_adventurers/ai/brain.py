@@ -199,6 +199,15 @@ class Brain:
                 self.grudge = source      # (a ghost: it turns on it, M28.3j)
             self.last_known = (source.x, source.y)
             self.forget_timer = config.FORGET_TIME
+        elif getattr(source, "final", False) and not getattr(self, "boss", False):
+            # M33: a final boss's blows turn an island monster on it at
+            # once (leading it through monsters is a tactic) -- never its
+            # own creatures (it doesn't hurt them anyway: combat._may_hurt).
+            if getattr(self, "final_own", None) is not source and source.alive:
+                self.grudge = source
+                self.alert = True
+                self.last_known = (source.x, source.y)
+                self.forget_timer = config.FORGET_TIME
         else:
             # Friendly fire: hold a grudge only past the threshold.
             total = self.hurt_by.get(id(source), 0.0) + dealt
