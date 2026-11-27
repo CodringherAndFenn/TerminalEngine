@@ -1078,6 +1078,14 @@ Enemies use Noita-style clumsy AI, and friendly fire and infighting are on.
   you that each block a hit and add damage). Panopticon -- and with it the
   four ocean zones -- is complete.
 
+- **M33 drafted** (`design/FINALS.md`, 2026-11-27): the kill order and the
+  four final bosses. Heaven and hell are a pair, and so are the past and the
+  future; in each pair the one killed last wins, and the final is the two
+  winners fused: the Fossil Angel, the Recording Angel, the Golden Calf or
+  the Feed. A final has no arena: it hunts you across the map, leaping to you
+  when you get away, its realms spreading along its path. Beating it is the
+  true victory. Build plan M33.1-M33.8.
+
 Next up (agreed order, `design/BOSSES.md` section 8): M33 the kill order and the final bosses, M34 extra quests (NPC
 side quests, more ring quests), M35 a balance pass (known items in
 `design/BOSSES.md` section 31), and last, M36 an art spec so custom pixel
